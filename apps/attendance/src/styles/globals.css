@@ -1,6 +1,7 @@
 @font-face {
   font-family: 'SBC Sans';
-  src: url('/fonts/Inter-VariableFont_opsz,wght.ttf') format('truetype');
+  src: url('../assets/fonts/Inter-VariableFont_opsz,wght.ttf')
+    format('truetype');
   font-style: normal;
   font-weight: 100 900;
   font-display: optional;
@@ -9,7 +10,7 @@
 
 @font-face {
   font-family: 'Kanit';
-  src: url('/fonts/Kanit-Regular.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-Regular.ttf') format('truetype');
   font-style: normal;
   font-weight: 400;
   font-display: optional;
@@ -18,7 +19,7 @@
 
 @font-face {
   font-family: 'Kanit';
-  src: url('/fonts/Kanit-Medium.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-Medium.ttf') format('truetype');
   font-style: normal;
   font-weight: 500;
   font-display: optional;
@@ -27,7 +28,7 @@
 
 @font-face {
   font-family: 'Kanit';
-  src: url('/fonts/Kanit-SemiBold.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-SemiBold.ttf') format('truetype');
   font-style: normal;
   font-weight: 600;
   font-display: optional;
@@ -36,7 +37,7 @@
 
 @font-face {
   font-family: 'Kanit';
-  src: url('/fonts/Kanit-Bold.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-Bold.ttf') format('truetype');
   font-style: normal;
   font-weight: 700;
   font-display: optional;
@@ -45,7 +46,7 @@
 
 @font-face {
   font-family: 'SBC Sans';
-  src: url('/fonts/Kanit-Regular.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-Regular.ttf') format('truetype');
   font-style: normal;
   font-weight: 400;
   font-display: optional;
@@ -54,7 +55,7 @@
 
 @font-face {
   font-family: 'SBC Sans';
-  src: url('/fonts/Kanit-Medium.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-Medium.ttf') format('truetype');
   font-style: normal;
   font-weight: 500;
   font-display: optional;
@@ -63,7 +64,7 @@
 
 @font-face {
   font-family: 'SBC Sans';
-  src: url('/fonts/Kanit-SemiBold.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-SemiBold.ttf') format('truetype');
   font-style: normal;
   font-weight: 600;
   font-display: optional;
@@ -72,7 +73,7 @@
 
 @font-face {
   font-family: 'SBC Sans';
-  src: url('/fonts/Kanit-Bold.ttf') format('truetype');
+  src: url('../assets/fonts/Kanit-Bold.ttf') format('truetype');
   font-style: normal;
   font-weight: 700;
   font-display: optional;

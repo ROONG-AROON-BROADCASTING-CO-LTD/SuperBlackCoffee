@@ -5,4 +5,5 @@ dist/
 .next/
 .env
 coverage/
+*.tsbuildinfo
 *.db
