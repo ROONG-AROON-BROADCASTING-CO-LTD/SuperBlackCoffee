@@ -21,12 +21,15 @@
     "build:api": "cd apps/api && go build ./cmd/api",
     "dev:admin": "pnpm --filter @stackbuild/admin dev",
     "dev:franchise": "pnpm --filter @stackbuild/franchise dev",
+    "dev:attendance": "pnpm --filter @stackbuild/attendance dev",
     "build:admin": "pnpm --filter @stackbuild/admin build",
     "build:franchise": "pnpm --filter @stackbuild/franchise build",
+    "build:attendance": "pnpm --filter @stackbuild/attendance build",
     "lint:admin": "pnpm --filter @stackbuild/admin lint",
     "lint:franchise": "pnpm --filter @stackbuild/franchise lint",
-    "dev": "concurrently \"pnpm run dev:website\" \"pnpm run dev:api\" \"pnpm run dev:admin\" \"pnpm run dev:franchise\"",
-    "build": "pnpm run build:website && cd apps/api && go build ./cmd/api && pnpm run build:admin && pnpm run build:franchise",
+    "lint:attendance": "pnpm --filter @stackbuild/attendance lint",
+    "dev": "concurrently \"pnpm run dev:website\" \"pnpm run dev:api\" \"pnpm run dev:admin\" \"pnpm run dev:franchise\" \"pnpm run dev:attendance\"",
+    "build": "pnpm run build:website && cd apps/api && go build ./cmd/api && pnpm run build:admin && pnpm run build:franchise && pnpm run build:attendance",
     "lint": "pnpm run lint:website && pnpm run lint:admin && pnpm run lint:franchise"
   },
   "devDependencies": {

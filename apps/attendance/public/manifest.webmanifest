@@ -1,0 +1,9 @@
+{
+  "name": "Super Black Coffee Staff",
+  "short_name": "SBC Staff",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf8",
+  "theme_color": "#171411",
+  "icons": [{ "src": "/icon-192.png", "sizes": "509x509", "type": "image/png" }]
+}
