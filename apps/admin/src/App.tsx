@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SbcThemeProvider } from '@stackbuild/ui';
+import { QueryAutoRetrySnackbar } from '@stackbuild/management';
 import { AdminLoginPage } from './features/auth/AdminLoginPage';
 import { AdminDashboard } from './features/dashboard/AdminDashboard';
 
@@ -23,6 +24,7 @@ export default function App() {
       ) : (
         <AdminLoginPage onLogin={() => setLoggedIn(true)} />
       )}
+      <QueryAutoRetrySnackbar />
     </SbcThemeProvider>
   );
 }

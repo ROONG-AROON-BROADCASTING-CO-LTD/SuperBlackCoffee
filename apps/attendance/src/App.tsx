@@ -15,6 +15,7 @@ import {
   type AttendanceStatus,
 } from './api/attendance';
 import { AttendanceLoginPage } from './features/auth/AttendanceLoginPage';
+import { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
 import { useAttendanceClock } from './hooks/useAttendanceClock';
 import { AttendanceAppLayout } from './layouts/AttendanceAppLayout';
 import { AttendancePageRouter } from './routes/AttendancePageRouter';
@@ -53,6 +54,8 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const clock = useAttendanceClock();
   const title = useMemo(
     () =>
@@ -63,22 +66,35 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return;
+    let active = true;
     void Promise.all([
       getAttendanceStatus(session.accessToken),
       getAttendanceHistory(session.accessToken),
     ])
       .then(([nextStatus, nextHistory]) => {
+        if (!active) return;
         setStatus(nextStatus);
         setHistory(nextHistory);
+        setConnectionError(false);
       })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'ไม่สามารถโหลดข้อมูลลงเวลาได้';
-        setNotice(message);
+      .catch(() => {
+        if (active) setConnectionError(true);
       });
-  }, [session]);
+    return () => {
+      active = false;
+    };
+  }, [retryTick, session]);
+
+  useEffect(() => {
+    if (!session || !connectionError) return;
+    const retry = () => setRetryTick((tick) => tick + 1);
+    const interval = window.setInterval(retry, 10_000);
+    window.addEventListener('online', retry);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('online', retry);
+    };
+  }, [connectionError, session]);
 
   const persistSession = (nextSession: AttendanceSession) => {
     sessionStorage.setItem('sbc-staff-session', JSON.stringify(nextSession));
@@ -154,10 +170,9 @@ export default function App() {
           ? 'เช็กอินเรียบร้อยแล้ว'
           : 'เช็กเอาต์เรียบร้อยแล้ว',
       );
-    } catch (error) {
-      setNotice(
-        error instanceof Error ? error.message : 'ไม่สามารถบันทึกเวลาได้',
-      );
+    } catch {
+      // Keep the current UI state when the action cannot be completed.
+      // Network implementation details must not be shown to staff.
     } finally {
       setLoading(false);
     }
@@ -186,12 +201,8 @@ export default function App() {
               try {
                 await createLeaveRequest(session.accessToken, input);
                 setNotice('ส่งคำขอลาเรียบร้อยแล้ว');
-              } catch (error) {
-                setNotice(
-                  error instanceof Error
-                    ? error.message
-                    : 'ไม่สามารถส่งคำขอลาได้',
-                );
+              } catch {
+                // The leave form remains open so the employee can try again.
               }
             }}
             onPage={setPage}
@@ -206,6 +217,7 @@ export default function App() {
               {notice}
             </Alert>
           ) : null}
+          <AutoRetrySnackbar open={connectionError} />
         </AttendanceAppLayout>
       ) : (
         <AttendanceLoginPage

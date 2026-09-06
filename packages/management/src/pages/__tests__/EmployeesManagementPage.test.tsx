@@ -148,4 +148,19 @@ describe('EmployeesManagementPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
     expect(screen.getByRole('button', { name: 'แก้ไขพนักงาน' })).toBeTruthy();
   });
+
+  it('shows load errors in each employee data area without a holiday error notice', async () => {
+    mockedListEmployees.mockRejectedValueOnce(new Error('network down'));
+    renderPage();
+
+    await waitFor(
+      () =>
+        expect(
+          screen.getAllByText('โหลดข้อมูลไม่สำเร็จ').length,
+        ).toBeGreaterThanOrEqual(4),
+      { timeout: 2_000 },
+    );
+
+    expect(screen.queryByText('โหลดวันหยุดไม่สำเร็จ')).toBeNull();
+  });
 });

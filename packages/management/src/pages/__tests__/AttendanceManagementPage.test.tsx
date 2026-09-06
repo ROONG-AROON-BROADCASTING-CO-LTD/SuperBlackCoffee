@@ -77,6 +77,15 @@ describe('AttendanceManagementPage', () => {
     expect(screen.getByText('สาขาอยุธยา')).toBeTruthy();
   });
 
+  it('keeps the attendance card layout while the initial data is loading', () => {
+    attendance.mockImplementationOnce(() => new Promise(() => undefined));
+    leaveRequests.mockImplementationOnce(() => new Promise(() => undefined));
+
+    renderPage();
+
+    expect(screen.getByLabelText('กำลังโหลดข้อมูลลงเวลาพนักงาน')).toBeTruthy();
+  });
+
   it('approves a pending leave request', async () => {
     renderPage();
     await waitFor(() =>
@@ -85,6 +94,14 @@ describe('AttendanceManagementPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'อนุมัติ' }));
     await waitFor(() =>
       expect(updateLeave).toHaveBeenCalledWith(4, 'approved'),
+    );
+  });
+
+  it('shows a short load error and automatic retry notice', async () => {
+    attendance.mockRejectedValueOnce(new Error('network down'));
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText('ไม่สามารถโหลดข้อมูลได้')).toBeTruthy(),
     );
   });
 });

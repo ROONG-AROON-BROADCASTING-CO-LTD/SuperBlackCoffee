@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Box, Button, Card, Chip, Typography } from '@mui/material';
+import { Box, Card, Chip, Typography } from '@mui/material';
 import { DashboardMain, formatDate } from '@stackbuild/ui';
 import type { AuditEvent } from '../../api';
 import { useAuditEvents } from '../../hooks/useAuditEvents';
@@ -26,7 +26,7 @@ function eventDescription(event: AuditEvent) {
 }
 
 export function AdminAuditPage() {
-  const { data: events = [], error, isLoading, refetch } = useAuditEvents();
+  const { data: events = [], error, isLoading } = useAuditEvents();
   const groupedEvents = useMemo(
     () =>
       events.map((event) => ({
@@ -76,14 +76,11 @@ export function AdminAuditPage() {
             fontFamily: 'Kanit, sans-serif',
           }}
         >
-          {error.message}{' '}
-          <Button size="small" onClick={() => refetch()}>
-            ลองใหม่
-          </Button>
+          ไม่สามารถโหลดประวัติได้ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ
         </Card>
       ) : null}
       {isLoading ? <AdminAuditSkeleton /> : null}
-      <Box sx={{ display: isLoading ? 'none' : 'grid', gap: 1.25 }}>
+      <Box sx={{ display: isLoading || error ? 'none' : 'grid', gap: 1.25 }}>
         {groupedEvents.map((event) => (
           <Card
             key={event.id}

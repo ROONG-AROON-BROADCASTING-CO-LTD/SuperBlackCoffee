@@ -30,6 +30,8 @@ import {
 } from '../components/sidebar/BranchesSidebar';
 import { listInventory } from '../api/inventory';
 import { StockSkeleton } from '../components/skeletons/StockSkeleton';
+import { DataLoadNotice } from '../components/DataLoadNotice';
+import { useAutoRetry } from '../hooks/useAutoRetry';
 
 type StockItem = {
   name: string;
@@ -62,7 +64,10 @@ export function StockManagementPage({
     Record<string, StockItem[]>
   >({});
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
+  useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
   const filterItems = (items: StockItem[]) =>
     items.filter(
       (item) =>
@@ -87,6 +92,7 @@ export function StockManagementPage({
   useEffect(() => {
     let active = true;
     setIsLoading(true);
+    setLoadError(false);
     const branchNames: InventoryBranch[] =
       activeBranch === 'ทุกสาขา'
         ? branches.filter(
@@ -118,7 +124,10 @@ export function StockManagementPage({
           );
       })
       .catch(() => {
-        if (active) setCatalogStockItemsByBranch({});
+        if (active) {
+          setCatalogStockItemsByBranch({});
+          setLoadError(true);
+        }
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -126,7 +135,7 @@ export function StockManagementPage({
     return () => {
       active = false;
     };
-  }, [activeBranch]);
+  }, [activeBranch, reloadKey]);
   const openAdd = () => {
     setEditingItem(null);
     setImagePreviewUrl(null);
@@ -221,7 +230,8 @@ export function StockManagementPage({
           </Button>
         ))}
       </Box>
-      <Box sx={{ display: 'grid', gap: 4 }}>
+      {loadError ? <DataLoadNotice /> : null}
+      <Box sx={{ display: loadError ? 'none' : 'grid', gap: 4 }}>
         {displayedBranches.map((branch, index) => {
           const filteredItems = filterItems(
             catalogStockItemsByBranch[branch] ?? [],

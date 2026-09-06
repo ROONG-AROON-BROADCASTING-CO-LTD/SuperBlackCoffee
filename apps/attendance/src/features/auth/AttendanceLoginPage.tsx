@@ -101,7 +101,7 @@ export function AttendanceLoginPage({
           p: { xs: 3, sm: 4.5 },
           display: 'grid',
           gap: 2.5,
-          borderRadius: 3,
+          borderRadius: '15px',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

@@ -23,6 +23,7 @@ import {
 } from '../../hooks/useStockRequests';
 import { listBranches } from '../../api/branches';
 import { AdminOrdersSkeleton } from '../../components/skeletons/AdminOrdersSkeleton';
+import { useAutoRetry } from '@stackbuild/management';
 
 type RequestStatus =
   'pending' | 'approved' | 'preparing' | 'completed' | 'rejected';
@@ -95,19 +96,26 @@ export function AdminOrdersPage({
   const [branches, setBranches] = useState<
     Awaited<ReturnType<typeof listBranches>>
   >([]);
+  const [branchLoadError, setBranchLoadError] = useState(false);
+  const [branchReloadKey, setBranchReloadKey] = useState(0);
+  useAutoRetry(branchLoadError, () => setBranchReloadKey((key) => key + 1));
   useEffect(() => {
     let active = true;
+    setBranchLoadError(false);
     void listBranches()
       .then((items) => {
         if (active) setBranches(items);
       })
       .catch(() => {
-        if (active) setBranches([]);
+        if (active) {
+          setBranches([]);
+          setBranchLoadError(true);
+        }
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [branchReloadKey]);
   const franchiseBranchIds = useMemo(
     () =>
       new Set(
@@ -381,7 +389,37 @@ export function AdminOrdersPage({
         }}
       />
       {error && (
+        <Card
+          variant="outlined"
+          role="alert"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+            p: 2,
+            borderRadius: '15px',
+            borderColor: '#edc7c3',
+            bgcolor: '#fffaf8',
+          }}
+        >
+          <Typography
+            sx={{
+              color: '#a22e2a',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 14,
+            }}
+          >
+            โหลดคำขอไม่สำเร็จ
+          </Typography>
+          <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
+            กำลังลองเชื่อมต่อใหม่อัตโนมัติ
+          </Typography>
+        </Card>
+      )}
+      {branchLoadError ? (
         <Box
+          role="alert"
           sx={{
             mb: 2,
             p: 1.5,
@@ -390,16 +428,13 @@ export function AdminOrdersPage({
             color: '#a22e2a',
           }}
         >
-          โหลดคำขอไม่สำเร็จ{' '}
-          <Button size="small" onClick={() => refetch()}>
-            ลองใหม่
-          </Button>
+          โหลดรายชื่อสาขาไม่สำเร็จ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ
         </Box>
-      )}
+      ) : null}
       {isLoading && <AdminOrdersSkeleton />}
       <Box
         sx={{
-          display: 'grid',
+          display: isLoading || error ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             md: 'repeat(3, minmax(0, 1fr))',

@@ -6,13 +6,11 @@ describe('attendance API client', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('sends browser credentials so the HttpOnly attendance session cookie is included', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ success: true, data: { ok: true } }), {
-          status: 200,
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { ok: true } }), {
+        status: 200,
+      }),
+    );
     await publicRequest<{ ok: boolean }>('/attendance/login', {
       method: 'POST',
     });

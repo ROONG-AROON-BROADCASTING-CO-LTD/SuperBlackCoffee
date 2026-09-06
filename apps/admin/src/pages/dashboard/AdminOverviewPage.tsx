@@ -320,6 +320,10 @@ export function AdminOverviewPage({
             <Box
               role="alert"
               sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1.5,
                 border: '1px solid #e7b8ae',
                 borderRadius: '12px',
                 bgcolor: '#fff7f5',
@@ -329,7 +333,9 @@ export function AdminOverviewPage({
                 fontSize: 14,
               }}
             >
-              ดึงข้อมูลบางส่วนไม่สำเร็จ กรุณาลองรีเฟรชหน้าอีกครั้ง
+              <span>
+                โหลดข้อมูลบางส่วนไม่สำเร็จ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ
+              </span>
             </Box>
           ) : null}
           <Box
@@ -344,23 +350,39 @@ export function AdminOverviewPage({
           >
             <MetricCard
               label="ยอดขายวันนี้"
-              value={formatCurrency(overviewSales)}
-              helper="รวมเฉพาะรายการที่ชำระเงินแล้ว"
-              accent="#805637"
+              value={hasError ? '—' : formatCurrency(overviewSales)}
+              helper={
+                hasError
+                  ? 'โหลดข้อมูลไม่สำเร็จ'
+                  : 'รวมเฉพาะรายการที่ชำระเงินแล้ว'
+              }
+              accent={hasError ? '#b63b35' : '#805637'}
             />
             <MetricCard
               label="คำสั่งซื้อที่ชำระแล้ว"
-              value={`${formatCount(overviewOrders)} รายการ`}
-              helper="คำสั่งซื้อที่บันทึกสำเร็จในวันนี้"
-              accent="#4c8f70"
+              value={hasError ? '—' : `${formatCount(overviewOrders)} รายการ`}
+              helper={
+                hasError
+                  ? 'โหลดข้อมูลไม่สำเร็จ'
+                  : 'คำสั่งซื้อที่บันทึกสำเร็จในวันนี้'
+              }
+              accent={hasError ? '#b63b35' : '#4c8f70'}
             />
             <MetricCard
               label="ยอดเฉลี่ยต่อบิล"
-              value={formatCurrency(
-                overviewOrders === 0 ? 0 : overviewSales / overviewOrders,
-              )}
-              helper="ยอดขายเฉลี่ยต่อคำสั่งซื้อที่ชำระแล้ว"
-              accent="#c38642"
+              value={
+                hasError
+                  ? '—'
+                  : formatCurrency(
+                      overviewOrders === 0 ? 0 : overviewSales / overviewOrders,
+                    )
+              }
+              helper={
+                hasError
+                  ? 'โหลดข้อมูลไม่สำเร็จ'
+                  : 'ยอดขายเฉลี่ยต่อคำสั่งซื้อที่ชำระแล้ว'
+              }
+              accent={hasError ? '#b63b35' : '#c38642'}
             />
           </Box>
           <Box
@@ -446,7 +468,11 @@ export function AdminOverviewPage({
                       </Typography>
                     </Box>
                   ))}
-                  {!branchSales.isLoading && branchSalesRows.length === 0 ? (
+                  {branchSales.isError ? (
+                    <Typography sx={{ color: '#a22e2a', fontSize: 13 }}>
+                      ไม่สามารถโหลดข้อมูลยอดขายได้
+                    </Typography>
+                  ) : !branchSales.isLoading && branchSalesRows.length === 0 ? (
                     <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>
                       ยังไม่มีข้อมูลยอดขายของสาขา
                     </Typography>
@@ -472,54 +498,60 @@ export function AdminOverviewPage({
                   จำนวนคงเหลือและรายการที่ต้องติดตาม
                 </Typography>
                 <Stack spacing={1.25} sx={{ mt: 2.3 }}>
-                  {branchStockRows.map((branch) => (
-                    <Box
-                      key={branch.branch}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: 2,
-                        p: 1.5,
-                        border: '1px solid #eee4dd',
-                        borderRadius: '12px',
-                      }}
-                    >
-                      <Box>
+                  {branchStock.isError ? (
+                    <Typography sx={{ color: '#a22e2a', fontSize: 13 }}>
+                      ไม่สามารถโหลดข้อมูลสต๊อกได้
+                    </Typography>
+                  ) : (
+                    branchStockRows.map((branch) => (
+                      <Box
+                        key={branch.branch}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 2,
+                          p: 1.5,
+                          border: '1px solid #eee4dd',
+                          borderRadius: '12px',
+                        }}
+                      >
+                        <Box>
+                          <Typography
+                            sx={{
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: 15,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {branch.branch}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              mt: 0.1,
+                              color: 'text.secondary',
+                              fontSize: 12,
+                            }}
+                          >
+                            คงเหลือ {branch.quantity.toLocaleString('th-TH')}{' '}
+                            หน่วย
+                          </Typography>
+                        </Box>
                         <Typography
                           sx={{
+                            color: branch.low ? '#a76415' : '#3c5b47',
                             fontFamily: 'Kanit, sans-serif',
-                            fontSize: 15,
+                            fontSize: 12,
                             fontWeight: 600,
                           }}
                         >
-                          {branch.branch}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            mt: 0.1,
-                            color: 'text.secondary',
-                            fontSize: 12,
-                          }}
-                        >
-                          คงเหลือ {branch.quantity.toLocaleString('th-TH')}{' '}
-                          หน่วย
+                          {branch.low
+                            ? `${branch.low} รายการใกล้หมด`
+                            : 'พร้อมใช้งาน'}
                         </Typography>
                       </Box>
-                      <Typography
-                        sx={{
-                          color: branch.low ? '#a76415' : '#3c5b47',
-                          fontFamily: 'Kanit, sans-serif',
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {branch.low
-                          ? `${branch.low} รายการใกล้หมด`
-                          : 'พร้อมใช้งาน'}
-                      </Typography>
-                    </Box>
-                  ))}
+                    ))
+                  )}
                 </Stack>
               </Box>
             </Card>

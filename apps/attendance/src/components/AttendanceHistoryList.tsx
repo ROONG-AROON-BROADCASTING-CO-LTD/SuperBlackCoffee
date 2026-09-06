@@ -42,8 +42,8 @@ export function AttendanceHistoryList({
       sx={{
         p: { xs: 2, sm: '18px 22px' },
         overflowX: 'auto',
-        borderColor: '#e2d3c7',
-        borderRadius: 2.25,
+        borderColor: '#e8ddd5',
+        borderRadius: '15px',
         bgcolor: '#fffdfb',
       }}
     >

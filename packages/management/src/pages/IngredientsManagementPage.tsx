@@ -33,6 +33,8 @@ import {
   type Branch,
 } from '../components/sidebar/BranchesSidebar';
 import { IngredientsSkeleton } from '../components/skeletons/IngredientsSkeleton';
+import { DataLoadNotice } from '../components/DataLoadNotice';
+import { useAutoRetry } from '../hooks/useAutoRetry';
 import { listInventory } from '../api/inventory';
 import { createStockRequest } from '../api/stock-requests';
 
@@ -87,7 +89,10 @@ export function IngredientsManagementPage({
     Record<string, Ingredient[]>
   >({});
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
+  useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<IngredientCartItem[]>([]);
   const [cartError, setCartError] = useState<string | null>(null);
@@ -128,6 +133,7 @@ export function IngredientsManagementPage({
   useEffect(() => {
     let active = true;
     setIsLoading(true);
+    setLoadError(false);
     const branchNames: InventoryBranch[] =
       activeBranch === 'ทุกสาขา'
         ? branches.filter(
@@ -166,7 +172,10 @@ export function IngredientsManagementPage({
           );
       })
       .catch(() => {
-        if (active) setCatalogIngredientsByBranch({});
+        if (active) {
+          setCatalogIngredientsByBranch({});
+          setLoadError(true);
+        }
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -174,7 +183,7 @@ export function IngredientsManagementPage({
     return () => {
       active = false;
     };
-  }, [activeBranch]);
+  }, [activeBranch, reloadKey]);
   useEffect(
     () => () => {
       if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
@@ -429,7 +438,8 @@ export function IngredientsManagementPage({
           </Button>
         ))}
       </Box>
-      <Box sx={{ display: 'grid', gap: 4 }}>
+      {loadError ? <DataLoadNotice /> : null}
+      <Box sx={{ display: loadError ? 'none' : 'grid', gap: 4 }}>
         {displayedBranches.map((branch, index) => {
           const filteredIngredients = filterIngredients(
             catalogIngredientsByBranch[branch] ?? [],

@@ -36,8 +36,8 @@ export function AttendanceLeaveRequestPage({
         sx={{
           maxWidth: 700,
           p: { xs: 2.5, sm: 3.5 },
-          borderColor: '#e2d3c7',
-          borderRadius: 2.25,
+          borderColor: '#e8ddd5',
+          borderRadius: '15px',
           bgcolor: '#fffdfb',
         }}
       >

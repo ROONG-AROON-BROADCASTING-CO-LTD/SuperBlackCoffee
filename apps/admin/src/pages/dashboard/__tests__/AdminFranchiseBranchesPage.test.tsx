@@ -72,6 +72,19 @@ describe('AdminFranchiseBranchesPage', () => {
     expect(screen.getByText('แพ็กเกจ S')).toBeTruthy();
   });
 
+  it('keeps the franchise card grid while loading', () => {
+    mockedListFranchisees.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    );
+    mockedListBranches.mockImplementationOnce(
+      () => new Promise(() => undefined),
+    );
+
+    render(<AdminFranchiseBranchesPage />);
+
+    expect(screen.getByLabelText('กำลังโหลดข้อมูลสาขาแฟรนไชส์')).toBeTruthy();
+  });
+
   it('creates a franchise from the add-account drawer and refreshes the list', async () => {
     render(<AdminFranchiseBranchesPage />);
     await waitFor(() =>
@@ -147,5 +160,17 @@ describe('AdminFranchiseBranchesPage', () => {
       expect(mockedUpdateFranchiseeStatus).toHaveBeenCalledWith(22, 'active'),
     );
     expect(screen.getByText('ใช้งานแล้ว')).toBeTruthy();
+  });
+
+  it('keeps the page layout and shows a short error when data cannot load', async () => {
+    mockedListFranchisees.mockRejectedValueOnce(new Error('network down'));
+    render(<AdminFranchiseBranchesPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('alert')[0].textContent).toContain(
+        'ไม่สามารถโหลดข้อมูลแฟรนไชส์ได้',
+      ),
+    );
+    expect(screen.getByText(/เชื่อมต่อระบบไม่ได้ จะลองใหม่ใน/)).toBeTruthy();
   });
 });

@@ -46,8 +46,8 @@ export function TimeCard({ clock }: { clock: string }) {
       sx={{
         p: 2.75,
         textAlign: 'center',
-        borderColor: '#e2d3c7',
-        borderRadius: 2.25,
+        borderColor: '#e8ddd5',
+        borderRadius: '15px',
         bgcolor: '#fffdfb',
       }}
     >
@@ -100,8 +100,8 @@ export function TodayCard({
         display: 'grid',
         alignContent: 'start',
         gap: 2,
-        borderColor: '#e2d3c7',
-        borderRadius: 2.25,
+        borderColor: '#e8ddd5',
+        borderRadius: '15px',
         bgcolor: '#fffdfb',
       }}
     >

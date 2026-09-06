@@ -17,6 +17,7 @@ import {
 } from '@stackbuild/ui';
 import { listBranchSales } from '../../api';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
+import { AutoRetrySnackbar, useAutoRetry } from '@stackbuild/management';
 
 const periods = ['วันนี้', 'เดือนนี้', 'ปีนี้'] as const;
 type Period = (typeof periods)[number];
@@ -51,10 +52,14 @@ export function AdminBranchesPage() {
   const [query, setQuery] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
+    setLoadError(false);
     void listBranchSales(apiPeriod[period])
       .then((items) => {
         if (!cancelled)
@@ -66,7 +71,10 @@ export function AdminBranchesPage() {
           );
       })
       .catch(() => {
-        if (!cancelled) setBranches([]);
+        if (!cancelled) {
+          setBranches([]);
+          setLoadError(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -74,7 +82,7 @@ export function AdminBranchesPage() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, reloadKey]);
 
   const visibleBranches = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('th-TH');
@@ -176,43 +184,69 @@ export function AdminBranchesPage() {
           borderColor: '#e8ddd5',
         }}
       >
-        <Typography
-          sx={{
-            color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: 14,
-          }}
-        >
-          {periodLabel[period]}
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.25,
-            color: '#201914',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: { xs: 28, md: 32 },
-            fontWeight: 700,
-          }}
-        >
-          {totalSales.toLocaleString('th-TH')} บาท
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.25,
-            color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: 13,
-          }}
-        >
-          จาก {totalOrders.toLocaleString('th-TH')}{' '}
-          ออเดอร์ที่ชำระเงินแล้วของทุกสาขา
-        </Typography>
+        {loadError ? (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
+            }}
+          >
+            <Typography
+              sx={{
+                color: '#a22e2a',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 14,
+              }}
+            >
+              ไม่สามารถโหลดข้อมูลสาขาได้
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
+              กำลังลองเชื่อมต่อใหม่อัตโนมัติ
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 14,
+              }}
+            >
+              {periodLabel[period]}
+            </Typography>
+            <Typography
+              sx={{
+                mt: 0.25,
+                color: '#201914',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: { xs: 28, md: 32 },
+                fontWeight: 700,
+              }}
+            >
+              {totalSales.toLocaleString('th-TH')} บาท
+            </Typography>
+            <Typography
+              sx={{
+                mt: 0.25,
+                color: 'text.secondary',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+              }}
+            >
+              จาก {totalOrders.toLocaleString('th-TH')}{' '}
+              ออเดอร์ที่ชำระเงินแล้วของทุกสาขา
+            </Typography>
+          </>
+        )}
       </Card>
       {isLoading ? <AdminBranchesSkeleton /> : null}
 
       <Box
         sx={{
-          display: isLoading ? 'none' : 'grid',
+          display: isLoading || loadError ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
@@ -313,7 +347,7 @@ export function AdminBranchesPage() {
           );
         })}
       </Box>
-      {!isLoading && visibleBranches.length === 0 && (
+      {!isLoading && !loadError && visibleBranches.length === 0 && (
         <Typography
           sx={{
             pt: 4,
@@ -325,6 +359,7 @@ export function AdminBranchesPage() {
           ไม่พบข้อมูลสาขา
         </Typography>
       )}
+      <AutoRetrySnackbar open={loadError} />
     </DashboardMain>
   );
 }

@@ -26,6 +26,8 @@ import {
   type Branch,
   type Franchisee,
 } from '../../api';
+import { AdminFranchiseBranchesSkeleton } from '../../components/skeletons/AdminFranchiseBranchesSkeleton';
+import { AutoRetrySnackbar, useAutoRetry } from '@stackbuild/management';
 
 type FranchisePlan = 'S' | 'M' | 'L';
 
@@ -122,6 +124,8 @@ export function AdminFranchiseBranchesPage() {
   const [franchisees, setFranchisees] = useState<FranchiseBranchCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -142,7 +146,7 @@ export function AdminFranchiseBranchesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
   const visibleFranchisees = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('th-TH');
     if (!normalizedQuery) return franchisees;
@@ -295,7 +299,7 @@ export function AdminFranchiseBranchesPage() {
       </Box>
       <Box
         sx={{
-          display: 'grid',
+          display: isLoading || loadError ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
@@ -416,29 +420,35 @@ export function AdminFranchiseBranchesPage() {
           </Card>
         ))}
       </Box>
-      {isLoading && (
-        <Typography
-          sx={{
-            pt: 4,
-            textAlign: 'center',
-            color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
-          }}
-        >
-          กำลังโหลดข้อมูลสาขาแฟรนไชส์…
-        </Typography>
-      )}
+      {isLoading ? <AdminFranchiseBranchesSkeleton contentOnly /> : null}
       {loadError && (
-        <Typography
+        <Card
+          variant="outlined"
+          role="alert"
           sx={{
-            pt: 4,
-            textAlign: 'center',
-            color: 'error.main',
-            fontFamily: 'Kanit, sans-serif',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1.5,
+            p: 2,
+            borderColor: '#edc7c3',
+            borderRadius: '15px',
+            bgcolor: '#fffaf8',
           }}
         >
-          ไม่สามารถโหลดข้อมูลสาขาแฟรนไชส์ได้
-        </Typography>
+          <Typography
+            sx={{
+              color: '#a22e2a',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 14,
+            }}
+          >
+            ไม่สามารถโหลดข้อมูลแฟรนไชส์ได้
+          </Typography>
+          <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
+            กำลังลองเชื่อมต่อใหม่อัตโนมัติ
+          </Typography>
+        </Card>
       )}
       {!isLoading && !loadError && visibleFranchisees.length === 0 && (
         <Typography
@@ -459,6 +469,7 @@ export function AdminFranchiseBranchesPage() {
           {activationError}
         </Typography>
       ) : null}
+      <AutoRetrySnackbar open={loadError} />
       <Drawer
         anchor="bottom"
         open={isDrawerOpen}

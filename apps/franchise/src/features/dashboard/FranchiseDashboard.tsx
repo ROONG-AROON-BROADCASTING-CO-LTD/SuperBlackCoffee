@@ -62,7 +62,7 @@ const readPlan = (): FranchisePlan => {
 function FranchisePageSkeleton({ page }: { page: string }) {
   const skeleton =
     page === 'ตารางพนักงาน' ? (
-      <EmployeesSkeleton franchiseMode showHeader />
+      <EmployeesSkeleton franchiseMode />
     ) : page === 'วัตถุดิบ' ? (
       <IngredientsSkeleton />
     ) : page === 'เมนูและสินค้า' ? (

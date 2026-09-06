@@ -4,6 +4,7 @@ import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+  BadgeAlertIcon: () => <span aria-hidden="true" />,
 }));
 vi.mock('../components/AttendanceNavigation', () => ({
   attendanceNavigation: [{ page: 'overview', label: 'ภาพรวม' }],

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { DashboardMain, coffeeIngredientsImage } from '@stackbuild/ui';
 import {
   EmployeesSkeleton,
+  AttendanceSkeleton,
   IngredientsSkeleton,
   ProductsSkeleton,
   StockSkeleton,
@@ -14,6 +15,7 @@ import { AdminOverviewSkeleton } from '../../components/skeletons/AdminOverviewS
 import { AdminAuditSkeleton } from '../../components/skeletons/AdminAuditSkeleton';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
 import { AdminOrdersSkeleton } from '../../components/skeletons/AdminOrdersSkeleton';
+import { AdminFranchiseBranchesSkeleton } from '../../components/skeletons/AdminFranchiseBranchesSkeleton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { listBranches, type Branch as ApiBranch } from '../../api/branches';
 import {
@@ -89,7 +91,11 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
     ) : page === 'วัตถุดิบ' ? (
       <IngredientsSkeleton />
     ) : page === 'ตารางพนักงาน' ? (
-      <EmployeesSkeleton showHeader />
+      <EmployeesSkeleton />
+    ) : page === 'ลงเวลาพนักงาน' ? (
+      <AttendanceSkeleton />
+    ) : page === 'สาขาแฟรนไชส์' ? (
+      <AdminFranchiseBranchesSkeleton />
     ) : (
       <AdminBranchesSkeleton />
     );

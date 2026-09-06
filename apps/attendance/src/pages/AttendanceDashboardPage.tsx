@@ -73,8 +73,8 @@ export function AttendanceDashboardPage({
             display: 'grid',
             gap: 2,
             alignContent: 'center',
-            borderColor: '#e2d3c7',
-            borderRadius: 2.25,
+            borderColor: '#e8ddd5',
+            borderRadius: '15px',
             bgcolor: '#fffdfb',
           }}
         >

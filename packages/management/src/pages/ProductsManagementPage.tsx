@@ -26,6 +26,8 @@ import {
   type Branch,
 } from '../components/sidebar/BranchesSidebar';
 import { ProductsSkeleton } from '../components/skeletons/ProductsSkeleton';
+import { DataLoadNotice } from '../components/DataLoadNotice';
+import { useAutoRetry } from '../hooks/useAutoRetry';
 import { listInventory } from '../api/inventory';
 import { listMenuItems } from '../api/menu';
 import coffeeMenuDefaultImage from '../assets/coffee.svg';
@@ -160,6 +162,9 @@ export function ProductsManagementPage({
   const [preview, setPreview] = useState<string | null>(null);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
   const [availableIngredients, setAvailableIngredients] = useState<string[]>(
     [],
   );
@@ -252,6 +257,7 @@ export function ProductsManagementPage({
   useEffect(() => {
     let active = true;
     setIsLoading(true);
+    setLoadError(false);
     const branchCodes =
       activeBranch === 'ทุกสาขา'
         ? branches
@@ -274,6 +280,13 @@ export function ProductsManagementPage({
     ])
       .then(([itemsResult, ingredientsResult, stockResult]) => {
         if (!active) return;
+        if (
+          itemsResult.status === 'rejected' ||
+          ingredientsResult.status === 'rejected' ||
+          stockResult.status === 'rejected'
+        ) {
+          setLoadError(true);
+        }
         const items =
           itemsResult.status === 'fulfilled' ? itemsResult.value : [];
         const ingredients =
@@ -314,7 +327,7 @@ export function ProductsManagementPage({
     return () => {
       active = false;
     };
-  }, [activeBranch]);
+  }, [activeBranch, reloadKey]);
 
   return (
     <DashboardMain>
@@ -399,7 +412,10 @@ export function ProductsManagementPage({
           </Button>
         ))}
       </Box>
-      <Box sx={{ display: 'grid', gap: 4 }}>
+      {loadError ? (
+        <DataLoadNotice message="โหลดข้อมูลบางส่วนไม่สำเร็จ" />
+      ) : null}
+      <Box sx={{ display: loadError ? 'none' : 'grid', gap: 4 }}>
         {displayedBranches.map((branch, index) => {
           const visible =
             activeBranch !== 'ทุกสาขา' || visibleBranches.has(branch);

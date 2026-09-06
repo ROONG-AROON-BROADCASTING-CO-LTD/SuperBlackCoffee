@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { SbcThemeProvider } from '@stackbuild/ui';
+import { QueryAutoRetrySnackbar } from '@stackbuild/management';
 import { FranchiseLoginPage } from './features/auth/FranchiseLoginPage';
 import { FranchiseDashboard } from './features/dashboard/FranchiseDashboard';
 
@@ -26,6 +27,7 @@ export default function App() {
       ) : (
         <FranchiseLoginPage onLogin={() => setLoggedIn(true)} />
       )}
+      <QueryAutoRetrySnackbar />
     </SbcThemeProvider>
   );
 }
