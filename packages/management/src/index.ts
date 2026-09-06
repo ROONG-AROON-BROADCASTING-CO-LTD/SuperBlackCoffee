@@ -2,6 +2,7 @@ export { EmployeesManagementPage } from './pages/EmployeesManagementPage';
 export { IngredientsManagementPage } from './pages/IngredientsManagementPage';
 export { ProductsManagementPage } from './pages/ProductsManagementPage';
 export { StockManagementPage } from './pages/StockManagementPage';
+export { AttendanceManagementPage } from './pages/AttendanceManagementPage';
 export {
   BranchesSidebar,
   branchCodeByBranch,

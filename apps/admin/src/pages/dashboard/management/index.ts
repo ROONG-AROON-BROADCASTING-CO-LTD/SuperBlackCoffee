@@ -3,4 +3,5 @@ export {
   IngredientsManagementPage,
   ProductsManagementPage,
   StockManagementPage,
+  AttendanceManagementPage,
 } from '@stackbuild/management';

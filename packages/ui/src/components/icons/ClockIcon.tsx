@@ -11,14 +11,15 @@ export const ClockIcon = forwardRef<
   {
     size?: number;
     animated?: boolean;
+    animate?: boolean;
   }
->(({ size = 20, animated = false }, ref) => {
+>(({ size = 20, animated = false, animate = animated }, ref) => {
   const controls = useAnimation();
   const controlled = useRef(false);
 
   useEffect(() => {
-    void controls.start(animated ? 'animate' : 'normal');
-  }, [animated, controls]);
+    void controls.start(animate ? 'animate' : 'normal');
+  }, [animate, controls]);
 
   useImperativeHandle(ref, () => {
     controlled.current = true;

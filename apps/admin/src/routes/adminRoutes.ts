@@ -8,6 +8,7 @@ export const adminPagePaths = {
   'สาขา SBC': '/branches',
   สาขาแฟรนไชส์: '/franchise-branches',
   ตารางพนักงาน: '/employees',
+  ลงเวลาพนักงาน: '/attendance',
 } as const;
 
 export type AdminPage = keyof typeof adminPagePaths;

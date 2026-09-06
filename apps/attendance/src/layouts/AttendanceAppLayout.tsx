@@ -10,6 +10,7 @@ import type { StaffPage } from '../types/attendance';
 
 type AttendanceAppLayoutProps = {
   username: string;
+  branchName: string;
   page: StaffPage;
   title: string;
   onPage: (page: StaffPage) => void;
@@ -19,6 +20,7 @@ type AttendanceAppLayoutProps = {
 
 export function AttendanceAppLayout({
   username,
+  branchName,
   page,
   title,
   onPage,
@@ -108,7 +110,7 @@ export function AttendanceAppLayout({
             <Box>
               <Typography sx={{ fontWeight: 600 }}>{username}</Typography>
               <Typography variant="caption" color="text.secondary">
-                พนักงานสาขาอยุธยา
+                พนักงานสาขา{branchName}
               </Typography>
             </Box>
           </Stack>

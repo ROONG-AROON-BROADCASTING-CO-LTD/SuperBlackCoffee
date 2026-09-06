@@ -5,6 +5,7 @@ export const franchisePagePaths = {
   สต๊อก: '/stock',
   วัตถุดิบ: '/ingredients',
   ตารางพนักงาน: '/employees',
+  ลงเวลาพนักงาน: '/attendance',
 } as const;
 
 export type FranchisePage = keyof typeof franchisePagePaths;

@@ -21,6 +21,9 @@ func RequireAuth(secret string, roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
 		if raw == "" {
+			raw, _ = c.Cookie("sbc_attendance_session")
+		}
+		if raw == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบ access token"})
 			return
 		}

@@ -7,21 +7,31 @@ import {
 } from '../components/AttendanceCards';
 import { AttendanceHistoryList } from '../components/AttendanceHistoryList';
 import type { StaffPage } from '../types/attendance';
+import type {
+  AttendanceHistoryItem,
+  AttendanceSession,
+} from '../api/attendance';
 
 type AttendanceDashboardPageProps = {
   username: string;
+  staff: AttendanceSession['user'];
   checkedIn: boolean;
+  checkInAt: string | null;
   clock: string;
   onAction: () => void;
   onPage: (page: StaffPage) => void;
+  history: AttendanceHistoryItem[];
 };
 
 export function AttendanceDashboardPage({
   username,
+  staff,
   checkedIn,
+  checkInAt,
   clock,
   onAction,
   onPage,
+  history,
 }: AttendanceDashboardPageProps) {
   return (
     <Stack spacing={2.5}>
@@ -76,9 +86,9 @@ export function AttendanceDashboardPage({
               : 'กรุณาเช็กอินเมื่อมาถึงที่ทำงาน'}
           </Typography>
         </Paper>
-        <TodayCard checkedIn={checkedIn} />
+        <TodayCard checkedIn={checkedIn} checkInAt={checkInAt} staff={staff} />
       </Box>
-      <AttendanceHistoryList compact />
+      <AttendanceHistoryList compact history={history} />
     </Stack>
   );
 }

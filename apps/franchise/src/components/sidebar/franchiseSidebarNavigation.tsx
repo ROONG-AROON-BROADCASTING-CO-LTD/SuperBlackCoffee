@@ -1,6 +1,7 @@
 import {
   BoxIcon,
   BoxesIcon,
+  ClockIcon,
   LayoutGridIcon,
   ReceiptIcon,
   ReceiptTextIcon,
@@ -15,6 +16,7 @@ export const navigation = [
   { label: 'สต๊อก', icon: <BoxIcon />, group: 'สินค้าและคลัง' },
   { label: 'วัตถุดิบ', icon: <BoxesIcon />, group: 'สินค้าและคลัง' },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
+  { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
 ] as const;
 
 export type FranchisePlan = 'S' | 'M' | 'L';

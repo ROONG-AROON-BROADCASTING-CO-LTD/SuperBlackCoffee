@@ -39,6 +39,17 @@ func TestProtectedRoutesRequireToken(t *testing.T) {
 	}
 }
 
+func TestProtectedRoutesAcceptAttendanceSessionCookie(t *testing.T) {
+	r := New(nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: testToken(t, "cashier")})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code == http.StatusUnauthorized {
+		t.Fatalf("attendance session cookie was not accepted")
+	}
+}
+
 func TestUsersRequireAdminToken(t *testing.T) {
 	r := New(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
@@ -106,6 +117,9 @@ func TestCORSOnlyAllowsConfiguredOrigin(t *testing.T) {
 	}
 	if got := res.Header().Get("Access-Control-Max-Age"); got != "600" {
 		t.Fatalf("Access-Control-Max-Age = %q, want 600", got)
+	}
+	if got := res.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("credentials = %q, want true", got)
 	}
 }
 

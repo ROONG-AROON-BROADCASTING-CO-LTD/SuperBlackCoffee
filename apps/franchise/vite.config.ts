@@ -29,6 +29,10 @@ export default defineConfig({
         dirname,
         '../../packages/management/src/pages/StockManagementPage.tsx',
       ),
+      '@stackbuild/management/pages/attendance': path.resolve(
+        dirname,
+        '../../packages/management/src/pages/AttendanceManagementPage.tsx',
+      ),
       '@stackbuild/management/skeletons/employees': path.resolve(
         dirname,
         '../../packages/management/src/components/skeletons/EmployeesSkeleton.tsx',

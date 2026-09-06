@@ -20,12 +20,22 @@ func registerPublicRoutes(r *gin.Engine, deps routeDependencies) {
 	v1.GET("/status", health)
 	v1.POST("/website/leads", deps.platform.CreateWebsiteLead)
 	v1.POST("/auth/login", deps.platform.Login)
+	v1.POST("/attendance/login", deps.platform.AttendanceLogin)
+	v1.POST("/attendance/setup-pin", deps.platform.SetupAttendancePIN)
 }
 
 func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected := r.Group("/api/v1")
 	protected.Use(middleware.RequireAuth(deps.secret))
 	protected.GET("/dashboard", deps.platform.Dashboard)
+	protected.GET("/attendance/today", deps.platform.AttendanceToday)
+	protected.GET("/attendance/history", deps.platform.AttendanceHistory)
+	protected.POST("/attendance/check-in", deps.platform.CheckIn)
+	protected.POST("/attendance/check-out", deps.platform.CheckOut)
+	protected.POST("/attendance/leave-requests", deps.platform.CreateLeaveRequest)
+	protected.GET("/attendance/management", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListAttendanceManagement)
+	protected.GET("/attendance/leave-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListLeaveRequests)
+	protected.PATCH("/attendance/leave-requests/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.UpdateLeaveRequestStatus)
 	protected.GET("/metrics", middleware.RequireAuth(deps.secret, "admin"), middleware.Metrics)
 	protected.GET("/branches", deps.platform.ListBranches)
 	protected.GET("/users", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListStaffUsers)

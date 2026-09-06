@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 5177",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
-    "lint": "tsc --noEmit -p tsconfig.app.json"
+    "lint": "tsc --noEmit -p tsconfig.app.json",
+    "test": "vitest run src"
   },
   "dependencies": {
     "@emotion/react": "latest",

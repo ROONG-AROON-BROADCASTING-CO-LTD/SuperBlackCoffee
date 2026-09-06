@@ -36,6 +36,11 @@ const AdminEmployeesPage = lazy(() =>
     default: module.EmployeesManagementPage,
   })),
 );
+const AdminAttendancePage = lazy(() =>
+  import('../../pages/dashboard/management').then((module) => ({
+    default: module.AttendanceManagementPage,
+  })),
+);
 const AdminIngredientsPage = lazy(() =>
   import('../../pages/dashboard/management').then((module) => ({
     default: module.IngredientsManagementPage,
@@ -170,6 +175,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     <AdminFranchiseBranchesPage />
   ) : activePage === 'ตารางพนักงาน' ? (
     <AdminEmployeesPage suppressLoadingHeader />
+  ) : activePage === 'ลงเวลาพนักงาน' ? (
+    <AdminAttendancePage />
   ) : (
     <AdminBranchesPage />
   );

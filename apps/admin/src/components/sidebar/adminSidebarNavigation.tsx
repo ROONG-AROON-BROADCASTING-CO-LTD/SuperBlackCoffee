@@ -1,6 +1,7 @@
 import {
   BoxIcon,
   BoxesIcon,
+  ClockIcon,
   LayoutGridIcon,
   MapPinHouseIcon,
   MapPinPlusIcon,
@@ -30,6 +31,7 @@ export const adminSidebarNavigation = [
     group: 'สาขาและแฟรนไชส์',
   },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
+  { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
   {
     label: 'ประวัติการทำรายการ',
     icon: <ReceiptTextIcon />,

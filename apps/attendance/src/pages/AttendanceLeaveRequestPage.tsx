@@ -13,10 +13,20 @@ import type { LeaveType } from '../types/attendance';
 export function AttendanceLeaveRequestPage({
   onSuccess,
 }: {
-  onSuccess: () => void;
+  onSuccess: (input: {
+    leaveDate: string;
+    leaveType: 'sick' | 'personal' | 'other';
+    reason: string;
+  }) => Promise<void>;
 }) {
   const [leaveType, setLeaveType] = useState<LeaveType>('ลาป่วย');
   const [reason, setReason] = useState('');
+  const [leaveDate, setLeaveDate] = useState('2026-09-07');
+  const leaveTypeApi = {
+    ลาป่วย: 'sick',
+    ลากิจ: 'personal',
+    ลาอื่นๆ: 'other',
+  } as const;
 
   return (
     <Stack spacing={2.5}>
@@ -71,7 +81,8 @@ export function AttendanceLeaveRequestPage({
             label="วันที่ลา"
             type="date"
             slotProps={{ inputLabel: { shrink: true } }}
-            defaultValue="2026-09-07"
+            value={leaveDate}
+            onChange={(event) => setLeaveDate(event.target.value)}
             fullWidth
           />
           <TextField
@@ -85,7 +96,13 @@ export function AttendanceLeaveRequestPage({
           <Button
             variant="contained"
             disabled={!reason.trim()}
-            onClick={onSuccess}
+            onClick={() =>
+              void onSuccess({
+                leaveDate,
+                leaveType: leaveTypeApi[leaveType],
+                reason: reason.trim(),
+              })
+            }
             endIcon={<SendIcon size={20} />}
           >
             ส่งคำขอลา

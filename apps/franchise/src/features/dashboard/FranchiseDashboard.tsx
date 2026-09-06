@@ -36,6 +36,11 @@ const EmployeesManagementPage = lazy(() =>
     default: module.EmployeesManagementPage,
   })),
 );
+const AttendanceManagementPage = lazy(() =>
+  import('@stackbuild/management/pages/attendance').then((module) => ({
+    default: module.AttendanceManagementPage,
+  })),
+);
 const FranchiseIngredientRequestsPage = lazy(() =>
   import('../../pages/dashboard/FranchiseIngredientRequestsPage').then(
     (module) => ({
@@ -124,6 +129,8 @@ export function FranchiseDashboard({ logout }: { logout: () => void }) {
           <StockManagementPage activeBranch={franchiseBranch} readOnly />
         ) : activePage === 'ตารางพนักงาน' ? (
           <EmployeesManagementPage franchiseMode suppressLoadingHeader />
+        ) : activePage === 'ลงเวลาพนักงาน' ? (
+          <AttendanceManagementPage franchiseMode />
         ) : (
           <DashboardMain>
             <FranchiseOverviewPage plan={plan} onNavigate={navigate} />

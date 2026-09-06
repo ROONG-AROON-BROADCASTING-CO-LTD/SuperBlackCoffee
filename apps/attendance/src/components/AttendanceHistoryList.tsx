@@ -1,12 +1,40 @@
 import { Box, Paper, Typography } from '@mui/material';
-import { workHistory } from '../data/attendanceData';
+import type { AttendanceHistoryItem } from '../api/attendance';
 
 export function AttendanceHistoryList({
   compact = false,
+  history,
 }: {
   compact?: boolean;
+  history: AttendanceHistoryItem[];
 }) {
-  const items = compact ? workHistory.slice(0, 3) : workHistory;
+  const items = compact ? history.slice(0, 3) : history;
+  const formatTime = (value: string | null) =>
+    value
+      ? new Intl.DateTimeFormat('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }).format(new Date(value))
+      : '-';
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat('th-TH', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(`${value}T00:00:00`));
+  const totalTime = (checkInAt: string | null, checkOutAt: string | null) => {
+    if (!checkInAt || !checkOutAt) return '-';
+    const minutes = Math.max(
+      0,
+      Math.round(
+        (new Date(checkOutAt).getTime() - new Date(checkInAt).getTime()) /
+          60000,
+      ),
+    );
+    return `${Math.floor(minutes / 60)} ชม. ${minutes % 60} นาที`;
+  };
 
   return (
     <Paper
@@ -50,7 +78,7 @@ export function AttendanceHistoryList({
           <span>เช็กเอาต์</span>
           <span>รวมเวลา</span>
         </Box>
-        {items.map(([date, checkIn, checkOut, total]) => (
+        {items.map(({ date, checkInAt, checkOutAt }) => (
           <Box
             key={date}
             sx={{
@@ -62,10 +90,10 @@ export function AttendanceHistoryList({
               fontSize: 14,
             }}
           >
-            <span>{date}</span>
-            <span>{checkIn}</span>
-            <span>{checkOut}</span>
-            <span>{total}</span>
+            <span>{formatDate(date)}</span>
+            <span>{formatTime(checkInAt)}</span>
+            <span>{formatTime(checkOutAt)}</span>
+            <span>{totalTime(checkInAt, checkOutAt)}</span>
           </Box>
         ))}
       </Box>

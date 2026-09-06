@@ -75,7 +75,22 @@ export function TimeCard({ clock }: { clock: string }) {
   );
 }
 
-export function TodayCard({ checkedIn }: { checkedIn: boolean }) {
+export function TodayCard({
+  checkedIn,
+  checkInAt,
+  staff,
+}: {
+  checkedIn: boolean;
+  checkInAt: string | null;
+  staff: { role: string; branchName: string; startsAt: string; endsAt: string };
+}) {
+  const formatTime = (value: string) => value.slice(0, 5);
+  const checkInLabel = checkInAt
+    ? new Intl.DateTimeFormat('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(checkInAt))
+    : null;
   return (
     <Paper
       variant="outlined"
@@ -93,7 +108,11 @@ export function TodayCard({ checkedIn }: { checkedIn: boolean }) {
       <Typography sx={{ fontWeight: 600 }}>สถานะวันนี้</Typography>
       <Chip
         icon={<BadgeIcon size={20} />}
-        label={checkedIn ? 'เช็กอินแล้ว เวลา 08:31 น.' : 'ยังไม่ได้เช็กอิน'}
+        label={
+          checkedIn && checkInLabel
+            ? `เช็กอินแล้ว เวลา ${checkInLabel} น.`
+            : 'ยังไม่ได้เช็กอิน'
+        }
         color={checkedIn ? 'success' : 'default'}
         sx={{ height: 40, justifyContent: 'center', fontWeight: 600 }}
       />
@@ -110,13 +129,15 @@ export function TodayCard({ checkedIn }: { checkedIn: boolean }) {
         }}
       >
         <Typography>
-          <ClockIcon size={19} /> กะงาน 08:30 - 17:30 น.
+          <ClockIcon size={19} /> กะงาน {formatTime(staff.startsAt)} -{' '}
+          {formatTime(staff.endsAt)} น.
         </Typography>
         <Typography>
-          <CoffeeIcon size={19} /> ตำแหน่ง บาริสต้า
+          <CoffeeIcon size={19} /> ตำแหน่ง{' '}
+          {staff.role === 'branch_manager' ? 'ผู้จัดการสาขา' : 'บาริสต้า'}
         </Typography>
         <Typography>
-          <MapPinHouseIcon size={19} /> สาขาอยุธยา
+          <MapPinHouseIcon size={19} /> สาขา{staff.branchName}
         </Typography>
       </Stack>
     </Paper>
