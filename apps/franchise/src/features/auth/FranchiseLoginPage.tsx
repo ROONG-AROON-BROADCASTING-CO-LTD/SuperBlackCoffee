@@ -1,7 +1,9 @@
 import { LoginScreen } from '@stackbuild/ui';
+import { useNavigate } from 'react-router-dom';
 import { login } from '../../api/auth';
 
 export function FranchiseLoginPage({ onLogin }: { onLogin: () => void }) {
+  const navigate = useNavigate();
   return (
     <LoginScreen
       headline="Franchise Portal"
@@ -14,6 +16,7 @@ export function FranchiseLoginPage({ onLogin }: { onLogin: () => void }) {
         sessionStorage.setItem('sbc-access-token', session.accessToken);
         sessionStorage.setItem('sbc-franchise-session', 'true');
         sessionStorage.setItem('sbc-franchise-plan', session.user.plan ?? 'S');
+        navigate('/', { replace: true });
         onLogin();
       }}
     />

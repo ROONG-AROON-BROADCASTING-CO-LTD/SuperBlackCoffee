@@ -1,7 +1,9 @@
 import { LoginScreen } from '@stackbuild/ui';
+import { useNavigate } from 'react-router-dom';
 import { login } from '../../api';
 
 export function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
+  const navigate = useNavigate();
   return (
     <LoginScreen
       headline={
@@ -20,6 +22,7 @@ export function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
             throw new Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ');
           sessionStorage.setItem('sbc-access-token', session.accessToken);
           sessionStorage.setItem('sbc-admin-session', 'true');
+          navigate('/', { replace: true });
           onLogin();
         } catch (error) {
           window.alert(
