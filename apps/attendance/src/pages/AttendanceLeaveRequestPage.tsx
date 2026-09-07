@@ -43,14 +43,14 @@ export function AttendanceLeaveRequestPage({
       <Paper
         variant="outlined"
         sx={{
-          maxWidth: 700,
+          width: '100%',
           p: { xs: 2.5, sm: 3.5 },
           borderColor: '#e8ddd5',
           borderRadius: '15px',
           bgcolor: '#fffdfb',
         }}
       >
-        <Stack spacing={2} sx={{ maxWidth: 580 }}>
+        <Stack spacing={2}>
           <Typography color="text.secondary">
             เลือกประเภทการลาและระบุรายละเอียดเพื่อให้ผู้จัดการพิจารณา
           </Typography>

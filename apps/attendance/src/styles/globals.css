@@ -8,6 +8,12 @@
   unicode-range: U+0000-0DFF, U+0E80-10FFFF;
 }
 
+html,
+body,
+#root {
+  font-family: 'SBC Sans', 'Kanit', sans-serif;
+}
+
 @font-face {
   font-family: 'Kanit';
   src: url('../assets/fonts/Kanit-Regular.ttf') format('truetype');

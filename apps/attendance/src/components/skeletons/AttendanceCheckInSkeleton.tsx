@@ -12,12 +12,21 @@ export function AttendanceCheckInSkeleton() {
       aria-label="กำลังโหลดหน้าลงเวลาพนักงาน"
       sx={{ '& .MuiSkeleton-root': { borderRadius: '3px' } }}
     >
-      <Stack spacing={2.5}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+          gap: 2.5,
+        }}
+      >
         <Skeleton
           variant="rounded"
           width={150}
           height={29}
-          sx={{ display: { xs: 'none', md: 'block' } }}
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            gridColumn: { md: '1 / -1' },
+          }}
         />
         <Paper
           variant="outlined"
@@ -41,8 +50,6 @@ export function AttendanceCheckInSkeleton() {
             height={18}
             sx={{ mx: 'auto', mt: 1.5 }}
           />
-        </Paper>
-        <Paper variant="outlined" sx={{ ...panelSx, p: { xs: 2, sm: 2.5 } }}>
           <Skeleton variant="rounded" height={48} />
           <Skeleton
             variant="rounded"
@@ -60,7 +67,7 @@ export function AttendanceCheckInSkeleton() {
             ))}
           </Stack>
         </Paper>
-      </Stack>
+      </Box>
     </Box>
   );
 }

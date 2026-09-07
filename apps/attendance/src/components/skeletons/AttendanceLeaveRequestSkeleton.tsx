@@ -16,14 +16,14 @@ export function AttendanceLeaveRequestSkeleton() {
         <Paper
           variant="outlined"
           sx={{
-            maxWidth: 700,
+            width: '100%',
             p: { xs: 2.5, sm: 3.5 },
             borderColor: '#e8ddd5',
             borderRadius: '15px',
             bgcolor: '#fffdfb',
           }}
         >
-          <Stack spacing={2} sx={{ maxWidth: 580 }}>
+          <Stack spacing={2}>
             <Skeleton variant="rounded" width="84%" height={18} />
             <Box
               sx={{

@@ -15,9 +15,7 @@ export function DashboardTopbar({
   sidebarWidth?: number;
   disableSidebarTransition?: boolean;
 }) {
-  const titleFont = /[\u0E00-\u0E7F]/.test(title)
-    ? 'Kanit, sans-serif'
-    : '"SBC Sans", Arial, sans-serif';
+  const titleFont = '"SBC Sans", Arial, sans-serif';
 
   return (
     <Box

@@ -1,9 +1,5 @@
-import { Stack, Typography } from '@mui/material';
-import {
-  AttendanceAction,
-  TimeCard,
-  TodayCard,
-} from '../components/AttendanceCards';
+import { Box, Typography } from '@mui/material';
+import { TimeCard, TodayCard } from '../components/AttendanceCards';
 import type { AttendanceSession } from '../api/attendance';
 
 export function AttendanceCheckInPage({
@@ -24,27 +20,32 @@ export function AttendanceCheckInPage({
   attendanceActionHint: string;
 }) {
   return (
-    <Stack spacing={2.5}>
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+        gap: 2.5,
+      }}
+    >
       <Typography
         sx={{
           display: { xs: 'none', md: 'block' },
           fontSize: 24,
           fontWeight: 700,
           lineHeight: 1.2,
+          gridColumn: { md: '1 / -1' },
         }}
       >
         เช็กอิน / เช็กเอาต์
       </Typography>
-      <TimeCard clock={clock} />
-      <AttendanceAction
+      <TimeCard
+        clock={clock}
         checkedIn={checkedIn}
         onAction={onAction}
         disabled={attendanceActionDisabled}
+        actionHint={attendanceActionHint}
       />
-      {attendanceActionDisabled ? (
-        <Typography color="error.main">{attendanceActionHint}</Typography>
-      ) : null}
       <TodayCard checkedIn={checkedIn} checkInAt={checkInAt} staff={staff} />
-    </Stack>
+    </Box>
   );
 }

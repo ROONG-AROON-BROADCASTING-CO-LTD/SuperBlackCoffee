@@ -31,6 +31,8 @@ export function AttendanceAction({
       disabled={disabled}
       startIcon={<CoffeeIcon size={20} />}
       sx={{
+        width: '100%',
+        mt: 2,
         minHeight: 62,
         fontSize: 18,
         bgcolor: '#805637',
@@ -43,38 +45,59 @@ export function AttendanceAction({
   );
 }
 
-export function TimeCard({ clock }: { clock: string }) {
+export function TimeCard({
+  clock,
+  checkedIn,
+  onAction,
+  disabled,
+  actionHint,
+}: {
+  clock: string;
+  checkedIn: boolean;
+  onAction: () => void;
+  disabled: boolean;
+  actionHint: string;
+}) {
   return (
     <Paper
       variant="outlined"
       sx={{
-        p: 2.75,
+        p: { xs: 2.75, md: 3.5 },
         textAlign: 'center',
         borderColor: '#e8ddd5',
         borderRadius: '15px',
         bgcolor: '#fffdfb',
       }}
     >
-      <Stack
-        direction="row"
-        spacing={0.75}
-        sx={{ justifyContent: 'center', alignItems: 'center' }}
-      >
-        <ClockIcon size={20} />
-        <Typography sx={{ fontWeight: 600 }}>เวลาปัจจุบัน</Typography>
+      <Stack spacing={1.25}>
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{ justifyContent: 'center', alignItems: 'center' }}
+        >
+          <ClockIcon size={20} />
+          <Typography sx={{ fontWeight: 600 }}>เวลาปัจจุบัน</Typography>
+        </Stack>
+        <Typography
+          sx={{
+            fontSize: 'clamp(40px, 5vw, 62px)',
+            fontWeight: 700,
+            color: '#805637',
+            lineHeight: 1.1,
+          }}
+        >
+          {clock}
+        </Typography>
+        <Typography color="text.secondary">{attendanceTodayLabel()}</Typography>
+        <AttendanceAction
+          checkedIn={checkedIn}
+          onAction={onAction}
+          disabled={disabled}
+        />
+        {disabled ? (
+          <Typography color="error.main">{actionHint}</Typography>
+        ) : null}
       </Stack>
-      <Typography
-        sx={{
-          mt: 1,
-          fontSize: 'clamp(40px, 5vw, 62px)',
-          fontWeight: 700,
-          color: '#805637',
-          lineHeight: 1.1,
-        }}
-      >
-        {clock}
-      </Typography>
-      <Typography color="text.secondary">{attendanceTodayLabel()}</Typography>
     </Paper>
   );
 }
@@ -99,11 +122,10 @@ export function TodayCard({
     <Paper
       variant="outlined"
       sx={{
-        gridRow: { md: 'span 2' },
-        p: 2.75,
+        p: { xs: 2.75, md: 3.5 },
         display: 'grid',
         alignContent: 'start',
-        gap: 2,
+        gap: 2.5,
         borderColor: '#e8ddd5',
         borderRadius: '15px',
         bgcolor: '#fffdfb',

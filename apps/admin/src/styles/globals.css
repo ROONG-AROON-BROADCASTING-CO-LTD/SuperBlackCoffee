@@ -8,6 +8,12 @@
   unicode-range: U+0000-0DFF, U+0E80-10FFFF;
 }
 
+html,
+body,
+#root {
+  font-family: 'SBC Sans', 'Kanit', sans-serif;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;

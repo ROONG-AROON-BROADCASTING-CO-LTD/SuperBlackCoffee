@@ -40,37 +40,39 @@ export function AttendanceHistoryList({
     <Paper
       variant="outlined"
       sx={{
-        p: { xs: 2, sm: '18px 22px' },
+        p: compact ? { xs: 2, sm: '18px 22px' } : 0,
         overflowX: 'auto',
         borderColor: '#e8ddd5',
         borderRadius: '15px',
         bgcolor: '#fffdfb',
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          mb: 1.5,
-        }}
-      >
-        <Typography sx={{ fontWeight: 700 }}>
-          {compact ? 'ประวัติการเช็กอินล่าสุด' : 'ประวัติการทำงาน'}
-        </Typography>
-        {compact ? (
+      {compact ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1.5,
+          }}
+        >
+          <Typography sx={{ fontWeight: 700 }}>
+            ประวัติการเช็กอินล่าสุด
+          </Typography>
           <Typography color="secondary.main">ดูทั้งหมด</Typography>
-        ) : null}
-      </Box>
+        </Box>
+      ) : null}
       <Box sx={{ minWidth: 580 }}>
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: '1.7fr 1fr 1fr 1.3fr',
             gap: 1.5,
+            px: compact ? 0 : { xs: 2, sm: '22px' },
             py: 1.25,
             color: '#76675d',
-            fontSize: 12,
+            fontSize: 16,
+            fontWeight: 600,
           }}
         >
           <span>วันที่</span>
@@ -85,6 +87,7 @@ export function AttendanceHistoryList({
               display: 'grid',
               gridTemplateColumns: '1.7fr 1fr 1fr 1.3fr',
               gap: 1.5,
+              px: compact ? 0 : { xs: 2, sm: '22px' },
               py: 1.25,
               borderTop: '1px solid #eee3dc',
               fontSize: 14,
