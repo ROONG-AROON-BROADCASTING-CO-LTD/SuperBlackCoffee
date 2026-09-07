@@ -30,7 +30,13 @@ export function AttendanceCheckInSkeleton() {
         />
         <Paper
           variant="outlined"
-          sx={{ ...panelSx, p: { xs: 2.5, sm: 3.5 }, textAlign: 'center' }}
+          sx={{
+            ...panelSx,
+            p: { xs: 2.5, sm: 3.5 },
+            width: { xs: '80%', md: 'auto' },
+            justifySelf: { xs: 'center', md: 'stretch' },
+            textAlign: 'center',
+          }}
         >
           <Skeleton
             variant="rounded"

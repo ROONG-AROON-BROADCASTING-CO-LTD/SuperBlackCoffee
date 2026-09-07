@@ -63,6 +63,8 @@ export function TimeCard({
       variant="outlined"
       sx={{
         p: { xs: 2.75, md: 3.5 },
+        width: { xs: '80%', md: 'auto' },
+        justifySelf: { xs: 'center', md: 'stretch' },
         textAlign: 'center',
         borderColor: '#e8ddd5',
         borderRadius: '15px',
