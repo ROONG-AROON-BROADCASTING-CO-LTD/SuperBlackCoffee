@@ -111,6 +111,10 @@ func attendanceClaims(c *gin.Context) (*middleware.Claims, bool) {
 
 func attendanceToday() time.Time { return time.Now().In(thailandLocation) }
 
+func canRecordAttendance(shiftStatus string) bool {
+	return shiftStatus == "scheduled" || shiftStatus == "compensatory_work"
+}
+
 func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	claims, ok := attendanceClaims(c)
 	if !ok {
@@ -123,7 +127,70 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสถานะลงเวลาได้"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"date": now.Format("2006-01-02"), "checkInAt": checkIn, "checkOutAt": checkOut, "checkedIn": checkIn != nil && checkOut == nil}})
+	var shiftStatus string
+	shiftErr := h.db.QueryRowContext(c, `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
+	if shiftErr != nil && shiftErr != sql.ErrNoRows {
+		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบกะงานได้"})
+		return
+	}
+	if shiftErr == sql.ErrNoRows {
+		shiftStatus = ""
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		"date":                now.Format("2006-01-02"),
+		"checkInAt":           checkIn,
+		"checkOutAt":          checkOut,
+		"checkedIn":           checkIn != nil && checkOut == nil,
+		"shiftStatus":         shiftStatus,
+		"canRecordAttendance": canRecordAttendance(shiftStatus),
+	}})
+}
+
+// AttendanceSummary returns the authenticated employee's current-month leave and punctuality totals.
+func (h *PlatformHandler) AttendanceSummary(c *gin.Context) {
+	claims, ok := attendanceClaims(c)
+	if !ok {
+		return
+	}
+	now := attendanceToday()
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, thailandLocation)
+	monthEnd := monthStart.AddDate(0, 1, 0)
+	var sickLeaveCount, personalLeaveCount, otherLeaveCount, lateCount int
+	err := h.db.QueryRowContext(c, `
+		SELECT
+			COUNT(*) FILTER (WHERE status = 'sick_leave'),
+			COUNT(*) FILTER (WHERE status = 'personal_leave'),
+			COUNT(*) FILTER (WHERE status = 'leave'),
+			(
+				SELECT COUNT(*)
+				FROM staff_attendance a
+				JOIN staff_shifts scheduled_shift
+					ON scheduled_shift.user_id = a.user_id
+					AND scheduled_shift.shift_date = a.work_date
+				WHERE a.user_id = $1
+					AND a.work_date >= $2
+					AND a.work_date < $3
+					AND scheduled_shift.status IN ('scheduled', 'compensatory_work')
+					AND a.check_in_at IS NOT NULL
+					AND (a.check_in_at AT TIME ZONE 'Asia/Bangkok')::time > scheduled_shift.starts_at
+			)
+		FROM staff_shifts
+		WHERE user_id = $1 AND shift_date >= $2 AND shift_date < $3`,
+		claims.UserID,
+		monthStart.Format("2006-01-02"),
+		monthEnd.Format("2006-01-02"),
+	).Scan(&sickLeaveCount, &personalLeaveCount, &otherLeaveCount, &lateCount)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านสรุปการทำงานได้"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		"month":              monthStart.Format("2006-01"),
+		"sickLeaveCount":     sickLeaveCount,
+		"personalLeaveCount": personalLeaveCount,
+		"otherLeaveCount":    otherLeaveCount,
+		"lateCount":          lateCount,
+	}})
 }
 
 func (h *PlatformHandler) CheckIn(c *gin.Context) {
@@ -142,7 +209,7 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบกะงานได้"})
 		return
 	}
-	if shiftStatus != "scheduled" && shiftStatus != "compensatory_work" {
+	if !canRecordAttendance(shiftStatus) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันนี้ไม่ใช่วันทำงานของคุณ"})
 		return
 	}

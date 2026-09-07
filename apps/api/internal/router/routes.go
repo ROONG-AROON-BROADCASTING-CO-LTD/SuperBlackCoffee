@@ -29,6 +29,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.Use(middleware.RequireAuth(deps.secret))
 	protected.GET("/dashboard", deps.platform.Dashboard)
 	protected.GET("/attendance/today", deps.platform.AttendanceToday)
+	protected.GET("/attendance/summary", deps.platform.AttendanceSummary)
 	protected.GET("/attendance/history", deps.platform.AttendanceHistory)
 	protected.POST("/attendance/check-in", deps.platform.CheckIn)
 	protected.POST("/attendance/check-out", deps.platform.CheckOut)

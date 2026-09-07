@@ -18,12 +18,22 @@ export type AttendanceStatus = {
   checkInAt: string | null;
   checkOutAt: string | null;
   checkedIn: boolean;
+  shiftStatus: string;
+  canRecordAttendance: boolean;
 };
 
 export type AttendanceHistoryItem = {
   date: string;
   checkInAt: string | null;
   checkOutAt: string | null;
+};
+
+export type AttendanceSummary = {
+  month: string;
+  sickLeaveCount: number;
+  personalLeaveCount: number;
+  otherLeaveCount: number;
+  lateCount: number;
 };
 
 export type AttendancePINChallenge = {
@@ -48,6 +58,9 @@ export const setupAttendancePIN = (username: string, pin: string) =>
 
 export const getAttendanceStatus = (token?: string) =>
   secured<AttendanceStatus>(token, '/attendance/today');
+
+export const getAttendanceSummary = (token?: string) =>
+  secured<AttendanceSummary>(token, '/attendance/summary');
 
 export const getAttendanceHistory = (token?: string) =>
   secured<AttendanceHistoryItem[]>(token, '/attendance/history');

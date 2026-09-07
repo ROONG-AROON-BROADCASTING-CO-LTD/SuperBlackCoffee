@@ -9,7 +9,16 @@ export function AttendanceWorkHistoryPage({
 }) {
   return (
     <Stack spacing={2.5}>
-      <Typography variant="h4">ประวัติการทำงาน</Typography>
+      <Typography
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          fontSize: 24,
+          fontWeight: 700,
+          lineHeight: 1.2,
+        }}
+      >
+        ประวัติการทำงาน
+      </Typography>
       <AttendanceHistoryList history={history} />
     </Stack>
   );

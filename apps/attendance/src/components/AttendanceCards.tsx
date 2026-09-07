@@ -18,20 +18,24 @@ import { attendanceTodayLabel } from '../hooks/useAttendanceClock';
 export function AttendanceAction({
   checkedIn,
   onAction,
+  disabled = false,
 }: {
   checkedIn: boolean;
   onAction: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Button
       variant="contained"
       onClick={onAction}
+      disabled={disabled}
       startIcon={<CoffeeIcon size={20} />}
       sx={{
         minHeight: 62,
         fontSize: 18,
         bgcolor: '#805637',
         '&:hover': { bgcolor: '#664329' },
+        '&.Mui-disabled': { bgcolor: '#e6e2df', color: '#a6a09d' },
       }}
     >
       {checkedIn ? 'เช็กเอาต์เลิกงาน' : 'เช็กอินเข้างาน'}

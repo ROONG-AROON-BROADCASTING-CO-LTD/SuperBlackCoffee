@@ -76,9 +76,11 @@ export function AttendanceAppLayout({
       >
         <Box
           sx={{
-            position: 'sticky',
+            position: 'fixed',
             top: 0,
-            zIndex: 2,
+            left: { xs: 0, md: sidebarCollapsed ? 96 : 230 },
+            right: 0,
+            zIndex: 1100,
             height: { xs: 64, md: 72 },
             px: { xs: 2.5, md: 5 },
             display: 'flex',
@@ -87,6 +89,7 @@ export function AttendanceAppLayout({
             bgcolor: 'rgba(255,255,255,.94)',
             borderBottom: '1px solid #e8ddd5',
             backdropFilter: 'blur(12px)',
+            transition: 'left .28s cubic-bezier(.2,.8,.2,1)',
           }}
         >
           <Typography sx={{ fontSize: { xs: 18, md: 22 }, fontWeight: 700 }}>
@@ -118,6 +121,7 @@ export function AttendanceAppLayout({
         <Box
           sx={{
             maxWidth: 1260,
+            mt: { xs: '64px', md: '72px' },
             p: { xs: '20px 16px 28px', md: '32px 40px 48px' },
             mx: 'auto',
           }}

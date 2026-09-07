@@ -30,7 +30,16 @@ export function AttendanceLeaveRequestPage({
 
   return (
     <Stack spacing={2.5}>
-      <Typography variant="h4">คำขอลา</Typography>
+      <Typography
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          fontSize: 24,
+          fontWeight: 700,
+          lineHeight: 1.2,
+        }}
+      >
+        คำขอลา
+      </Typography>
       <Paper
         variant="outlined"
         sx={{

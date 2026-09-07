@@ -113,7 +113,9 @@ export function AttendanceLoginPage({
           />
           <Typography sx={{ fontWeight: 700 }}>SUPER BLACK COFFEE</Typography>
         </Box>
-        <Typography variant="h4">{heading}</Typography>
+        <Typography sx={{ fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>
+          {heading}
+        </Typography>
         <Typography color="text.secondary">{description}</Typography>
         {isUsernameStep ? (
           <TextField

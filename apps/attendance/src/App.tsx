@@ -8,14 +8,17 @@ import {
   createLeaveRequest,
   getAttendanceHistory,
   getAttendanceStatus,
+  getAttendanceSummary,
   loginAttendance,
   setupAttendancePIN,
   type AttendanceHistoryItem,
   type AttendanceSession,
   type AttendanceStatus,
+  type AttendanceSummary,
 } from './api/attendance';
-import { AttendanceLoginPage } from './features/auth/AttendanceLoginPage';
+import { ApiRequestError } from './api/client';
 import { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
+import { AttendanceLoginPage } from './features/auth/AttendanceLoginPage';
 import { useAttendanceClock } from './hooks/useAttendanceClock';
 import { AttendanceAppLayout } from './layouts/AttendanceAppLayout';
 import { AttendancePageRouter } from './routes/AttendancePageRouter';
@@ -25,6 +28,26 @@ function isAttendanceSession(
   value: Awaited<ReturnType<typeof loginAttendance>>,
 ): value is AttendanceSession {
   return !('requiresPIN' in value) && !('requiresPINSetup' in value);
+}
+
+const staffPagePaths: Record<StaffPage, string> = {
+  overview: '/',
+  attendance: '/attendance',
+  leave: '/leave',
+  history: '/history',
+};
+
+function staffPageFromPath(pathname: string): StaffPage {
+  switch (pathname.replace(/\/+$/, '') || '/') {
+    case '/attendance':
+      return 'attendance';
+    case '/leave':
+      return 'leave';
+    case '/history':
+      return 'history';
+    default:
+      return 'overview';
+  }
 }
 
 export default function App() {
@@ -48,9 +71,15 @@ export default function App() {
       return null;
     }
   });
-  const [page, setPage] = useState<StaffPage>('overview');
+  const [page, setPage] = useState<StaffPage>(() =>
+    staffPageFromPath(window.location.pathname),
+  );
   const [status, setStatus] = useState<AttendanceStatus | null>(null);
   const [history, setHistory] = useState<AttendanceHistoryItem[]>([]);
+  const [summary, setSummary] = useState<AttendanceSummary | null>(null);
+  const [initialDataLoading, setInitialDataLoading] = useState(
+    Boolean(session),
+  );
   const [notice, setNotice] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,6 +92,11 @@ export default function App() {
       'ภาพรวม',
     [page],
   );
+  const attendanceActionDisabled = !status || !status.canRecordAttendance;
+  const attendanceActionHint =
+    status?.shiftStatus === 'day_off'
+      ? 'วันนี้เป็นวันหยุดตามตารางกะ'
+      : 'ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบกะงาน';
 
   useEffect(() => {
     if (!session) return;
@@ -70,15 +104,29 @@ export default function App() {
     void Promise.all([
       getAttendanceStatus(session.accessToken),
       getAttendanceHistory(session.accessToken),
+      getAttendanceSummary(session.accessToken),
     ])
-      .then(([nextStatus, nextHistory]) => {
+      .then(([nextStatus, nextHistory, nextSummary]) => {
         if (!active) return;
         setStatus(nextStatus);
         setHistory(nextHistory);
+        setSummary(nextSummary);
         setConnectionError(false);
       })
-      .catch(() => {
-        if (active) setConnectionError(true);
+      .catch((error) => {
+        if (!active) return;
+        if (error instanceof ApiRequestError && error.status === 401) {
+          sessionStorage.removeItem('sbc-staff-session');
+          setSession(null);
+          setStatus(null);
+          setHistory([]);
+          setSummary(null);
+          return;
+        }
+        setConnectionError(true);
+      })
+      .finally(() => {
+        if (active) setInitialDataLoading(false);
       });
     return () => {
       active = false;
@@ -96,10 +144,26 @@ export default function App() {
     };
   }, [connectionError, session]);
 
+  useEffect(() => {
+    const syncPageWithHistory = () =>
+      setPage(staffPageFromPath(window.location.pathname));
+    window.addEventListener('popstate', syncPageWithHistory);
+    return () => window.removeEventListener('popstate', syncPageWithHistory);
+  }, []);
+
+  const navigatePage = (nextPage: StaffPage) => {
+    const nextPath = staffPagePaths[nextPage];
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState(null, '', nextPath);
+    }
+    setPage(nextPage);
+  };
+
   const persistSession = (nextSession: AttendanceSession) => {
     sessionStorage.setItem('sbc-staff-session', JSON.stringify(nextSession));
+    setInitialDataLoading(true);
     setSession(nextSession);
-    setPage('attendance');
+    navigatePage('attendance');
   };
   const startLogin = async (name: string): Promise<'pin' | 'setup-pin'> => {
     setLoading(true);
@@ -155,22 +219,30 @@ export default function App() {
     setSession(null);
     setStatus(null);
     setHistory([]);
+    setSummary(null);
+    setInitialDataLoading(false);
+    window.history.replaceState(null, '', staffPagePaths.overview);
+    setPage('overview');
   };
   const toggleAttendance = async () => {
-    if (!session) return;
+    if (!session || !status?.canRecordAttendance) return;
     setLoading(true);
     try {
       const nextStatus = status?.checkedIn
         ? await checkOut(session.accessToken)
         : await checkIn(session.accessToken);
-      setStatus(nextStatus);
+      setStatus((currentStatus) => ({ ...currentStatus, ...nextStatus }));
       setHistory(await getAttendanceHistory(session.accessToken));
       setNotice(
         nextStatus.checkedIn
           ? 'เช็กอินเรียบร้อยแล้ว'
           : 'เช็กเอาต์เรียบร้อยแล้ว',
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        logout();
+        return;
+      }
       // Keep the current UI state when the action cannot be completed.
       // Network implementation details must not be shown to staff.
     } finally {
@@ -186,7 +258,7 @@ export default function App() {
           branchName={session.user.branchName}
           page={page}
           title={title}
-          onPage={setPage}
+          onPage={navigatePage}
           onLogout={logout}
         >
           <AttendancePageRouter
@@ -195,6 +267,8 @@ export default function App() {
             staff={session.user}
             checkedIn={status?.checkedIn ?? false}
             checkInAt={status?.checkInAt ?? null}
+            attendanceActionDisabled={attendanceActionDisabled}
+            attendanceActionHint={attendanceActionHint}
             clock={clock}
             onAttendanceAction={toggleAttendance}
             onLeaveSuccess={async (input) => {
@@ -205,8 +279,9 @@ export default function App() {
                 // The leave form remains open so the employee can try again.
               }
             }}
-            onPage={setPage}
             history={history}
+            summary={summary}
+            isInitialLoading={initialDataLoading}
           />
           {notice ? (
             <Alert

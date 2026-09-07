@@ -1,12 +1,42 @@
-import { AttendanceCheckInPage } from '../pages/AttendanceCheckInPage';
-import { AttendanceDashboardPage } from '../pages/AttendanceDashboardPage';
-import { AttendanceLeaveRequestPage } from '../pages/AttendanceLeaveRequestPage';
-import { AttendanceWorkHistoryPage } from '../pages/AttendanceWorkHistoryPage';
+import { lazy, Suspense } from 'react';
+import { AttendanceCheckInSkeleton } from '../components/skeletons/AttendanceCheckInSkeleton';
+import { AttendanceLeaveRequestSkeleton } from '../components/skeletons/AttendanceLeaveRequestSkeleton';
+import { AttendanceOverviewSkeleton } from '../components/skeletons/AttendanceOverviewSkeleton';
+import { AttendanceWorkHistorySkeleton } from '../components/skeletons/AttendanceWorkHistorySkeleton';
 import type {
   AttendanceHistoryItem,
   AttendanceSession,
+  AttendanceSummary,
 } from '../api/attendance';
 import type { StaffPage } from '../types/attendance';
+
+const AttendanceCheckInPage = lazy(() =>
+  import('../pages/AttendanceCheckInPage').then(
+    ({ AttendanceCheckInPage: Page }) => ({ default: Page }),
+  ),
+);
+const AttendanceDashboardPage = lazy(() =>
+  import('../pages/AttendanceDashboardPage').then(
+    ({ AttendanceDashboardPage: Page }) => ({ default: Page }),
+  ),
+);
+const AttendanceLeaveRequestPage = lazy(() =>
+  import('../pages/AttendanceLeaveRequestPage').then(
+    ({ AttendanceLeaveRequestPage: Page }) => ({ default: Page }),
+  ),
+);
+const AttendanceWorkHistoryPage = lazy(() =>
+  import('../pages/AttendanceWorkHistoryPage').then(
+    ({ AttendanceWorkHistoryPage: Page }) => ({ default: Page }),
+  ),
+);
+
+const pageSkeletons = {
+  overview: <AttendanceOverviewSkeleton />,
+  attendance: <AttendanceCheckInSkeleton />,
+  leave: <AttendanceLeaveRequestSkeleton />,
+  history: <AttendanceWorkHistorySkeleton />,
+};
 
 type AttendancePageRouterProps = {
   page: StaffPage;
@@ -14,6 +44,8 @@ type AttendancePageRouterProps = {
   staff: AttendanceSession['user'];
   checkedIn: boolean;
   checkInAt: string | null;
+  attendanceActionDisabled: boolean;
+  attendanceActionHint: string;
   clock: string;
   onAttendanceAction: () => void;
   onLeaveSuccess: (input: {
@@ -22,7 +54,8 @@ type AttendancePageRouterProps = {
     reason: string;
   }) => Promise<void>;
   history: AttendanceHistoryItem[];
-  onPage: (page: StaffPage) => void;
+  summary: AttendanceSummary | null;
+  isInitialLoading: boolean;
 };
 
 export function AttendancePageRouter({
@@ -31,39 +64,45 @@ export function AttendancePageRouter({
   staff,
   checkedIn,
   checkInAt,
+  attendanceActionDisabled,
+  attendanceActionHint,
   clock,
   onAttendanceAction,
   onLeaveSuccess,
-  onPage,
   history,
+  summary,
+  isInitialLoading,
 }: AttendancePageRouterProps) {
+  if (isInitialLoading) {
+    return pageSkeletons[page];
+  }
+
+  let content;
   switch (page) {
     case 'attendance':
-      return (
+      content = (
         <AttendanceCheckInPage
           checkedIn={checkedIn}
           checkInAt={checkInAt}
           staff={staff}
           clock={clock}
           onAction={onAttendanceAction}
+          attendanceActionDisabled={attendanceActionDisabled}
+          attendanceActionHint={attendanceActionHint}
         />
       );
+      break;
     case 'leave':
-      return <AttendanceLeaveRequestPage onSuccess={onLeaveSuccess} />;
+      content = <AttendanceLeaveRequestPage onSuccess={onLeaveSuccess} />;
+      break;
     case 'history':
-      return <AttendanceWorkHistoryPage history={history} />;
+      content = <AttendanceWorkHistoryPage history={history} />;
+      break;
     default:
-      return (
-        <AttendanceDashboardPage
-          username={username}
-          staff={staff}
-          checkedIn={checkedIn}
-          checkInAt={checkInAt}
-          clock={clock}
-          onAction={onAttendanceAction}
-          onPage={onPage}
-          history={history}
-        />
+      content = (
+        <AttendanceDashboardPage username={username} summary={summary} />
       );
   }
+
+  return <Suspense fallback={pageSkeletons[page]}>{content}</Suspense>;
 }

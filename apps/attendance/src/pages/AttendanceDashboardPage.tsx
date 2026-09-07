@@ -1,38 +1,55 @@
-import { Box, Button, Paper, Stack, Typography } from '@mui/material';
-import { ReceiptTextIcon } from '@stackbuild/ui';
+import { Box, Stack, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
 import {
-  AttendanceAction,
-  TimeCard,
-  TodayCard,
-} from '../components/AttendanceCards';
-import { AttendanceHistoryList } from '../components/AttendanceHistoryList';
-import type { StaffPage } from '../types/attendance';
-import type {
-  AttendanceHistoryItem,
-  AttendanceSession,
-} from '../api/attendance';
+  BadgeIcon,
+  ChartLineIcon,
+  ClockIcon,
+  ReceiptTextIcon,
+} from '@stackbuild/ui';
+import type { AttendanceSummary } from '../api/attendance';
+
+type SummaryCard = {
+  label: string;
+  value: number | undefined;
+  color: string;
+  icon: ReactNode;
+};
 
 type AttendanceDashboardPageProps = {
   username: string;
-  staff: AttendanceSession['user'];
-  checkedIn: boolean;
-  checkInAt: string | null;
-  clock: string;
-  onAction: () => void;
-  onPage: (page: StaffPage) => void;
-  history: AttendanceHistoryItem[];
+  summary: AttendanceSummary | null;
 };
 
 export function AttendanceDashboardPage({
   username,
-  staff,
-  checkedIn,
-  checkInAt,
-  clock,
-  onAction,
-  onPage,
-  history,
+  summary,
 }: AttendanceDashboardPageProps) {
+  const summaryCards: SummaryCard[] = [
+    {
+      label: 'ลาป่วย',
+      value: summary?.sickLeaveCount,
+      color: '#bf5b4b',
+      icon: <BadgeIcon size={22} />,
+    },
+    {
+      label: 'ลากิจ',
+      value: summary?.personalLeaveCount,
+      color: '#9b6a3d',
+      icon: <ReceiptTextIcon size={22} />,
+    },
+    {
+      label: 'ลาอื่น ๆ',
+      value: summary?.otherLeaveCount,
+      color: '#77645a',
+      icon: <ChartLineIcon size={22} />,
+    },
+    {
+      label: 'มาสาย',
+      value: summary?.lateCount,
+      color: '#cf8a35',
+      icon: <ClockIcon size={22} />,
+    },
+  ];
   return (
     <Stack spacing={2.5}>
       <Box
@@ -45,50 +62,74 @@ export function AttendanceDashboardPage({
         }}
       >
         <Box>
-          <Typography variant="h4">ภาพรวม</Typography>
-          <Typography color="text.secondary">
-            สวัสดี {username} · วันนี้พร้อมเริ่มงานแล้ว
+          <Typography
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              fontSize: 24,
+              fontWeight: 700,
+              lineHeight: 1.2,
+            }}
+          >
+            ภาพรวม
           </Typography>
+          <Typography color="text.secondary">สวัสดี {username}</Typography>
         </Box>
-        <Button
-          variant="outlined"
-          startIcon={<ReceiptTextIcon size={20} />}
-          onClick={() => onPage('leave')}
-        >
-          ส่งคำขอลา
-        </Button>
       </Box>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-          gap: 2.25,
-        }}
-      >
-        <TimeCard clock={clock} />
-        <Paper
-          variant="outlined"
+      <Box>
+        <Typography sx={{ mb: 1.25, fontWeight: 700 }}>สรุปเดือนนี้</Typography>
+        <Box
           sx={{
-            p: 2.75,
             display: 'grid',
-            gap: 2,
-            alignContent: 'center',
-            borderColor: '#e8ddd5',
-            borderRadius: '15px',
-            bgcolor: '#fffdfb',
+            gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+            gap: 1.5,
           }}
         >
-          <Typography sx={{ fontWeight: 600 }}>บันทึกเวลาทำงาน</Typography>
-          <AttendanceAction checkedIn={checkedIn} onAction={onAction} />
-          <Typography color="text.secondary">
-            {checkedIn
-              ? 'อย่าลืมเช็กเอาต์เมื่อเลิกงาน'
-              : 'กรุณาเช็กอินเมื่อมาถึงที่ทำงาน'}
-          </Typography>
-        </Paper>
-        <TodayCard checkedIn={checkedIn} checkInAt={checkInAt} staff={staff} />
+          {summaryCards.map((card) => (
+            <Box
+              key={card.label}
+              sx={{
+                minWidth: 0,
+                p: 2,
+                border: '1px solid #e8ddd5',
+                borderRadius: '15px',
+                bgcolor: '#fffdfb',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  color: card.color,
+                }}
+              >
+                <Box sx={{ lineHeight: 0 }}>{card.icon}</Box>
+                <Typography sx={{ fontWeight: 600 }}>{card.label}</Typography>
+              </Box>
+              <Typography
+                sx={{
+                  mt: 1.5,
+                  fontSize: 'clamp(2.25rem, 4vw, 3.5rem)',
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                {card.value ?? '-'}{' '}
+                <Typography
+                  component="span"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: 'clamp(0.875rem, 1.5vw, 1.125rem)',
+                    fontWeight: 500,
+                  }}
+                >
+                  ครั้ง
+                </Typography>
+              </Typography>
+            </Box>
+          ))}
+        </Box>
       </Box>
-      <AttendanceHistoryList compact history={history} />
     </Stack>
   );
 }

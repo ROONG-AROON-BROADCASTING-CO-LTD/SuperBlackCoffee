@@ -107,7 +107,12 @@ export function AttendanceManagementPage({
       component="main"
       sx={{
         flex: 1,
-        overflow: 'auto',
+        minWidth: 0,
+        width: '100%',
+        height: 'calc(100vh - 72px)',
+        mt: '72px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
         p: { xs: 2, md: 4 },
         bgcolor: '#fbfaf8',
       }}
@@ -119,10 +124,20 @@ export function AttendanceManagementPage({
           sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
         >
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <Typography
+              sx={{
+                color: '#201914',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 24,
+                fontWeight: 700,
+              }}
+            >
               ลงเวลาพนักงาน
             </Typography>
-            <Typography color="text.secondary">
+            <Typography
+              color="text.secondary"
+              sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
+            >
               {franchiseMode
                 ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
                 : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'}
