@@ -37,4 +37,32 @@ describe('AttendanceLeaveRequestPage', () => {
         .disabled,
     ).toBe(true);
   });
+
+  it('opens the calendar when the date field is clicked', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'showPicker',
+    );
+    const showPicker = vi.fn();
+    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
+      configurable: true,
+      value: showPicker,
+    });
+
+    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('วันที่ลา'));
+
+    expect(showPicker).toHaveBeenCalledOnce();
+
+    if (descriptor) {
+      Object.defineProperty(
+        HTMLInputElement.prototype,
+        'showPicker',
+        descriptor,
+      );
+    } else {
+      delete (HTMLInputElement.prototype as { showPicker?: unknown })
+        .showPicker;
+    }
+  });
 });

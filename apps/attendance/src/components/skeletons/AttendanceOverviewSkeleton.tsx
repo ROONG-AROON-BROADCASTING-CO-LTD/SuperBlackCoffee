@@ -49,18 +49,15 @@ export function AttendanceOverviewSkeleton() {
                   bgcolor: '#fffdfb',
                 }}
               >
-                <Skeleton variant="circular" width={22} height={22} />
-                <Skeleton
-                  variant="rounded"
-                  width="62%"
-                  height={18}
-                  sx={{ mt: 1 }}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Skeleton variant="circular" width={22} height={22} />
+                  <Skeleton variant="rounded" width="48%" height={18} />
+                </Box>
                 <Skeleton
                   variant="rounded"
                   width="48%"
-                  height={44}
-                  sx={{ mt: 2 }}
+                  height={36}
+                  sx={{ mt: 1.5 }}
                 />
               </Paper>
             ))}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert } from '@mui/material';
+import { Alert, Snackbar, useMediaQuery } from '@mui/material';
 import { SbcThemeProvider } from '@stackbuild/ui';
 import { attendanceNavigation } from './components/AttendanceNavigation';
 import {
@@ -85,6 +85,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
+  const isTabletOrSmaller = useMediaQuery('(max-width:899.95px)');
   const clock = useAttendanceClock();
   const title = useMemo(
     () =>
@@ -94,9 +95,17 @@ export default function App() {
   );
   const attendanceActionDisabled = !status || !status.canRecordAttendance;
   const attendanceActionHint =
-    status?.shiftStatus === 'day_off'
-      ? 'วันนี้เป็นวันหยุดตามตารางกะ'
-      : 'ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบกะงาน';
+    status?.checkInAt && status.checkOutAt
+      ? 'วันนี้เช็กอินและเช็กเอาต์ครบแล้ว'
+      : status?.shiftStatus === 'day_off'
+        ? 'วันนี้เป็นวันหยุดตามตารางกะ'
+        : 'ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบกะงาน';
+  const attendanceActionDisabledLabel =
+    status?.checkInAt && status.checkOutAt
+      ? 'ลงเวลาวันนี้ครบแล้ว'
+      : status?.shiftStatus === 'day_off'
+        ? 'วันนี้เป็นวันหยุด'
+        : 'ยังไม่สามารถลงเวลาได้';
 
   useEffect(() => {
     if (!session) return;
@@ -231,7 +240,11 @@ export default function App() {
       const nextStatus = status?.checkedIn
         ? await checkOut(session.accessToken)
         : await checkIn(session.accessToken);
-      setStatus((currentStatus) => ({ ...currentStatus, ...nextStatus }));
+      setStatus((currentStatus) => ({
+        ...currentStatus,
+        ...nextStatus,
+        canRecordAttendance: nextStatus.checkedIn,
+      }));
       setHistory(await getAttendanceHistory(session.accessToken));
       setNotice(
         nextStatus.checkedIn
@@ -251,7 +264,11 @@ export default function App() {
   };
 
   return (
-    <SbcThemeProvider secondary="#805637" background="#fbfaf8">
+    <SbcThemeProvider
+      secondary="#805637"
+      background="#fbfaf8"
+      borderRadius={15}
+    >
       {session ? (
         <AttendanceAppLayout
           username={session.user.name}
@@ -269,6 +286,7 @@ export default function App() {
             checkInAt={status?.checkInAt ?? null}
             attendanceActionDisabled={attendanceActionDisabled}
             attendanceActionHint={attendanceActionHint}
+            attendanceActionDisabledLabel={attendanceActionDisabledLabel}
             clock={clock}
             onAttendanceAction={toggleAttendance}
             onLeaveSuccess={async (input) => {
@@ -284,13 +302,30 @@ export default function App() {
             isInitialLoading={initialDataLoading}
           />
           {notice ? (
-            <Alert
-              severity="success"
-              onClose={() => setNotice('')}
-              sx={{ mt: 2 }}
+            <Snackbar
+              open
+              autoHideDuration={4_000}
+              onClose={(_event, reason) => {
+                if (reason !== 'clickaway') setNotice('');
+              }}
+              anchorOrigin={{
+                vertical: isTabletOrSmaller ? 'top' : 'bottom',
+                horizontal: 'center',
+              }}
+              sx={
+                isTabletOrSmaller
+                  ? { top: 'calc(72px + env(safe-area-inset-top) + 12px)' }
+                  : { mb: 2 }
+              }
             >
-              {notice}
-            </Alert>
+              <Alert
+                severity="success"
+                variant="filled"
+                onClose={() => setNotice('')}
+              >
+                {notice}
+              </Alert>
+            </Snackbar>
           ) : null}
           <AutoRetrySnackbar open={connectionError} />
         </AttendanceAppLayout>
@@ -299,6 +334,7 @@ export default function App() {
           onUsername={startLogin}
           onPIN={loginWithPIN}
           onSetupPIN={createPIN}
+          onClearError={() => setLoginError('')}
           error={loginError}
           loading={loading}
         />

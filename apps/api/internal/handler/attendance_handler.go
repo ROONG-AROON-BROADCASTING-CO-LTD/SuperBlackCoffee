@@ -136,13 +136,14 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	if shiftErr == sql.ErrNoRows {
 		shiftStatus = ""
 	}
+	canActToday := canRecordAttendance(shiftStatus) && (checkIn == nil || checkOut == nil)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
 		"date":                now.Format("2006-01-02"),
 		"checkInAt":           checkIn,
 		"checkOutAt":          checkOut,
 		"checkedIn":           checkIn != nil && checkOut == nil,
 		"shiftStatus":         shiftStatus,
-		"canRecordAttendance": canRecordAttendance(shiftStatus),
+		"canRecordAttendance": canActToday,
 	}})
 }
 
@@ -214,9 +215,9 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 		return
 	}
 	var checkIn *time.Time
-	err = h.db.QueryRowContext(c, `INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,work_date) DO UPDATE SET updated_at=now() WHERE staff_attendance.check_out_at IS NULL RETURNING check_in_at`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now).Scan(&checkIn)
+	err = h.db.QueryRowContext(c, `INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,work_date) DO NOTHING RETURNING check_in_at`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now).Scan(&checkIn)
 	if err == sql.ErrNoRows {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ลงเวลาของวันนี้ครบแล้ว"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันนี้เช็กอินไปแล้ว"})
 		return
 	}
 	if err != nil {

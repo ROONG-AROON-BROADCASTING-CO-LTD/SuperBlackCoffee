@@ -40,6 +40,73 @@ describe('AttendanceLoginPage', () => {
     expect(screen.getByText('PIN ไม่ถูกต้อง')).toBeTruthy();
   });
 
+  it('shows PIN errors on the PIN cells instead of a text message', async () => {
+    sessionStorage.setItem('sbc-attendance-username', 'staff_ayutthaya');
+    render(<AttendanceLoginPage {...defaultProps} error="PIN ไม่ถูกต้อง" />);
+
+    await waitFor(() =>
+      expect(
+        screen
+          .getByLabelText('กรอก PIN แล้ว 0 จาก 6 หลัก')
+          .getAttribute('aria-invalid'),
+      ).toBe('true'),
+    );
+    expect(screen.queryByText('PIN ไม่ถูกต้อง')).toBeNull();
+  });
+
+  it('clears a PIN error before returning to the username step', () => {
+    sessionStorage.setItem('sbc-attendance-username', 'staff_ayutthaya');
+    const onClearError = vi.fn();
+    render(
+      <AttendanceLoginPage
+        {...defaultProps}
+        error="PIN ไม่ถูกต้อง"
+        onClearError={onClearError}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'เปลี่ยนชื่อผู้ใช้' }));
+
+    expect(onClearError).toHaveBeenCalledOnce();
+  });
+
+  it('accepts and removes PIN digits through the number keypad', async () => {
+    sessionStorage.setItem('sbc-attendance-username', 'staff_ayutthaya');
+    const onPIN = vi.fn().mockResolvedValue(undefined);
+    render(<AttendanceLoginPage {...defaultProps} onPIN={onPIN} />);
+
+    for (const digit of ['1', '2', '3', '4', '5', '6']) {
+      fireEvent.click(screen.getByRole('button', { name: `เลข ${digit}` }));
+    }
+
+    await waitFor(() =>
+      expect(onPIN).toHaveBeenCalledWith('staff_ayutthaya', '123456'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'ลบตัวเลข' }));
+    expect(
+      (screen.getByLabelText('PIN 6 หลัก') as HTMLInputElement).value,
+    ).toBe('12345');
+  });
+
+  it('clears every PIN digit after a rejected six digit PIN', async () => {
+    sessionStorage.setItem('sbc-attendance-username', 'staff_ayutthaya');
+    const view = render(<AttendanceLoginPage {...defaultProps} />);
+
+    fireEvent.change(screen.getByLabelText('PIN 6 หลัก'), {
+      target: { value: '123456' },
+    });
+    view.rerender(
+      <AttendanceLoginPage {...defaultProps} error="PIN ไม่ถูกต้อง" />,
+    );
+
+    await screen.findByRole('button', { name: 'ล้าง PIN ทั้งหมด' });
+    fireEvent.click(screen.getByRole('button', { name: 'ล้าง PIN ทั้งหมด' }));
+    expect(
+      (screen.getByLabelText('PIN 6 หลัก') as HTMLInputElement).value,
+    ).toBe('');
+  });
+
   it('requires confirmation before setting a new six digit PIN', async () => {
     const onSetupPIN = vi.fn().mockResolvedValue(undefined);
     render(
@@ -57,14 +124,10 @@ describe('AttendanceLoginPage', () => {
     fireEvent.change(screen.getByLabelText('PIN 6 หลัก'), {
       target: { value: '123456' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'ตั้ง PIN' }));
     await screen.findByText('ยืนยัน PIN อีกครั้ง');
     fireEvent.change(screen.getByLabelText('PIN 6 หลัก'), {
       target: { value: '123456' },
     });
-    fireEvent.click(
-      screen.getByRole('button', { name: 'ยืนยันและเข้าใช้งาน' }),
-    );
     await waitFor(() =>
       expect(onSetupPIN).toHaveBeenCalledWith('staff_ayutthaya', '123456'),
     );
@@ -77,6 +140,6 @@ describe('AttendanceLoginPage', () => {
     sessionStorage.setItem('sbc-attendance-username', 'staff_ayutthaya');
     render(<AttendanceLoginPage {...defaultProps} />);
     expect(screen.getByText('กรอก PIN เพื่อเข้าใช้งาน')).toBeTruthy();
-    expect(screen.getByText(/staff_ayutthaya/)).toBeTruthy();
+    expect(screen.queryByText(/staff_ayutthaya/)).toBeNull();
   });
 });

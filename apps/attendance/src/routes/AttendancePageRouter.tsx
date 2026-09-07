@@ -46,6 +46,7 @@ type AttendancePageRouterProps = {
   checkInAt: string | null;
   attendanceActionDisabled: boolean;
   attendanceActionHint: string;
+  attendanceActionDisabledLabel: string;
   clock: string;
   onAttendanceAction: () => void;
   onLeaveSuccess: (input: {
@@ -66,6 +67,7 @@ export function AttendancePageRouter({
   checkInAt,
   attendanceActionDisabled,
   attendanceActionHint,
+  attendanceActionDisabledLabel,
   clock,
   onAttendanceAction,
   onLeaveSuccess,
@@ -89,6 +91,7 @@ export function AttendancePageRouter({
           onAction={onAttendanceAction}
           attendanceActionDisabled={attendanceActionDisabled}
           attendanceActionHint={attendanceActionHint}
+          attendanceActionDisabledLabel={attendanceActionDisabledLabel}
         />
       );
       break;

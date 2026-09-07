@@ -8,7 +8,7 @@ export function AttendanceWorkHistoryPage({
   history: AttendanceHistoryItem[];
 }) {
   return (
-    <Stack spacing={2.5}>
+    <Stack spacing={{ xs: 0, md: 2.5 }}>
       <Typography
         sx={{
           display: { xs: 'none', md: 'block' },

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Box, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
-import { DashboardSidebar } from '@stackbuild/ui';
+import { Box } from '@mui/material';
+import { DashboardSidebar, DashboardTopbar } from '@stackbuild/ui';
 import {
   MobileNavigation,
   attendanceNavigation,
@@ -27,8 +27,6 @@ export function AttendanceAppLayout({
   onLogout,
   children,
 }: AttendanceAppLayoutProps) {
-  const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true });
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const activeNavigationItem = attendanceNavigation.find(
     (item) => item.page === page,
@@ -42,7 +40,7 @@ export function AttendanceAppLayout({
         bgcolor: '#fbfaf8',
       }}
     >
-      {isDesktop ? (
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
         <DashboardSidebar
           activePage={
             activeNavigationItem?.label ?? attendanceNavigation[0].label
@@ -65,63 +63,41 @@ export function AttendanceAppLayout({
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((value) => !value)}
         />
-      ) : null}
+      </Box>
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <DashboardTopbar
+          title={title}
+          initials={username.slice(0, 1).toUpperCase()}
+          name={username}
+          role={`พนักงานสาขา${branchName}`}
+          sidebarWidth={0}
+          disableSidebarTransition
+        />
+      </Box>
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <DashboardTopbar
+          title={title}
+          initials={username.slice(0, 1).toUpperCase()}
+          name={username}
+          role={`พนักงานสาขา${branchName}`}
+          sidebarWidth={sidebarCollapsed ? 96 : 230}
+        />
+      </Box>
       <Box
         sx={{
           flex: 1,
           minWidth: 0,
           minHeight: '100dvh',
-          pb: { xs: 9.5, md: 0 },
+          pb: {
+            xs: 'calc(var(--attendance-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+            md: 0,
+          },
         }}
       >
         <Box
           sx={{
-            position: 'fixed',
-            top: 0,
-            left: { xs: 0, md: sidebarCollapsed ? 96 : 230 },
-            right: 0,
-            zIndex: 1100,
-            height: { xs: 64, md: 72 },
-            px: { xs: 2.5, md: 5 },
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            bgcolor: 'rgba(255,255,255,.94)',
-            borderBottom: '1px solid #e8ddd5',
-            backdropFilter: 'blur(12px)',
-            transition: 'left .28s cubic-bezier(.2,.8,.2,1)',
-          }}
-        >
-          <Typography sx={{ fontSize: { xs: 18, md: 22 }, fontWeight: 700 }}>
-            {title}
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{
-                display: 'grid',
-                placeItems: 'center',
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                bgcolor: '#ede2d8',
-                color: '#805637',
-                fontWeight: 700,
-              }}
-            >
-              {username.slice(0, 1).toUpperCase()}
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600 }}>{username}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                พนักงานสาขา{branchName}
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-        <Box
-          sx={{
             maxWidth: 1260,
-            mt: { xs: '64px', md: '72px' },
+            mt: '72px',
             p: { xs: '20px 16px 28px', md: '32px 40px 48px' },
             mx: 'auto',
           }}
@@ -129,7 +105,7 @@ export function AttendanceAppLayout({
           {children}
         </Box>
       </Box>
-      <MobileNavigation page={page} onPage={onPage} />
+      <MobileNavigation page={page} onPage={onPage} onLogout={onLogout} />
     </Box>
   );
 }

@@ -6,7 +6,7 @@ export function AttendanceWorkHistorySkeleton() {
       aria-label="กำลังโหลดประวัติการทำงาน"
       sx={{ '& .MuiSkeleton-root': { borderRadius: '3px' } }}
     >
-      <Stack spacing={2.5}>
+      <Stack spacing={{ xs: 0, md: 2.5 }}>
         <Skeleton
           variant="rounded"
           width={150}
@@ -16,25 +16,55 @@ export function AttendanceWorkHistorySkeleton() {
         <Paper
           variant="outlined"
           sx={{
-            p: { xs: 2, sm: '18px 22px' },
-            overflow: 'hidden',
+            p: 0,
+            overflowX: 'auto',
             borderColor: '#e8ddd5',
             borderRadius: '15px',
             bgcolor: '#fffdfb',
           }}
         >
-          <Box
-            sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}
-          >
-            <Skeleton variant="rounded" width={160} height={21} />
-            <Skeleton variant="rounded" width={62} height={18} />
-          </Box>
-          <Stack spacing={1.25}>
-            <Skeleton variant="rounded" height={22} />
-            {[1, 2, 3, 4].map((item) => (
-              <Skeleton key={item} variant="rounded" height={42} />
+          <Box sx={{ minWidth: 580 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '1.7fr 1fr 1fr 1.3fr',
+                gap: 1.5,
+                px: { xs: 2.5, sm: 3.5 },
+                py: 1.25,
+              }}
+            >
+              {[42, 28, 28, 34].map((width, index) => (
+                <Skeleton
+                  key={index}
+                  variant="rounded"
+                  width={`${width}%`}
+                  height={18}
+                />
+              ))}
+            </Box>
+            {[1, 2, 3, 4].map((row) => (
+              <Box
+                key={row}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.7fr 1fr 1fr 1.3fr',
+                  gap: 1.5,
+                  px: { xs: 2.5, sm: 3.5 },
+                  py: 1.25,
+                  borderTop: '1px solid #eee3dc',
+                }}
+              >
+                {[76, 58, 58, 68].map((width, index) => (
+                  <Skeleton
+                    key={index}
+                    variant="rounded"
+                    width={`${width}%`}
+                    height={18}
+                  />
+                ))}
+              </Box>
             ))}
-          </Stack>
+          </Box>
         </Paper>
       </Stack>
     </Box>

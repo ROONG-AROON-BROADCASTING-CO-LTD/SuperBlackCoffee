@@ -13,7 +13,7 @@ export { DashboardSidebar } from './components/dashboard/DashboardSidebar';
 export { DashboardMain } from './components/dashboard/DashboardMain';
 export { DashboardTopbar } from './components/dashboard/DashboardTopbar';
 export { LoaderCircleIcon } from './components/icons/LoaderCircleIcon';
-export { LogInIcon } from './components/icons/LogInIcon';
+export { LogInIcon, type LogInIconHandle } from './components/icons/LogInIcon';
 export { LogoutIcon } from './components/icons/LogoutIcon';
 export { LayoutGridIcon } from './components/icons/LayoutGridIcon';
 export { CoffeeIcon } from './components/icons/CoffeeIcon';
@@ -52,7 +52,17 @@ export {
 } from './components/icons/SearchIcon';
 export { XIcon, type XIconHandle } from './components/icons/XIcon';
 export { ClockIcon, type ClockIconHandle } from './components/icons/ClockIcon';
+export { TimerIcon, type TimerIconHandle } from './components/icons/TimerIcon';
+export {
+  CalendarDaysIcon,
+  type CalendarDaysIconHandle,
+} from './components/icons/CalendarDaysIcon';
 export { BoxesIcon } from './components/icons/BoxesIcon';
+export { FingerprintIcon } from './components/icons/FingerprintIcon';
+export {
+  DeleteIcon,
+  type DeleteIconHandle,
+} from './components/icons/DeleteIcon';
 export { CartIcon, type CartIconHandle } from './components/icons/CartIcon';
 export {
   MapPinPlusInsideIcon,

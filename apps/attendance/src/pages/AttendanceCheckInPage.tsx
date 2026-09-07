@@ -10,6 +10,7 @@ export function AttendanceCheckInPage({
   onAction,
   attendanceActionDisabled,
   attendanceActionHint,
+  attendanceActionDisabledLabel,
 }: {
   checkedIn: boolean;
   checkInAt: string | null;
@@ -18,13 +19,26 @@ export function AttendanceCheckInPage({
   onAction: () => void;
   attendanceActionDisabled: boolean;
   attendanceActionHint: string;
+  attendanceActionDisabledLabel: string;
 }) {
   return (
     <Box
       sx={{
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
-        gap: 2.5,
+        gridTemplateRows: {
+          xs: 'minmax(360px, 7fr) minmax(244px, 3fr)',
+          md: 'auto',
+        },
+        height: {
+          xs: 'calc(100dvh - 72px - var(--attendance-mobile-nav-height, 82px) - env(safe-area-inset-bottom) - 48px)',
+          md: 'auto',
+        },
+        gap: { xs: 1.5, md: 2.5 },
+        overflow: 'visible',
+        '@media (max-width:899.95px) and (max-height:760px)': {
+          gridTemplateRows: 'minmax(230px, 7fr) minmax(150px, 3fr)',
+        },
       }}
     >
       <Typography
@@ -44,6 +58,7 @@ export function AttendanceCheckInPage({
         onAction={onAction}
         disabled={attendanceActionDisabled}
         actionHint={attendanceActionHint}
+        actionDisabledLabel={attendanceActionDisabledLabel}
       />
       <TodayCard checkedIn={checkedIn} checkInAt={checkInAt} staff={staff} />
     </Box>
