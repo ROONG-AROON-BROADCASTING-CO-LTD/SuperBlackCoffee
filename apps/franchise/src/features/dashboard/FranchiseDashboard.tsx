@@ -54,11 +54,6 @@ const FranchiseOverviewPage = lazy(() =>
   })),
 );
 
-const readPlan = (): FranchisePlan => {
-  const value = sessionStorage.getItem('sbc-franchise-plan');
-  return value === 'M' || value === 'L' ? value : 'S';
-};
-
 function FranchisePageSkeleton({ page }: { page: string }) {
   const skeleton =
     page === 'ตารางพนักงาน' ? (
@@ -75,10 +70,15 @@ function FranchisePageSkeleton({ page }: { page: string }) {
   return <DashboardMain>{skeleton}</DashboardMain>;
 }
 
-export function FranchiseDashboard({ logout }: { logout: () => void }) {
+export function FranchiseDashboard({
+  logout,
+  plan,
+}: {
+  logout: () => void;
+  plan: FranchisePlan;
+}) {
   const location = useLocation();
   const routerNavigate = useNavigate();
-  const [plan] = useState<FranchisePlan>(readPlan);
   const activePage = franchisePageFromPath(location.pathname);
   const [collapsed, setCollapsed] = useState(
     () => sessionStorage.getItem('sbc-franchise-sidebar-collapsed') === 'true',

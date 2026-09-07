@@ -13,6 +13,12 @@ vi.mock('../features/dashboard/FranchiseDashboard', () => ({
     <button onClick={logout}>franchise-logout</button>
   ),
 }));
+vi.mock('../api/auth', () => ({
+  logout: vi.fn().mockResolvedValue(undefined),
+  restoreSession: vi
+    .fn()
+    .mockResolvedValue({ user: { role: 'franchise_owner', plan: 'M' } }),
+}));
 
 describe('Franchise App session', () => {
   afterEach(() => {
@@ -20,13 +26,11 @@ describe('Franchise App session', () => {
     sessionStorage.clear();
     vi.clearAllMocks();
   });
-  it('restores and clears the franchise session', () => {
-    sessionStorage.setItem('sbc-franchise-session', 'true');
-    sessionStorage.setItem('sbc-access-token', 'token');
+  it('restores the franchise session from its secure cookie and logs out', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'franchise-logout' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'franchise-logout' }),
+    );
     expect(screen.getByText('franchise-login')).toBeTruthy();
-    expect(sessionStorage.getItem('sbc-franchise-session')).toBeNull();
-    expect(sessionStorage.getItem('sbc-access-token')).toBeNull();
   });
 });

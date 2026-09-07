@@ -19,39 +19,52 @@ type Claims struct {
 
 func RequireAuth(secret string, roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		raw := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
-		if raw == "" {
-			raw, _ = c.Cookie("sbc_attendance_session")
-		}
-		if raw == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบ access token"})
-			return
-		}
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (any, error) {
-			if t.Method != jwt.SigningMethodHS256 {
-				return nil, fmt.Errorf("รูปแบบการลงนามของ token ไม่ถูกต้อง: %s", t.Method.Alg())
+		rawTokens := []string{strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")}
+		for _, name := range []string{"sbc_admin_session", "sbc_franchise_session", "sbc_attendance_session"} {
+			if value, err := c.Cookie(name); err == nil {
+				rawTokens = append(rawTokens, value)
 			}
-			return []byte(secret), nil
-		})
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "access token ไม่ถูกต้องหรือหมดอายุ"})
-			return
 		}
-		if len(roles) > 0 {
-			allowed := false
+		var authorized *Claims
+		hasValidSession := false
+		for _, raw := range rawTokens {
+			if raw == "" {
+				continue
+			}
+			claims := &Claims{}
+			token, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (any, error) {
+				if t.Method != jwt.SigningMethodHS256 {
+					return nil, fmt.Errorf("รูปแบบการลงนามของ token ไม่ถูกต้อง: %s", t.Method.Alg())
+				}
+				return []byte(secret), nil
+			})
+			if err != nil || !token.Valid {
+				continue
+			}
+			hasValidSession = true
+			if len(roles) == 0 {
+				authorized = claims
+				break
+			}
 			for _, role := range roles {
 				if claims.Role == role {
-					allowed = true
+					authorized = claims
 					break
 				}
 			}
-			if !allowed {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "message": "คุณไม่มีสิทธิ์ดำเนินการนี้"})
-				return
+			if authorized != nil {
+				break
 			}
 		}
-		c.Set("claims", claims)
+		if authorized == nil {
+			status, message := http.StatusUnauthorized, "ไม่พบเซสชันหรือเซสชันหมดอายุ"
+			if hasValidSession {
+				status, message = http.StatusForbidden, "คุณไม่มีสิทธิ์ดำเนินการนี้"
+			}
+			c.AbortWithStatusJSON(status, gin.H{"success": false, "message": message})
+			return
+		}
+		c.Set("claims", authorized)
 		c.Next()
 	}
 }

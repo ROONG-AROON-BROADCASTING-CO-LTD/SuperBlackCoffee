@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -96,8 +97,31 @@ func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branc
 		return
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("sbc_attendance_session", token, 30*24*60*60, "/api/v1", "", false, true)
+	c.SetCookie("sbc_attendance_session", token, 30*24*60*60, "/api/v1", "", os.Getenv("APP_ENV") == "production", true)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": userID, "name": name, "role": role, "branchId": branchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt}}})
+}
+
+func (h *PlatformHandler) AttendanceSession(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	claims, ok := attendanceClaims(c)
+	if !ok {
+		return
+	}
+	var name, role, branchName, startsAt, endsAt string
+	err := h.db.QueryRowContext(c, `SELECT u.name,u.role,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00') FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &branchName, &startsAt, &endsAt)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "name": name, "role": role, "branchId": claims.BranchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt}}})
+}
+
+func (h *PlatformHandler) AttendanceLogout(c *gin.Context) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("sbc_attendance_session", "", -1, "/api/v1", "", os.Getenv("APP_ENV") == "production", true)
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 func attendanceClaims(c *gin.Context) (*middleware.Claims, bool) {

@@ -10,6 +10,8 @@ import {
   getAttendanceStatus,
   getAttendanceSummary,
   loginAttendance,
+  logoutAttendance,
+  restoreAttendanceSession,
   setupAttendancePIN,
   type AttendanceHistoryItem,
   type AttendanceSession,
@@ -51,35 +53,15 @@ function staffPageFromPath(pathname: string): StaffPage {
 }
 
 export default function App() {
-  const [session, setSession] = useState<AttendanceSession | null>(() => {
-    const value = sessionStorage.getItem('sbc-staff-session');
-    if (!value) return null;
-    try {
-      const parsed = JSON.parse(value) as Partial<AttendanceSession>;
-      if (
-        !parsed ||
-        typeof parsed !== 'object' ||
-        !parsed.user ||
-        typeof parsed.user.name !== 'string'
-      ) {
-        sessionStorage.removeItem('sbc-staff-session');
-        return null;
-      }
-      return parsed as AttendanceSession;
-    } catch {
-      sessionStorage.removeItem('sbc-staff-session');
-      return null;
-    }
-  });
+  const [session, setSession] = useState<AttendanceSession | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [page, setPage] = useState<StaffPage>(() =>
     staffPageFromPath(window.location.pathname),
   );
   const [status, setStatus] = useState<AttendanceStatus | null>(null);
   const [history, setHistory] = useState<AttendanceHistoryItem[]>([]);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
-  const [initialDataLoading, setInitialDataLoading] = useState(
-    Boolean(session),
-  );
+  const [initialDataLoading, setInitialDataLoading] = useState(false);
   const [notice, setNotice] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,7 +78,7 @@ export default function App() {
   const attendanceActionDisabled = !status || !status.canRecordAttendance;
   const attendanceActionHint =
     status?.checkInAt && status.checkOutAt
-      ? 'วันนี้เช็กอินและเช็กเอาต์ครบแล้ว'
+      ? ''
       : status?.shiftStatus === 'day_off'
         ? 'วันนี้เป็นวันหยุดตามตารางกะ'
         : 'ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบกะงาน';
@@ -108,12 +90,31 @@ export default function App() {
         : 'ยังไม่สามารถลงเวลาได้';
 
   useEffect(() => {
+    let active = true;
+    void restoreAttendanceSession()
+      .then((nextSession) => {
+        if (!active) return;
+        setInitialDataLoading(true);
+        setSession(nextSession);
+      })
+      .catch(() => {
+        if (active) setSession(null);
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!session) return;
     let active = true;
     void Promise.all([
-      getAttendanceStatus(session.accessToken),
-      getAttendanceHistory(session.accessToken),
-      getAttendanceSummary(session.accessToken),
+      getAttendanceStatus(),
+      getAttendanceHistory(),
+      getAttendanceSummary(),
     ])
       .then(([nextStatus, nextHistory, nextSummary]) => {
         if (!active) return;
@@ -125,7 +126,6 @@ export default function App() {
       .catch((error) => {
         if (!active) return;
         if (error instanceof ApiRequestError && error.status === 401) {
-          sessionStorage.removeItem('sbc-staff-session');
           setSession(null);
           setStatus(null);
           setHistory([]);
@@ -168,8 +168,7 @@ export default function App() {
     setPage(nextPage);
   };
 
-  const persistSession = (nextSession: AttendanceSession) => {
-    sessionStorage.setItem('sbc-staff-session', JSON.stringify(nextSession));
+  const startSession = (nextSession: AttendanceSession) => {
     setInitialDataLoading(true);
     setSession(nextSession);
     navigatePage('attendance');
@@ -183,7 +182,7 @@ export default function App() {
         return 'setup-pin';
       }
       if ('requiresPIN' in nextSession) return 'pin';
-      if (isAttendanceSession(nextSession)) persistSession(nextSession);
+      if (isAttendanceSession(nextSession)) startSession(nextSession);
       return 'pin';
     } catch (error) {
       setLoginError(
@@ -199,7 +198,7 @@ export default function App() {
     setLoginError('');
     try {
       const nextSession = await loginAttendance(name, pin);
-      if (isAttendanceSession(nextSession)) persistSession(nextSession);
+      if (isAttendanceSession(nextSession)) startSession(nextSession);
     } catch (error) {
       setLoginError(
         error instanceof Error ? error.message : 'ไม่สามารถเข้าสู่ระบบได้',
@@ -213,7 +212,7 @@ export default function App() {
     setLoading(true);
     setLoginError('');
     try {
-      persistSession(await setupAttendancePIN(name, pin));
+      startSession(await setupAttendancePIN(name, pin));
     } catch (error) {
       setLoginError(
         error instanceof Error ? error.message : 'ไม่สามารถตั้ง PIN ได้',
@@ -224,7 +223,7 @@ export default function App() {
     }
   };
   const logout = () => {
-    sessionStorage.removeItem('sbc-staff-session');
+    void logoutAttendance();
     setSession(null);
     setStatus(null);
     setHistory([]);
@@ -237,15 +236,13 @@ export default function App() {
     if (!session || !status?.canRecordAttendance) return;
     setLoading(true);
     try {
-      const nextStatus = status?.checkedIn
-        ? await checkOut(session.accessToken)
-        : await checkIn(session.accessToken);
+      const nextStatus = status?.checkedIn ? await checkOut() : await checkIn();
       setStatus((currentStatus) => ({
         ...currentStatus,
         ...nextStatus,
         canRecordAttendance: nextStatus.checkedIn,
       }));
-      setHistory(await getAttendanceHistory(session.accessToken));
+      setHistory(await getAttendanceHistory());
       setNotice(
         nextStatus.checkedIn
           ? 'เช็กอินเรียบร้อยแล้ว'
@@ -262,6 +259,8 @@ export default function App() {
       setLoading(false);
     }
   };
+
+  if (checkingSession) return null;
 
   return (
     <SbcThemeProvider
@@ -284,6 +283,7 @@ export default function App() {
             staff={session.user}
             checkedIn={status?.checkedIn ?? false}
             checkInAt={status?.checkInAt ?? null}
+            checkOutAt={status?.checkOutAt ?? null}
             attendanceActionDisabled={attendanceActionDisabled}
             attendanceActionHint={attendanceActionHint}
             attendanceActionDisabledLabel={attendanceActionDisabledLabel}
@@ -291,7 +291,7 @@ export default function App() {
             onAttendanceAction={toggleAttendance}
             onLeaveSuccess={async (input) => {
               try {
-                await createLeaveRequest(session.accessToken, input);
+                await createLeaveRequest(input);
                 setNotice('ส่งคำขอลาเรียบร้อยแล้ว');
               } catch {
                 // The leave form remains open so the employee can try again.

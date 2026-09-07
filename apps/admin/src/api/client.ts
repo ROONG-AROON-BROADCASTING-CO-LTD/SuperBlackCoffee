@@ -4,6 +4,7 @@ import type { ApiEnvelope } from '@stackbuild/types';
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 export type { ApiEnvelope } from '@stackbuild/types';
@@ -39,10 +40,6 @@ export async function secured<T>(
     const response = await apiClient.request<ApiEnvelope<T>>({
       url: path,
       ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${sessionStorage.getItem('sbc-access-token') ?? ''}`,
-      },
     });
     if (!response.data.success)
       throw new Error(response.data.message ?? 'ไม่สามารถเชื่อมต่อระบบได้');
@@ -52,8 +49,6 @@ export async function secured<T>(
       axios.isAxiosError(error) &&
       (error.response?.status === 401 || error.response?.status === 403)
     ) {
-      sessionStorage.removeItem('sbc-access-token');
-      sessionStorage.removeItem('sbc-admin-session');
       window.dispatchEvent(new Event('sbc:session-expired'));
       throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     }

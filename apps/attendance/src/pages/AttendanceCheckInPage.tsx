@@ -5,6 +5,7 @@ import type { AttendanceSession } from '../api/attendance';
 export function AttendanceCheckInPage({
   checkedIn,
   checkInAt,
+  checkOutAt,
   staff,
   clock,
   onAction,
@@ -14,6 +15,7 @@ export function AttendanceCheckInPage({
 }: {
   checkedIn: boolean;
   checkInAt: string | null;
+  checkOutAt: string | null;
   staff: AttendanceSession['user'];
   clock: string;
   onAction: () => void;
@@ -60,7 +62,12 @@ export function AttendanceCheckInPage({
         actionHint={attendanceActionHint}
         actionDisabledLabel={attendanceActionDisabledLabel}
       />
-      <TodayCard checkedIn={checkedIn} checkInAt={checkInAt} staff={staff} />
+      <TodayCard
+        checkedIn={checkedIn}
+        checkInAt={checkInAt}
+        checkOutAt={checkOutAt}
+        staff={staff}
+      />
     </Box>
   );
 }

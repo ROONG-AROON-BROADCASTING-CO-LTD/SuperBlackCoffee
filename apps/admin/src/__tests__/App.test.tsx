@@ -13,6 +13,10 @@ vi.mock('../features/dashboard/AdminDashboard', () => ({
     <button onClick={logout}>admin-logout</button>
   ),
 }));
+vi.mock('../api/auth', () => ({
+  logout: vi.fn().mockResolvedValue(undefined),
+  restoreSession: vi.fn().mockResolvedValue({ user: { role: 'admin' } }),
+}));
 
 describe('Admin App session', () => {
   afterEach(() => {
@@ -20,13 +24,11 @@ describe('Admin App session', () => {
     sessionStorage.clear();
     vi.clearAllMocks();
   });
-  it('restores and clears the admin session', () => {
-    sessionStorage.setItem('sbc-admin-session', 'true');
-    sessionStorage.setItem('sbc-access-token', 'token');
+  it('restores the admin session from its secure cookie and logs out', async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'admin-logout' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'admin-logout' }),
+    );
     expect(screen.getByText('admin-login')).toBeTruthy();
-    expect(sessionStorage.getItem('sbc-admin-session')).toBeNull();
-    expect(sessionStorage.getItem('sbc-access-token')).toBeNull();
   });
 });

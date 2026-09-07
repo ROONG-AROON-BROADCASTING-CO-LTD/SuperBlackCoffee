@@ -41,15 +41,6 @@ async function request<T>(path: string, options: RequestInit = {}) {
 
 export const publicRequest = request;
 
-export function secured<T>(
-  token: string | undefined,
-  path: string,
-  options: RequestInit = {},
-) {
-  const headers = new Headers(options.headers);
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  return request<T>(path, {
-    ...options,
-    headers,
-  });
+export function secured<T>(path: string, options: RequestInit = {}) {
+  return request<T>(path, options);
 }

@@ -1,7 +1,6 @@
 import { publicRequest, secured } from './client';
 
 export type AttendanceSession = {
-  accessToken?: string;
   user: {
     id: number;
     name: string;
@@ -56,32 +55,35 @@ export const setupAttendancePIN = (username: string, pin: string) =>
     body: JSON.stringify({ username, pin }),
   });
 
-export const getAttendanceStatus = (token?: string) =>
-  secured<AttendanceStatus>(token, '/attendance/today');
+export const restoreAttendanceSession = () =>
+  secured<AttendanceSession>('/attendance/session');
 
-export const getAttendanceSummary = (token?: string) =>
-  secured<AttendanceSummary>(token, '/attendance/summary');
+export const logoutAttendance = () =>
+  publicRequest<void>('/attendance/logout', { method: 'POST' });
 
-export const getAttendanceHistory = (token?: string) =>
-  secured<AttendanceHistoryItem[]>(token, '/attendance/history');
+export const getAttendanceStatus = () =>
+  secured<AttendanceStatus>('/attendance/today');
 
-export const checkIn = (token?: string) =>
-  secured<AttendanceStatus>(token, '/attendance/check-in', { method: 'POST' });
+export const getAttendanceSummary = () =>
+  secured<AttendanceSummary>('/attendance/summary');
 
-export const checkOut = (token?: string) =>
-  secured<AttendanceStatus>(token, '/attendance/check-out', {
+export const getAttendanceHistory = () =>
+  secured<AttendanceHistoryItem[]>('/attendance/history');
+
+export const checkIn = () =>
+  secured<AttendanceStatus>('/attendance/check-in', { method: 'POST' });
+
+export const checkOut = () =>
+  secured<AttendanceStatus>('/attendance/check-out', {
     method: 'POST',
   });
 
-export const createLeaveRequest = (
-  token: string | undefined,
-  input: {
-    leaveDate: string;
-    leaveType: 'sick' | 'personal' | 'other';
-    reason: string;
-  },
-) =>
-  secured<{ id: number; status: string }>(token, '/attendance/leave-requests', {
+export const createLeaveRequest = (input: {
+  leaveDate: string;
+  leaveType: 'sick' | 'personal' | 'other';
+  reason: string;
+}) =>
+  secured<{ id: number; status: string }>('/attendance/leave-requests', {
     method: 'POST',
     body: JSON.stringify(input),
   });

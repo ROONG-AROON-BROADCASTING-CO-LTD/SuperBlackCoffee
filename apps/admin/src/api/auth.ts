@@ -1,11 +1,14 @@
-import { publicRequest } from './client';
+import { publicRequest, secured } from './client';
 
 export type AuthSession = {
-  accessToken: string;
-  user: { id: number; name: string; role: string };
+  user: { id: number; name?: string; role: string };
 };
 export const login = (username: string, password: string) =>
   publicRequest<AuthSession>('/auth/login', {
     method: 'POST',
     data: { username, password },
   });
+
+export const restoreSession = () => secured<AuthSession>('/auth/session');
+export const logout = () =>
+  publicRequest<void>('/auth/logout', { method: 'POST' });

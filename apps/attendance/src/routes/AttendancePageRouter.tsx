@@ -44,6 +44,7 @@ type AttendancePageRouterProps = {
   staff: AttendanceSession['user'];
   checkedIn: boolean;
   checkInAt: string | null;
+  checkOutAt: string | null;
   attendanceActionDisabled: boolean;
   attendanceActionHint: string;
   attendanceActionDisabledLabel: string;
@@ -65,6 +66,7 @@ export function AttendancePageRouter({
   staff,
   checkedIn,
   checkInAt,
+  checkOutAt,
   attendanceActionDisabled,
   attendanceActionHint,
   attendanceActionDisabledLabel,
@@ -86,6 +88,7 @@ export function AttendancePageRouter({
         <AttendanceCheckInPage
           checkedIn={checkedIn}
           checkInAt={checkInAt}
+          checkOutAt={checkOutAt}
           staff={staff}
           clock={clock}
           onAction={onAttendanceAction}

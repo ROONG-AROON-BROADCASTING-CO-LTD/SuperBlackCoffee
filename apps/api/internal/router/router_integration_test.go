@@ -50,6 +50,46 @@ func TestProtectedRoutesAcceptAttendanceSessionCookie(t *testing.T) {
 	}
 }
 
+func TestPlatformSessionCookieRestoresSessionAndCanLogOut(t *testing.T) {
+	r := New(nil, nil)
+	token := testToken(t, "admin")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/session", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_admin_session", Value: token})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("session = %d: %s", res.Code, res.Body.String())
+	}
+	if strings.Contains(res.Body.String(), "accessToken") {
+		t.Fatalf("session response must not expose access tokens: %s", res.Body.String())
+	}
+
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	logoutRes := httptest.NewRecorder()
+	r.ServeHTTP(logoutRes, logoutReq)
+	if logoutRes.Code != http.StatusOK {
+		t.Fatalf("logout = %d: %s", logoutRes.Code, logoutRes.Body.String())
+	}
+	cookies := logoutRes.Result().Cookies()
+	if len(cookies) != 2 || cookies[0].Name != "sbc_admin_session" || cookies[0].MaxAge >= 0 || !cookies[0].HttpOnly {
+		t.Fatalf("logout did not clear the HttpOnly platform cookie: %#v", cookies)
+	}
+}
+
+func TestAttendanceLogoutClearsSessionCookie(t *testing.T) {
+	r := New(nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/attendance/logout", nil)
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("logout = %d: %s", res.Code, res.Body.String())
+	}
+	cookies := res.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "sbc_attendance_session" || cookies[0].MaxAge >= 0 || !cookies[0].HttpOnly {
+		t.Fatalf("attendance logout did not clear the HttpOnly cookie: %#v", cookies)
+	}
+}
+
 func TestUsersRequireAdminToken(t *testing.T) {
 	r := New(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)

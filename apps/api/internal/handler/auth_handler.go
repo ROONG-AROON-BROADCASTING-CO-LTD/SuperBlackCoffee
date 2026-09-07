@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -13,6 +14,24 @@ import (
 )
 
 type loginInput = dto.LoginRequest
+
+const platformSessionTTL = 12 * time.Hour
+
+func platformSessionCookieName(role string) string {
+	switch role {
+	case "admin":
+		return "sbc_admin_session"
+	case "franchise_owner":
+		return "sbc_franchise_session"
+	default:
+		return ""
+	}
+}
+
+func (h *PlatformHandler) setPlatformSessionCookie(c *gin.Context, name, value string, maxAge int) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(name, value, maxAge, "/api/v1", "", os.Getenv("APP_ENV") == "production", true)
+}
 
 func (h *PlatformHandler) Login(c *gin.Context) {
 	if h.unavailable(c) {
@@ -38,7 +57,7 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 		return
 	}
 	h.cache.Reset(c, loginKey)
-	claims := middleware.Claims{UserID: int64(user.ID), Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(12 * time.Hour)), IssuedAt: jwt.NewNumericDate(time.Now())}}
+	claims := middleware.Claims{UserID: int64(user.ID), Role: user.Role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(platformSessionTTL)), IssuedAt: jwt.NewNumericDate(time.Now())}}
 	claims.FranchiseeID = user.FranchiseeID
 	claims.BranchID = user.BranchID
 	plan := ""
@@ -58,5 +77,36 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้าง access token ได้"})
 		return
 	}
-	c.JSON(200, gin.H{"success": true, "data": gin.H{"accessToken": token, "user": gin.H{"id": user.ID, "name": user.Name, "role": user.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "plan": plan}}})
+	if cookieName := platformSessionCookieName(user.Role); cookieName != "" {
+		for _, name := range []string{"sbc_admin_session", "sbc_franchise_session"} {
+			if name != cookieName {
+				h.setPlatformSessionCookie(c, name, "", -1)
+			}
+		}
+		h.setPlatformSessionCookie(c, cookieName, token, int(platformSessionTTL.Seconds()))
+	}
+	c.JSON(200, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": user.ID, "name": user.Name, "role": user.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "plan": plan}}})
+}
+
+func (h *PlatformHandler) Session(c *gin.Context) {
+	claims := middleware.ClaimsFrom(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบเซสชัน"})
+		return
+	}
+	plan := ""
+	if claims.FranchiseeID != nil && claims.BranchID != nil {
+		if h.db == nil || h.db.QueryRowContext(c, `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan) != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันแฟรนไชส์ไม่พร้อมใช้งาน"})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "role": claims.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "plan": plan}}})
+}
+
+func (h *PlatformHandler) Logout(c *gin.Context) {
+	for _, name := range []string{"sbc_admin_session", "sbc_franchise_session"} {
+		h.setPlatformSessionCookie(c, name, "", -1)
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }

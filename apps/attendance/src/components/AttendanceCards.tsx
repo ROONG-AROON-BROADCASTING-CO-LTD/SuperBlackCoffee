@@ -121,7 +121,7 @@ export function TimeCard({
             disabled={disabled}
             disabledLabel={actionDisabledLabel}
           />
-          {disabled ? (
+          {disabled && actionHint ? (
             <Typography color="error.main">{actionHint}</Typography>
           ) : null}
         </Stack>
@@ -133,10 +133,12 @@ export function TimeCard({
 export function TodayCard({
   checkedIn,
   checkInAt,
+  checkOutAt,
   staff,
 }: {
   checkedIn: boolean;
   checkInAt: string | null;
+  checkOutAt: string | null;
   staff: { role: string; branchName: string; startsAt: string; endsAt: string };
 }) {
   const formatTime = (value: string) => value.slice(0, 5);
@@ -146,6 +148,8 @@ export function TodayCard({
         minute: '2-digit',
       }).format(new Date(checkInAt))
     : null;
+  const attendanceCompleted = Boolean(checkInAt && checkOutAt);
+  const hasPositiveStatus = checkedIn || attendanceCompleted;
   return (
     <Paper
       variant="outlined"
@@ -170,11 +174,13 @@ export function TodayCard({
       <Chip
         component="div"
         label={
-          checkedIn && checkInLabel
-            ? `เช็กอินแล้ว เวลา ${checkInLabel} น.`
-            : 'ยังไม่ได้เช็กอิน'
+          attendanceCompleted
+            ? 'วันนี้เช็กอินและเช็กเอาต์ครบแล้ว'
+            : checkedIn && checkInLabel
+              ? `เช็กอินแล้ว เวลา ${checkInLabel} น.`
+              : 'ยังไม่ได้เช็กอิน'
         }
-        color={checkedIn ? 'success' : 'default'}
+        color={hasPositiveStatus ? 'success' : 'default'}
         variant="outlined"
         sx={{
           height: { xs: 64, md: 40 },
@@ -186,8 +192,8 @@ export function TodayCard({
           boxShadow: 'none',
           borderWidth: 1.5,
           borderStyle: 'dashed',
-          bgcolor: checkedIn ? '#eaf6ec' : '#f2f0ee',
-          color: checkedIn ? '#1f6f31' : 'text.secondary',
+          bgcolor: hasPositiveStatus ? '#eaf6ec' : '#f2f0ee',
+          color: hasPositiveStatus ? '#1f6f31' : 'text.secondary',
           '@media (max-width:899.95px) and (max-height:760px)': {
             height: 44,
             fontSize: 20,

@@ -18,6 +18,8 @@ func TestRequireAuth(t *testing.T) {
 	tests := []struct {
 		name       string
 		authorize  string
+		cookieName string
+		cookie     string
 		roles      []string
 		wantStatus int
 	}{
@@ -25,6 +27,7 @@ func TestRequireAuth(t *testing.T) {
 		{name: "expired token", authorize: "Bearer " + expiredToken, wantStatus: http.StatusUnauthorized},
 		{name: "role is denied", authorize: "Bearer " + validToken, roles: []string{"cashier"}, wantStatus: http.StatusForbidden},
 		{name: "valid token", authorize: "Bearer " + validToken, roles: []string{"admin"}, wantStatus: http.StatusNoContent},
+		{name: "admin session cookie", cookieName: "sbc_admin_session", cookie: validToken, roles: []string{"admin"}, wantStatus: http.StatusNoContent},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -38,6 +41,9 @@ func TestRequireAuth(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 			if test.authorize != "" {
 				req.Header.Set("Authorization", test.authorize)
+			}
+			if test.cookie != "" {
+				req.AddCookie(&http.Cookie{Name: test.cookieName, Value: test.cookie})
 			}
 			res := httptest.NewRecorder()
 			r.ServeHTTP(res, req)

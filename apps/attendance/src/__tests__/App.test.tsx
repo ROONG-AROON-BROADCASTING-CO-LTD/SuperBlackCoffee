@@ -35,6 +35,18 @@ vi.mock('../api/attendance', () => ({
   checkOut: vi.fn(),
   createLeaveRequest: vi.fn(),
   loginAttendance: vi.fn(),
+  logoutAttendance: vi.fn().mockResolvedValue(undefined),
+  restoreAttendanceSession: vi.fn().mockResolvedValue({
+    user: {
+      id: 1,
+      name: 'พนักงาน',
+      role: 'cashier',
+      branchId: 1,
+      branchName: 'อยุธยา',
+      startsAt: '08:00',
+      endsAt: '17:00',
+    },
+  }),
   setupAttendancePIN: vi.fn(),
 }));
 vi.mock('../features/auth/AttendanceLoginPage', () => ({
@@ -78,20 +90,6 @@ vi.mock('../routes/AttendancePageRouter', () => ({
 describe('Attendance App session', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/');
-    sessionStorage.setItem(
-      'sbc-staff-session',
-      JSON.stringify({
-        user: {
-          id: 1,
-          name: 'พนักงาน',
-          role: 'cashier',
-          branchId: 1,
-          branchName: 'อยุธยา',
-          startsAt: '08:00',
-          endsAt: '17:00',
-        },
-      }),
-    );
   });
   afterEach(() => {
     cleanup();
@@ -99,14 +97,13 @@ describe('Attendance App session', () => {
     vi.clearAllMocks();
     window.history.replaceState(null, '', '/');
   });
-  it('restores a cookie-backed session without an access token and logs out', async () => {
+  it('restores the HttpOnly cookie session and logs out', async () => {
     render(<App />);
-    expect(screen.getByText('attendance-router')).toBeTruthy();
+    expect(await screen.findByText('attendance-router')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'attendance-logout' }));
     await waitFor(() => {
       expect(screen.getByText('attendance-login')).toBeTruthy();
     });
-    expect(sessionStorage.getItem('sbc-staff-session')).toBeNull();
   });
 
   it('disables attendance actions when today is a day off', async () => {
@@ -122,11 +119,13 @@ describe('Attendance App session', () => {
     });
   });
 
-  it('restores the current page from the URL after a refresh', () => {
+  it('restores the current page from the URL after a refresh', async () => {
     window.history.replaceState(null, '', '/history');
 
     render(<App />);
 
-    expect(screen.getByTestId('attendance-page').textContent).toBe('history');
+    expect((await screen.findByTestId('attendance-page')).textContent).toBe(
+      'history',
+    );
   });
 });

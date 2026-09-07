@@ -93,6 +93,7 @@ export function LoginScreen({
         <Box
           component="form"
           onSubmit={handleSubmit}
+          autoComplete="off"
           sx={{ width: '100%', maxWidth: 380 }}
         >
           <Typography
@@ -112,7 +113,7 @@ export function LoginScreen({
               name="username"
               label="ชื่อผู้ใช้งาน"
               type="text"
-              autoComplete="username"
+              autoComplete="off"
               fullWidth
               required
             />
@@ -120,7 +121,7 @@ export function LoginScreen({
               name="password"
               label="รหัสผ่าน"
               type="password"
-              autoComplete="current-password"
+              autoComplete="off"
               fullWidth
               required
             />
