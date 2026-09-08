@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -1549,24 +1550,44 @@ export function IngredientsManagementPage({
       <Snackbar
         open={isCartSuccessVisible}
         autoHideDuration={5000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ mb: 2 }}
         onClose={() => setIsCartSuccessVisible(false)}
-        message="ส่งคำขอวัตถุดิบแล้ว"
-        action={
-          onRequestCreated ? (
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
-                setIsCartSuccessVisible(false);
-                onRequestCreated();
-              }}
-              sx={{ fontFamily: 'Kanit, sans-serif' }}
-            >
-              ดูคำขอ
-            </Button>
-          ) : undefined
-        }
-      />
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          action={
+            onRequestCreated ? (
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setIsCartSuccessVisible(false);
+                  onRequestCreated();
+                }}
+                sx={{ fontFamily: 'Kanit, sans-serif' }}
+              >
+                ดูคำขอ
+              </Button>
+            ) : undefined
+          }
+          sx={{
+            fontFamily: 'Kanit, sans-serif',
+            fontWeight: 500,
+            '@keyframes sbc-success-notice-icon': {
+              '0%': { opacity: 0, transform: 'scale(0.6)' },
+              '65%': { opacity: 1, transform: 'scale(1.18)' },
+              '100%': { opacity: 1, transform: 'scale(1)' },
+            },
+            '& .MuiAlert-icon': {
+              animation: 'sbc-success-notice-icon 420ms ease-out',
+            },
+          }}
+        >
+          ส่งคำขอวัตถุดิบแล้ว
+        </Alert>
+      </Snackbar>
     </DashboardMain>
   );
 }

@@ -1,18 +1,19 @@
-import {
-  Box,
-  Button,
-  Card,
-  Divider,
-  Skeleton,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Card, Skeleton, Typography } from '@mui/material';
 
 export function EmployeesSkeleton({
   franchiseMode = false,
   showHeader = false,
+  calendarWeeks = 5,
+  onPreviousMonth,
+  onCurrentMonth,
+  onNextMonth,
 }: {
   franchiseMode?: boolean;
   showHeader?: boolean;
+  calendarWeeks?: number;
+  onPreviousMonth?: () => void;
+  onCurrentMonth?: () => void;
+  onNextMonth?: () => void;
 }) {
   return (
     <Box>
@@ -56,46 +57,14 @@ export function EmployeesSkeleton({
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {['เดือนก่อน', 'เดือนนี้', 'เดือนถัดไป'].map((label) => (
-              <Button
-                key={label}
-                size="small"
-                variant="outlined"
-                disabled
-                disableRipple
-                sx={{ transition: 'none', animation: 'none' }}
-              >
-                {label}
-              </Button>
-            ))}
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ mx: 0.5, borderColor: '#d8cec7' }}
-            />
-            <Button
-              size="small"
-              variant="contained"
-              disabled
-              disableRipple
-              disableElevation
-              sx={{ transition: 'none', animation: 'none' }}
-            >
-              จัดตารางอัตโนมัติ
+            <Button size="small" variant="outlined" onClick={onPreviousMonth}>
+              เดือนก่อน
             </Button>
-            <Button
-              size="small"
-              variant="contained"
-              disabled
-              disableRipple
-              disableElevation
-              sx={{
-                transition: 'none',
-                animation: 'none',
-                '&.Mui-disabled': { bgcolor: '#805637' },
-              }}
-            >
-              เพิ่มพนักงาน
+            <Button size="small" variant="outlined" onClick={onCurrentMonth}>
+              เดือนนี้
+            </Button>
+            <Button size="small" variant="outlined" onClick={onNextMonth}>
+              เดือนถัดไป
             </Button>
           </Box>
         </Box>
@@ -153,7 +122,7 @@ export function EmployeesSkeleton({
                 mt: 1.5,
               }}
             >
-              {[1, 2, 3, 4].map((item) => (
+              {[1, 2].map((item) => (
                 <Skeleton
                   key={item}
                   variant="rounded"
@@ -187,7 +156,7 @@ export function EmployeesSkeleton({
                 mt: 1.5,
               }}
             >
-              {[1, 2, 3, 4].map((item) => (
+              {[1, 2].map((item) => (
                 <Skeleton
                   key={item}
                   variant="rounded"
@@ -260,7 +229,7 @@ export function EmployeesSkeleton({
                 gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
               }}
             >
-              {Array.from({ length: 35 }, (_, index) => (
+              {Array.from({ length: calendarWeeks * 7 }, (_, index) => (
                 <Box
                   key={index}
                   sx={{

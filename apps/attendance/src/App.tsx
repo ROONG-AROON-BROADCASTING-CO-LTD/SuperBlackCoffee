@@ -331,7 +331,18 @@ export default function App() {
               <Alert
                 severity="success"
                 variant="filled"
-                onClose={() => setNotice('')}
+                sx={{
+                  fontFamily: 'Kanit, sans-serif',
+                  fontWeight: 500,
+                  '@keyframes sbc-success-notice-icon': {
+                    '0%': { opacity: 0, transform: 'scale(0.6)' },
+                    '65%': { opacity: 1, transform: 'scale(1.18)' },
+                    '100%': { opacity: 1, transform: 'scale(1)' },
+                  },
+                  '& .MuiAlert-icon': {
+                    animation: 'sbc-success-notice-icon 420ms ease-out',
+                  },
+                }}
               >
                 {notice}
               </Alert>

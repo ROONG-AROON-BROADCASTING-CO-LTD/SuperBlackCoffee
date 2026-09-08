@@ -16,7 +16,11 @@ import {
   formatDate,
   type SearchIconHandle,
 } from '@stackbuild/ui';
-import type { Branch } from '@stackbuild/management';
+import {
+  ActionSnackbar,
+  type ActionNotice,
+  type Branch,
+} from '@stackbuild/management';
 import {
   useStockRequests,
   useUpdateStockRequestStatus,
@@ -85,6 +89,7 @@ export function AdminOrdersPage({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof statuses)[number]>('ทั้งหมด');
   const [activeTab, setActiveTab] = useState<RequestTab>('sbc');
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const selectedTab = controlledTab ?? activeTab;
   const {
     data: apiRequests = [],
@@ -172,10 +177,12 @@ export function AdminOrdersPage({
       const requestId = Number(id.replace('REQ-', ''));
       if (!Number.isNaN(requestId))
         await updateStatus.mutateAsync({ id: requestId, status: next });
+      setActionNotice({ message: 'อัปเดตสถานะคำขอแล้ว' });
     } catch (error) {
-      window.alert(
-        error instanceof Error ? error.message : 'อัปเดตคำขอไม่สำเร็จ',
-      );
+      setActionNotice({
+        message: error instanceof Error ? error.message : 'อัปเดตคำขอไม่สำเร็จ',
+        severity: 'error',
+      });
     }
   };
   const rejectRequest = async (id: string) => {
@@ -183,10 +190,12 @@ export function AdminOrdersPage({
       const requestId = Number(id.replace('REQ-', ''));
       if (!Number.isNaN(requestId))
         await updateStatus.mutateAsync({ id: requestId, status: 'rejected' });
+      setActionNotice({ message: 'ปฏิเสธคำขอแล้ว' });
     } catch (error) {
-      window.alert(
-        error instanceof Error ? error.message : 'ปฏิเสธคำขอไม่สำเร็จ',
-      );
+      setActionNotice({
+        message: error instanceof Error ? error.message : 'ปฏิเสธคำขอไม่สำเร็จ',
+        severity: 'error',
+      });
     }
   };
   const pendingCount = requestStates.filter(
@@ -653,6 +662,10 @@ export function AdminOrdersPage({
             : 'ไม่พบคำขอวัตถุดิบจากแฟรนไชส์ที่ค้นหา'}
         </Typography>
       )}
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
     </DashboardMain>
   );
 }

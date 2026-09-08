@@ -8,6 +8,7 @@ import { listPublicHolidays } from '../api/public-holidays';
 import { listStaffSchedules } from '../api/staff-schedules';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { AttendanceSkeleton } from '../components/skeletons/AttendanceSkeleton';
+import { usePersistedScheduleBranch } from '../hooks/usePersistedScheduleBranch';
 import {
   exportDailyReportAsPdf,
   type DailyPdfEntryTone,
@@ -98,7 +99,7 @@ export function AttendanceManagementPage({
   franchiseMode = false,
 }: { franchiseMode?: boolean } = {}) {
   const [month, setMonth] = useState(currentMonth);
-  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const { selectedBranchCode, selectBranch } = usePersistedScheduleBranch();
   const calendarMonth = useMemo(
     () => new Date(`${month}-01T00:00:00`),
     [month],
@@ -124,9 +125,15 @@ export function AttendanceManagementPage({
   const workspaceBranches = franchiseMode
     ? (branches.data ?? [])
     : (branches.data ?? []).filter((branch) => !branch.franchiseeId);
+  const savedBranchIsAvailable = workspaceBranches.some(
+    (branch) => branch.code === selectedBranchCode,
+  );
   const activeBranchId = franchiseMode
     ? (workspaceBranches[0]?.id ?? null)
-    : (selectedBranchId ?? workspaceBranches[0]?.id ?? null);
+    : savedBranchIsAvailable
+      ? (workspaceBranches.find((branch) => branch.code === selectedBranchCode)
+          ?.id ?? null)
+      : (workspaceBranches[0]?.id ?? null);
   const activeBranch = workspaceBranches.find(
     (branch) => branch.id === activeBranchId,
   );
@@ -304,7 +311,7 @@ export function AttendanceManagementPage({
               key={branch.id}
               size="small"
               variant={activeBranchId === branch.id ? 'contained' : 'outlined'}
-              onClick={() => setSelectedBranchId(branch.id)}
+              onClick={() => selectBranch(branch.code)}
             >
               {branch.name}
             </Button>

@@ -147,19 +147,7 @@ func TestScheduleCompensatoryWorkAfterHolidaysUsesFirstEligibleWorkday(t *testin
 		t.Fatalf("จัดกะทำงานชดเชย: %v", err)
 	}
 
-	weeklyDayOff := int(userID%7) + 1
 	expectedDate := time.Date(2099, time.December, 21, 0, 0, 0, 0, time.UTC)
-	for {
-		// Weekday() uses Sunday=0 while the schedule uses ISO Monday=1 through Sunday=7.
-		isoDay := int(expectedDate.Weekday())
-		if isoDay == 0 {
-			isoDay = 7
-		}
-		if isoDay != weeklyDayOff {
-			break
-		}
-		expectedDate = expectedDate.AddDate(0, 0, 1)
-	}
 
 	var compensatoryDate string
 	if err := db.QueryRow(`SELECT shift_date::text FROM staff_shifts WHERE user_id=$1 AND status='compensatory_work'`, userID).Scan(&compensatoryDate); err != nil {
@@ -174,6 +162,64 @@ func TestScheduleCompensatoryWorkAfterHolidaysUsesFirstEligibleWorkday(t *testin
 	}
 	if holidayStatus != "scheduled" {
 		t.Fatalf("วันนักขัตฤกษ์ต้องไม่ถูกเปลี่ยนเป็นกะชดเชย, got %s", holidayStatus)
+	}
+}
+
+func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	const holidayDate = "2099-12-10"
+
+	var branchID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบโควตาวันหยุด-%d", fixtureID), fmt.Sprintf("QUOTA-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	userIDs := make([]int64, 2)
+	for index := range userIDs {
+		username := fmt.Sprintf("quota-test-%d-%d", fixtureID, index)
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00') RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
+			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM public_holidays WHERE holiday_date=$1`, holidayDate)
+		for _, userID := range userIDs {
+			_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
+			_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		}
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+	if _, err := db.Exec(`INSERT INTO public_holidays(holiday_date,name) VALUES($1,'วันหยุดทดสอบ')`, holidayDate); err != nil {
+		t.Fatalf("สร้างวันหยุดทดสอบ: %v", err)
+	}
+	syncedThaiHolidayYears.Store(2099, struct{}{})
+
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"2099-12","branchId":%d}`, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	for _, userID := range userIDs {
+		var monthlyDaysOff, totalDaysOff int
+		if err := db.QueryRow(`SELECT COUNT(*) FILTER (WHERE leave_type='วันหยุดประจำเดือน'),COUNT(*) FILTER (WHERE status='day_off') FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-12-01' AND shift_date < '2100-01-01'`, userID).Scan(&monthlyDaysOff, &totalDaysOff); err != nil {
+			t.Fatalf("อ่านโควตาวันหยุดของ %d: %v", userID, err)
+		}
+		if monthlyDaysOff != 4 || totalDaysOff != 5 {
+			t.Fatalf("พนักงาน %d ได้วันหยุดรายเดือน=%d รวม=%d, ต้องการ 4 และ 5 (รวมวันนักขัตฤกษ์)", userID, monthlyDaysOff, totalDaysOff)
+		}
+	}
+	var sharedMonthlyDayOffs int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM (SELECT shift_date FROM staff_shifts WHERE branch_id=$1 AND leave_type='วันหยุดประจำเดือน' GROUP BY shift_date HAVING COUNT(*) > 1) overlapping_days`, branchID).Scan(&sharedMonthlyDayOffs); err != nil {
+		t.Fatalf("ตรวจสอบวันหยุดที่ชนกัน: %v", err)
+	}
+	if sharedMonthlyDayOffs != 0 {
+		t.Fatalf("พบวันหยุดประจำเดือนซ้อนกัน %d วัน", sharedMonthlyDayOffs)
 	}
 }
 
@@ -266,5 +312,47 @@ func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 		if startsAt != test.wantStart || endsAt != test.wantEnd {
 			t.Errorf("กะ %s = %s-%s, want %s-%s", test.date, startsAt, endsAt, test.wantStart, test.wantEnd)
 		}
+	}
+}
+
+func TestCreateStaffMemberAllowsNoSecondShiftButRejectsAnIncompleteOne(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	var branchID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบกะตัวเลือก-%d", fixtureID), fmt.Sprintf("OPTIONAL-SHIFT-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM users WHERE branch_id=$1`, branchID)
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	createRequest := func(body string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(response)
+		ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+		ctx.Request.Header.Set("Content-Type", "application/json")
+		ctx.Set("claims", &middleware.Claims{Role: "admin"})
+		(&PlatformHandler{db: db}).CreateStaffMember(ctx)
+		return response
+	}
+
+	username := fmt.Sprintf("optional-shift-%d", fixtureID)
+	response := createRequest(fmt.Sprintf(`{"name":"พนักงานกะเดียว","username":"%s","password":"password123","role":"cashier","branchId":%d,"defaultStartsAt":"08:00","defaultEndsAt":"17:00"}`, username, branchID))
+	if response.Code != http.StatusCreated {
+		t.Fatalf("สร้างพนักงานโดยไม่มีกะที่ 2 = %d: %s", response.Code, response.Body.String())
+	}
+
+	var secondStart, secondEnd sql.NullString
+	if err := db.QueryRow(`SELECT default_second_starts_at::text,default_second_ends_at::text FROM users WHERE username=$1`, username).Scan(&secondStart, &secondEnd); err != nil {
+		t.Fatalf("อ่านพนักงานที่สร้าง: %v", err)
+	}
+	if secondStart.Valid || secondEnd.Valid {
+		t.Fatalf("กะที่ 2 ต้องเป็น NULL เมื่อไม่ระบุ แต่ได้ (%v, %v)", secondStart, secondEnd)
+	}
+
+	incompleteResponse := createRequest(fmt.Sprintf(`{"name":"พนักงานกะไม่ครบ","username":"optional-shift-incomplete-%d","password":"password123","role":"cashier","branchId":%d,"defaultStartsAt":"08:00","defaultEndsAt":"17:00","defaultSecondStartsAt":"13:00"}`, fixtureID, branchID))
+	if incompleteResponse.Code != http.StatusBadRequest {
+		t.Fatalf("สร้างพนักงานด้วยกะที่ 2 ไม่ครบ = %d: %s", incompleteResponse.Code, incompleteResponse.Body.String())
 	}
 }

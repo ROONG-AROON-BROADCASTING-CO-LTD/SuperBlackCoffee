@@ -23,8 +23,8 @@ export const createEmployee = (data: {
   branchId: number;
   defaultStartsAt: string;
   defaultEndsAt: string;
-  defaultSecondStartsAt: string;
-  defaultSecondEndsAt: string;
+  defaultSecondStartsAt?: string;
+  defaultSecondEndsAt?: string;
 }) => secured<{ id: number }>('/users', { method: 'POST', data });
 export const updateEmployee = (
   id: number,

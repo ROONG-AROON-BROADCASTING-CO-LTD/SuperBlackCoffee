@@ -27,7 +27,12 @@ import {
   type Franchisee,
 } from '../../api';
 import { AdminFranchiseBranchesSkeleton } from '../../components/skeletons/AdminFranchiseBranchesSkeleton';
-import { AutoRetrySnackbar, useAutoRetry } from '@stackbuild/management';
+import {
+  ActionSnackbar,
+  type ActionNotice,
+  AutoRetrySnackbar,
+  useAutoRetry,
+} from '@stackbuild/management';
 
 type FranchisePlan = 'S' | 'M' | 'L';
 
@@ -121,6 +126,7 @@ export function AdminFranchiseBranchesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<number | null>(null);
   const [activationError, setActivationError] = useState('');
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [franchisees, setFranchisees] = useState<FranchiseBranchCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -178,6 +184,7 @@ export function AdminFranchiseBranchesPage() {
         password: '',
       });
       setIsDrawerOpen(false);
+      setActionNotice({ message: 'เพิ่มแฟรนไชส์แล้ว' });
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : 'ไม่สามารถสร้างแฟรนไชส์ได้',
@@ -198,6 +205,7 @@ export function AdminFranchiseBranchesPage() {
             : item,
         ),
       );
+      setActionNotice({ message: 'เปิดใช้งานแฟรนไชส์แล้ว' });
     } catch (error) {
       setActivationError(
         error instanceof Error ? error.message : 'ไม่สามารถเปิดใช้งานได้',
@@ -709,6 +717,10 @@ export function AdminFranchiseBranchesPage() {
           </Box>
         </Box>
       </Drawer>
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
     </DashboardMain>
   );
 }

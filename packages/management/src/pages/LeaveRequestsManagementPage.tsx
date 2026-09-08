@@ -7,6 +7,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ReceiptTextIcon } from '@stackbuild/ui';
 import {
@@ -16,6 +17,10 @@ import {
 } from '../api/attendance';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { LeaveRequestsSkeleton } from '../components/skeletons/LeaveRequestsSkeleton';
+import {
+  ActionSnackbar,
+  type ActionNotice,
+} from '../components/ActionSnackbar';
 
 const dateFormatter = new Intl.DateTimeFormat('th-TH', {
   day: 'numeric',
@@ -57,6 +62,7 @@ export function LeaveRequestsManagementPage({
   franchiseMode = false,
 }: { franchiseMode?: boolean } = {}) {
   const queryClient = useQueryClient();
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const leaveRequests = useQuery({
     queryKey: ['attendance-leave-requests'],
     queryFn: listManagedLeaveRequests,
@@ -69,9 +75,22 @@ export function LeaveRequestsManagementPage({
       id: number;
       status: 'approved' | 'rejected';
     }) => updateManagedLeaveRequest(id, status),
-    onSuccess: () =>
+    onSuccess: (_, variables) => {
+      setActionNotice({
+        message:
+          variables.status === 'approved'
+            ? 'อนุมัติคำขอลาแล้ว'
+            : 'ไม่อนุมัติคำขอลาแล้ว',
+      });
       void queryClient.invalidateQueries({
         queryKey: ['attendance-leave-requests'],
+      });
+    },
+    onError: (error) =>
+      setActionNotice({
+        message:
+          error instanceof Error ? error.message : 'บันทึกคำขอลาไม่สำเร็จ',
+        severity: 'error',
       }),
   });
   const requests = leaveRequests.data ?? [];
@@ -224,6 +243,10 @@ export function LeaveRequestsManagementPage({
           </>
         )}
       </Stack>
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
     </Box>
   );
 }

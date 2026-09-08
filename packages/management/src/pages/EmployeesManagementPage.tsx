@@ -1,4 +1,4 @@
-import { type MouseEvent, useMemo, useState } from 'react';
+import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -31,6 +31,11 @@ import {
 } from '../api/users';
 import { listBranches } from '../api/branches';
 import { EmployeesSkeleton } from '../components/skeletons/EmployeesSkeleton';
+import {
+  ActionSnackbar,
+  type ActionNotice,
+} from '../components/ActionSnackbar';
+import { usePersistedScheduleBranch } from '../hooks/usePersistedScheduleBranch';
 import {
   exportDailyReportAsPdf,
   type DailyPdfEntryTone,
@@ -122,7 +127,7 @@ export function EmployeesManagementPage({
   franchiseMode?: boolean;
 } = {}) {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const { selectedBranchCode, selectBranch } = usePersistedScheduleBranch();
   const [selectedShift, setSelectedShift] = useState<StaffShift | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editBranchId, setEditBranchId] = useState('');
@@ -149,11 +154,12 @@ export function EmployeesManagementPage({
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(
     null,
   );
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const [initialSkeletonVisible, setInitialSkeletonVisible] = useState(true);
   const {
     data: employees = [],
     error,
     isLoading,
-    refetch,
   } = useQuery({ queryKey: ['employees'], queryFn: listEmployees });
   const calendarDays = useMemo(() => getCalendarDays(month), [month]);
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
@@ -172,22 +178,38 @@ export function EmployeesManagementPage({
     schedules.isLoading ||
     holidays.isLoading ||
     branches.isLoading;
+  const showEmployeesSkeleton = pageLoading || initialSkeletonVisible;
+  useEffect(() => {
+    const minimumSkeletonTimer = window.setTimeout(
+      () => setInitialSkeletonVisible(false),
+      350,
+    );
+    return () => window.clearTimeout(minimumSkeletonTimer);
+  }, []);
   const loadError = error ?? schedules.error ?? branches.error;
   const workspaceBranches = franchiseMode
     ? (branches.data ?? [])
     : (branches.data ?? []).filter((branch) => !branch.franchiseeId);
+  const savedBranchIsAvailable = workspaceBranches.some(
+    (branch) => branch.code === selectedBranchCode,
+  );
   const activeBranchId = franchiseMode
     ? (workspaceBranches[0]?.id ?? null)
-    : (selectedBranchId ?? workspaceBranches[0]?.id ?? null);
+    : savedBranchIsAvailable
+      ? (workspaceBranches.find((branch) => branch.code === selectedBranchCode)
+          ?.id ?? null)
+      : (workspaceBranches[0]?.id ?? null);
   const activeBranch = workspaceBranches.find(
     (branch) => branch.id === activeBranchId,
   );
   const generate = useMutation({
     mutationFn: () => generateStaffSchedules(monthKey, activeBranchId!),
-    onSuccess: () =>
+    onSuccess: () => {
+      setActionNotice({ message: 'จัดตารางงานอัตโนมัติแล้ว' });
       void queryClient.invalidateQueries({
         queryKey: ['staff-schedules', monthKey],
-      }),
+      });
+    },
   });
   const updateShift = useMutation({
     mutationFn: () =>
@@ -199,6 +221,7 @@ export function EmployeesManagementPage({
       }),
     onSuccess: () => {
       setSelectedShift(null);
+      setActionNotice({ message: 'แก้ไขกะงานแล้ว' });
       void queryClient.invalidateQueries({
         queryKey: ['staff-schedules', monthKey],
       });
@@ -214,6 +237,7 @@ export function EmployeesManagementPage({
     }) => replaceStaffShift(targetShiftId, sourceShiftId),
     onSuccess: () => {
       setDraggedShiftId(null);
+      setActionNotice({ message: 'แทนกะงานแล้ว' });
       void queryClient.invalidateQueries({
         queryKey: ['staff-schedules', monthKey],
       });
@@ -229,12 +253,14 @@ export function EmployeesManagementPage({
         branchId: Number(newEmployeeBranchId),
         defaultStartsAt,
         defaultEndsAt,
-        defaultSecondStartsAt,
-        defaultSecondEndsAt,
+        ...(defaultSecondStartsAt && defaultSecondEndsAt
+          ? { defaultSecondStartsAt, defaultSecondEndsAt }
+          : {}),
       }),
     onSuccess: () => {
       setIsEmployeeDrawerOpen(false);
       setNewEmployeeName('');
+      setActionNotice({ message: 'เพิ่มพนักงานแล้ว' });
       void queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
   });
@@ -332,9 +358,26 @@ export function EmployeesManagementPage({
     setIsEmployeeDrawerOpen(true);
   };
   const removeEmployee = async (employee: (typeof employees)[number]) => {
-    await deleteEmployee(employee.id);
-    setPendingDeleteEmployeeId(null);
-    void refetch();
+    try {
+      await deleteEmployee(employee.id);
+      queryClient.setQueryData<Employee[]>(['employees'], (current) =>
+        current?.filter((item) => item.id !== employee.id),
+      );
+      queryClient.setQueryData<StaffShift[]>(
+        ['staff-schedules', monthKey],
+        (current) => current?.filter((shift) => shift.userId !== employee.id),
+      );
+      setPendingDeleteEmployeeId(null);
+      setActionNotice({ message: `ลบพนักงาน ${employee.name} แล้ว` });
+    } catch (deleteError) {
+      setActionNotice({
+        message:
+          deleteError instanceof Error
+            ? deleteError.message
+            : 'ลบพนักงานไม่สำเร็จ',
+        severity: 'error',
+      });
+    }
   };
 
   return (
@@ -401,17 +444,13 @@ export function EmployeesManagementPage({
             variant="contained"
             size="small"
             onClick={() => {
+              if (showEmployeesSkeleton || activeBranchId === null) return;
               if (confirmAutoSchedule) {
                 setConfirmAutoSchedule(false);
                 generate.mutate();
               } else setConfirmAutoSchedule(true);
             }}
-            disabled={
-              pageLoading ||
-              generate.isPending ||
-              activeBranchId === null ||
-              Boolean(loadError)
-            }
+            disabled={generate.isPending || Boolean(loadError)}
             sx={
               confirmAutoSchedule
                 ? { bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }
@@ -436,8 +475,9 @@ export function EmployeesManagementPage({
           <Button
             variant="contained"
             size="small"
-            disabled={pageLoading || Boolean(loadError)}
+            disabled={Boolean(loadError)}
             onClick={() => {
+              if (showEmployeesSkeleton) return;
               setEditingEmployeeId(null);
               setNewEmployeeName('');
               setNewEmployeeRole('cashier');
@@ -457,13 +497,16 @@ export function EmployeesManagementPage({
 
       <Box
         sx={{
-          minHeight: pageLoading ? { xs: 720, md: 760 } : undefined,
+          minHeight: showEmployeesSkeleton ? { xs: 720, md: 760 } : undefined,
         }}
       >
-        {pageLoading ? (
-          <EmployeesSkeleton franchiseMode={franchiseMode} />
+        {showEmployeesSkeleton ? (
+          <EmployeesSkeleton
+            franchiseMode={franchiseMode}
+            calendarWeeks={calendarDays.length / 7}
+          />
         ) : null}
-        {!pageLoading ? (
+        {!showEmployeesSkeleton ? (
           <>
             <Box
               sx={{
@@ -796,7 +839,7 @@ export function EmployeesManagementPage({
                     variant={
                       activeBranchId === branch.id ? 'contained' : 'outlined'
                     }
-                    onClick={() => setSelectedBranchId(branch.id)}
+                    onClick={() => selectBranch(branch.code)}
                   >
                     {branch.name}
                   </Button>
@@ -1377,19 +1420,24 @@ export function EmployeesManagementPage({
               component="form"
               onSubmit={(event) => {
                 event.preventDefault();
+                const hasSecondShift = Boolean(
+                  defaultSecondStartsAt || defaultSecondEndsAt,
+                );
+                const secondShiftIncomplete =
+                  hasSecondShift &&
+                  (!defaultSecondStartsAt ||
+                    !defaultSecondEndsAt ||
+                    defaultSecondStartsAt === '00:00' ||
+                    defaultSecondEndsAt === '00:00');
                 if (
                   !defaultStartsAt ||
                   !defaultEndsAt ||
                   defaultStartsAt === '00:00' ||
                   defaultEndsAt === '00:00' ||
-                  (editingEmployeeId === null &&
-                    (!defaultSecondStartsAt ||
-                      !defaultSecondEndsAt ||
-                      defaultSecondStartsAt === '00:00' ||
-                      defaultSecondEndsAt === '00:00'))
+                  secondShiftIncomplete
                 ) {
                   window.alert(
-                    'กรุณาระบุเวลาเข้างานและเวลาออกงานให้ครบทั้ง 2 กะก่อนบันทึก',
+                    'กรุณาระบุเวลาเข้างานและเวลาออกงานของกะที่ 1 ให้ครบ หากเพิ่มกะที่ 2 ให้ระบุเวลาเข้าและออกให้ครบ',
                   );
                   return;
                 }
@@ -1408,49 +1456,63 @@ export function EmployeesManagementPage({
                     defaultEndsAt: updatedEndsAt,
                     defaultSecondStartsAt: updatedSecondStartsAt,
                     defaultSecondEndsAt: updatedSecondEndsAt,
-                  }).then(() => {
-                    queryClient.setQueryData<Employee[]>(
-                      ['employees'],
-                      (current) =>
-                        current?.map((employee) =>
-                          employee.id === updatedEmployeeId
-                            ? {
-                                ...employee,
-                                name: updatedName,
-                                role: newEmployeeRole,
-                                branchId: Number(newEmployeeBranchId),
-                                defaultStartsAt: updatedStartsAt,
-                                defaultEndsAt: updatedEndsAt,
-                                defaultSecondStartsAt: updatedSecondStartsAt,
-                                defaultSecondEndsAt: updatedSecondEndsAt,
-                              }
-                            : employee,
-                        ),
-                    );
-                    queryClient.setQueryData<StaffShift[]>(
-                      ['staff-schedules', monthKey],
-                      (current) =>
-                        current?.map((shift) =>
-                          shift.userId !== updatedEmployeeId
-                            ? shift
-                            : {
-                                ...shift,
-                                name: updatedName,
-                                startsAt: usesFirstShift(
-                                  shift.date,
-                                  shift.userId,
-                                )
-                                  ? updatedStartsAt
-                                  : updatedSecondStartsAt || updatedStartsAt,
-                                endsAt: usesFirstShift(shift.date, shift.userId)
-                                  ? updatedEndsAt
-                                  : updatedSecondEndsAt || updatedEndsAt,
-                              },
-                        ),
-                    );
-                    setEditingEmployeeId(null);
-                    setIsEmployeeDrawerOpen(false);
-                  });
+                  })
+                    .then(() => {
+                      queryClient.setQueryData<Employee[]>(
+                        ['employees'],
+                        (current) =>
+                          current?.map((employee) =>
+                            employee.id === updatedEmployeeId
+                              ? {
+                                  ...employee,
+                                  name: updatedName,
+                                  role: newEmployeeRole,
+                                  branchId: Number(newEmployeeBranchId),
+                                  defaultStartsAt: updatedStartsAt,
+                                  defaultEndsAt: updatedEndsAt,
+                                  defaultSecondStartsAt: updatedSecondStartsAt,
+                                  defaultSecondEndsAt: updatedSecondEndsAt,
+                                }
+                              : employee,
+                          ),
+                      );
+                      queryClient.setQueryData<StaffShift[]>(
+                        ['staff-schedules', monthKey],
+                        (current) =>
+                          current?.map((shift) =>
+                            shift.userId !== updatedEmployeeId
+                              ? shift
+                              : {
+                                  ...shift,
+                                  name: updatedName,
+                                  startsAt: usesFirstShift(
+                                    shift.date,
+                                    shift.userId,
+                                  )
+                                    ? updatedStartsAt
+                                    : updatedSecondStartsAt || updatedStartsAt,
+                                  endsAt: usesFirstShift(
+                                    shift.date,
+                                    shift.userId,
+                                  )
+                                    ? updatedEndsAt
+                                    : updatedSecondEndsAt || updatedEndsAt,
+                                },
+                          ),
+                      );
+                      setEditingEmployeeId(null);
+                      setIsEmployeeDrawerOpen(false);
+                      setActionNotice({ message: 'แก้ไขข้อมูลพนักงานแล้ว' });
+                    })
+                    .catch((updateError: unknown) => {
+                      setActionNotice({
+                        message:
+                          updateError instanceof Error
+                            ? updateError.message
+                            : 'แก้ไขข้อมูลพนักงานไม่สำเร็จ',
+                        severity: 'error',
+                      });
+                    });
                 } else createEmployeeMutation.mutate();
               }}
               sx={{
@@ -1518,7 +1580,17 @@ export function EmployeesManagementPage({
                     mb: 1,
                   }}
                 >
-                  เวลาทำงานประจำ · กะที่ 1
+                  เวลาทำงานประจำ
+                </Typography>
+                <Typography
+                  sx={{
+                    color: '#3c2d24',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    mb: 1,
+                  }}
+                >
+                  กะที่ 1 *
                 </Typography>
               </Box>
               <Box
@@ -1620,7 +1692,7 @@ export function EmployeesManagementPage({
                     mb: 1,
                   }}
                 >
-                  กะที่ 2 {editingEmployeeId !== null ? '(ถ้ามี)' : '*'}
+                  กะที่ 2 (ถ้ามี)
                 </Typography>
               </Box>
               <Box
@@ -1633,7 +1705,6 @@ export function EmployeesManagementPage({
               >
                 <Box sx={{ flex: 1, position: 'relative' }}>
                   <TextField
-                    required={editingEmployeeId === null}
                     fullWidth
                     label="เวลาเข้างาน กะที่ 2"
                     type="time"
@@ -1675,7 +1746,6 @@ export function EmployeesManagementPage({
                 </Box>
                 <Box sx={{ flex: 1, position: 'relative' }}>
                   <TextField
-                    required={editingEmployeeId === null}
                     fullWidth
                     label="เวลาออกงาน กะที่ 2"
                     type="time"
@@ -1755,6 +1825,10 @@ export function EmployeesManagementPage({
           </Box>
         </Box>
       </Drawer>
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
     </DashboardMain>
   );
 }

@@ -20,6 +20,7 @@ import { useWebsiteLeads } from '../../hooks/useWebsiteLeads';
 import { AdminCustomerChatSkeleton } from '../../components/skeletons/AdminCustomerChatSkeleton';
 import { updateWebsiteLeadStatus } from '../../api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ActionSnackbar, type ActionNotice } from '@stackbuild/management';
 
 type Customer = {
   id: string;
@@ -308,6 +309,7 @@ export function AdminCustomerChatPage() {
   const [activeCustomerId, setActiveCustomerId] = useState('pim');
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState('');
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [isCustomerListScrolling, setIsCustomerListScrolling] = useState(false);
   const [isMessagesScrolling, setIsMessagesScrolling] = useState(false);
   const scrollTimeoutsRef = useRef<
@@ -328,8 +330,20 @@ export function AdminCustomerChatPage() {
       id: number;
       status: 'new' | 'contacted' | 'closed';
     }) => updateWebsiteLeadStatus(id, status),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['website-leads'] }),
+    onSuccess: (_, variables) => {
+      setActionNotice({
+        message:
+          variables.status === 'closed'
+            ? 'ปิดลีดแล้ว'
+            : 'ทำเครื่องหมายว่าติดต่อแล้ว',
+      });
+      return queryClient.invalidateQueries({ queryKey: ['website-leads'] });
+    },
+    onError: (error) =>
+      setActionNotice({
+        message: error instanceof Error ? error.message : 'อัปเดตลีดไม่สำเร็จ',
+        severity: 'error',
+      }),
   });
   const leadCustomers: Customer[] = websiteLeads.map((lead) => ({
     id: `lead-${lead.id}`,
@@ -844,6 +858,10 @@ export function AdminCustomerChatPage() {
           )}
         </Box>
       </Card>
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
     </DashboardMain>
   );
 }

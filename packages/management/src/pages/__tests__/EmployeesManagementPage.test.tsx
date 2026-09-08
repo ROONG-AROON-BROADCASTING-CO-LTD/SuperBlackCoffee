@@ -9,7 +9,12 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmployeesManagementPage } from '../EmployeesManagementPage';
-import { listEmployees, updateEmployee } from '../../api/users';
+import {
+  createEmployee,
+  deleteEmployee,
+  listEmployees,
+  updateEmployee,
+} from '../../api/users';
 import { listBranches } from '../../api/branches';
 import { listStaffSchedules } from '../../api/staff-schedules';
 import { exportDailyReportAsPdf } from '../../utils/exportCalendarPdf';
@@ -32,6 +37,8 @@ vi.mock('../../utils/exportCalendarPdf', () => ({
 }));
 
 const mockedListEmployees = vi.mocked(listEmployees);
+const mockedCreateEmployee = vi.mocked(createEmployee);
+const mockedDeleteEmployee = vi.mocked(deleteEmployee);
 const mockedUpdateEmployee = vi.mocked(updateEmployee);
 const mockedListBranches = vi.mocked(listBranches);
 const mockedListStaffSchedules = vi.mocked(listStaffSchedules);
@@ -72,6 +79,7 @@ async function waitForPage() {
 
 describe('EmployeesManagementPage', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/employees');
     const month = new Date().toISOString().slice(0, 7);
     mockedListEmployees.mockResolvedValue([employee]);
     mockedListBranches.mockResolvedValue([
@@ -95,6 +103,8 @@ describe('EmployeesManagementPage', () => {
       },
     ]);
     mockedUpdateEmployee.mockResolvedValue({ id: employee.id });
+    mockedCreateEmployee.mockResolvedValue({ id: 91 });
+    mockedDeleteEmployee.mockResolvedValue();
   });
 
   afterEach(() => {
@@ -162,6 +172,40 @@ describe('EmployeesManagementPage', () => {
       );
       expect(screen.getAllByText('ชื่อใหม่')).toHaveLength(2);
       expect(screen.getByText('09:00 น. - 18:00 น.')).toBeTruthy();
+    });
+  });
+
+  it('allows an employee to be saved without an optional second shift', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขพนักงาน' }));
+
+    await waitFor(() => {
+      expect(mockedUpdateEmployee).toHaveBeenCalledWith(
+        employee.id,
+        expect.objectContaining({
+          defaultStartsAt: '08:00',
+          defaultEndsAt: '17:00',
+          defaultSecondStartsAt: '',
+          defaultSecondEndsAt: '',
+        }),
+      );
+    });
+  });
+
+  it('removes an employee from the schedule immediately and confirms the deletion', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'ลบ' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'ยืนยัน' })[0]);
+
+    await waitFor(() => {
+      expect(mockedDeleteEmployee).toHaveBeenCalledWith(employee.id);
+      expect(screen.queryByText(employee.name)).toBeNull();
+      expect(screen.getByText(`ลบพนักงาน ${employee.name} แล้ว`)).toBeTruthy();
     });
   });
 

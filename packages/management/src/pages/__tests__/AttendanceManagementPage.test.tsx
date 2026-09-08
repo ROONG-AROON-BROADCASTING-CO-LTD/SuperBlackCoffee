@@ -43,6 +43,7 @@ const renderPage = (franchiseMode = false) =>
 
 describe('AttendanceManagementPage', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/attendance');
     branches.mockResolvedValue([
       { id: 3, name: 'อยุธยา', code: 'SBC-AY' },
       { id: 5, name: 'พิษณุโลก', code: 'SBC-PL' },
@@ -134,6 +135,9 @@ describe('AttendanceManagementPage', () => {
 
     await screen.getByRole('button', { name: 'พิษณุโลก' }).click();
 
+    expect(
+      new URLSearchParams(window.location.search).get('scheduleBranch'),
+    ).toBe('SBC-PL');
     expect(screen.queryByLabelText('พิมพ์ชนก ตรงเวลา')).toBeNull();
     expect(screen.getAllByText('ไม่มีพนักงานเข้ากะ')).not.toHaveLength(0);
   });

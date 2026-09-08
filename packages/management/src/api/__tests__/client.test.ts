@@ -34,4 +34,12 @@ describe('management API client', () => {
       }),
     );
   });
+
+  it('treats an empty 204 response as a successful request', async () => {
+    mocks.request.mockResolvedValueOnce({ status: 204, data: '' });
+
+    await expect(
+      secured<void>('/users/96', { method: 'DELETE' }),
+    ).resolves.toBeUndefined();
+  });
 });
