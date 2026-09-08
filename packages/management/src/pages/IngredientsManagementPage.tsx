@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  CircleCheckIcon,
   coffeeIngredientsImage,
   CartIcon,
   INGREDIENT_STATUS_BADGES,
@@ -1557,6 +1558,7 @@ export function IngredientsManagementPage({
         <Alert
           severity="success"
           variant="filled"
+          icon={<CircleCheckIcon animate={isCartSuccessVisible} />}
           action={
             onRequestCreated ? (
               <Button
@@ -1575,14 +1577,6 @@ export function IngredientsManagementPage({
           sx={{
             fontFamily: 'Kanit, sans-serif',
             fontWeight: 500,
-            '@keyframes sbc-success-notice-icon': {
-              '0%': { opacity: 0, transform: 'scale(0.6)' },
-              '65%': { opacity: 1, transform: 'scale(1.18)' },
-              '100%': { opacity: 1, transform: 'scale(1)' },
-            },
-            '& .MuiAlert-icon': {
-              animation: 'sbc-success-notice-icon 420ms ease-out',
-            },
           }}
         >
           ส่งคำขอวัตถุดิบแล้ว

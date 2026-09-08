@@ -20,6 +20,7 @@ export { CoffeeIcon } from './components/icons/CoffeeIcon';
 export { HeartIcon } from './components/icons/HeartIcon';
 export { BadgeIcon } from './components/icons/BadgeIcon';
 export { BadgeAlertIcon } from './components/icons/BadgeAlertIcon';
+export { CircleCheckIcon } from './components/icons/CircleCheckIcon';
 export { ReceiptIcon } from './components/icons/ReceiptIcon';
 export {
   ReceiptTextIcon,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Snackbar } from '@mui/material';
-import { BadgeAlertIcon } from '@stackbuild/ui';
+import { BadgeAlertIcon, CircleCheckIcon } from '@stackbuild/ui';
 
 export type ActionNotice = {
   message: string;
@@ -46,23 +46,13 @@ export function ActionSnackbar({
         icon={
           activeNotice?.severity === 'error' ? (
             <BadgeAlertIcon animate={notice !== null} />
-          ) : undefined
+          ) : (
+            <CircleCheckIcon animate={notice !== null} />
+          )
         }
         sx={{
           fontFamily: 'Kanit, sans-serif',
           fontWeight: 500,
-          '@keyframes sbc-success-notice-icon': {
-            '0%': { opacity: 0, transform: 'scale(0.6)' },
-            '65%': { opacity: 1, transform: 'scale(1.18)' },
-            '100%': { opacity: 1, transform: 'scale(1)' },
-          },
-          ...(activeNotice?.severity !== 'error'
-            ? {
-                '& .MuiAlert-icon': {
-                  animation: 'sbc-success-notice-icon 420ms ease-out',
-                },
-              }
-            : {}),
         }}
       >
         {activeNotice?.message}
