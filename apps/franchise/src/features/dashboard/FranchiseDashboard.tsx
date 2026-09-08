@@ -5,6 +5,7 @@ import { EmployeesSkeleton } from '@stackbuild/management/skeletons/employees';
 import { IngredientsSkeleton } from '@stackbuild/management/skeletons/ingredients';
 import { ProductsSkeleton } from '@stackbuild/management/skeletons/products';
 import { StockSkeleton } from '@stackbuild/management/skeletons/stock';
+import { LeaveRequestsSkeleton } from '@stackbuild/management';
 import {
   franchiseBranch,
   type FranchisePlan,
@@ -41,6 +42,11 @@ const AttendanceManagementPage = lazy(() =>
     default: module.AttendanceManagementPage,
   })),
 );
+const LeaveRequestsManagementPage = lazy(() =>
+  import('@stackbuild/management/pages/leave-requests').then((module) => ({
+    default: module.LeaveRequestsManagementPage,
+  })),
+);
 const FranchiseIngredientRequestsPage = lazy(() =>
   import('../../pages/dashboard/FranchiseIngredientRequestsPage').then(
     (module) => ({
@@ -64,6 +70,8 @@ function FranchisePageSkeleton({ page }: { page: string }) {
       <ProductsSkeleton />
     ) : page === 'สต๊อก' ? (
       <StockSkeleton />
+    ) : page === 'คำขอลาพนักงาน' ? (
+      <LeaveRequestsSkeleton />
     ) : (
       <FranchiseOverviewSkeleton />
     );
@@ -131,6 +139,8 @@ export function FranchiseDashboard({
           <EmployeesManagementPage franchiseMode suppressLoadingHeader />
         ) : activePage === 'ลงเวลาพนักงาน' ? (
           <AttendanceManagementPage franchiseMode />
+        ) : activePage === 'คำขอลาพนักงาน' ? (
+          <LeaveRequestsManagementPage franchiseMode />
         ) : (
           <DashboardMain>
             <FranchiseOverviewPage plan={plan} onNavigate={navigate} />

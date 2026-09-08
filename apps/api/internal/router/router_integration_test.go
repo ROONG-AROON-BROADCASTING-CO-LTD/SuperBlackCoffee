@@ -169,6 +169,36 @@ func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	}
 }
 
+func TestAttendanceSummaryMarksOnlyCheckInsAfterShiftStartAsLate(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-LATE-BOUNDARY")
+	seedUser(t, db, 7, "attendance-late-boundary", "cashier", branchID, nil)
+	monthStart := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60))
+	monthStart = time.Date(monthStart.Year(), monthStart.Month(), 1, 0, 0, 0, 0, monthStart.Location())
+	for index, checkInAt := range []string{
+		"00:59:59Z", // 07:59:59 Bangkok: early
+		"01:00:00Z", // 08:00:00 Bangkok: exactly on time
+		"01:00:01Z", // 08:00:01 Bangkok: late
+	} {
+		workDate := monthStart.AddDate(0, 0, index).Format("2006-01-02")
+		if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','scheduled')`, branchID, workDate); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES(7,$1,$2,$3)`, branchID, workDate, workDate+"T"+checkInAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	response := requestJSON(New(db, nil), http.MethodGet, "/api/v1/attendance/summary", "", testTokenWithBranch(t, "cashier", branchID))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"lateCount":1`) {
+		t.Fatalf("late summary boundary = %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestAttendancePINSetupValidatesAndCannotOverwriteExistingPIN(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -475,6 +505,98 @@ func TestFranchiseSessionCannotReadOrWriteAnotherFranchiseBranch(t *testing.T) {
 	var savedBranchID int64
 	if err := db.QueryRow(`SELECT branch_id FROM stock_requests WHERE id=$1`, requestID).Scan(&savedBranchID); err != nil || savedBranchID != branchA {
 		t.Fatalf("stock request branch = %d, want %d, err=%v", savedBranchID, branchA, err)
+	}
+}
+
+func TestFranchiseAttendanceManagementIsIsolatedAndCannotApproveAnotherFranchisesLeave(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	var franchiseA, franchiseB, branchA, branchB, companyBranch int64
+	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('Attendance Franchise A','attendance-a@example.com','L','active') RETURNING id`).Scan(&franchiseA); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('Attendance Franchise B','attendance-b@example.com','L','active') RETURNING id`).Scan(&franchiseB); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,'Attendance Branch A','ATT-A','active') RETURNING id`, franchiseA).Scan(&branchA); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,'Attendance Branch B','ATT-B','active') RETURNING id`, franchiseB).Scan(&branchB); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO branches(name,code,status) VALUES('Company Attendance Branch','ATT-COMPANY','active') RETURNING id`).Scan(&companyBranch); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO users(id,name,username,email,password_hash,role,franchisee_id,branch_id) VALUES(7,'Attendance Owner A','attendance-owner-a','attendance-owner-a@example.com','hash','franchise_owner',$1,$2)`, franchiseA, branchA); err != nil {
+		t.Fatal(err)
+	}
+	for _, staff := range []struct {
+		id          int64
+		name        string
+		username    string
+		franchiseID int64
+		branchID    int64
+	}{
+		{id: 8, name: "Staff A", username: "attendance-staff-a", franchiseID: franchiseA, branchID: branchA},
+		{id: 9, name: "Staff B", username: "attendance-staff-b", franchiseID: franchiseB, branchID: branchB},
+	} {
+		if _, err := db.Exec(`INSERT INTO users(id,name,username,email,password_hash,role,franchisee_id,branch_id) VALUES($1,$2,$3,$4,'hash','cashier',$5,$6)`, staff.id, staff.name, staff.username, staff.username+"@example.com", staff.franchiseID, staff.branchID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO users(id,name,username,email,password_hash,role,branch_id) VALUES(10,'Company Staff','attendance-company-staff','attendance-company-staff@example.com','hash','cashier',$1)`, companyBranch); err != nil {
+		t.Fatal(err)
+	}
+	const workDate = "2026-09-15"
+	if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES(8,$1,$2,'2026-09-15T01:00:00Z'),(9,$3,$2,'2026-09-15T01:00:00Z'),(10,$4,$2,'2026-09-15T01:00:00Z')`, branchA, workDate, branchB, companyBranch); err != nil {
+		t.Fatal(err)
+	}
+	var leaveA, leaveB int64
+	if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(8,$1,$2,'personal','A leave') RETURNING id`, branchA, workDate).Scan(&leaveA); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(9,$1,$2,'personal','B leave') RETURNING id`, branchB, workDate).Scan(&leaveB); err != nil {
+		t.Fatal(err)
+	}
+
+	r := New(db, nil)
+	token := testTokenWithFranchise(t, "franchise_owner", branchA, franchiseA)
+	attendance := requestJSON(r, http.MethodGet, "/api/v1/attendance/management?month=2026-09", "", token)
+	if attendance.Code != http.StatusOK || !strings.Contains(attendance.Body.String(), "Staff A") || strings.Contains(attendance.Body.String(), "Staff B") {
+		t.Fatalf("franchise attendance isolation = %d: %s", attendance.Code, attendance.Body.String())
+	}
+	companyAttendance := requestJSON(r, http.MethodGet, "/api/v1/attendance/management?month=2026-09", "", testToken(t, "admin"))
+	if companyAttendance.Code != http.StatusOK || !strings.Contains(companyAttendance.Body.String(), "Company Staff") || strings.Contains(companyAttendance.Body.String(), "Staff A") || strings.Contains(companyAttendance.Body.String(), "Staff B") {
+		t.Fatalf("admin attendance scope = %d: %s", companyAttendance.Code, companyAttendance.Body.String())
+	}
+	leaves := requestJSON(r, http.MethodGet, "/api/v1/attendance/leave-requests", "", token)
+	if leaves.Code != http.StatusOK || !strings.Contains(leaves.Body.String(), "A leave") || strings.Contains(leaves.Body.String(), "B leave") {
+		t.Fatalf("franchise leave isolation = %d: %s", leaves.Code, leaves.Body.String())
+	}
+	invalidTransition := requestJSON(r, http.MethodPatch, "/api/v1/attendance/leave-requests/"+strconv.FormatInt(leaveA, 10), `{"status":"pending"}`, token)
+	if invalidTransition.Code != http.StatusBadRequest {
+		t.Fatalf("invalid leave transition = %d: %s", invalidTransition.Code, invalidTransition.Body.String())
+	}
+
+	crossFranchiseApproval := requestJSON(r, http.MethodPatch, "/api/v1/attendance/leave-requests/"+strconv.FormatInt(leaveB, 10), `{"status":"approved"}`, token)
+	if crossFranchiseApproval.Code != http.StatusNotFound {
+		t.Fatalf("cross-franchise leave approval = %d: %s", crossFranchiseApproval.Code, crossFranchiseApproval.Body.String())
+	}
+	var status string
+	if err := db.QueryRow(`SELECT status FROM staff_leave_requests WHERE id=$1`, leaveB).Scan(&status); err != nil || status != "pending" {
+		t.Fatalf("cross-franchise leave status = %q, want pending, err=%v", status, err)
+	}
+
+	approval := requestJSON(r, http.MethodPatch, "/api/v1/attendance/leave-requests/"+strconv.FormatInt(leaveA, 10), `{"status":"approved","decisionNote":"approved by owner"}`, token)
+	if approval.Code != http.StatusOK || !strings.Contains(approval.Body.String(), `"status":"approved"`) {
+		t.Fatalf("franchise leave approval = %d: %s", approval.Code, approval.Body.String())
+	}
+	var shiftStatus string
+	if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=8 AND shift_date=$1`, workDate).Scan(&shiftStatus); err != nil || shiftStatus != "personal_leave" {
+		t.Fatalf("approved leave shift status = %q, want personal_leave, err=%v", shiftStatus, err)
 	}
 }
 

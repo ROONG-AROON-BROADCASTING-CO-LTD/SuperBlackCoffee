@@ -58,4 +58,27 @@ describe('attendance API client', () => {
     expect(options?.credentials).toBe('include');
     expect(new Headers(options?.headers).get('Authorization')).toBeNull();
   });
+
+  it('preserves an authenticated 401 response so the app can end an expired session', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: false, message: 'เซสชันหมดอายุ' }),
+        { status: 401 },
+      ),
+    );
+
+    await expect(secured('/attendance/today')).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      message: 'เซสชันหมดอายุ',
+      status: 401,
+    });
+  });
+
+  it('does not expose browser network errors to staff', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline'));
+
+    await expect(secured('/attendance/today')).rejects.toThrow(
+      'ไม่สามารถเชื่อมต่อระบบได้',
+    );
+  });
 });

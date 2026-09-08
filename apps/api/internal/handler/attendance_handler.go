@@ -41,7 +41,7 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 	var userID, branchID int64
 	var name, role, branchName, startsAt, endsAt string
 	var pinHash *string
-	err := h.db.QueryRowContext(c, `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &pinHash)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &pinHash)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -81,7 +81,7 @@ func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
 	var userID, branchID int64
 	var name, role, branchName, startsAt, endsAt string
 	var existing *string
-	err := h.db.QueryRowContext(c, `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &existing)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &existing)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -91,7 +91,7 @@ func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
 		return
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(input.PIN), bcrypt.DefaultCost)
-	if _, err = h.db.ExecContext(c, `UPDATE users SET attendance_pin_hash=$1 WHERE id=$2`, string(hash), userID); err != nil {
+	if _, err = h.db.ExecContext(c.Request.Context(), `UPDATE users SET attendance_pin_hash=$1 WHERE id=$2`, string(hash), userID); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตั้ง PIN ได้"})
 		return
 	}
@@ -119,7 +119,7 @@ func (h *PlatformHandler) AttendanceSession(c *gin.Context) {
 		return
 	}
 	var name, role, branchName, startsAt, endsAt string
-	err := h.db.QueryRowContext(c, `SELECT u.name,u.role,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00') FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &branchName, &startsAt, &endsAt)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00') FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &branchName, &startsAt, &endsAt)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
 		return
@@ -155,13 +155,13 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	}
 	now := attendanceToday()
 	var checkIn, checkOut *time.Time
-	err := h.db.QueryRowContext(c, `SELECT check_in_at,check_out_at FROM staff_attendance WHERE user_id=$1 AND work_date=$2`, claims.UserID, now.Format("2006-01-02")).Scan(&checkIn, &checkOut)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT check_in_at,check_out_at FROM staff_attendance WHERE user_id=$1 AND work_date=$2`, claims.UserID, now.Format("2006-01-02")).Scan(&checkIn, &checkOut)
 	if err != nil && err != sql.ErrNoRows {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสถานะลงเวลาได้"})
 		return
 	}
 	var shiftStatus string
-	shiftErr := h.db.QueryRowContext(c, `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
+	shiftErr := h.db.QueryRowContext(c.Request.Context(), `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
 	if shiftErr != nil && shiftErr != sql.ErrNoRows {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบกะงานได้"})
 		return
@@ -190,7 +190,7 @@ func (h *PlatformHandler) AttendanceSummary(c *gin.Context) {
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, thailandLocation)
 	monthEnd := monthStart.AddDate(0, 1, 0)
 	var sickLeaveCount, personalLeaveCount, otherLeaveCount, lateCount int
-	err := h.db.QueryRowContext(c, `
+	err := h.db.QueryRowContext(c.Request.Context(), `
 		SELECT
 			COUNT(*) FILTER (WHERE status = 'sick_leave'),
 			COUNT(*) FILTER (WHERE status = 'personal_leave'),
@@ -234,7 +234,7 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 	}
 	now := attendanceToday()
 	var shiftStatus string
-	err := h.db.QueryRowContext(c, `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบกะงานของวันนี้"})
 		return
@@ -248,7 +248,7 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 		return
 	}
 	var checkIn *time.Time
-	err = h.db.QueryRowContext(c, `INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,work_date) DO NOTHING RETURNING check_in_at`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now).Scan(&checkIn)
+	err = h.db.QueryRowContext(c.Request.Context(), `INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,work_date) DO NOTHING RETURNING check_in_at`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now).Scan(&checkIn)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันนี้เช็กอินไปแล้ว"})
 		return
@@ -267,7 +267,7 @@ func (h *PlatformHandler) CheckOut(c *gin.Context) {
 	}
 	now := attendanceToday()
 	var checkOut *time.Time
-	err := h.db.QueryRowContext(c, `UPDATE staff_attendance SET check_out_at=$1,updated_at=now() WHERE user_id=$2 AND work_date=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL RETURNING check_out_at`, now, claims.UserID, now.Format("2006-01-02")).Scan(&checkOut)
+	err := h.db.QueryRowContext(c.Request.Context(), `UPDATE staff_attendance SET check_out_at=$1,updated_at=now() WHERE user_id=$2 AND work_date=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL RETURNING check_out_at`, now, claims.UserID, now.Format("2006-01-02")).Scan(&checkOut)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบรายการเช็กอินที่ยังไม่ได้เช็กเอาต์"})
 		return
@@ -284,7 +284,7 @@ func (h *PlatformHandler) AttendanceHistory(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rows, err := h.db.QueryContext(c, `SELECT work_date::text,check_in_at,check_out_at FROM staff_attendance WHERE user_id=$1 ORDER BY work_date DESC LIMIT 31`, claims.UserID)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT work_date::text,check_in_at,check_out_at FROM staff_attendance WHERE user_id=$1 ORDER BY work_date DESC LIMIT 31`, claims.UserID)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านประวัติการทำงานได้"})
 		return
@@ -326,7 +326,7 @@ func (h *PlatformHandler) CreateLeaveRequest(c *gin.Context) {
 		return
 	}
 	var exists bool
-	if err := h.db.QueryRowContext(c, `SELECT EXISTS(SELECT 1 FROM staff_leave_requests WHERE user_id=$1 AND leave_date=$2 AND status IN ('pending','approved'))`, claims.UserID, input.LeaveDate).Scan(&exists); err != nil {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM staff_leave_requests WHERE user_id=$1 AND leave_date=$2 AND status IN ('pending','approved'))`, claims.UserID, input.LeaveDate).Scan(&exists); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบคำขอลาได้"})
 		return
 	}
@@ -335,7 +335,7 @@ func (h *PlatformHandler) CreateLeaveRequest(c *gin.Context) {
 		return
 	}
 	var id int64
-	err := h.db.QueryRowContext(c, `INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES($1,$2,$3,$4,$5) RETURNING id`, claims.UserID, claims.BranchID, input.LeaveDate, input.LeaveType, strings.TrimSpace(input.Reason)).Scan(&id)
+	err := h.db.QueryRowContext(c.Request.Context(), `INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES($1,$2,$3,$4,$5) RETURNING id`, claims.UserID, claims.BranchID, input.LeaveDate, input.LeaveType, strings.TrimSpace(input.Reason)).Scan(&id)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถส่งคำขอลาได้"})
 		return
@@ -377,7 +377,7 @@ func (h *PlatformHandler) ListAttendanceManagement(c *gin.Context) {
 		FROM staff_attendance a JOIN users u ON u.id=a.user_id JOIN branches b ON b.id=a.branch_id
 		WHERE ` + scope + ` AND a.work_date >= $` + strconv.Itoa(placeholder) + ` AND a.work_date < $` + strconv.Itoa(placeholder+1) + ` ORDER BY a.work_date DESC,u.name`
 	args = append(args, start.Format("2006-01-02"), end.Format("2006-01-02"))
-	rows, err := h.db.QueryContext(c, query, args...)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านรายการลงเวลาได้"})
 		return
@@ -406,7 +406,7 @@ func (h *PlatformHandler) ListLeaveRequests(c *gin.Context) {
 		FROM staff_leave_requests l JOIN users u ON u.id=l.user_id JOIN branches b ON b.id=l.branch_id
 		LEFT JOIN users approver ON approver.id=l.approved_by
 		WHERE ` + scope + ` ORDER BY l.leave_date DESC,l.created_at DESC LIMIT 100`
-	rows, err := h.db.QueryContext(c, query, args...)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านคำขอลาได้"})
 		return
@@ -447,7 +447,7 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 		return
 	}
 	placeholder := len(args) + 1
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเริ่มอัปเดตคำขอลาได้"})
 		return
@@ -459,7 +459,7 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 	args = append(args, input.Status, claims.UserID, strings.TrimSpace(input.DecisionNote), requestID)
 	var userID, branchID int64
 	var leaveDate, leaveType string
-	if err := tx.QueryRowContext(c, query, args...).Scan(&userID, &branchID, &leaveDate, &leaveType); err == sql.ErrNoRows {
+	if err := tx.QueryRowContext(c.Request.Context(), query, args...).Scan(&userID, &branchID, &leaveDate, &leaveType); err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบคำขอลาในขอบเขตที่ดูแล"})
 		return
 	} else if err != nil {
@@ -473,7 +473,7 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 		} else if leaveType == "personal" {
 			shiftStatus = "personal_leave"
 		}
-		_, err = tx.ExecContext(c, `INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
+		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
 			SELECT u.id,u.branch_id,$3,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),$4,$5 FROM users u WHERE u.id=$1 AND u.branch_id=$2
 			ON CONFLICT (user_id,shift_date) DO UPDATE SET status=EXCLUDED.status,leave_type=EXCLUDED.leave_type`, userID, branchID, leaveDate, shiftStatus, leaveType)
 		if err != nil {

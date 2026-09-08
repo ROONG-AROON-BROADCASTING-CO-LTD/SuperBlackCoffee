@@ -21,7 +21,9 @@ export function FranchiseDashboardLayout({
   onToggle: () => void;
   children: ReactNode;
 }) {
-  const compact = collapsed || activePage === 'ตารางพนักงาน';
+  const usesCompactPersonnelSidebar =
+    activePage === 'ตารางพนักงาน' || activePage === 'ลงเวลาพนักงาน';
+  const compact = collapsed || usesCompactPersonnelSidebar;
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <DashboardSidebar
@@ -33,7 +35,7 @@ export function FranchiseDashboardLayout({
         activeBackground="#fbfaf8"
         accentColor="#bf9576"
         collapsed={compact}
-        hideToggle={activePage === 'ตารางพนักงาน'}
+        hideToggle={usesCompactPersonnelSidebar}
         onToggle={onToggle}
       />
       <DashboardTopbar

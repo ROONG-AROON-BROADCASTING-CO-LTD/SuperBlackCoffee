@@ -10,6 +10,7 @@
     "./pages/products": "./src/pages/ProductsManagementPage.tsx",
     "./pages/stock": "./src/pages/StockManagementPage.tsx",
     "./pages/attendance": "./src/pages/AttendanceManagementPage.tsx",
+    "./pages/leave-requests": "./src/pages/LeaveRequestsManagementPage.tsx",
     "./skeletons/employees": "./src/components/skeletons/EmployeesSkeleton.tsx",
     "./skeletons/ingredients": "./src/components/skeletons/IngredientsSkeleton.tsx",
     "./skeletons/products": "./src/components/skeletons/ProductsSkeleton.tsx",

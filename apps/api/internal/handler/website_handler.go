@@ -36,7 +36,7 @@ func (h *PlatformHandler) UpdateWebsiteLeadStatus(c *gin.Context) {
 		c.JSON(400, gin.H{"success": false, "message": "สถานะลีดไม่ถูกต้อง"})
 		return
 	}
-	result, err := h.db.ExecContext(c, `UPDATE website_leads SET status=$1,updated_at=now() WHERE id=$2`, input.Status, id)
+	result, err := h.db.ExecContext(c.Request.Context(), `UPDATE website_leads SET status=$1,updated_at=now() WHERE id=$2`, input.Status, id)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบลีดที่ระบุ"})
 		return
@@ -63,7 +63,7 @@ func (h *PlatformHandler) CreateWebsiteLead(c *gin.Context) {
 		topic = "franchise"
 	}
 	var id int64
-	err := h.db.QueryRowContext(c, `INSERT INTO website_leads(name,phone,email,topic,plan,province,message) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, strings.TrimSpace(input.Name), strings.TrimSpace(input.Phone), strings.TrimSpace(input.Email), topic, strings.TrimSpace(input.Plan), strings.TrimSpace(input.Province), strings.TrimSpace(input.Message)).Scan(&id)
+	err := h.db.QueryRowContext(c.Request.Context(), `INSERT INTO website_leads(name,phone,email,topic,plan,province,message) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`, strings.TrimSpace(input.Name), strings.TrimSpace(input.Phone), strings.TrimSpace(input.Email), topic, strings.TrimSpace(input.Plan), strings.TrimSpace(input.Province), strings.TrimSpace(input.Message)).Scan(&id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อความได้ กรุณาลองใหม่อีกครั้ง"})
 		return
@@ -75,7 +75,7 @@ func (h *PlatformHandler) ListWebsiteLeads(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	rows, err := h.db.QueryContext(c, `SELECT id,name,phone,email,topic,plan,province,message,status,created_at FROM website_leads ORDER BY created_at DESC LIMIT 200`)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,phone,email,topic,plan,province,message,status,created_at FROM website_leads ORDER BY created_at DESC LIMIT 200`)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดึงข้อความจากเว็บไซต์ได้"})
 		return

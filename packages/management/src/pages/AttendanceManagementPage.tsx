@@ -1,28 +1,10 @@
-import { useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Skeleton,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClockIcon, ReceiptTextIcon, UsersIcon } from '@stackbuild/ui';
-import {
-  listManagedAttendance,
-  listManagedLeaveRequests,
-  updateManagedLeaveRequest,
-  type ManagedLeaveRequest,
-} from '../api/attendance';
+import { useMemo, useState } from 'react';
+import { Box, Button, Card, Typography } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
+import { DashboardMain } from '@stackbuild/ui';
+import { listManagedAttendance } from '../api/attendance';
+import { listBranches } from '../api/branches';
+import { listStaffSchedules } from '../api/staff-schedules';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { AttendanceSkeleton } from '../components/skeletons/AttendanceSkeleton';
 
@@ -30,43 +12,72 @@ const timeFormatter = new Intl.DateTimeFormat('th-TH', {
   hour: '2-digit',
   minute: '2-digit',
 });
-const dateFormatter = new Intl.DateTimeFormat('th-TH', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
-const leaveTypeLabels = {
-  sick: 'ลาป่วย',
-  personal: 'ลากิจ',
-  other: 'ลาอื่น ๆ',
-};
-const leaveStatusLabels = {
-  pending: 'รออนุมัติ',
-  approved: 'อนุมัติแล้ว',
-  rejected: 'ไม่อนุมัติ',
-};
-
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const displayTime = (value: string | null) =>
   value ? timeFormatter.format(new Date(value)) : '-';
+const thaiWeekday = [
+  'วันจันทร์',
+  'วันอังคาร',
+  'วันพุธ',
+  'วันพฤหัสบดี',
+  'วันศุกร์',
+  'วันเสาร์',
+  'วันอาทิตย์',
+];
+const thaiMonth = new Intl.DateTimeFormat('th-TH', {
+  month: 'long',
+  year: 'numeric',
+});
 
-function LeaveStatusChip({
-  status,
-}: {
-  status: ManagedLeaveRequest['status'];
-}) {
+function getCalendarDays(month: Date) {
+  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+  const mondayOffset = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(
+    month.getFullYear(),
+    month.getMonth() + 1,
+    0,
+  ).getDate();
+  const rowCount = Math.ceil((mondayOffset + daysInMonth) / 7);
+  const firstVisibleDay = new Date(firstDay);
+  firstVisibleDay.setDate(firstDay.getDate() - mondayOffset);
+  return Array.from({ length: rowCount * 7 }, (_, index) => {
+    const date = new Date(firstVisibleDay);
+    date.setDate(firstVisibleDay.getDate() + index);
+    return date;
+  });
+}
+
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function isSameDay(first: Date, second: Date) {
   return (
-    <Chip
-      size="small"
-      label={leaveStatusLabels[status]}
-      color={
-        status === 'approved'
-          ? 'success'
-          : status === 'rejected'
-            ? 'error'
-            : 'warning'
-      }
-    />
+    first.getFullYear() === second.getFullYear() &&
+    first.getMonth() === second.getMonth() &&
+    first.getDate() === second.getDate()
+  );
+}
+
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+const bangkokTime = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Bangkok',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+function toMinutes(value: string) {
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function checkInIsLate(checkInAt: string, startsAt: string) {
+  return (
+    toMinutes(bangkokTime.format(new Date(checkInAt))) > toMinutes(startsAt)
   );
 }
 
@@ -74,286 +85,349 @@ export function AttendanceManagementPage({
   franchiseMode = false,
 }: { franchiseMode?: boolean } = {}) {
   const [month, setMonth] = useState(currentMonth);
-  const queryClient = useQueryClient();
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const calendarMonth = useMemo(
+    () => new Date(`${month}-01T00:00:00`),
+    [month],
+  );
+  const calendarDays = useMemo(
+    () => getCalendarDays(calendarMonth),
+    [calendarMonth],
+  );
   const attendance = useQuery({
     queryKey: ['attendance-management', month],
     queryFn: () => listManagedAttendance(month),
   });
-  const leaveRequests = useQuery({
-    queryKey: ['attendance-leave-requests'],
-    queryFn: listManagedLeaveRequests,
+  const schedules = useQuery({
+    queryKey: ['staff-schedules', month],
+    queryFn: () => listStaffSchedules(month),
   });
-  const updateLeave = useMutation({
-    mutationFn: ({
-      id,
-      status,
-    }: {
-      id: number;
-      status: 'approved' | 'rejected';
-    }) => updateManagedLeaveRequest(id, status),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({
-        queryKey: ['attendance-leave-requests'],
-      }),
-  });
+  const branches = useQuery({ queryKey: ['branches'], queryFn: listBranches });
   const rows = attendance.data ?? [];
-  const openLeaves = (leaveRequests.data ?? []).filter(
-    (item) => item.status === 'pending',
+  const workspaceBranches = franchiseMode
+    ? (branches.data ?? [])
+    : (branches.data ?? []).filter((branch) => !branch.franchiseeId);
+  const activeBranchId = franchiseMode
+    ? (workspaceBranches[0]?.id ?? null)
+    : (selectedBranchId ?? workspaceBranches[0]?.id ?? null);
+  const activeBranch = workspaceBranches.find(
+    (branch) => branch.id === activeBranchId,
   );
-  const initialLoading = attendance.isLoading && leaveRequests.isLoading;
+  const workingSchedulesByDate = useMemo(() => {
+    const result = new Map<string, NonNullable<typeof schedules.data>>();
+    for (const schedule of schedules.data ?? []) {
+      if (schedule.branchId !== activeBranchId) continue;
+      if (
+        schedule.status !== 'scheduled' &&
+        schedule.status !== 'compensatory_work'
+      )
+        continue;
+      result.set(schedule.date, [
+        ...(result.get(schedule.date) ?? []),
+        schedule,
+      ]);
+    }
+    return result;
+  }, [activeBranchId, schedules.data]);
+  const attendanceByShift = useMemo(() => {
+    const result = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      result.set(`${row.date}:${row.userId}`, row);
+    }
+    return result;
+  }, [rows]);
+  const initialLoading =
+    attendance.isLoading || schedules.isLoading || branches.isLoading;
+  const today = new Date();
+  const changeMonth = (offset: number) => {
+    setMonth((current) => {
+      const date = new Date(`${current}-01T00:00:00`);
+      date.setMonth(date.getMonth() + offset);
+      return monthKey(date);
+    });
+  };
 
   return (
-    <Box
-      component="main"
-      sx={{
-        flex: 1,
-        minWidth: 0,
-        width: '100%',
-        height: 'calc(100vh - 72px)',
-        mt: '72px',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        p: { xs: 2, md: 4 },
-        bgcolor: '#fbfaf8',
-      }}
-    >
-      <Stack spacing={3} sx={{ maxWidth: 1240, mx: 'auto' }}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' } }}
-        >
-          <Box>
-            <Typography
-              sx={{
-                color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 24,
-                fontWeight: 700,
-              }}
-            >
-              ลงเวลาพนักงาน
-            </Typography>
-            <Typography
-              color="text.secondary"
-              sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
-            >
-              {franchiseMode
-                ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
-                : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'}
-            </Typography>
-          </Box>
-          <TextField
-            label="เดือน"
-            type="month"
+    <DashboardMain>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 2,
+          alignItems: { xs: 'flex-start', md: 'center' },
+          flexDirection: { xs: 'column', md: 'row' },
+          mb: 2.5,
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              color: '#201914',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 24,
+              fontWeight: 700,
+            }}
+          >
+            ลงเวลาพนักงาน
+          </Typography>
+          <Typography
+            color="text.secondary"
+            sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
+          >
+            {franchiseMode
+              ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
+              : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
             size="small"
-            value={month}
-            onChange={(event) => setMonth(event.target.value)}
-          />
-        </Stack>
-        {updateLeave.error ? (
-          <Alert severity="error">อัปเดตรายการไม่สำเร็จ</Alert>
-        ) : null}
-        {initialLoading ? (
-          <AttendanceSkeleton />
-        ) : (
-          <>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
-                gap: 2,
-              }}
+            onClick={() => changeMonth(-1)}
+          >
+            เดือนก่อน
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setMonth(currentMonth())}
+          >
+            เดือนนี้
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => changeMonth(1)}
+          >
+            เดือนถัดไป
+          </Button>
+        </Box>
+      </Box>
+      {!initialLoading && !franchiseMode ? (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+            mb: 2,
+          }}
+        >
+          <Typography color="text.secondary" sx={{ fontSize: 14, mr: 0.5 }}>
+            แสดงตารางของสาขา
+          </Typography>
+          {workspaceBranches.map((branch) => (
+            <Button
+              key={branch.id}
+              size="small"
+              variant={activeBranchId === branch.id ? 'contained' : 'outlined'}
+              onClick={() => setSelectedBranchId(branch.id)}
             >
-              <Paper
-                variant="outlined"
-                sx={{ p: 2.5, borderColor: '#e8ddd5', borderRadius: '15px' }}
-              >
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: 'center', mb: 2 }}
-                >
-                  <ClockIcon size={22} />
-                  <Typography sx={{ fontWeight: 700 }}>
-                    รายการเช็กอิน / เช็กเอาต์
+              {branch.name}
+            </Button>
+          ))}
+        </Box>
+      ) : null}
+      {initialLoading ? (
+        <AttendanceSkeleton />
+      ) : (
+        <Card
+          variant="outlined"
+          sx={{
+            borderRadius: '16px',
+            borderColor: '#e8ddd5',
+            overflow: 'hidden',
+          }}
+        >
+          <Box
+            sx={{
+              px: 2,
+              py: 1.75,
+              borderBottom: '1px solid #eee4dd',
+              bgcolor: '#fbf7f4',
+            }}
+          >
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              {!franchiseMode ? (
+                <Box>
+                  <Typography
+                    sx={{ color: '#8b7161', fontSize: 12, fontWeight: 700 }}
+                  >
+                    สาขา
                   </Typography>
-                </Stack>
-                {attendance.isLoading ? (
-                  <Skeleton variant="rounded" height={140} />
-                ) : attendance.error ? (
-                  <DataLoadNotice />
-                ) : rows.length === 0 ? (
-                  <Typography color="text.secondary">
-                    ยังไม่มีรายการลงเวลาในเดือนนี้
+                  <Typography
+                    sx={{ color: '#201914', fontSize: 21, fontWeight: 800 }}
+                  >
+                    {activeBranch?.name ?? 'ยังไม่พบสาขา'}
                   </Typography>
-                ) : (
-                  <Box sx={{ overflowX: 'auto' }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>พนักงาน</TableCell>
-                          <TableCell>วันที่</TableCell>
-                          <TableCell>เช็กอิน</TableCell>
-                          <TableCell>เช็กเอาต์</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {rows.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell>
-                              <Typography sx={{ fontWeight: 600 }}>
-                                {row.name}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                              >
-                                สาขา{row.branchName}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              {dateFormatter.format(
-                                new Date(`${row.date}T00:00:00`),
-                              )}
-                            </TableCell>
-                            <TableCell>{displayTime(row.checkInAt)}</TableCell>
-                            <TableCell>{displayTime(row.checkOutAt)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Box>
-                )}
-              </Paper>
-              <Paper
-                variant="outlined"
-                sx={{ p: 2.5, borderColor: '#e8ddd5', borderRadius: '15px' }}
+                </Box>
+              ) : null}
+              <Box
+                sx={{
+                  pl: franchiseMode ? 0 : 3,
+                  borderLeft: franchiseMode ? 0 : '1px solid #dfd1c8',
+                }}
               >
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: 'center', mb: 2 }}
-                >
-                  <UsersIcon size={22} />
-                  <Typography sx={{ fontWeight: 700 }}>สรุปเดือนนี้</Typography>
-                </Stack>
                 <Typography
-                  variant="h3"
-                  color="primary"
-                  sx={{ fontWeight: 700 }}
+                  sx={{ color: '#8b7161', fontSize: 12, fontWeight: 700 }}
                 >
-                  {attendance.error ? '-' : rows.length}
+                  เดือน
                 </Typography>
-                <Typography color="text.secondary">รายการลงเวลา</Typography>
                 <Typography
-                  variant="h3"
-                  color="secondary"
-                  sx={{ mt: 2, fontWeight: 700 }}
+                  sx={{ color: '#201914', fontSize: 21, fontWeight: 800 }}
                 >
-                  {leaveRequests.error ? '-' : openLeaves.length}
+                  {thaiMonth.format(calendarMonth)}
                 </Typography>
-                <Typography color="text.secondary">คำขอลารออนุมัติ</Typography>
-              </Paper>
+              </Box>
             </Box>
-            <Paper
-              variant="outlined"
-              sx={{ p: 2.5, borderColor: '#e8ddd5', borderRadius: '15px' }}
-            >
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ alignItems: 'center', mb: 2 }}
-              >
-                <ReceiptTextIcon size={22} />
-                <Typography sx={{ fontWeight: 700 }}>คำขอลาพนักงาน</Typography>
-              </Stack>
-              {leaveRequests.isLoading ? (
-                <Skeleton variant="rounded" height={56} />
-              ) : leaveRequests.error ? (
-                <DataLoadNotice />
-              ) : (leaveRequests.data ?? []).length === 0 ? (
-                <Typography color="text.secondary">ยังไม่มีคำขอลา</Typography>
-              ) : (
-                <Stack spacing={1.5}>
-                  {leaveRequests.data?.map((item) => (
-                    <Paper
-                      key={item.id}
-                      variant="outlined"
+          </Box>
+          {attendance.error || schedules.error || branches.error ? (
+            <Box sx={{ p: 2.5 }}>
+              <DataLoadNotice />
+            </Box>
+          ) : (
+            <Box sx={{ overflowX: 'auto' }}>
+              <Box sx={{ minWidth: 780 }}>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                    borderBottom: '1px solid #eee4dd',
+                  }}
+                >
+                  {thaiWeekday.map((day, index) => (
+                    <Box
+                      key={day}
                       sx={{
-                        p: 1.75,
-                        borderColor: '#eee2db',
-                        borderRadius: '12px',
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 1.25,
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
+                        py: 1,
+                        textAlign: 'center',
+                        color: index > 4 ? '#9a6d5c' : '#60493b',
+                        fontSize: 13,
+                        fontWeight: 700,
                       }}
                     >
-                      <Box>
-                        <Typography sx={{ fontWeight: 600 }}>
-                          {item.name} · {leaveTypeLabels[item.leaveType]}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {dateFormatter.format(
-                            new Date(`${item.leaveDate}T00:00:00`),
-                          )}{' '}
-                          · สาขา{item.branchName} · {item.reason}
-                        </Typography>
-                        {item.status !== 'pending' && item.approvedBy ? (
-                          <Typography variant="caption" color="text.secondary">
-                            ดำเนินการโดย {item.approvedBy}
-                            {item.approvedAt
-                              ? ` · ${dateFormatter.format(new Date(item.approvedAt))}`
-                              : ''}
-                            {item.decisionNote ? ` · ${item.decisionNote}` : ''}
+                      {day}
+                    </Box>
+                  ))}
+                </Box>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                  }}
+                >
+                  {calendarDays.map((day) => {
+                    const currentMonth =
+                      day.getMonth() === calendarMonth.getMonth();
+                    const shifts =
+                      workingSchedulesByDate.get(dateKey(day)) ?? [];
+                    return (
+                      <Box
+                        key={day.toISOString()}
+                        sx={{
+                          minHeight: 122,
+                          p: 1.25,
+                          borderRight: '1px solid #eee4dd',
+                          borderBottom: '1px solid #eee4dd',
+                          bgcolor: currentMonth ? '#fff' : '#fbf8f6',
+                          opacity: currentMonth ? 1 : 0.5,
+                          '&:nth-of-type(7n)': { borderRight: 0 },
+                          '&:nth-last-of-type(-n + 7)': {
+                            borderBottom: 0,
+                          },
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 26,
+                            height: 26,
+                            display: 'grid',
+                            placeItems: 'center',
+                            borderRadius: '50%',
+                            bgcolor: isSameDay(day, today)
+                              ? '#3c2d24'
+                              : 'transparent',
+                            color: isSameDay(day, today) ? '#fff' : '#45342b',
+                            fontSize: 13,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {day.getDate()}
+                        </Box>
+                        {currentMonth && shifts.length === 0 ? (
+                          <Typography
+                            sx={{
+                              mt: 2.5,
+                              color: '#a89285',
+                              fontSize: 11,
+                              lineHeight: 1.35,
+                            }}
+                          >
+                            ไม่มีพนักงานเข้ากะ
                           </Typography>
                         ) : null}
+                        {shifts.map((shift) => {
+                          const record = attendanceByShift.get(
+                            `${shift.date}:${shift.userId}`,
+                          );
+                          const status = !record?.checkInAt
+                            ? 'pending'
+                            : checkInIsLate(record.checkInAt, shift.startsAt)
+                              ? 'late'
+                              : 'on-time';
+                          const colors =
+                            status === 'pending'
+                              ? { background: '#ebe8e5', text: '#766f6a' }
+                              : status === 'late'
+                                ? { background: '#ffe4e4', text: '#b94136' }
+                                : { background: '#dff4e7', text: '#256c45' };
+                          return (
+                            <Box
+                              key={shift.id}
+                              aria-label={`${shift.name} ${status === 'pending' ? 'ยังไม่เช็กอิน' : status === 'late' ? 'มาสาย' : 'ตรงเวลา'}`}
+                              sx={{
+                                mt: 0.75,
+                                px: 0.65,
+                                py: 0.5,
+                                borderRadius: '6px',
+                                bgcolor: colors.background,
+                                color: colors.text,
+                                fontFamily: 'Kanit, sans-serif',
+                                fontSize: 11,
+                                lineHeight: 1.25,
+                              }}
+                            >
+                              <Typography
+                                component="span"
+                                sx={{
+                                  display: 'block',
+                                  mb: 0.75,
+                                  fontSize: 'inherit',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {shift.name}
+                              </Typography>
+                              <Box
+                                component="span"
+                                sx={{ whiteSpace: 'nowrap' }}
+                              >
+                                {record?.checkInAt
+                                  ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
+                                  : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
+                              </Box>
+                            </Box>
+                          );
+                        })}
                       </Box>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{ alignItems: 'center' }}
-                      >
-                        <LeaveStatusChip status={item.status} />
-                        {item.status === 'pending' ? (
-                          <>
-                            <Button
-                              size="small"
-                              color="success"
-                              onClick={() =>
-                                updateLeave.mutate({
-                                  id: item.id,
-                                  status: 'approved',
-                                })
-                              }
-                            >
-                              อนุมัติ
-                            </Button>
-                            <Button
-                              size="small"
-                              color="error"
-                              onClick={() =>
-                                updateLeave.mutate({
-                                  id: item.id,
-                                  status: 'rejected',
-                                })
-                              }
-                            >
-                              ไม่อนุมัติ
-                            </Button>
-                          </>
-                        ) : null}
-                      </Stack>
-                    </Paper>
-                  ))}
-                </Stack>
-              )}
-            </Paper>
-          </>
-        )}
-      </Stack>
-    </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </Card>
+      )}
+    </DashboardMain>
   );
 }

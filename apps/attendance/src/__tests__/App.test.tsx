@@ -7,7 +7,9 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  checkIn,
   getAttendanceStatus,
+  getAttendanceSummary,
   logoutAttendance,
   restoreAttendanceSession,
 } from '../api/attendance';
@@ -76,19 +78,25 @@ vi.mock('../routes/AttendancePageRouter', () => ({
   AttendancePageRouter: ({
     attendanceActionDisabled,
     attendanceActionHint,
+    onAttendanceAction,
     page,
+    summary,
   }: {
     attendanceActionDisabled: boolean;
     attendanceActionHint: string;
+    onAttendanceAction: () => void;
     page: string;
+    summary: { lateCount: number } | null;
   }) => (
     <div>
       attendance-router
+      <button onClick={onAttendanceAction}>record-attendance</button>
       <span data-testid="attendance-action-disabled">
         {String(attendanceActionDisabled)}
       </span>
       <span data-testid="attendance-action-hint">{attendanceActionHint}</span>
       <span data-testid="attendance-page">{page}</span>
+      <span data-testid="attendance-late-count">{summary?.lateCount ?? 0}</span>
     </div>
   ),
 }));
@@ -123,15 +131,18 @@ describe('Attendance App session', () => {
     expect(await screen.findByText('attendance-login')).toBeTruthy();
   });
 
-  it('returns to login when loading attendance data finds an expired session', async () => {
-    vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
-      new ApiRequestError('เซสชันหมดอายุ', 401),
-    );
+  it.each([401, 403])(
+    'returns to login when loading attendance data rejects the session with %i',
+    async (status) => {
+      vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
+        new ApiRequestError('เซสชันใช้งานไม่ได้', status),
+      );
 
-    render(<App />);
+      render(<App />);
 
-    expect(await screen.findByText('attendance-login')).toBeTruthy();
-  });
+      expect(await screen.findByText('attendance-login')).toBeTruthy();
+    },
+  );
 
   it('disables attendance actions when today is a day off', async () => {
     render(<App />);
@@ -144,6 +155,81 @@ describe('Attendance App session', () => {
         'วันนี้เป็นวันหยุดตามตารางกะ',
       );
     });
+  });
+
+  it('refreshes the monthly late count after checking in', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: null,
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(getAttendanceSummary)
+      .mockResolvedValueOnce({
+        month: '2026-09',
+        sickLeaveCount: 0,
+        personalLeaveCount: 0,
+        otherLeaveCount: 0,
+        lateCount: 1,
+      })
+      .mockResolvedValueOnce({
+        month: '2026-09',
+        sickLeaveCount: 0,
+        personalLeaveCount: 0,
+        otherLeaveCount: 0,
+        lateCount: 2,
+      });
+    vi.mocked(checkIn).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkInAt: '2026-09-08T02:19:58Z',
+      checkOutAt: null,
+      checkedIn: true,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-late-count').textContent).toBe('1');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-late-count').textContent).toBe('2');
+    });
+  });
+
+  it('ends the local session when the check-in request reports an expired cookie', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: null,
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkIn).mockRejectedValueOnce(
+      new ApiRequestError('เซสชันใช้งานไม่ได้', 401),
+    );
+
+    render(<App />);
+    expect(await screen.findByText('attendance-router')).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('attendance-login')).toBeTruthy();
+    });
+    expect(logoutAttendance).toHaveBeenCalledOnce();
   });
 
   it('restores the current page from the URL after a refresh', async () => {

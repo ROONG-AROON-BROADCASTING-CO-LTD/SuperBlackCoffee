@@ -3,6 +3,7 @@ import { DashboardMain, coffeeIngredientsImage } from '@stackbuild/ui';
 import {
   EmployeesSkeleton,
   AttendanceSkeleton,
+  LeaveRequestsSkeleton,
   IngredientsSkeleton,
   ProductsSkeleton,
   StockSkeleton,
@@ -41,6 +42,11 @@ const AdminEmployeesPage = lazy(() =>
 const AdminAttendancePage = lazy(() =>
   import('../../pages/dashboard/management').then((module) => ({
     default: module.AttendanceManagementPage,
+  })),
+);
+const AdminLeaveRequestsPage = lazy(() =>
+  import('../../pages/dashboard/management').then((module) => ({
+    default: module.LeaveRequestsManagementPage,
   })),
 );
 const AdminIngredientsPage = lazy(() =>
@@ -94,6 +100,8 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <EmployeesSkeleton />
     ) : page === 'ลงเวลาพนักงาน' ? (
       <AttendanceSkeleton />
+    ) : page === 'คำขอลาพนักงาน' ? (
+      <LeaveRequestsSkeleton />
     ) : page === 'สาขาแฟรนไชส์' ? (
       <AdminFranchiseBranchesSkeleton />
     ) : (
@@ -146,7 +154,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   };
   const isIngredientPage = activePage === 'วัตถุดิบ';
   const isStockPage = activePage === 'สต๊อก';
-  const isEmployeesPage = activePage === 'ตารางพนักงาน';
+  const usesCompactPersonnelSidebar =
+    activePage === 'ตารางพนักงาน' || activePage === 'ลงเวลาพนักงาน';
   const hasBranchSidebar =
     isIngredientPage ||
     isStockPage ||
@@ -183,6 +192,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     <AdminEmployeesPage suppressLoadingHeader />
   ) : activePage === 'ลงเวลาพนักงาน' ? (
     <AdminAttendancePage />
+  ) : activePage === 'คำขอลาพนักงาน' ? (
+    <AdminLeaveRequestsPage />
   ) : (
     <AdminBranchesPage />
   );
@@ -216,7 +227,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       navigation={adminSidebarNavigation}
       onNavigate={navigate}
       onLogout={logout}
-      forceSidebarCollapsed={hasBranchSidebar || isEmployeesPage}
+      forceSidebarCollapsed={hasBranchSidebar || usesCompactPersonnelSidebar}
       secondarySidebarVisible={hasBranchSidebar}
       secondarySidebar={
         <BranchesSidebar

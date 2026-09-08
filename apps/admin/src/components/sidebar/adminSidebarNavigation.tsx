@@ -32,6 +32,7 @@ export const adminSidebarNavigation = [
   },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
   { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
+  { label: 'คำขอลาพนักงาน', icon: <ReceiptTextIcon />, group: 'บุคลากร' },
   {
     label: 'ประวัติการทำรายการ',
     icon: <ReceiptTextIcon />,

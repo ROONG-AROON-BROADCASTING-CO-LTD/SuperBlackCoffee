@@ -33,6 +33,10 @@ export default defineConfig({
         dirname,
         '../../packages/management/src/pages/AttendanceManagementPage.tsx',
       ),
+      '@stackbuild/management/pages/leave-requests': path.resolve(
+        dirname,
+        '../../packages/management/src/pages/LeaveRequestsManagementPage.tsx',
+      ),
       '@stackbuild/management/skeletons/employees': path.resolve(
         dirname,
         '../../packages/management/src/components/skeletons/EmployeesSkeleton.tsx',

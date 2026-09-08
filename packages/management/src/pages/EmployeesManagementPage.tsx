@@ -996,19 +996,38 @@ export function EmployeesManagementPage({
                                         ? '#ebe8e5'
                                         : '#ffe4e4',
                                 color: '#60493b',
-                                fontSize: 12,
+                                fontFamily: 'Kanit, sans-serif',
+                                fontSize: 11,
                                 lineHeight: 1.25,
                               }}
                             >
                               <Box
                                 component="span"
-                                sx={{ display: 'block', mb: 0.35 }}
+                                sx={{
+                                  display: 'block',
+                                  mb: 0.75,
+                                  overflow: 'hidden',
+                                  color: '#45342b',
+                                  fontWeight: 700,
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
                               >
                                 {shift.name}
                               </Box>
-                              {isWorkingShift(shift.status)
-                                ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
-                                : leaveLabels[shift.status]}
+                              <Box
+                                component="span"
+                                sx={{
+                                  display: 'block',
+                                  color: '#60493b',
+                                  fontSize: 11,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {isWorkingShift(shift.status)
+                                  ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
+                                  : leaveLabels[shift.status]}
+                              </Box>
                             </Box>
                           ))}
                       </Box>

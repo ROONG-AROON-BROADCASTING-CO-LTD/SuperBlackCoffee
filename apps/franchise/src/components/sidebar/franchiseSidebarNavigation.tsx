@@ -17,6 +17,7 @@ export const navigation = [
   { label: 'วัตถุดิบ', icon: <BoxesIcon />, group: 'สินค้าและคลัง' },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
   { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
+  { label: 'คำขอลาพนักงาน', icon: <ReceiptTextIcon />, group: 'บุคลากร' },
 ] as const;
 
 export type FranchisePlan = 'S' | 'M' | 'L';

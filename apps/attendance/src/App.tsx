@@ -32,6 +32,13 @@ function isAttendanceSession(
   return !('requiresPIN' in value) && !('requiresPINSetup' in value);
 }
 
+function isInvalidAttendanceSession(error: unknown) {
+  return (
+    error instanceof ApiRequestError &&
+    (error.status === 401 || error.status === 403)
+  );
+}
+
 const staffPagePaths: Record<StaffPage, string> = {
   overview: '/',
   attendance: '/attendance',
@@ -125,7 +132,7 @@ export default function App() {
       })
       .catch((error) => {
         if (!active) return;
-        if (error instanceof ApiRequestError && error.status === 401) {
+        if (isInvalidAttendanceSession(error)) {
           setSession(null);
           setStatus(null);
           setHistory([]);
@@ -243,13 +250,16 @@ export default function App() {
         canRecordAttendance: nextStatus.checkedIn,
       }));
       setHistory(await getAttendanceHistory());
+      void getAttendanceSummary()
+        .then(setSummary)
+        .catch(() => undefined);
       setNotice(
         nextStatus.checkedIn
           ? 'เช็กอินเรียบร้อยแล้ว'
           : 'เช็กเอาต์เรียบร้อยแล้ว',
       );
     } catch (error) {
-      if (error instanceof ApiRequestError && error.status === 401) {
+      if (isInvalidAttendanceSession(error)) {
         logout();
         return;
       }

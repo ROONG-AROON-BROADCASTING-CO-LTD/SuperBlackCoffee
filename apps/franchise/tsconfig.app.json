@@ -27,6 +27,9 @@
       "@stackbuild/management/pages/stock": [
         "../../packages/management/src/pages/StockManagementPage.tsx"
       ],
+      "@stackbuild/management/pages/leave-requests": [
+        "../../packages/management/src/pages/LeaveRequestsManagementPage.tsx"
+      ],
       "@stackbuild/management/skeletons/employees": [
         "../../packages/management/src/components/skeletons/EmployeesSkeleton.tsx"
       ],
