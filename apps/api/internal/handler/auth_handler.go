@@ -47,7 +47,7 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusTooManyRequests, gin.H{"success": false, "message": "ลองเข้าสู่ระบบใหม่ภายหลัง"})
 		return
 	}
-	user, err := h.auth.Authenticate(c, input.Username, input.Password)
+	user, err := h.auth.Authenticate(c.Request.Context(), input.Username, input.Password)
 	if err == service.ErrInvalidCredentials {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง"})
 		return
@@ -66,7 +66,7 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ยังไม่ได้เปิดใช้งาน"})
 			return
 		}
-		err = h.db.QueryRowContext(c, `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *user.FranchiseeID, *user.BranchID).Scan(&plan)
+		err = h.db.QueryRowContext(c.Request.Context(), `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *user.FranchiseeID, *user.BranchID).Scan(&plan)
 		if err != nil {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ยังไม่ได้เปิดใช้งาน"})
 			return
@@ -78,11 +78,6 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 		return
 	}
 	if cookieName := platformSessionCookieName(user.Role); cookieName != "" {
-		for _, name := range []string{"sbc_admin_session", "sbc_franchise_session"} {
-			if name != cookieName {
-				h.setPlatformSessionCookie(c, name, "", -1)
-			}
-		}
 		h.setPlatformSessionCookie(c, cookieName, token, int(platformSessionTTL.Seconds()))
 	}
 	c.JSON(200, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": user.ID, "name": user.Name, "role": user.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "plan": plan}}})
@@ -96,7 +91,7 @@ func (h *PlatformHandler) Session(c *gin.Context) {
 	}
 	plan := ""
 	if claims.FranchiseeID != nil && claims.BranchID != nil {
-		if h.db == nil || h.db.QueryRowContext(c, `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan) != nil {
+		if h.db == nil || h.db.QueryRowContext(c.Request.Context(), `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan) != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันแฟรนไชส์ไม่พร้อมใช้งาน"})
 			return
 		}
@@ -105,8 +100,11 @@ func (h *PlatformHandler) Session(c *gin.Context) {
 }
 
 func (h *PlatformHandler) Logout(c *gin.Context) {
-	for _, name := range []string{"sbc_admin_session", "sbc_franchise_session"} {
-		h.setPlatformSessionCookie(c, name, "", -1)
+	cookieName := platformSessionCookieName(c.GetHeader("X-SBC-Session-Role"))
+	if cookieName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบประเภทเซสชันที่ต้องการออกจากระบบ"})
+		return
 	}
+	h.setPlatformSessionCookie(c, cookieName, "", -1)
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }

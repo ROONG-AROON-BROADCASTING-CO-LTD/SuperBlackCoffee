@@ -26,7 +26,7 @@ func (h *PlatformHandler) ListAuditEvents(c *gin.Context) {
 	if offset < 0 {
 		offset = 0
 	}
-	rows, err := h.db.QueryContext(c, `SELECT e.id,e.branch_id,COALESCE(b.name,''),e.actor_id,COALESCE(u.name,''),e.entity_type,e.entity_id,e.action,e.metadata,e.created_at
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT e.id,e.branch_id,COALESCE(b.name,''),e.actor_id,COALESCE(u.name,''),e.entity_type,e.entity_id,e.action,e.metadata,e.created_at
 		FROM audit_events e
 		LEFT JOIN branches b ON b.id=e.branch_id
 		LEFT JOIN users u ON u.id=e.actor_id

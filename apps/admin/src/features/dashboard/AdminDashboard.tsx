@@ -24,6 +24,7 @@ import {
   adminPagePaths,
   type AdminPage,
 } from '../../routes/adminRoutes';
+import { EmployeesManagementPage as AdminEmployeesPage } from '../../pages/dashboard/management';
 const AdminBranchesPage = lazy(() =>
   import('../../pages/dashboard/AdminBranchesPage').then((module) => ({
     default: module.AdminBranchesPage,
@@ -32,11 +33,6 @@ const AdminBranchesPage = lazy(() =>
 const AdminFranchiseBranchesPage = lazy(() =>
   import('../../pages/dashboard/AdminFranchiseBranchesPage').then((module) => ({
     default: module.AdminFranchiseBranchesPage,
-  })),
-);
-const AdminEmployeesPage = lazy(() =>
-  import('../../pages/dashboard/management').then((module) => ({
-    default: module.EmployeesManagementPage,
   })),
 );
 const AdminAttendancePage = lazy(() =>
@@ -97,7 +93,7 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
     ) : page === 'วัตถุดิบ' ? (
       <IngredientsSkeleton />
     ) : page === 'ตารางพนักงาน' ? (
-      <EmployeesSkeleton />
+      <EmployeesSkeleton showHeader />
     ) : page === 'ลงเวลาพนักงาน' ? (
       <AttendanceSkeleton />
     ) : page === 'คำขอลาพนักงาน' ? (
@@ -189,7 +185,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   ) : activePage === 'สาขาแฟรนไชส์' ? (
     <AdminFranchiseBranchesPage />
   ) : activePage === 'ตารางพนักงาน' ? (
-    <AdminEmployeesPage suppressLoadingHeader />
+    <AdminEmployeesPage />
   ) : activePage === 'ลงเวลาพนักงาน' ? (
     <AdminAttendancePage />
   ) : activePage === 'คำขอลาพนักงาน' ? (

@@ -65,14 +65,70 @@ func TestPlatformSessionCookieRestoresSessionAndCanLogOut(t *testing.T) {
 	}
 
 	logoutReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	logoutReq.Header.Set("X-SBC-Session-Role", "admin")
 	logoutRes := httptest.NewRecorder()
 	r.ServeHTTP(logoutRes, logoutReq)
 	if logoutRes.Code != http.StatusOK {
 		t.Fatalf("logout = %d: %s", logoutRes.Code, logoutRes.Body.String())
 	}
 	cookies := logoutRes.Result().Cookies()
-	if len(cookies) != 2 || cookies[0].Name != "sbc_admin_session" || cookies[0].MaxAge >= 0 || !cookies[0].HttpOnly {
+	if len(cookies) != 1 || cookies[0].Name != "sbc_admin_session" || cookies[0].MaxAge >= 0 || !cookies[0].HttpOnly {
 		t.Fatalf("logout did not clear the HttpOnly platform cookie: %#v", cookies)
+	}
+}
+
+func TestPlatformSessionRejectsAttendanceSessionCookie(t *testing.T) {
+	r := New(nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/session", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: testToken(t, "cashier")})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusForbidden)
+	}
+}
+
+func TestPlatformLogoutRequiresExplicitPlatformSessionRole(t *testing.T) {
+	r := New(nil, nil)
+	for _, role := range []string{"", "cashier"} {
+		t.Run("role "+role, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+			if role != "" {
+				req.Header.Set("X-SBC-Session-Role", role)
+			}
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", res.Code, http.StatusBadRequest)
+			}
+			if cookies := res.Result().Cookies(); len(cookies) != 0 {
+				t.Fatalf("logout must not clear a cookie without a valid platform role: %#v", cookies)
+			}
+		})
+	}
+}
+
+func TestPlatformSessionsRemainIndependentAcrossAdminAndFranchise(t *testing.T) {
+	r := New(nil, nil)
+	adminToken := testToken(t, "admin")
+	franchiseToken := testToken(t, "franchise_owner")
+	for _, test := range []struct {
+		name, role, wantRole string
+	}{
+		{name: "admin session", role: "admin", wantRole: "admin"},
+		{name: "franchise session", role: "franchise_owner", wantRole: "franchise_owner"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/session", nil)
+			req.Header.Set("X-SBC-Session-Role", test.role)
+			req.AddCookie(&http.Cookie{Name: "sbc_admin_session", Value: adminToken})
+			req.AddCookie(&http.Cookie{Name: "sbc_franchise_session", Value: franchiseToken})
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"role":"`+test.wantRole+`"`) {
+				t.Fatalf("session = %d: %s", res.Code, res.Body.String())
+			}
+		})
 	}
 }
 
@@ -169,7 +225,30 @@ func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	}
 }
 
-func TestAttendanceSummaryMarksOnlyCheckInsAfterShiftStartAsLate(t *testing.T) {
+func TestAttendanceCheckInRejectsMissingAndNonWorkingShifts(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-NON-WORKING")
+	seedUser(t, db, 7, "attendance-non-working", "cashier", branchID, nil)
+	r := New(db, nil)
+	token := testTokenWithBranch(t, "cashier", branchID)
+	today := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Format("2006-01-02")
+
+	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", "", token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่พบกะงาน") {
+		t.Fatalf("missing shift check-in = %d: %s", res.Code, res.Body.String())
+	}
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','day_off')`, branchID, today); err != nil {
+		t.Fatal(err)
+	}
+	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", "", token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่ใช่วันทำงาน") {
+		t.Fatalf("day off check-in = %d: %s", res.Code, res.Body.String())
+	}
+}
+
+func TestAttendanceSummaryMarksOnlyCheckInsAfterTenMinuteGracePeriodAsLate(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
@@ -182,7 +261,8 @@ func TestAttendanceSummaryMarksOnlyCheckInsAfterShiftStartAsLate(t *testing.T) {
 	for index, checkInAt := range []string{
 		"00:59:59Z", // 07:59:59 Bangkok: early
 		"01:00:00Z", // 08:00:00 Bangkok: exactly on time
-		"01:00:01Z", // 08:00:01 Bangkok: late
+		"01:10:00Z", // 08:10:00 Bangkok: within the grace period
+		"01:10:01Z", // 08:10:01 Bangkok: late
 	} {
 		workDate := monthStart.AddDate(0, 0, index).Format("2006-01-02")
 		if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','scheduled')`, branchID, workDate); err != nil {
@@ -336,6 +416,9 @@ func TestCORSOnlyAllowsConfiguredOrigin(t *testing.T) {
 	}
 	if got := res.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
 		t.Fatalf("credentials = %q, want true", got)
+	}
+	if got := res.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-SBC-Session-Role") {
+		t.Fatalf("allow headers = %q, want X-SBC-Session-Role", got)
 	}
 }
 
@@ -778,6 +861,33 @@ func TestPlatformLoginSetsSecureHttpOnlyCookieInProduction(t *testing.T) {
 	}
 	if sessionCookie == nil || !sessionCookie.Secure || !sessionCookie.HttpOnly || sessionCookie.SameSite != http.SameSiteLaxMode {
 		t.Fatalf("invalid production session cookie: %#v", sessionCookie)
+	}
+}
+
+func TestPlatformLoginPreservesOtherPlatformSessionCookie(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "INDEPENDENT-SESSION")
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedUser(t, db, 7, "independent-admin", "admin", branchID, passwordHash)
+	r := New(db, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"username":"independent-admin","password":"correct-password"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: "sbc_franchise_session", Value: testToken(t, "franchise_owner")})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("login = %d: %s", res.Code, res.Body.String())
+	}
+	cookies := res.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "sbc_admin_session" || cookies[0].MaxAge <= 0 {
+		t.Fatalf("login should set only the admin cookie: %#v", cookies)
 	}
 }
 

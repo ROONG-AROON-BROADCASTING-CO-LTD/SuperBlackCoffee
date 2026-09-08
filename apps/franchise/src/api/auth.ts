@@ -23,5 +23,12 @@ export async function login(username: string, password: string) {
   });
 }
 
-export const restoreSession = () => requestSession('/auth/session');
-export const logout = () => requestSession('/auth/logout', { method: 'POST' });
+export const restoreSession = () =>
+  requestSession('/auth/session', {
+    headers: { 'X-SBC-Session-Role': 'franchise_owner' },
+  });
+export const logout = () =>
+  requestSession('/auth/logout', {
+    method: 'POST',
+    headers: { 'X-SBC-Session-Role': 'franchise_owner' },
+  });

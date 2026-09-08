@@ -29,7 +29,7 @@ func (h *PlatformHandler) ListMenuItems(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": cached})
 		return
 	}
-	result, err := h.menu.List(c, branchID)
+	result, err := h.menu.List(c.Request.Context(), branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถดึงรายการเมนูได้"})
 		return
@@ -64,19 +64,19 @@ func (h *PlatformHandler) CreateMenuItem(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
 		return
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างเมนูได้"})
 		return
 	}
 	defer tx.Rollback()
 	var id int64
-	err = tx.QueryRowContext(c, `INSERT INTO menu_items(branch_id,name,category,store_price,lineman_price,cost_price,lineman_cost_price,status) VALUES($1,$2,$3,$4,$5,$6,$7,'available') RETURNING id`, branchID, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice).Scan(&id)
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO menu_items(branch_id,name,category,store_price,lineman_price,cost_price,lineman_cost_price,status) VALUES($1,$2,$3,$4,$5,$6,$7,'available') RETURNING id`, branchID, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice).Scan(&id)
 	for _, ingredient := range input.Ingredients {
 		if err != nil {
 			break
 		}
-		_, err = tx.ExecContext(c, `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount) VALUES($1,$2,$3,$4,0)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit)
+		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount) VALUES($1,$2,$3,$4,0)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit)
 	}
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างเมนูได้"})
@@ -124,23 +124,23 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
 		return
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขเมนูได้"})
 		return
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(c, `UPDATE menu_items SET name=$1,category=$2,store_price=$3,store_price_available=true,lineman_price=$4,lineman_price_available=true,cost_price=$5,lineman_cost_price=$6,updated_at=now() WHERE id=$7 AND branch_id=$8`, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice, id, branchID)
+	result, err := tx.ExecContext(c.Request.Context(), `UPDATE menu_items SET name=$1,category=$2,store_price=$3,store_price_available=true,lineman_price=$4,lineman_price_available=true,cost_price=$5,lineman_cost_price=$6,updated_at=now() WHERE id=$7 AND branch_id=$8`, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนู"})
 		return
 	}
-	_, err = tx.ExecContext(c, `DELETE FROM menu_item_ingredients WHERE menu_item_id=$1`, id)
+	_, err = tx.ExecContext(c.Request.Context(), `DELETE FROM menu_item_ingredients WHERE menu_item_id=$1`, id)
 	for _, ingredient := range input.Ingredients {
 		if err != nil {
 			break
 		}
-		_, err = tx.ExecContext(c, `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount) VALUES($1,$2,$3,$4,0)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit)
+		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount) VALUES($1,$2,$3,$4,0)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit)
 	}
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขเมนูได้"})
@@ -177,7 +177,7 @@ func (h *PlatformHandler) DeleteMenuItem(c *gin.Context) {
 	if !ok || !h.ensureMenuDeleteAllowed(c, plan, branchID, id) {
 		return
 	}
-	result, err := h.db.ExecContext(c, `DELETE FROM menu_items WHERE id=$1 AND branch_id=$2`, id, branchID)
+	result, err := h.db.ExecContext(c.Request.Context(), `DELETE FROM menu_items WHERE id=$1 AND branch_id=$2`, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนู"})
 		return

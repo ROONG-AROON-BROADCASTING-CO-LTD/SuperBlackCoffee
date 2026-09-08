@@ -5,7 +5,11 @@ import { EmployeesSkeleton } from '@stackbuild/management/skeletons/employees';
 import { IngredientsSkeleton } from '@stackbuild/management/skeletons/ingredients';
 import { ProductsSkeleton } from '@stackbuild/management/skeletons/products';
 import { StockSkeleton } from '@stackbuild/management/skeletons/stock';
-import { LeaveRequestsSkeleton } from '@stackbuild/management';
+import { EmployeesManagementPage } from '@stackbuild/management/pages/employees';
+import {
+  AttendanceSkeleton,
+  LeaveRequestsSkeleton,
+} from '@stackbuild/management';
 import {
   franchiseBranch,
   type FranchisePlan,
@@ -30,11 +34,6 @@ const IngredientsManagementPage = lazy(() =>
 const StockManagementPage = lazy(() =>
   import('@stackbuild/management/pages/stock').then((module) => ({
     default: module.StockManagementPage,
-  })),
-);
-const EmployeesManagementPage = lazy(() =>
-  import('@stackbuild/management/pages/employees').then((module) => ({
-    default: module.EmployeesManagementPage,
   })),
 );
 const AttendanceManagementPage = lazy(() =>
@@ -63,13 +62,15 @@ const FranchiseOverviewPage = lazy(() =>
 function FranchisePageSkeleton({ page }: { page: string }) {
   const skeleton =
     page === 'ตารางพนักงาน' ? (
-      <EmployeesSkeleton franchiseMode />
+      <EmployeesSkeleton franchiseMode showHeader />
     ) : page === 'วัตถุดิบ' ? (
       <IngredientsSkeleton />
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton />
     ) : page === 'สต๊อก' ? (
       <StockSkeleton />
+    ) : page === 'ลงเวลาพนักงาน' ? (
+      <AttendanceSkeleton franchiseMode />
     ) : page === 'คำขอลาพนักงาน' ? (
       <LeaveRequestsSkeleton />
     ) : (
@@ -136,7 +137,7 @@ export function FranchiseDashboard({
         ) : activePage === 'สต๊อก' ? (
           <StockManagementPage activeBranch={franchiseBranch} readOnly />
         ) : activePage === 'ตารางพนักงาน' ? (
-          <EmployeesManagementPage franchiseMode suppressLoadingHeader />
+          <EmployeesManagementPage franchiseMode />
         ) : activePage === 'ลงเวลาพนักงาน' ? (
           <AttendanceManagementPage franchiseMode />
         ) : activePage === 'คำขอลาพนักงาน' ? (

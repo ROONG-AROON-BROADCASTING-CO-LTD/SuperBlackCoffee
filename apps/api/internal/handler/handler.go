@@ -31,7 +31,7 @@ func (h *PlatformHandler) recordAudit(c *gin.Context, branchID int64, entityType
 	if err != nil {
 		return
 	}
-	_, err = h.db.ExecContext(c, `INSERT INTO audit_events(branch_id,actor_id,entity_type,entity_id,action,metadata) VALUES($1,$2,$3,$4,$5,$6)`, branchID, claims.UserID, entityType, entityID, action, payload)
+	_, err = h.db.ExecContext(c.Request.Context(), `INSERT INTO audit_events(branch_id,actor_id,entity_type,entity_id,action,metadata) VALUES($1,$2,$3,$4,$5,$6)`, branchID, claims.UserID, entityType, entityID, action, payload)
 	if err != nil {
 		// Auditing must not turn a successfully committed store operation into a failure.
 		return
@@ -43,7 +43,7 @@ func recordAuditTx(c *gin.Context, tx *sql.Tx, branchID, actorID int64, entityTy
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(c, `INSERT INTO audit_events(branch_id,actor_id,entity_type,entity_id,action,metadata) VALUES($1,$2,$3,$4,$5,$6)`, branchID, actorID, entityType, entityID, action, payload)
+	_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO audit_events(branch_id,actor_id,entity_type,entity_id,action,metadata) VALUES($1,$2,$3,$4,$5,$6)`, branchID, actorID, entityType, entityID, action, payload)
 	return err
 }
 

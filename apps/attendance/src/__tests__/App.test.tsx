@@ -232,6 +232,35 @@ describe('Attendance App session', () => {
     expect(logoutAttendance).toHaveBeenCalledOnce();
   });
 
+  it('ends the local session when check-in is forbidden after the session changes', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: null,
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkIn).mockRejectedValueOnce(
+      new ApiRequestError('เซสชันใช้งานไม่ได้', 403),
+    );
+
+    render(<App />);
+    await screen.findByText('attendance-router');
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('attendance-login')).toBeTruthy();
+    });
+    expect(logoutAttendance).toHaveBeenCalledOnce();
+  });
+
   it('restores the current page from the URL after a refresh', async () => {
     window.history.replaceState(null, '', '/history');
 

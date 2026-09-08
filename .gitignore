@@ -7,3 +7,4 @@ dist/
 coverage/
 *.tsbuildinfo
 *.db
+CODEX_TEST_AUDIT.md

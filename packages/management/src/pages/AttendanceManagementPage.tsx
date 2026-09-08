@@ -4,9 +4,15 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardMain } from '@stackbuild/ui';
 import { listManagedAttendance } from '../api/attendance';
 import { listBranches } from '../api/branches';
+import { listPublicHolidays } from '../api/public-holidays';
 import { listStaffSchedules } from '../api/staff-schedules';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { AttendanceSkeleton } from '../components/skeletons/AttendanceSkeleton';
+import {
+  exportDailyReportAsPdf,
+  type DailyPdfEntryTone,
+  type DailyPdfSection,
+} from '../utils/exportCalendarPdf';
 
 const timeFormatter = new Intl.DateTimeFormat('th-TH', {
   hour: '2-digit',
@@ -25,6 +31,12 @@ const thaiWeekday = [
   'วันอาทิตย์',
 ];
 const thaiMonth = new Intl.DateTimeFormat('th-TH', {
+  month: 'long',
+  year: 'numeric',
+});
+const thaiDate = new Intl.DateTimeFormat('th-TH', {
+  weekday: 'long',
+  day: 'numeric',
   month: 'long',
   year: 'numeric',
 });
@@ -77,7 +89,8 @@ function toMinutes(value: string) {
 
 function checkInIsLate(checkInAt: string, startsAt: string) {
   return (
-    toMinutes(bangkokTime.format(new Date(checkInAt))) > toMinutes(startsAt)
+    toMinutes(bangkokTime.format(new Date(checkInAt))) >
+    toMinutes(startsAt) + 10
   );
 }
 
@@ -101,6 +114,10 @@ export function AttendanceManagementPage({
   const schedules = useQuery({
     queryKey: ['staff-schedules', month],
     queryFn: () => listStaffSchedules(month),
+  });
+  const holidays = useQuery({
+    queryKey: ['public-holidays', month],
+    queryFn: () => listPublicHolidays(month),
   });
   const branches = useQuery({ queryKey: ['branches'], queryFn: listBranches });
   const rows = attendance.data ?? [];
@@ -136,8 +153,60 @@ export function AttendanceManagementPage({
     }
     return result;
   }, [rows]);
-  const initialLoading =
-    attendance.isLoading || schedules.isLoading || branches.isLoading;
+  const holidaysByDate = useMemo(
+    () =>
+      new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
+    [holidays.data],
+  );
+  const dailyAttendanceReport = useMemo<DailyPdfSection[]>(
+    () =>
+      calendarDays
+        .filter((day) => day.getMonth() === calendarMonth.getMonth())
+        .map((day) => {
+          const key = dateKey(day);
+          const holiday = holidaysByDate.get(key);
+          return {
+            date: thaiDate.format(day),
+            holidayName: holiday?.name,
+            entries: (workingSchedulesByDate.get(key) ?? []).map((shift) => {
+              const record = attendanceByShift.get(
+                `${shift.date}:${shift.userId}`,
+              );
+              const status = !record?.checkInAt
+                ? 'pending'
+                : checkInIsLate(record.checkInAt, shift.startsAt)
+                  ? 'late'
+                  : 'on-time';
+              const tone: DailyPdfEntryTone =
+                status === 'on-time'
+                  ? 'success'
+                  : status === 'late'
+                    ? 'danger'
+                    : 'neutral';
+              return {
+                name: shift.name,
+                detail: record?.checkInAt
+                  ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
+                  : `ยังไม่เช็กอิน · กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`,
+                tone,
+              };
+            }),
+          };
+        })
+        .filter((day) => day.entries.length > 0 || day.holidayName),
+    [
+      attendanceByShift,
+      calendarDays,
+      calendarMonth,
+      holidaysByDate,
+      workingSchedulesByDate,
+    ],
+  );
+  const pageLoading =
+    attendance.isLoading ||
+    schedules.isLoading ||
+    holidays.isLoading ||
+    branches.isLoading;
   const today = new Date();
   const changeMonth = (offset: number) => {
     setMonth((current) => {
@@ -146,6 +215,20 @@ export function AttendanceManagementPage({
       return monthKey(date);
     });
   };
+
+  if (pageLoading) {
+    return (
+      <DashboardMain>
+        <AttendanceSkeleton
+          franchiseMode={franchiseMode}
+          calendarWeeks={calendarDays.length / 7}
+          onPreviousMonth={() => changeMonth(-1)}
+          onCurrentMonth={() => setMonth(currentMonth())}
+          onNextMonth={() => changeMonth(1)}
+        />
+      </DashboardMain>
+    );
+  }
 
   return (
     <DashboardMain>
@@ -203,7 +286,7 @@ export function AttendanceManagementPage({
           </Button>
         </Box>
       </Box>
-      {!initialLoading && !franchiseMode ? (
+      {!franchiseMode ? (
         <Box
           sx={{
             display: 'flex',
@@ -228,23 +311,29 @@ export function AttendanceManagementPage({
           ))}
         </Box>
       ) : null}
-      {initialLoading ? (
-        <AttendanceSkeleton />
-      ) : (
-        <Card
-          variant="outlined"
+      <Card
+        variant="outlined"
+        sx={{
+          borderRadius: '16px',
+          borderColor: '#e8ddd5',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
           sx={{
-            borderRadius: '16px',
-            borderColor: '#e8ddd5',
-            overflow: 'hidden',
+            px: 2,
+            py: 1.75,
+            borderBottom: '1px solid #eee4dd',
+            bgcolor: '#fbf7f4',
           }}
         >
           <Box
             sx={{
-              px: 2,
-              py: 1.75,
-              borderBottom: '1px solid #eee4dd',
-              bgcolor: '#fbf7f4',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              gap: 2,
+              flexWrap: 'wrap',
             }}
           >
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
@@ -280,154 +369,187 @@ export function AttendanceManagementPage({
                 </Typography>
               </Box>
             </Box>
+            <Button
+              data-export-pdf-control
+              size="small"
+              variant="outlined"
+              onClick={() =>
+                exportDailyReportAsPdf({
+                  title: 'รายงานลงเวลาพนักงาน',
+                  period: thaiMonth.format(calendarMonth),
+                  branchName: activeBranch?.name,
+                  days: dailyAttendanceReport,
+                })
+              }
+            >
+              ส่งออก PDF
+            </Button>
           </Box>
-          {attendance.error || schedules.error || branches.error ? (
-            <Box sx={{ p: 2.5 }}>
-              <DataLoadNotice />
-            </Box>
-          ) : (
-            <Box sx={{ overflowX: 'auto' }}>
-              <Box sx={{ minWidth: 780 }}>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                    borderBottom: '1px solid #eee4dd',
-                  }}
-                >
-                  {thaiWeekday.map((day, index) => (
+        </Box>
+        {attendance.error ||
+        schedules.error ||
+        holidays.error ||
+        branches.error ? (
+          <Box sx={{ p: 2.5 }}>
+            <DataLoadNotice />
+          </Box>
+        ) : (
+          <Box sx={{ overflowX: 'auto' }}>
+            <Box sx={{ minWidth: 780 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                  borderBottom: '1px solid #eee4dd',
+                }}
+              >
+                {thaiWeekday.map((day, index) => (
+                  <Box
+                    key={day}
+                    sx={{
+                      py: 1,
+                      textAlign: 'center',
+                      color: index > 4 ? '#9a6d5c' : '#60493b',
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {day}
+                  </Box>
+                ))}
+              </Box>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                }}
+              >
+                {calendarDays.map((day) => {
+                  const currentMonth =
+                    day.getMonth() === calendarMonth.getMonth();
+                  const shifts = workingSchedulesByDate.get(dateKey(day)) ?? [];
+                  const holiday = holidaysByDate.get(dateKey(day));
+                  return (
                     <Box
-                      key={day}
+                      key={day.toISOString()}
                       sx={{
-                        py: 1,
-                        textAlign: 'center',
-                        color: index > 4 ? '#9a6d5c' : '#60493b',
-                        fontSize: 13,
-                        fontWeight: 700,
+                        minHeight: 122,
+                        p: 1.25,
+                        borderRight: '1px solid #eee4dd',
+                        borderBottom: '1px solid #eee4dd',
+                        bgcolor: !currentMonth
+                          ? '#fbf8f6'
+                          : holiday
+                            ? '#fff8eb'
+                            : '#fff',
+                        opacity: currentMonth ? 1 : 0.5,
+                        '&:nth-of-type(7n)': { borderRight: 0 },
+                        '&:nth-last-of-type(-n + 7)': {
+                          borderBottom: 0,
+                        },
                       }}
                     >
-                      {day}
-                    </Box>
-                  ))}
-                </Box>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                  }}
-                >
-                  {calendarDays.map((day) => {
-                    const currentMonth =
-                      day.getMonth() === calendarMonth.getMonth();
-                    const shifts =
-                      workingSchedulesByDate.get(dateKey(day)) ?? [];
-                    return (
                       <Box
-                        key={day.toISOString()}
                         sx={{
-                          minHeight: 122,
-                          p: 1.25,
-                          borderRight: '1px solid #eee4dd',
-                          borderBottom: '1px solid #eee4dd',
-                          bgcolor: currentMonth ? '#fff' : '#fbf8f6',
-                          opacity: currentMonth ? 1 : 0.5,
-                          '&:nth-of-type(7n)': { borderRight: 0 },
-                          '&:nth-last-of-type(-n + 7)': {
-                            borderBottom: 0,
-                          },
+                          width: 26,
+                          height: 26,
+                          display: 'grid',
+                          placeItems: 'center',
+                          borderRadius: '50%',
+                          bgcolor: isSameDay(day, today)
+                            ? '#3c2d24'
+                            : 'transparent',
+                          color: isSameDay(day, today) ? '#fff' : '#45342b',
+                          fontSize: 13,
+                          fontWeight: 700,
                         }}
                       >
-                        <Box
+                        {day.getDate()}
+                      </Box>
+                      {holiday ? (
+                        <Typography
+                          title={holiday.name}
                           sx={{
-                            width: 26,
-                            height: 26,
-                            display: 'grid',
-                            placeItems: 'center',
-                            borderRadius: '50%',
-                            bgcolor: isSameDay(day, today)
-                              ? '#3c2d24'
-                              : 'transparent',
-                            color: isSameDay(day, today) ? '#fff' : '#45342b',
-                            fontSize: 13,
+                            mt: 0.35,
+                            color: '#b94136',
+                            fontSize: 10,
                             fontWeight: 700,
+                            lineHeight: 1.25,
                           }}
                         >
-                          {day.getDate()}
-                        </Box>
-                        {currentMonth && shifts.length === 0 ? (
-                          <Typography
+                          {holiday.name}
+                        </Typography>
+                      ) : null}
+                      {currentMonth && shifts.length === 0 && !holiday ? (
+                        <Typography
+                          sx={{
+                            mt: 2.5,
+                            color: '#a89285',
+                            fontSize: 11,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          ไม่มีพนักงานเข้ากะ
+                        </Typography>
+                      ) : null}
+                      {shifts.map((shift) => {
+                        const record = attendanceByShift.get(
+                          `${shift.date}:${shift.userId}`,
+                        );
+                        const status = !record?.checkInAt
+                          ? 'pending'
+                          : checkInIsLate(record.checkInAt, shift.startsAt)
+                            ? 'late'
+                            : 'on-time';
+                        const colors =
+                          status === 'pending'
+                            ? { background: '#ebe8e5', text: '#766f6a' }
+                            : status === 'late'
+                              ? { background: '#ffe4e4', text: '#b94136' }
+                              : { background: '#dff4e7', text: '#256c45' };
+                        return (
+                          <Box
+                            key={shift.id}
+                            aria-label={`${shift.name} ${status === 'pending' ? 'ยังไม่เช็กอิน' : status === 'late' ? 'มาสาย' : 'ตรงเวลา'}`}
                             sx={{
-                              mt: 2.5,
-                              color: '#a89285',
+                              mt: 0.75,
+                              px: 0.65,
+                              py: 0.5,
+                              borderRadius: '6px',
+                              bgcolor: colors.background,
+                              color: colors.text,
+                              fontFamily: 'Kanit, sans-serif',
                               fontSize: 11,
-                              lineHeight: 1.35,
+                              lineHeight: 1.25,
                             }}
                           >
-                            ไม่มีพนักงานเข้ากะ
-                          </Typography>
-                        ) : null}
-                        {shifts.map((shift) => {
-                          const record = attendanceByShift.get(
-                            `${shift.date}:${shift.userId}`,
-                          );
-                          const status = !record?.checkInAt
-                            ? 'pending'
-                            : checkInIsLate(record.checkInAt, shift.startsAt)
-                              ? 'late'
-                              : 'on-time';
-                          const colors =
-                            status === 'pending'
-                              ? { background: '#ebe8e5', text: '#766f6a' }
-                              : status === 'late'
-                                ? { background: '#ffe4e4', text: '#b94136' }
-                                : { background: '#dff4e7', text: '#256c45' };
-                          return (
-                            <Box
-                              key={shift.id}
-                              aria-label={`${shift.name} ${status === 'pending' ? 'ยังไม่เช็กอิน' : status === 'late' ? 'มาสาย' : 'ตรงเวลา'}`}
+                            <Typography
+                              component="span"
                               sx={{
-                                mt: 0.75,
-                                px: 0.65,
-                                py: 0.5,
-                                borderRadius: '6px',
-                                bgcolor: colors.background,
-                                color: colors.text,
-                                fontFamily: 'Kanit, sans-serif',
-                                fontSize: 11,
-                                lineHeight: 1.25,
+                                display: 'block',
+                                mb: 0.75,
+                                fontSize: 'inherit',
+                                fontWeight: 700,
                               }}
                             >
-                              <Typography
-                                component="span"
-                                sx={{
-                                  display: 'block',
-                                  mb: 0.75,
-                                  fontSize: 'inherit',
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {shift.name}
-                              </Typography>
-                              <Box
-                                component="span"
-                                sx={{ whiteSpace: 'nowrap' }}
-                              >
-                                {record?.checkInAt
-                                  ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
-                                  : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
-                              </Box>
+                              {shift.name}
+                            </Typography>
+                            <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
+                              {record?.checkInAt
+                                ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
+                                : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
                             </Box>
-                          );
-                        })}
-                      </Box>
-                    );
-                  })}
-                </Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  );
+                })}
               </Box>
             </Box>
-          )}
-        </Card>
-      )}
+          </Box>
+        )}
+      </Card>
     </DashboardMain>
   );
 }

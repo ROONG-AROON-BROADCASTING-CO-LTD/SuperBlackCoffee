@@ -12,6 +12,7 @@ import { EmployeesManagementPage } from '../EmployeesManagementPage';
 import { listEmployees, updateEmployee } from '../../api/users';
 import { listBranches } from '../../api/branches';
 import { listStaffSchedules } from '../../api/staff-schedules';
+import { exportDailyReportAsPdf } from '../../utils/exportCalendarPdf';
 
 vi.mock('../../api/users', () => ({
   createEmployee: vi.fn(),
@@ -26,11 +27,15 @@ vi.mock('../../api/staff-schedules', () => ({
   replaceStaffShift: vi.fn(),
   updateStaffShift: vi.fn(),
 }));
+vi.mock('../../utils/exportCalendarPdf', () => ({
+  exportDailyReportAsPdf: vi.fn(),
+}));
 
 const mockedListEmployees = vi.mocked(listEmployees);
 const mockedUpdateEmployee = vi.mocked(updateEmployee);
 const mockedListBranches = vi.mocked(listBranches);
 const mockedListStaffSchedules = vi.mocked(listStaffSchedules);
+const exportPdf = vi.mocked(exportDailyReportAsPdf);
 
 const employee = {
   id: 90,
@@ -103,6 +108,26 @@ describe('EmployeesManagementPage', () => {
 
     expect(screen.getAllByText(employee.name)).toHaveLength(2);
     expect(screen.getByText('08:00 น. - 17:00 น.')).toBeTruthy();
+  });
+
+  it('exports only the staff schedule calendar as a PDF', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งออก PDF' }));
+
+    expect(exportPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'รายงานตารางงานพนักงาน',
+        days: expect.arrayContaining([
+          expect.objectContaining({
+            entries: expect.arrayContaining([
+              expect.objectContaining({ name: employee.name }),
+            ]),
+          }),
+        ]),
+      }),
+    );
   });
 
   it('updates the name and working hours in the visible schedule immediately', async () => {

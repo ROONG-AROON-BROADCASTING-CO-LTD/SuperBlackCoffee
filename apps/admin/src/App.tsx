@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { SbcThemeProvider } from '@stackbuild/ui';
-import { QueryAutoRetrySnackbar } from '@stackbuild/management';
+import {
+  QueryAutoRetrySnackbar,
+  setManagementSessionRole,
+} from '@stackbuild/management';
 import { restoreSession, logout as endSession } from './api/auth';
 import { AdminLoginPage } from './features/auth/AdminLoginPage';
 import { AdminDashboard } from './features/dashboard/AdminDashboard';
+
+setManagementSessionRole('admin');
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);

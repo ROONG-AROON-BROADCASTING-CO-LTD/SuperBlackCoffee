@@ -21,7 +21,7 @@ func registerPublicRoutes(r *gin.Engine, deps routeDependencies) {
 	v1.POST("/website/leads", deps.platform.CreateWebsiteLead)
 	v1.POST("/auth/login", deps.platform.Login)
 	v1.POST("/auth/logout", deps.platform.Logout)
-	v1.GET("/auth/session", middleware.RequireAuth(deps.secret), deps.platform.Session)
+	v1.GET("/auth/session", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.Session)
 	v1.POST("/attendance/login", deps.platform.AttendanceLogin)
 	v1.POST("/attendance/setup-pin", deps.platform.SetupAttendancePIN)
 	v1.POST("/attendance/logout", deps.platform.AttendanceLogout)

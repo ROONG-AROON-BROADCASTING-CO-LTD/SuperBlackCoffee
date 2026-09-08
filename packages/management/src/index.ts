@@ -19,6 +19,7 @@ export { LeaveRequestsSkeleton } from './components/skeletons/LeaveRequestsSkele
 export { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
 export { QueryAutoRetrySnackbar } from './components/AutoRetrySnackbar';
 export { useAutoRetry } from './hooks/useAutoRetry';
+export { setManagementSessionRole } from './api/client';
 export { getDashboardSummary } from './api/dashboard';
 export type { DashboardSummary } from './api/dashboard';
 export { listInventory } from './api/inventory';

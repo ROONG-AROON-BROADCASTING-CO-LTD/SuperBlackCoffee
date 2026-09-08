@@ -16,7 +16,7 @@ func (h *PlatformHandler) ListFranchisees(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	rows, err := h.db.QueryContext(c, `SELECT id,name,email,plan,status,created_at FROM franchisees ORDER BY created_at DESC`)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,email,plan,status,created_at FROM franchisees ORDER BY created_at DESC`)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดึงรายชื่อแฟรนไชส์ได้"})
 		return
@@ -108,27 +108,27 @@ func (h *PlatformHandler) CreateFranchisee(c *gin.Context) {
 	if len(input.Password) < 8 {
 		input.Password = "Temporary!" + input.Username
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างแฟรนไชส์ได้"})
 		return
 	}
 	defer tx.Rollback()
 	var franchiseeID int64
-	err = tx.QueryRowContext(c, `INSERT INTO franchisees(name,email,plan,status) VALUES($1,$2,$3,'invited') RETURNING id`, input.Name, input.Email, input.Plan).Scan(&franchiseeID)
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO franchisees(name,email,plan,status) VALUES($1,$2,$3,'invited') RETURNING id`, input.Name, input.Email, input.Plan).Scan(&franchiseeID)
 	var branchID int64
 	if err == nil {
-		err = tx.QueryRowContext(c, `INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,$2,$3,'inactive') RETURNING id`, franchiseeID, input.BranchName, input.BranchCode).Scan(&branchID)
+		err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,$2,$3,'inactive') RETURNING id`, franchiseeID, input.BranchName, input.BranchCode).Scan(&branchID)
 	}
 	if err == nil {
-		err = copyFranchiseCatalog(c, tx, branchID, input.Plan)
+		err = copyFranchiseCatalog(c.Request.Context(), tx, branchID, input.Plan)
 	}
 	if err == nil {
 		passwordHash, hashErr := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 		if hashErr != nil {
 			err = hashErr
 		} else {
-			_, err = tx.ExecContext(c, `INSERT INTO users(name,username,email,password_hash,role,franchisee_id,branch_id) VALUES($1,$2,$3,$4,'franchise_owner',$5,$6)`, strings.TrimSpace(input.Name), strings.TrimSpace(input.Username), strings.TrimSpace(input.Email), string(passwordHash), franchiseeID, branchID)
+			_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO users(name,username,email,password_hash,role,franchisee_id,branch_id) VALUES($1,$2,$3,$4,'franchise_owner',$5,$6)`, strings.TrimSpace(input.Name), strings.TrimSpace(input.Username), strings.TrimSpace(input.Email), string(passwordHash), franchiseeID, branchID)
 		}
 	}
 	if err != nil {
@@ -156,13 +156,13 @@ func (h *PlatformHandler) UpdateFranchiseeStatus(c *gin.Context) {
 		c.JSON(400, gin.H{"success": false, "message": "รหัสแฟรนไชส์ไม่ถูกต้อง"})
 		return
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะแฟรนไชส์ได้"})
 		return
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(c, `UPDATE franchisees SET status=$1 WHERE id=$2`, input.Status, franchiseeID)
+	result, err := tx.ExecContext(c.Request.Context(), `UPDATE franchisees SET status=$1 WHERE id=$2`, input.Status, franchiseeID)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะแฟรนไชส์ได้"})
 		return
@@ -172,7 +172,7 @@ func (h *PlatformHandler) UpdateFranchiseeStatus(c *gin.Context) {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบแฟรนไชส์"})
 		return
 	}
-	if _, err = tx.ExecContext(c, `UPDATE branches SET status=$1 WHERE franchisee_id=$2`, input.Status, franchiseeID); err != nil {
+	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE branches SET status=$1 WHERE franchisee_id=$2`, input.Status, franchiseeID); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะสาขาได้"})
 		return
 	}
@@ -203,7 +203,7 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 		}
 	}
 	query += ` ORDER BY b.name`
-	rows, err := h.db.QueryContext(c, query, args...)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดึงรายชื่อสาขาได้"})
 		return
@@ -233,7 +233,7 @@ func (h *PlatformHandler) BranchSales(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	rows, err := h.db.QueryContext(c, `SELECT id,name,code,status FROM branches WHERE franchisee_id IS NULL ORDER BY name`)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,code,status FROM branches WHERE franchisee_id IS NULL ORDER BY name`)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถโหลดข้อมูลสาขาได้"})
 		return

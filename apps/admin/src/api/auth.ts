@@ -9,6 +9,12 @@ export const login = (username: string, password: string) =>
     data: { username, password },
   });
 
-export const restoreSession = () => secured<AuthSession>('/auth/session');
+export const restoreSession = () =>
+  secured<AuthSession>('/auth/session', {
+    headers: { 'X-SBC-Session-Role': 'admin' },
+  });
 export const logout = () =>
-  publicRequest<void>('/auth/logout', { method: 'POST' });
+  publicRequest<void>('/auth/logout', {
+    method: 'POST',
+    headers: { 'X-SBC-Session-Role': 'admin' },
+  });

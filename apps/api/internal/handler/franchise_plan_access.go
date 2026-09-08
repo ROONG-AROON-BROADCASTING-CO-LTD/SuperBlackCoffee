@@ -37,7 +37,7 @@ func (h *PlatformHandler) requestPlan(c *gin.Context) (string, bool) {
 		return "", false
 	}
 	var plan string
-	if err := h.db.QueryRowContext(c, `SELECT plan FROM franchisees WHERE id=$1`, *claims.FranchiseeID).Scan(&plan); err != nil || (plan != franchisePlanS && plan != franchisePlanM && plan != franchisePlanL) {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT plan FROM franchisees WHERE id=$1`, *claims.FranchiseeID).Scan(&plan); err != nil || (plan != franchisePlanS && plan != franchisePlanM && plan != franchisePlanL) {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ไม่พบแพ็กเกจแฟรนไชส์"})
 		return "", false
 	}
@@ -76,7 +76,7 @@ func (h *PlatformHandler) filterInventoryForPlan(c *gin.Context, plan string, br
 	if plan == franchisePlanL {
 		return items, nil
 	}
-	rows, err := h.db.QueryContext(c, `
+	rows, err := h.db.QueryContext(c.Request.Context(), `
 		SELECT DISTINCT mii.inventory_item_id
 		FROM menu_item_ingredients mii
 		JOIN menu_items m ON m.id=mii.menu_item_id
@@ -114,7 +114,7 @@ func (h *PlatformHandler) ensureInventoryWriteAllowed(c *gin.Context, plan strin
 		return true
 	}
 	var kind model.InventoryKind
-	if err := h.db.QueryRowContext(c, `SELECT kind FROM inventory_items WHERE id=$1 AND branch_id=$2`, inventoryID, branchID).Scan(&kind); err != nil {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT kind FROM inventory_items WHERE id=$1 AND branch_id=$2`, inventoryID, branchID).Scan(&kind); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return false
 	}
@@ -130,7 +130,7 @@ func (h *PlatformHandler) ensureMenuDeleteAllowed(c *gin.Context, plan string, b
 		return true
 	}
 	var category string
-	if err := h.db.QueryRowContext(c, `SELECT category FROM menu_items WHERE id=$1 AND branch_id=$2`, menuID, branchID).Scan(&category); err != nil {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT category FROM menu_items WHERE id=$1 AND branch_id=$2`, menuID, branchID).Scan(&category); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบเมนู"})
 		return false
 	}

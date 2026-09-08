@@ -53,12 +53,19 @@ describe('franchise auth API', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       expect.stringContaining('/auth/session'),
-      expect.objectContaining({ credentials: 'include' }),
+      expect.objectContaining({
+        credentials: 'include',
+        headers: { 'X-SBC-Session-Role': 'franchise_owner' },
+      }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining('/auth/logout'),
-      expect.objectContaining({ credentials: 'include', method: 'POST' }),
+      expect.objectContaining({
+        credentials: 'include',
+        method: 'POST',
+        headers: { 'X-SBC-Session-Role': 'franchise_owner' },
+      }),
     );
   });
 });

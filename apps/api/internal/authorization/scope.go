@@ -17,7 +17,7 @@ func BranchID(c *gin.Context, db *sql.DB) (int64, bool) {
 	if claims.Role == "admin" {
 		if code := strings.TrimSpace(c.Query("branchCode")); code != "" {
 			var id int64
-			if err := db.QueryRowContext(c, `SELECT id FROM branches WHERE code=$1`, code).Scan(&id); err != nil {
+			if err := db.QueryRowContext(c.Request.Context(), `SELECT id FROM branches WHERE code=$1`, code).Scan(&id); err != nil {
 				c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขาที่ระบุ"})
 				return 0, false
 			}

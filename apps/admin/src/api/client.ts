@@ -45,10 +45,7 @@ export async function secured<T>(
       throw new Error(response.data.message ?? 'ไม่สามารถเชื่อมต่อระบบได้');
     return response.data.data;
   } catch (error) {
-    if (
-      axios.isAxiosError(error) &&
-      (error.response?.status === 401 || error.response?.status === 403)
-    ) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
       window.dispatchEvent(new Event('sbc:session-expired'));
       throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     }

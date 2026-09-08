@@ -37,21 +37,21 @@ func (h *PlatformHandler) CreateStockRequest(c *gin.Context) {
 	if offset < 0 {
 		offset = 0
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างคำขอได้"})
 		return
 	}
 	defer tx.Rollback()
 	var requestID int64
-	err = tx.QueryRowContext(c, `INSERT INTO stock_requests(branch_id,note,requested_by) VALUES($1,$2,$3) RETURNING id`, branchID, input.Note, claims.UserID).Scan(&requestID)
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO stock_requests(branch_id,note,requested_by) VALUES($1,$2,$3) RETURNING id`, branchID, input.Note, claims.UserID).Scan(&requestID)
 	for _, item := range input.Items {
 		if err != nil {
 			break
 		}
 		itemName, itemUnit := item.Name, item.Unit
 		if item.InventoryItemID != nil {
-			err = tx.QueryRowContext(c, `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2`, *item.InventoryItemID, branchID).Scan(&itemName, &itemUnit)
+			err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2`, *item.InventoryItemID, branchID).Scan(&itemName, &itemUnit)
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(400, gin.H{"success": false, "message": "รายการสต็อกไม่อยู่ในสาขาที่ระบุ"})
 				return
@@ -60,7 +60,7 @@ func (h *PlatformHandler) CreateStockRequest(c *gin.Context) {
 				break
 			}
 		}
-		_, err = tx.ExecContext(c, `INSERT INTO stock_request_items(stock_request_id,inventory_item_id,item_name,quantity,unit) VALUES($1,$2,$3,$4,$5)`, requestID, item.InventoryItemID, itemName, item.Quantity, itemUnit)
+		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO stock_request_items(stock_request_id,inventory_item_id,item_name,quantity,unit) VALUES($1,$2,$3,$4,$5)`, requestID, item.InventoryItemID, itemName, item.Quantity, itemUnit)
 	}
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกคำขอได้"})
@@ -110,7 +110,7 @@ func (h *PlatformHandler) ListStockRequests(c *gin.Context) {
 	query += ` GROUP BY r.id,b.id ORDER BY r.created_at DESC`
 	args = append(args, limit, offset)
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", len(args)-1, len(args))
-	rows, err := h.db.QueryContext(c, query, args...)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดึงรายการคำขอได้"})
 		return
@@ -151,14 +151,14 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 	claims := middleware.ClaimsFrom(c)
 	validCurrentStatuses := map[string][]string{"approved": {"pending"}, "rejected": {"pending"}, "preparing": {"pending", "approved"}, "completed": {"preparing"}}
 	if input.Status != "completed" {
-		tx, err := h.db.BeginTx(c, nil)
+		tx, err := h.db.BeginTx(c.Request.Context(), nil)
 		if err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะคำขอได้"})
 			return
 		}
 		defer tx.Rollback()
 		var branchID int64
-		err = tx.QueryRowContext(c, `UPDATE stock_requests SET status=$1,approved_by=$2,updated_at=now() WHERE id=$3 AND status = ANY($4) RETURNING branch_id`, input.Status, claims.UserID, id, validCurrentStatuses[input.Status]).Scan(&branchID)
+		err = tx.QueryRowContext(c.Request.Context(), `UPDATE stock_requests SET status=$1,approved_by=$2,updated_at=now() WHERE id=$3 AND status = ANY($4) RETURNING branch_id`, input.Status, claims.UserID, id, validCurrentStatuses[input.Status]).Scan(&branchID)
 		if err != nil {
 			c.JSON(409, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะคำขอนี้ได้"})
 			return
@@ -177,14 +177,14 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 		return
 	}
 
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดำเนินการรับสินค้าให้เสร็จสิ้นได้"})
 		return
 	}
 	defer tx.Rollback()
 	var branchID int64
-	err = tx.QueryRowContext(c, `SELECT branch_id FROM stock_requests WHERE id=$1 AND status = ANY($2) FOR UPDATE`, id, validCurrentStatuses[input.Status]).Scan(&branchID)
+	err = tx.QueryRowContext(c.Request.Context(), `SELECT branch_id FROM stock_requests WHERE id=$1 AND status = ANY($2) FOR UPDATE`, id, validCurrentStatuses[input.Status]).Scan(&branchID)
 	if errors.Is(err, sql.ErrNoRows) {
 		c.JSON(409, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะคำขอนี้ได้"})
 		return
@@ -193,7 +193,7 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดำเนินการรับสินค้าให้เสร็จสิ้นได้"})
 		return
 	}
-	rows, err := tx.QueryContext(c, `SELECT inventory_item_id,item_name,quantity,unit FROM stock_request_items WHERE stock_request_id=$1`, id)
+	rows, err := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,item_name,quantity,unit FROM stock_request_items WHERE stock_request_id=$1`, id)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดำเนินการรับสินค้าให้เสร็จสิ้นได้"})
 		return
@@ -230,14 +230,14 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 		var before float64
 		if item.inventoryItemID != nil {
 			inventoryItemID = *item.inventoryItemID
-			updateErr = tx.QueryRowContext(c, `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryItemID, branchID).Scan(&before)
+			updateErr = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryItemID, branchID).Scan(&before)
 			if updateErr != nil {
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต็อกได้"})
 				return
 			}
-			result, updateErr = tx.ExecContext(c, `UPDATE inventory_items SET quantity=quantity+$1,updated_at=now() WHERE id=$2 AND branch_id=$3`, item.quantity, *item.inventoryItemID, branchID)
+			result, updateErr = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=quantity+$1,updated_at=now() WHERE id=$2 AND branch_id=$3`, item.quantity, *item.inventoryItemID, branchID)
 		} else {
-			updateErr = tx.QueryRowContext(c, `SELECT id,quantity FROM inventory_items WHERE branch_id=$1 AND name=$2 AND unit=$3 FOR UPDATE`, branchID, item.name, item.unit).Scan(&inventoryItemID, &before)
+			updateErr = tx.QueryRowContext(c.Request.Context(), `SELECT id,quantity FROM inventory_items WHERE branch_id=$1 AND name=$2 AND unit=$3 FOR UPDATE`, branchID, item.name, item.unit).Scan(&inventoryItemID, &before)
 			if errors.Is(updateErr, sql.ErrNoRows) {
 				updateErr = nil
 				before = 0
@@ -245,24 +245,24 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต็อกได้"})
 				return
 			}
-			result, updateErr = tx.ExecContext(c, `UPDATE inventory_items SET quantity=quantity+$1,updated_at=now() WHERE branch_id=$2 AND name=$3 AND unit=$4`, item.quantity, branchID, item.name, item.unit)
+			result, updateErr = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=quantity+$1,updated_at=now() WHERE branch_id=$2 AND name=$3 AND unit=$4`, item.quantity, branchID, item.name, item.unit)
 		}
 		if updateErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต็อกได้"})
 			return
 		}
 		if rowsAffected(result) == 0 {
-			if insertErr := tx.QueryRowContext(c, `INSERT INTO inventory_items(branch_id,name,category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,$2,'other','ingredient',$3,$4,0,0) RETURNING id`, branchID, item.name, item.quantity, item.unit).Scan(&inventoryItemID); insertErr != nil {
+			if insertErr := tx.QueryRowContext(c.Request.Context(), `INSERT INTO inventory_items(branch_id,name,category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,$2,'other','ingredient',$3,$4,0,0) RETURNING id`, branchID, item.name, item.quantity, item.unit).Scan(&inventoryItemID); insertErr != nil {
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต็อกได้"})
 				return
 			}
 		}
-		if err = recordStockMovementTx(c, tx, branchID, inventoryItemID, "stock_request_receipt", item.quantity, before, before+item.quantity, "stock_request", &id, "รับสินค้าตามคำขอเติมของ", claims.UserID); err != nil {
+		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, inventoryItemID, "stock_request_receipt", item.quantity, before, before+item.quantity, "stock_request", &id, "รับสินค้าตามคำขอเติมของ", claims.UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติสต๊อกได้"})
 			return
 		}
 	}
-	if _, err = tx.ExecContext(c, `UPDATE stock_requests SET status='completed',approved_by=$1,updated_at=now() WHERE id=$2`, claims.UserID, id); err != nil {
+	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE stock_requests SET status='completed',approved_by=$1,updated_at=now() WHERE id=$2`, claims.UserID, id); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดำเนินการรับสินค้าให้เสร็จสิ้นได้"})
 		return
 	}

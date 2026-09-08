@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { SbcThemeProvider } from '@stackbuild/ui';
-import { QueryAutoRetrySnackbar } from '@stackbuild/management';
+import {
+  QueryAutoRetrySnackbar,
+  setManagementSessionRole,
+} from '@stackbuild/management';
 import { logout as endSession, restoreSession } from './api/auth';
 import { FranchiseLoginPage } from './features/auth/FranchiseLoginPage';
 import { FranchiseDashboard } from './features/dashboard/FranchiseDashboard';
+
+setManagementSessionRole('franchise_owner');
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);

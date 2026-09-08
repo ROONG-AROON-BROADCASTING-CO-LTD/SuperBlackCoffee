@@ -20,7 +20,14 @@ type Claims struct {
 func RequireAuth(secret string, roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawTokens := []string{strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")}
-		for _, name := range []string{"sbc_admin_session", "sbc_franchise_session", "sbc_attendance_session"} {
+		cookieNames := []string{"sbc_admin_session", "sbc_franchise_session", "sbc_attendance_session"}
+		switch c.GetHeader("X-SBC-Session-Role") {
+		case "admin":
+			cookieNames = []string{"sbc_admin_session"}
+		case "franchise_owner":
+			cookieNames = []string{"sbc_franchise_session"}
+		}
+		for _, name := range cookieNames {
 			if value, err := c.Cookie(name); err == nil {
 				rawTokens = append(rawTokens, value)
 			}

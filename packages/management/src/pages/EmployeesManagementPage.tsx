@@ -1,4 +1,4 @@
-import { type MouseEvent, useEffect, useMemo, useState } from 'react';
+import { type MouseEvent, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -31,8 +31,19 @@ import {
 } from '../api/users';
 import { listBranches } from '../api/branches';
 import { EmployeesSkeleton } from '../components/skeletons/EmployeesSkeleton';
+import {
+  exportDailyReportAsPdf,
+  type DailyPdfEntryTone,
+  type DailyPdfSection,
+} from '../utils/exportCalendarPdf';
 
 const thaiMonth = new Intl.DateTimeFormat('th-TH', {
+  month: 'long',
+  year: 'numeric',
+});
+const thaiDate = new Intl.DateTimeFormat('th-TH', {
+  weekday: 'long',
+  day: 'numeric',
   month: 'long',
   year: 'numeric',
 });
@@ -107,10 +118,8 @@ function usesFirstShift(date: string, employeeId: number) {
 
 export function EmployeesManagementPage({
   franchiseMode = false,
-  suppressLoadingHeader = false,
 }: {
   franchiseMode?: boolean;
-  suppressLoadingHeader?: boolean;
 } = {}) {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
@@ -134,7 +143,6 @@ export function EmployeesManagementPage({
     'start' | 'end' | 'secondStart' | 'secondEnd' | null
   >(null);
   const [confirmAutoSchedule, setConfirmAutoSchedule] = useState(false);
-  const [showInitialSkeleton, setShowInitialSkeleton] = useState(true);
   const [pendingDeleteEmployeeId, setPendingDeleteEmployeeId] = useState<
     number | null
   >(null);
@@ -145,7 +153,6 @@ export function EmployeesManagementPage({
     data: employees = [],
     error,
     isLoading,
-    isFetching,
     refetch,
   } = useQuery({ queryKey: ['employees'], queryFn: listEmployees });
   const calendarDays = useMemo(() => getCalendarDays(month), [month]);
@@ -161,32 +168,11 @@ export function EmployeesManagementPage({
   });
   const branches = useQuery({ queryKey: ['branches'], queryFn: listBranches });
   const pageLoading =
-    showInitialSkeleton ||
     isLoading ||
-    isFetching ||
     schedules.isLoading ||
-    schedules.isFetching ||
     holidays.isLoading ||
-    holidays.isFetching ||
-    branches.isLoading ||
-    branches.isFetching;
+    branches.isLoading;
   const loadError = error ?? schedules.error ?? branches.error;
-  useEffect(() => {
-    if (
-      isFetching ||
-      schedules.isFetching ||
-      holidays.isFetching ||
-      branches.isFetching
-    )
-      return;
-    const timer = window.setTimeout(() => setShowInitialSkeleton(false), 800);
-    return () => window.clearTimeout(timer);
-  }, [
-    branches.isFetching,
-    holidays.isFetching,
-    isFetching,
-    schedules.isFetching,
-  ]);
   const workspaceBranches = franchiseMode
     ? (branches.data ?? [])
     : (branches.data ?? []).filter((branch) => !branch.franchiseeId);
@@ -264,6 +250,36 @@ export function EmployeesManagementPage({
     () =>
       new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
     [holidays.data],
+  );
+  const dailyScheduleReport = useMemo<DailyPdfSection[]>(
+    () =>
+      calendarDays
+        .filter((day) => day.getMonth() === month.getMonth())
+        .map((day) => {
+          const key = dateKey(day);
+          const holiday = holidaysByDate.get(key);
+          return {
+            date: thaiDate.format(day),
+            holidayName: holiday?.name,
+            entries: (shiftsByDate.get(key) ?? []).map((shift) => {
+              const tone: DailyPdfEntryTone =
+                shift.status === 'compensatory_work'
+                  ? 'success'
+                  : shift.status === 'scheduled'
+                    ? 'neutral'
+                    : 'warning';
+              return {
+                name: shift.name,
+                detail: isWorkingShift(shift.status)
+                  ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
+                  : leaveLabels[shift.status],
+                tone,
+              };
+            }),
+          };
+        })
+        .filter((day) => day.entries.length > 0 || day.holidayName),
+    [calendarDays, holidaysByDate, month, shiftsByDate],
   );
   const shiftColorsByUser = useMemo(() => {
     const userIds = [
@@ -439,22 +455,51 @@ export function EmployeesManagementPage({
         </Box>
       </Box>
 
-      {pageLoading ? <EmployeesSkeleton franchiseMode={franchiseMode} /> : null}
-      {!pageLoading ? (
-        <>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'minmax(0, 2fr) minmax(0, 8fr)',
-              },
-              gap: 1.5,
-              mb: 2,
-              alignItems: 'stretch',
-            }}
-          >
-            {!franchiseMode ? (
+      <Box
+        sx={{
+          minHeight: pageLoading ? { xs: 720, md: 760 } : undefined,
+        }}
+      >
+        {pageLoading ? (
+          <EmployeesSkeleton franchiseMode={franchiseMode} />
+        ) : null}
+        {!pageLoading ? (
+          <>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'minmax(0, 2fr) minmax(0, 8fr)',
+                },
+                gap: 1.5,
+                mb: 2,
+                alignItems: 'stretch',
+              }}
+            >
+              {!franchiseMode ? (
+                <Card
+                  variant="outlined"
+                  sx={{ p: 2, borderRadius: '15px', borderColor: '#e8ddd5' }}
+                >
+                  <Typography
+                    color="text.secondary"
+                    sx={{ fontSize: 14, fontWeight: 700 }}
+                  >
+                    พนักงานทั้งหมด
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.25,
+                      color: loadError ? 'error.main' : '#201914',
+                      fontWeight: 700,
+                      fontSize: 26,
+                    }}
+                  >
+                    {loadError ? 'โหลดข้อมูลไม่สำเร็จ' : employees.length}
+                  </Typography>
+                </Card>
+              ) : null}
               <Card
                 variant="outlined"
                 sx={{ p: 2, borderRadius: '15px', borderColor: '#e8ddd5' }}
@@ -463,185 +508,18 @@ export function EmployeesManagementPage({
                   color="text.secondary"
                   sx={{ fontSize: 14, fontWeight: 700 }}
                 >
-                  พนักงานทั้งหมด
+                  {franchiseMode ? 'พนักงานในแฟรนไชส์' : 'พนักงานประจำสาขา'}
                 </Typography>
-                <Typography
-                  sx={{
-                    mt: 0.25,
-                    color: loadError ? 'error.main' : '#201914',
-                    fontWeight: 700,
-                    fontSize: 26,
-                  }}
-                >
-                  {loadError ? 'โหลดข้อมูลไม่สำเร็จ' : employees.length}
-                </Typography>
-              </Card>
-            ) : null}
-            <Card
-              variant="outlined"
-              sx={{ p: 2, borderRadius: '15px', borderColor: '#e8ddd5' }}
-            >
-              <Typography
-                color="text.secondary"
-                sx={{ fontSize: 14, fontWeight: 700 }}
-              >
-                {franchiseMode ? 'พนักงานในแฟรนไชส์' : 'พนักงานประจำสาขา'}
-              </Typography>
-              {franchiseMode ? (
-                <Typography
-                  sx={{
-                    mt: 0.25,
-                    color: loadError ? 'error.main' : '#201914',
-                    fontWeight: 700,
-                    fontSize: 26,
-                  }}
-                >
-                  {loadError ? 'โหลดข้อมูลไม่สำเร็จ' : staffCount}
-                </Typography>
-              ) : (
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: {
-                      xs: '1fr',
-                      sm: 'repeat(2, minmax(0, 1fr))',
-                    },
-                    gap: 1,
-                    mt: 1.5,
-                  }}
-                >
-                  {loadError ? (
-                    <Typography color="error" sx={{ fontSize: 14 }}>
-                      โหลดข้อมูลไม่สำเร็จ
-                    </Typography>
-                  ) : branchEmployees.length === 0 ? (
-                    <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-                      ยังไม่มีพนักงานในสาขานี้
-                    </Typography>
-                  ) : (
-                    branchEmployees.map((employee) => (
-                      <Box
-                        key={employee.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          px: 1.5,
-                          py: 1,
-                          borderRadius: '10px',
-                          bgcolor: '#fbf7f4',
-                        }}
-                      >
-                        <Typography
-                          sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}
-                        >
-                          {employee.name}
-                        </Typography>
-                        <Typography
-                          color="text.secondary"
-                          sx={{ fontSize: 13 }}
-                        >
-                          {employee.role === 'branch_manager'
-                            ? 'ผู้จัดการสาขา'
-                            : 'แคชเชียร์'}
-                        </Typography>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.75,
-                            ml: 2,
-                          }}
-                        >
-                          <Divider
-                            orientation="vertical"
-                            flexItem
-                            sx={{ borderColor: '#d8cec7', mx: 0.5 }}
-                          />
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={() => {
-                              if (pendingDeleteEmployeeId === employee.id)
-                                setPendingDeleteEmployeeId(null);
-                              else void editEmployee(employee);
-                            }}
-                            sx={{
-                              minHeight: 34,
-                              borderRadius: '10px',
-                              bgcolor: '#5f4030',
-                              color: '#fff',
-                              boxShadow: 'none',
-                              '&:hover': {
-                                bgcolor: '#3c2d24',
-                                boxShadow: 'none',
-                              },
-                            }}
-                          >
-                            {pendingDeleteEmployeeId === employee.id
-                              ? 'ยกเลิก'
-                              : 'แก้ไข'}
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="error"
-                            onClick={() => {
-                              if (pendingDeleteEmployeeId === employee.id)
-                                void removeEmployee(employee);
-                              else setPendingDeleteEmployeeId(employee.id);
-                            }}
-                            sx={{
-                              minHeight: 34,
-                              borderRadius: '10px',
-                              boxShadow: 'none',
-                              '&:hover': { boxShadow: 'none' },
-                            }}
-                          >
-                            {pendingDeleteEmployeeId === employee.id
-                              ? 'ยืนยัน'
-                              : 'ลบ'}
-                          </Button>
-                        </Box>
-                      </Box>
-                    ))
-                  )}
-                </Box>
-              )}
-            </Card>
-
-            {franchiseMode ? (
-              <Card
-                variant="outlined"
-                sx={{
-                  gridColumn: { xs: 'auto', sm: '2' },
-                  p: 2,
-                  borderRadius: '16px',
-                  borderColor: '#e8ddd5',
-                }}
-              >
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    mb: 1.5,
-                  }}
-                >
-                  รายชื่อพนักงาน
-                </Typography>
-                {loadError ? (
+                {franchiseMode ? (
                   <Typography
-                    sx={{ color: 'error.main', fontSize: 14, fontWeight: 500 }}
+                    sx={{
+                      mt: 0.25,
+                      color: loadError ? 'error.main' : '#201914',
+                      fontWeight: 700,
+                      fontSize: 26,
+                    }}
                   >
-                    โหลดข้อมูลไม่สำเร็จ
-                  </Typography>
-                ) : employees.length === 0 ? (
-                  <Typography
-                    sx={{ color: '#b8aaa1', fontSize: 14, fontWeight: 500 }}
-                  >
-                    ยังไม่มีพนักงานในแฟรนไชส์
+                    {loadError ? 'โหลดข้อมูลไม่สำเร็จ' : staffCount}
                   </Typography>
                 ) : (
                   <Box
@@ -652,393 +530,576 @@ export function EmployeesManagementPage({
                         sm: 'repeat(2, minmax(0, 1fr))',
                       },
                       gap: 1,
+                      mt: 1.5,
                     }}
                   >
-                    {employees.map((employee) => (
-                      <Box
-                        key={employee.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          px: 1.5,
-                          py: 1,
-                          borderRadius: '10px',
-                          bgcolor: '#fbf7f4',
-                        }}
-                      >
-                        <Typography
-                          sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}
-                        >
-                          {employee.name}
-                        </Typography>
-                        <Typography
-                          color="text.secondary"
-                          sx={{ fontSize: 13 }}
-                        >
-                          {employee.role === 'branch_manager'
-                            ? 'ผู้จัดการสาขา'
-                            : 'แคชเชียร์'}
-                        </Typography>
+                    {loadError ? (
+                      <Typography color="error" sx={{ fontSize: 14 }}>
+                        โหลดข้อมูลไม่สำเร็จ
+                      </Typography>
+                    ) : branchEmployees.length === 0 ? (
+                      <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+                        ยังไม่มีพนักงานในสาขานี้
+                      </Typography>
+                    ) : (
+                      branchEmployees.map((employee) => (
                         <Box
+                          key={employee.id}
                           sx={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 0.75,
-                            ml: 2,
+                            justifyContent: 'space-between',
+                            px: 1.5,
+                            py: 1,
+                            borderRadius: '10px',
+                            bgcolor: '#fbf7f4',
                           }}
                         >
-                          <Divider
-                            orientation="vertical"
-                            flexItem
-                            sx={{ borderColor: '#d8cec7', mx: 0.5 }}
-                          />
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={() => {
-                              if (pendingDeleteEmployeeId === employee.id)
-                                setPendingDeleteEmployeeId(null);
-                              else void editEmployee(employee);
-                            }}
+                          <Typography
+                            sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}
+                          >
+                            {employee.name}
+                          </Typography>
+                          <Typography
+                            color="text.secondary"
+                            sx={{ fontSize: 13 }}
+                          >
+                            {employee.role === 'branch_manager'
+                              ? 'ผู้จัดการสาขา'
+                              : 'แคชเชียร์'}
+                          </Typography>
+                          <Box
                             sx={{
-                              minHeight: 34,
-                              borderRadius: '10px',
-                              bgcolor: '#5f4030',
-                              color: '#fff',
-                              boxShadow: 'none',
-                              '&:hover': {
-                                bgcolor: '#3c2d24',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.75,
+                              ml: 2,
+                            }}
+                          >
+                            <Divider
+                              orientation="vertical"
+                              flexItem
+                              sx={{ borderColor: '#d8cec7', mx: 0.5 }}
+                            />
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => {
+                                if (pendingDeleteEmployeeId === employee.id)
+                                  setPendingDeleteEmployeeId(null);
+                                else void editEmployee(employee);
+                              }}
+                              sx={{
+                                minHeight: 34,
+                                borderRadius: '10px',
+                                bgcolor: '#5f4030',
+                                color: '#fff',
                                 boxShadow: 'none',
-                              },
-                            }}
-                          >
-                            {pendingDeleteEmployeeId === employee.id
-                              ? 'ยกเลิก'
-                              : 'แก้ไข'}
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="error"
-                            onClick={() => {
-                              if (pendingDeleteEmployeeId === employee.id)
-                                void removeEmployee(employee);
-                              else setPendingDeleteEmployeeId(employee.id);
-                            }}
-                            sx={{
-                              minHeight: 34,
-                              borderRadius: '10px',
-                              boxShadow: 'none',
-                              '&:hover': { boxShadow: 'none' },
-                            }}
-                          >
-                            {pendingDeleteEmployeeId === employee.id
-                              ? 'ยืนยัน'
-                              : 'ลบ'}
-                          </Button>
+                                '&:hover': {
+                                  bgcolor: '#3c2d24',
+                                  boxShadow: 'none',
+                                },
+                              }}
+                            >
+                              {pendingDeleteEmployeeId === employee.id
+                                ? 'ยกเลิก'
+                                : 'แก้ไข'}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() => {
+                                if (pendingDeleteEmployeeId === employee.id)
+                                  void removeEmployee(employee);
+                                else setPendingDeleteEmployeeId(employee.id);
+                              }}
+                              sx={{
+                                minHeight: 34,
+                                borderRadius: '10px',
+                                boxShadow: 'none',
+                                '&:hover': { boxShadow: 'none' },
+                              }}
+                            >
+                              {pendingDeleteEmployeeId === employee.id
+                                ? 'ยืนยัน'
+                                : 'ลบ'}
+                            </Button>
+                          </Box>
                         </Box>
-                      </Box>
-                    ))}
+                      ))
+                    )}
                   </Box>
                 )}
               </Card>
-            ) : null}
-          </Box>
 
-          {!franchiseMode && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                flexWrap: 'wrap',
-                mb: 2,
-              }}
-            >
-              <Typography color="text.secondary" sx={{ fontSize: 14, mr: 0.5 }}>
-                แสดงตารางของสาขา
-              </Typography>
-              {workspaceBranches.map((branch) => (
-                <Button
-                  key={branch.id}
-                  size="small"
-                  variant={
-                    activeBranchId === branch.id ? 'contained' : 'outlined'
-                  }
-                  onClick={() => setSelectedBranchId(branch.id)}
+              {franchiseMode ? (
+                <Card
+                  variant="outlined"
+                  sx={{
+                    gridColumn: { xs: 'auto', sm: '2' },
+                    p: 2,
+                    borderRadius: '16px',
+                    borderColor: '#e8ddd5',
+                  }}
                 >
-                  {branch.name}
-                </Button>
-              ))}
-            </Box>
-          )}
-
-          <Card
-            variant="outlined"
-            sx={{
-              borderRadius: '16px',
-              borderColor: '#e8ddd5',
-              overflow: 'hidden',
-            }}
-          >
-            <Box
-              sx={{
-                px: 2,
-                py: 1.75,
-                borderBottom: '1px solid #eee4dd',
-                bgcolor: '#fbf7f4',
-              }}
-            >
-              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                {!franchiseMode && (
-                  <Box>
-                    <Typography
-                      sx={{ color: '#8b7161', fontSize: 12, fontWeight: 700 }}
-                    >
-                      สาขา
-                    </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      mb: 1.5,
+                    }}
+                  >
+                    รายชื่อพนักงาน
+                  </Typography>
+                  {loadError ? (
                     <Typography
                       sx={{
-                        color: loadError ? 'error.main' : '#201914',
-                        fontSize: 21,
-                        fontWeight: 800,
+                        color: 'error.main',
+                        fontSize: 14,
+                        fontWeight: 500,
                       }}
                     >
-                      {loadError
-                        ? 'โหลดข้อมูลไม่สำเร็จ'
-                        : (activeBranch?.name ?? 'ยังไม่พบสาขา')}
+                      โหลดข้อมูลไม่สำเร็จ
                     </Typography>
-                  </Box>
-                )}
-                <Box
-                  sx={{
-                    pl: franchiseMode ? 0 : 3,
-                    borderLeft: franchiseMode ? 0 : '1px solid #dfd1c8',
-                  }}
-                >
-                  <Typography
-                    sx={{ color: '#8b7161', fontSize: 12, fontWeight: 700 }}
-                  >
-                    เดือน
-                  </Typography>
-                  <Typography
-                    sx={{ color: '#201914', fontSize: 21, fontWeight: 800 }}
-                  >
-                    {thaiMonth.format(month)}
-                  </Typography>
-                </Box>
-              </Box>
-            </Box>
-            <Box sx={{ overflowX: 'auto' }}>
-              <Box sx={{ minWidth: 780 }}>
-                <Box
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                    borderBottom: '1px solid #eee4dd',
-                  }}
-                >
-                  {thaiWeekday.map((day, index) => (
+                  ) : employees.length === 0 ? (
+                    <Typography
+                      sx={{ color: '#b8aaa1', fontSize: 14, fontWeight: 500 }}
+                    >
+                      ยังไม่มีพนักงานในแฟรนไชส์
+                    </Typography>
+                  ) : (
                     <Box
-                      key={day}
                       sx={{
-                        py: 1,
-                        textAlign: 'center',
-                        color: index > 4 ? '#9a6d5c' : '#60493b',
-                        fontSize: 13,
-                        fontWeight: 700,
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr',
+                          sm: 'repeat(2, minmax(0, 1fr))',
+                        },
+                        gap: 1,
                       }}
                     >
-                      {day}
+                      {employees.map((employee) => (
+                        <Box
+                          key={employee.id}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            px: 1.5,
+                            py: 1,
+                            borderRadius: '10px',
+                            bgcolor: '#fbf7f4',
+                          }}
+                        >
+                          <Typography
+                            sx={{ flex: 1, fontSize: 15, fontWeight: 600 }}
+                          >
+                            {employee.name}
+                          </Typography>
+                          <Typography
+                            color="text.secondary"
+                            sx={{ fontSize: 13 }}
+                          >
+                            {employee.role === 'branch_manager'
+                              ? 'ผู้จัดการสาขา'
+                              : 'แคชเชียร์'}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.75,
+                              ml: 2,
+                            }}
+                          >
+                            <Divider
+                              orientation="vertical"
+                              flexItem
+                              sx={{ borderColor: '#d8cec7', mx: 0.5 }}
+                            />
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => {
+                                if (pendingDeleteEmployeeId === employee.id)
+                                  setPendingDeleteEmployeeId(null);
+                                else void editEmployee(employee);
+                              }}
+                              sx={{
+                                minHeight: 34,
+                                borderRadius: '10px',
+                                bgcolor: '#5f4030',
+                                color: '#fff',
+                                boxShadow: 'none',
+                                '&:hover': {
+                                  bgcolor: '#3c2d24',
+                                  boxShadow: 'none',
+                                },
+                              }}
+                            >
+                              {pendingDeleteEmployeeId === employee.id
+                                ? 'ยกเลิก'
+                                : 'แก้ไข'}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() => {
+                                if (pendingDeleteEmployeeId === employee.id)
+                                  void removeEmployee(employee);
+                                else setPendingDeleteEmployeeId(employee.id);
+                              }}
+                              sx={{
+                                minHeight: 34,
+                                borderRadius: '10px',
+                                boxShadow: 'none',
+                                '&:hover': { boxShadow: 'none' },
+                              }}
+                            >
+                              {pendingDeleteEmployeeId === employee.id
+                                ? 'ยืนยัน'
+                                : 'ลบ'}
+                            </Button>
+                          </Box>
+                        </Box>
+                      ))}
                     </Box>
-                  ))}
-                </Box>
+                  )}
+                </Card>
+              ) : null}
+            </Box>
+
+            {!franchiseMode && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                  mb: 2,
+                }}
+              >
+                <Typography
+                  color="text.secondary"
+                  sx={{ fontSize: 14, mr: 0.5 }}
+                >
+                  แสดงตารางของสาขา
+                </Typography>
+                {workspaceBranches.map((branch) => (
+                  <Button
+                    key={branch.id}
+                    size="small"
+                    variant={
+                      activeBranchId === branch.id ? 'contained' : 'outlined'
+                    }
+                    onClick={() => setSelectedBranchId(branch.id)}
+                  >
+                    {branch.name}
+                  </Button>
+                ))}
+              </Box>
+            )}
+
+            <Card
+              variant="outlined"
+              sx={{
+                borderRadius: '16px',
+                borderColor: '#e8ddd5',
+                overflow: 'hidden',
+              }}
+            >
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1.75,
+                  borderBottom: '1px solid #eee4dd',
+                  bgcolor: '#fbf7f4',
+                }}
+              >
                 <Box
                   sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 2,
+                    flexWrap: 'wrap',
                   }}
                 >
-                  {calendarDays.map((day) => {
-                    const isCurrentMonth = day.getMonth() === month.getMonth();
-                    const isToday = isSameDay(day, today);
-                    const shifts = shiftsByDate.get(dateKey(day)) ?? [];
-                    const holiday = loadError
-                      ? undefined
-                      : holidaysByDate.get(dateKey(day));
-                    const visibleShifts = holiday
-                      ? shifts.filter((shift) => isWorkingShift(shift.status))
-                      : shifts;
-                    return (
-                      <Box
-                        key={day.toISOString()}
-                        sx={{
-                          minHeight: 122,
-                          p: 1.25,
-                          borderRight: '1px solid #eee4dd',
-                          borderBottom: '1px solid #eee4dd',
-                          bgcolor: !isCurrentMonth
-                            ? '#fbf8f6'
-                            : holiday
-                              ? '#fff8eb'
-                              : '#fff',
-                          opacity: isCurrentMonth ? 1 : 0.5,
-                          '&:nth-of-type(7n)': { borderRight: 0 },
-                          '&:nth-last-child(-n + 7)': { borderBottom: 0 },
-                        }}
-                      >
-                        <Box
+                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                    {!franchiseMode && (
+                      <Box>
+                        <Typography
                           sx={{
-                            width: 26,
-                            height: 26,
-                            display: 'grid',
-                            placeItems: 'center',
-                            borderRadius: '50%',
-                            bgcolor: isToday ? '#3c2d24' : 'transparent',
-                            color: isToday ? '#fff' : '#45342b',
-                            fontSize: 13,
+                            color: '#8b7161',
+                            fontSize: 12,
                             fontWeight: 700,
                           }}
                         >
-                          {day.getDate()}
-                        </Box>
-                        {!loadError && holiday ? (
-                          <Typography
-                            title={holiday.name}
+                          สาขา
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: loadError ? 'error.main' : '#201914',
+                            fontSize: 21,
+                            fontWeight: 800,
+                          }}
+                        >
+                          {loadError
+                            ? 'โหลดข้อมูลไม่สำเร็จ'
+                            : (activeBranch?.name ?? 'ยังไม่พบสาขา')}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Box
+                      sx={{
+                        pl: franchiseMode ? 0 : 3,
+                        borderLeft: franchiseMode ? 0 : '1px solid #dfd1c8',
+                      }}
+                    >
+                      <Typography
+                        sx={{ color: '#8b7161', fontSize: 12, fontWeight: 700 }}
+                      >
+                        เดือน
+                      </Typography>
+                      <Typography
+                        sx={{ color: '#201914', fontSize: 21, fontWeight: 800 }}
+                      >
+                        {thaiMonth.format(month)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Button
+                    data-export-pdf-control
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      exportDailyReportAsPdf({
+                        title: 'รายงานตารางงานพนักงาน',
+                        period: thaiMonth.format(month),
+                        branchName: activeBranch?.name,
+                        days: dailyScheduleReport,
+                      })
+                    }
+                  >
+                    ส่งออก PDF
+                  </Button>
+                </Box>
+              </Box>
+              <Box sx={{ overflowX: 'auto' }}>
+                <Box sx={{ minWidth: 780 }}>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                      borderBottom: '1px solid #eee4dd',
+                    }}
+                  >
+                    {thaiWeekday.map((day, index) => (
+                      <Box
+                        key={day}
+                        sx={{
+                          py: 1,
+                          textAlign: 'center',
+                          color: index > 4 ? '#9a6d5c' : '#60493b',
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {day}
+                      </Box>
+                    ))}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                    }}
+                  >
+                    {calendarDays.map((day) => {
+                      const isCurrentMonth =
+                        day.getMonth() === month.getMonth();
+                      const isToday = isSameDay(day, today);
+                      const shifts = shiftsByDate.get(dateKey(day)) ?? [];
+                      const holiday = loadError
+                        ? undefined
+                        : holidaysByDate.get(dateKey(day));
+                      const visibleShifts = holiday
+                        ? shifts.filter((shift) => isWorkingShift(shift.status))
+                        : shifts;
+                      return (
+                        <Box
+                          key={day.toISOString()}
+                          sx={{
+                            minHeight: 122,
+                            p: 1.25,
+                            borderRight: '1px solid #eee4dd',
+                            borderBottom: '1px solid #eee4dd',
+                            bgcolor: !isCurrentMonth
+                              ? '#fbf8f6'
+                              : holiday
+                                ? '#fff8eb'
+                                : '#fff',
+                            opacity: isCurrentMonth ? 1 : 0.5,
+                            '&:nth-of-type(7n)': { borderRight: 0 },
+                            '&:nth-last-child(-n + 7)': { borderBottom: 0 },
+                          }}
+                        >
+                          <Box
                             sx={{
-                              mt: 0.35,
-                              color: '#b94136',
-                              fontSize: 10,
+                              width: 26,
+                              height: 26,
+                              display: 'grid',
+                              placeItems: 'center',
+                              borderRadius: '50%',
+                              bgcolor: isToday ? '#3c2d24' : 'transparent',
+                              color: isToday ? '#fff' : '#45342b',
+                              fontSize: 13,
                               fontWeight: 700,
-                              lineHeight: 1.25,
                             }}
                           >
-                            {holiday.name}
-                          </Typography>
-                        ) : null}
-                        {loadError ? (
-                          <Typography
-                            sx={{
-                              mt: 2.5,
-                              color: 'error.main',
-                              fontSize: 11,
-                              fontWeight: 600,
-                              lineHeight: 1.35,
-                            }}
-                          >
-                            โหลดข้อมูลไม่สำเร็จ
-                          </Typography>
-                        ) : isCurrentMonth &&
-                          shifts.length === 0 &&
-                          !holiday ? (
-                          <Typography
-                            sx={{
-                              mt: 2.5,
-                              color: '#a89285',
-                              fontSize: 11,
-                              lineHeight: 1.35,
-                            }}
-                          >
-                            ยังไม่มีตารางกะ
-                          </Typography>
-                        ) : null}
-                        {!loadError &&
-                          visibleShifts.map((shift) => (
-                            <Box
-                              key={shift.id}
-                              component="button"
-                              type="button"
-                              draggable={isWorkingShift(shift.status)}
-                              onClick={() => openShiftEditor(shift)}
-                              onDragStart={() => setDraggedShiftId(shift.id)}
-                              onDragEnd={() => setDraggedShiftId(null)}
-                              onDragOver={(event) => {
-                                if (!isWorkingShift(shift.status))
-                                  event.preventDefault();
-                              }}
-                              onDrop={() => {
-                                if (
-                                  draggedShiftId !== null &&
-                                  draggedShiftId !== shift.id &&
-                                  !isWorkingShift(shift.status)
-                                )
-                                  replaceShift.mutate({
-                                    targetShiftId: shift.id,
-                                    sourceShiftId: draggedShiftId,
-                                  });
-                              }}
+                            {day.getDate()}
+                          </Box>
+                          {!loadError && holiday ? (
+                            <Typography
+                              title={holiday.name}
                               sx={{
-                                width: '100%',
-                                border: 0,
-                                cursor: 'pointer',
-                                opacity:
-                                  draggedShiftId === shift.id
-                                    ? 0.55
-                                    : undefined,
-                                outline:
-                                  draggedShiftId !== null &&
-                                  !isWorkingShift(shift.status)
-                                    ? '2px dashed #b94136'
-                                    : 'none',
-                                outlineOffset: 2,
-                                textAlign: 'left',
-                                mt: 0.75,
-                                px: 0.65,
-                                py: 0.35,
-                                borderRadius: '6px',
-                                bgcolor:
-                                  shift.status === 'scheduled'
-                                    ? shiftColorsByUser.get(shift.userId)
-                                    : shift.status === 'compensatory_work'
-                                      ? '#dff4e7'
-                                      : shift.status === 'day_off'
-                                        ? '#ebe8e5'
-                                        : '#ffe4e4',
-                                color: '#60493b',
-                                fontFamily: 'Kanit, sans-serif',
-                                fontSize: 11,
+                                mt: 0.35,
+                                color: '#b94136',
+                                fontSize: 10,
+                                fontWeight: 700,
                                 lineHeight: 1.25,
                               }}
                             >
+                              {holiday.name}
+                            </Typography>
+                          ) : null}
+                          {loadError ? (
+                            <Typography
+                              sx={{
+                                mt: 2.5,
+                                color: 'error.main',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                lineHeight: 1.35,
+                              }}
+                            >
+                              โหลดข้อมูลไม่สำเร็จ
+                            </Typography>
+                          ) : isCurrentMonth &&
+                            shifts.length === 0 &&
+                            !holiday ? (
+                            <Typography
+                              sx={{
+                                mt: 2.5,
+                                color: '#a89285',
+                                fontSize: 11,
+                                lineHeight: 1.35,
+                              }}
+                            >
+                              ยังไม่มีตารางกะ
+                            </Typography>
+                          ) : null}
+                          {!loadError &&
+                            visibleShifts.map((shift) => (
                               <Box
-                                component="span"
-                                sx={{
-                                  display: 'block',
-                                  mb: 0.75,
-                                  overflow: 'hidden',
-                                  color: '#45342b',
-                                  fontWeight: 700,
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
+                                key={shift.id}
+                                component="button"
+                                type="button"
+                                draggable={isWorkingShift(shift.status)}
+                                onClick={() => openShiftEditor(shift)}
+                                onDragStart={() => setDraggedShiftId(shift.id)}
+                                onDragEnd={() => setDraggedShiftId(null)}
+                                onDragOver={(event) => {
+                                  if (!isWorkingShift(shift.status))
+                                    event.preventDefault();
                                 }}
-                              >
-                                {shift.name}
-                              </Box>
-                              <Box
-                                component="span"
+                                onDrop={() => {
+                                  if (
+                                    draggedShiftId !== null &&
+                                    draggedShiftId !== shift.id &&
+                                    !isWorkingShift(shift.status)
+                                  )
+                                    replaceShift.mutate({
+                                      targetShiftId: shift.id,
+                                      sourceShiftId: draggedShiftId,
+                                    });
+                                }}
                                 sx={{
-                                  display: 'block',
+                                  width: '100%',
+                                  border: 0,
+                                  cursor: 'pointer',
+                                  opacity:
+                                    draggedShiftId === shift.id
+                                      ? 0.55
+                                      : undefined,
+                                  outline:
+                                    draggedShiftId !== null &&
+                                    !isWorkingShift(shift.status)
+                                      ? '2px dashed #b94136'
+                                      : 'none',
+                                  outlineOffset: 2,
+                                  textAlign: 'left',
+                                  mt: 0.75,
+                                  px: 0.65,
+                                  py: 0.35,
+                                  borderRadius: '6px',
+                                  bgcolor:
+                                    shift.status === 'scheduled'
+                                      ? shiftColorsByUser.get(shift.userId)
+                                      : shift.status === 'compensatory_work'
+                                        ? '#dff4e7'
+                                        : shift.status === 'day_off'
+                                          ? '#ebe8e5'
+                                          : '#ffe4e4',
                                   color: '#60493b',
+                                  fontFamily: 'Kanit, sans-serif',
                                   fontSize: 11,
-                                  whiteSpace: 'nowrap',
+                                  lineHeight: 1.25,
                                 }}
                               >
-                                {isWorkingShift(shift.status)
-                                  ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
-                                  : leaveLabels[shift.status]}
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    display: 'block',
+                                    mb: 0.75,
+                                    overflow: 'hidden',
+                                    color: '#45342b',
+                                    fontWeight: 700,
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {shift.name}
+                                </Box>
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    display: 'block',
+                                    color: '#60493b',
+                                    fontSize: 11,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {isWorkingShift(shift.status)
+                                    ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
+                                    : leaveLabels[shift.status]}
+                                </Box>
                               </Box>
-                            </Box>
-                          ))}
-                      </Box>
-                    );
-                  })}
+                            ))}
+                        </Box>
+                      );
+                    })}
+                  </Box>
                 </Box>
               </Box>
-            </Box>
-          </Card>
-        </>
-      ) : null}
+            </Card>
+          </>
+        ) : null}
+      </Box>
       <Drawer
         anchor="bottom"
         open={Boolean(selectedShift)}

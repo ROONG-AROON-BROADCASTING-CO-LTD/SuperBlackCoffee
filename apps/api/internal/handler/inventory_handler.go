@@ -42,7 +42,7 @@ func (h *PlatformHandler) ListInventory(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": cached})
 		return
 	}
-	result, err := h.inventory.List(c, branchID, kind)
+	result, err := h.inventory.List(c.Request.Context(), branchID, kind)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดึงรายการสต็อกได้"})
 		return
@@ -83,20 +83,20 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่มีสิทธิ์จัดการสต็อก"})
 		return
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
 	}
 	defer tx.Rollback()
 	var id int64
-	err = tx.QueryRowContext(c, `INSERT INTO inventory_items(branch_id,name,category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, branchID, item.Name, item.Category, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost).Scan(&id)
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO inventory_items(branch_id,name,category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, branchID, item.Name, item.Category, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost).Scan(&id)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
 	}
 	if item.Quantity != 0 {
-		if err = recordStockMovementTx(c, tx, branchID, id, "initial", item.Quantity, 0, item.Quantity, "inventory_item", &id, "ยอดตั้งต้นของรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
+		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "initial", item.Quantity, 0, item.Quantity, "inventory_item", &id, "ยอดตั้งต้นของรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
 			return
 		}
@@ -143,24 +143,24 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่มีสิทธิ์จัดการสต็อก"})
 		return
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการสต็อกได้"})
 		return
 	}
 	defer tx.Rollback()
 	var previousQuantity float64
-	if err = tx.QueryRowContext(c, `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity); err != nil {
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity); err != nil {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
 	}
-	result, err := tx.ExecContext(c, `UPDATE inventory_items SET name=$1,category=$2,kind=$3,quantity=$4,unit=$5,reorder_level=$6,unit_cost=$7,updated_at=now() WHERE id=$8 AND branch_id=$9`, item.Name, item.Category, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, id, branchID)
+	result, err := tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET name=$1,category=$2,kind=$3,quantity=$4,unit=$5,reorder_level=$6,unit_cost=$7,updated_at=now() WHERE id=$8 AND branch_id=$9`, item.Name, item.Category, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการสต็อกได้"})
 		return
 	}
 	if item.Quantity != previousQuantity {
-		if err = recordStockMovementTx(c, tx, branchID, id, "adjustment", item.Quantity-previousQuantity, previousQuantity, item.Quantity, "inventory_item", &id, "ปรับยอดผ่านการแก้ไขรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
+		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", item.Quantity-previousQuantity, previousQuantity, item.Quantity, "inventory_item", &id, "ปรับยอดผ่านการแก้ไขรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
 			return
 		}
@@ -197,13 +197,13 @@ func (h *PlatformHandler) DeleteInventory(c *gin.Context) {
 	if !ok || !h.ensureInventoryWriteAllowed(c, plan, branchID, id) {
 		return
 	}
-	tx, err := h.db.BeginTx(c, nil)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถลบรายการสต็อกได้"})
 		return
 	}
 	defer tx.Rollback()
-	result, err := tx.ExecContext(c, `DELETE FROM inventory_items WHERE id=$1 AND branch_id=$2`, id, branchID)
+	result, err := tx.ExecContext(c.Request.Context(), `DELETE FROM inventory_items WHERE id=$1 AND branch_id=$2`, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return

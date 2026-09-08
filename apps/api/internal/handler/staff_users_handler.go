@@ -28,7 +28,7 @@ func (h *PlatformHandler) ListStaffUsers(c *gin.Context) {
 		query += ` AND franchisee_id IS NULL`
 	}
 	query += ` ORDER BY name,id`
-	rows, err := h.db.QueryContext(c, query, args...)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถดึงข้อมูลพนักงานได้"})
 		return

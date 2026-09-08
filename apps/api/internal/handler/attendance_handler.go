@@ -18,6 +18,7 @@ var thailandLocation = time.FixedZone("Asia/Bangkok", 7*60*60)
 
 const attendancePINLoginLimit = 10
 const attendancePINLoginWindow = 15 * time.Minute
+const attendanceLateGraceMinutes = 10
 
 type attendanceLoginInput struct {
 	Username string `json:"username" binding:"required"`
@@ -206,13 +207,14 @@ func (h *PlatformHandler) AttendanceSummary(c *gin.Context) {
 					AND a.work_date < $3
 					AND scheduled_shift.status IN ('scheduled', 'compensatory_work')
 					AND a.check_in_at IS NOT NULL
-					AND (a.check_in_at AT TIME ZONE 'Asia/Bangkok')::time > scheduled_shift.starts_at
+					AND (a.check_in_at AT TIME ZONE 'Asia/Bangkok')::time > scheduled_shift.starts_at + ($4 * INTERVAL '1 minute')
 			)
 		FROM staff_shifts
 		WHERE user_id = $1 AND shift_date >= $2 AND shift_date < $3`,
 		claims.UserID,
 		monthStart.Format("2006-01-02"),
 		monthEnd.Format("2006-01-02"),
+		attendanceLateGraceMinutes,
 	).Scan(&sickLeaveCount, &personalLeaveCount, &otherLeaveCount, &lateCount)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านสรุปการทำงานได้"})

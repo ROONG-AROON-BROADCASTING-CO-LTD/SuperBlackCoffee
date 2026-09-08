@@ -1,29 +1,11 @@
-import { Box, Button, Card, Divider, Skeleton } from '@mui/material';
-
-function ScheduleActionSkeleton({ label }: { label: string }) {
-  return (
-    <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-      <Button
-        aria-hidden
-        size="small"
-        tabIndex={-1}
-        sx={{ visibility: 'hidden', pointerEvents: 'none' }}
-      >
-        {label}
-      </Button>
-      <Skeleton
-        variant="rounded"
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          borderRadius: '12px',
-        }}
-      />
-    </Box>
-  );
-}
+import {
+  Box,
+  Button,
+  Card,
+  Divider,
+  Skeleton,
+  Typography,
+} from '@mui/material';
 
 export function EmployeesSkeleton({
   franchiseMode = false,
@@ -46,20 +28,75 @@ export function EmployeesSkeleton({
           }}
         >
           <Box>
-            <Skeleton variant="text" width={220} height={42} />
-            <Skeleton variant="text" width={340} height={24} />
+            <Typography
+              component="h1"
+              sx={{
+                m: 0,
+                color: '#201914',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 24,
+                fontWeight: 700,
+                lineHeight: 1.25,
+              }}
+            >
+              ตารางงานพนักงาน
+            </Typography>
+            <Typography
+              component="p"
+              sx={{
+                m: 0,
+                mt: 0.5,
+                color: 'text.secondary',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 14,
+                lineHeight: 1.5,
+              }}
+            >
+              ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน
+            </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {['เดือนก่อน', 'เดือนนี้', 'เดือนถัดไป'].map((label) => (
-              <ScheduleActionSkeleton key={label} label={label} />
+              <Button
+                key={label}
+                size="small"
+                variant="outlined"
+                disabled
+                disableRipple
+                sx={{ transition: 'none', animation: 'none' }}
+              >
+                {label}
+              </Button>
             ))}
             <Divider
               orientation="vertical"
               flexItem
               sx={{ mx: 0.5, borderColor: '#d8cec7' }}
             />
-            <ScheduleActionSkeleton label="จัดตารางอัตโนมัติ" />
-            <ScheduleActionSkeleton label="เพิ่มพนักงาน" />
+            <Button
+              size="small"
+              variant="contained"
+              disabled
+              disableRipple
+              disableElevation
+              sx={{ transition: 'none', animation: 'none' }}
+            >
+              จัดตารางอัตโนมัติ
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              disabled
+              disableRipple
+              disableElevation
+              sx={{
+                transition: 'none',
+                animation: 'none',
+                '&.Mui-disabled': { bgcolor: '#805637' },
+              }}
+            >
+              เพิ่มพนักงาน
+            </Button>
           </Box>
         </Box>
       ) : null}

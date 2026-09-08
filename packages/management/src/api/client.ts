@@ -7,6 +7,16 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
+type PlatformSessionRole = 'admin' | 'franchise_owner';
+
+let platformSessionRole: PlatformSessionRole | null = null;
+
+// Each app configures its own module instance before rendering protected pages.
+// This makes requests deterministic when the browser holds both platform cookies.
+export function setManagementSessionRole(role: PlatformSessionRole | null) {
+  platformSessionRole = role;
+}
+
 function messageFrom(error: unknown) {
   if (axios.isAxiosError<ApiEnvelope<unknown>>(error))
     return error.response?.data?.message ?? 'ไม่สามารถเชื่อมต่อระบบได้';
@@ -21,6 +31,12 @@ export async function secured<T>(
     const response = await apiClient.request<ApiEnvelope<T>>({
       url: path,
       ...options,
+      headers: {
+        ...options.headers,
+        ...(platformSessionRole
+          ? { 'X-SBC-Session-Role': platformSessionRole }
+          : {}),
+      },
     });
     if (!response.data.success)
       throw new Error(response.data.message ?? 'ไม่สามารถเชื่อมต่อระบบได้');

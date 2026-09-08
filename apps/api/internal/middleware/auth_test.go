@@ -75,6 +75,26 @@ func TestRequireAuthSelectsMatchingRoleWhenMultipleSessionCookiesExist(t *testin
 	}
 }
 
+func TestRequireAuthSessionRoleHeaderDoesNotFallbackToAnotherPlatformCookie(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	secret := "test-secret"
+	r := gin.New()
+	r.GET("/platform", RequireAuth(secret, "admin"), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/platform", nil)
+	req.Header.Set("X-SBC-Session-Role", "admin")
+	req.AddCookie(&http.Cookie{
+		Name:  "sbc_franchise_session",
+		Value: signedToken(t, secret, "franchise_owner", time.Now().Add(time.Hour)),
+	})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+}
+
 func signedToken(t *testing.T, secret, role string, expiresAt time.Time) string {
 	t.Helper()
 	claims := Claims{UserID: 7, Role: role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(expiresAt)}}
