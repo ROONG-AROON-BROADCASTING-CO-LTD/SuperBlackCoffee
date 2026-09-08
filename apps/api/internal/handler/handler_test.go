@@ -91,3 +91,24 @@ func TestPlatformHandlerIsAvailableWhenDatabaseExists(t *testing.T) {
 		t.Fatal("expected handler without a response to remain available")
 	}
 }
+
+func TestCanRecordAttendanceOnlyForWorkingShiftStates(t *testing.T) {
+	tests := []struct {
+		name   string
+		status string
+		want   bool
+	}{
+		{name: "scheduled shift", status: "scheduled", want: true},
+		{name: "compensatory work shift", status: "compensatory_work", want: true},
+		{name: "day off", status: "day_off", want: false},
+		{name: "approved leave", status: "sick_leave", want: false},
+		{name: "missing shift", status: "", want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := canRecordAttendance(test.status); got != test.want {
+				t.Fatalf("canRecordAttendance(%q) = %t, want %t", test.status, got, test.want)
+			}
+		})
+	}
+}

@@ -16,6 +16,9 @@ import (
 
 var thailandLocation = time.FixedZone("Asia/Bangkok", 7*60*60)
 
+const attendancePINLoginLimit = 10
+const attendancePINLoginWindow = 15 * time.Minute
+
 type attendanceLoginInput struct {
 	Username string `json:"username" binding:"required"`
 	PIN      string `json:"pin"`
@@ -28,6 +31,11 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 	var input attendanceLoginInput
 	if c.ShouldBindJSON(&input) != nil || strings.TrimSpace(input.Username) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ต้องระบุชื่อผู้ใช้"})
+		return
+	}
+	loginKey := "sbc:attendance-pin:limit:" + c.ClientIP() + ":" + strings.ToLower(strings.TrimSpace(input.Username))
+	if input.PIN != "" && !h.cache.AllowLogin(c, loginKey, attendancePINLoginLimit, attendancePINLoginWindow) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"success": false, "message": "ลองเข้าสู่ระบบใหม่ภายหลัง"})
 		return
 	}
 	var userID, branchID int64
@@ -54,6 +62,7 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "PIN ไม่ถูกต้อง"})
 		return
 	}
+	h.cache.Reset(c, loginKey)
 	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt)
 }
 

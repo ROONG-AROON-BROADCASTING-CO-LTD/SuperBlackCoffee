@@ -25,19 +25,13 @@ func registerPublicRoutes(r *gin.Engine, deps routeDependencies) {
 	v1.POST("/attendance/login", deps.platform.AttendanceLogin)
 	v1.POST("/attendance/setup-pin", deps.platform.SetupAttendancePIN)
 	v1.POST("/attendance/logout", deps.platform.AttendanceLogout)
-	v1.GET("/attendance/session", middleware.RequireAuth(deps.secret), deps.platform.AttendanceSession)
+	v1.GET("/attendance/session", middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.AttendanceSession)
 }
 
 func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected := r.Group("/api/v1")
 	protected.Use(middleware.RequireAuth(deps.secret))
 	protected.GET("/dashboard", deps.platform.Dashboard)
-	protected.GET("/attendance/today", deps.platform.AttendanceToday)
-	protected.GET("/attendance/summary", deps.platform.AttendanceSummary)
-	protected.GET("/attendance/history", deps.platform.AttendanceHistory)
-	protected.POST("/attendance/check-in", deps.platform.CheckIn)
-	protected.POST("/attendance/check-out", deps.platform.CheckOut)
-	protected.POST("/attendance/leave-requests", deps.platform.CreateLeaveRequest)
 	protected.GET("/attendance/management", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListAttendanceManagement)
 	protected.GET("/attendance/leave-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListLeaveRequests)
 	protected.PATCH("/attendance/leave-requests/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.UpdateLeaveRequestStatus)
@@ -70,6 +64,15 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.PATCH("/website/leads/:id/status", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateWebsiteLeadStatus)
 	protected.PATCH("/stock-requests/:id/status", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateStockRequestStatus)
 	registerAdminRoutes(protected, deps)
+
+	attendance := r.Group("/api/v1")
+	attendance.Use(middleware.RequireAuth(deps.secret, "cashier", "branch_manager"))
+	attendance.GET("/attendance/today", deps.platform.AttendanceToday)
+	attendance.GET("/attendance/summary", deps.platform.AttendanceSummary)
+	attendance.GET("/attendance/history", deps.platform.AttendanceHistory)
+	attendance.POST("/attendance/check-in", deps.platform.CheckIn)
+	attendance.POST("/attendance/check-out", deps.platform.CheckOut)
+	attendance.POST("/attendance/leave-requests", deps.platform.CreateLeaveRequest)
 }
 
 func registerAdminRoutes(protected *gin.RouterGroup, deps routeDependencies) {

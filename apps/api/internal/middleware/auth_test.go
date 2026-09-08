@@ -54,6 +54,27 @@ func TestRequireAuth(t *testing.T) {
 	}
 }
 
+func TestRequireAuthSelectsMatchingRoleWhenMultipleSessionCookiesExist(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	secret := "test-secret"
+	r := gin.New()
+	r.GET("/attendance", RequireAuth(secret, "cashier", "branch_manager"), func(c *gin.Context) {
+		claims := ClaimsFrom(c)
+		if claims == nil || claims.Role != "cashier" {
+			t.Fatalf("claims = %#v, want cashier", claims)
+		}
+		c.Status(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/attendance", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_admin_session", Value: signedToken(t, secret, "admin", time.Now().Add(time.Hour))})
+	req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: signedToken(t, secret, "cashier", time.Now().Add(time.Hour))})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}
+
 func signedToken(t *testing.T, secret, role string, expiresAt time.Time) string {
 	t.Helper()
 	claims := Claims{UserID: 7, Role: role, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(expiresAt)}}

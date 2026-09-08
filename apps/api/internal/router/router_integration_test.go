@@ -90,6 +90,152 @@ func TestAttendanceLogoutClearsSessionCookie(t *testing.T) {
 	}
 }
 
+func TestAttendanceRoutesRejectPlatformSessionCookie(t *testing.T) {
+	r := New(nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/attendance/today", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_admin_session", Value: testToken(t, "admin")})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusForbidden)
+	}
+}
+
+func TestAttendanceSessionSelectsStaffCookieWhenPlatformCookieAlsoExists(t *testing.T) {
+	r := New(nil, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/attendance/session", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_admin_session", Value: testToken(t, "admin")})
+	req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: testToken(t, "cashier")})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	// A nil database makes the handler unavailable (503). Reaching it proves the
+	// role-aware middleware selected the staff cookie instead of rejecting admin.
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+}
+
+func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-COOKIE")
+	pinHash, err := bcrypt.GenerateFromPassword([]byte("123456"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedUser(t, db, 7, "attendance-cookie", "cashier", branchID, nil)
+	if _, err := db.Exec(`UPDATE users SET attendance_pin_hash=$1 WHERE id=7`, string(pinHash)); err != nil {
+		t.Fatal(err)
+	}
+	today := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Format("2006-01-02")
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','scheduled')`, branchID, today); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	challenge := requestJSON(r, http.MethodPost, "/api/v1/attendance/login", `{"username":"attendance-cookie"}`, "")
+	if challenge.Code != http.StatusOK || !strings.Contains(challenge.Body.String(), `"requiresPIN":true`) || len(challenge.Result().Cookies()) != 0 {
+		t.Fatalf("attendance PIN challenge = %d: %s", challenge.Code, challenge.Body.String())
+	}
+	wrongPIN := requestJSON(r, http.MethodPost, "/api/v1/attendance/login", `{"username":"attendance-cookie","pin":"000000"}`, "")
+	if wrongPIN.Code != http.StatusUnauthorized || len(wrongPIN.Result().Cookies()) != 0 {
+		t.Fatalf("wrong attendance PIN = %d: %s", wrongPIN.Code, wrongPIN.Body.String())
+	}
+	login := requestJSON(r, http.MethodPost, "/api/v1/attendance/login", `{"username":"attendance-cookie","pin":"123456"}`, "")
+	if login.Code != http.StatusOK || strings.Contains(login.Body.String(), "accessToken") {
+		t.Fatalf("attendance login = %d: %s", login.Code, login.Body.String())
+	}
+	cookies := login.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "sbc_attendance_session" || !cookies[0].HttpOnly {
+		t.Fatalf("attendance login did not issue an HttpOnly session cookie: %#v", cookies)
+	}
+
+	if session := requestJSONWithCookie(r, http.MethodGet, "/api/v1/attendance/session", "", cookies[0]); session.Code != http.StatusOK {
+		t.Fatalf("attendance session = %d: %s", session.Code, session.Body.String())
+	}
+	if checkIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", "", cookies[0]); checkIn.Code != http.StatusOK {
+		t.Fatalf("check in = %d: %s", checkIn.Code, checkIn.Body.String())
+	}
+	if duplicateCheckIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", "", cookies[0]); duplicateCheckIn.Code != http.StatusBadRequest {
+		t.Fatalf("duplicate check in = %d: %s", duplicateCheckIn.Code, duplicateCheckIn.Body.String())
+	}
+	if checkOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", "", cookies[0]); checkOut.Code != http.StatusOK {
+		t.Fatalf("check out = %d: %s", checkOut.Code, checkOut.Body.String())
+	}
+	if duplicateCheckOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", "", cookies[0]); duplicateCheckOut.Code != http.StatusBadRequest {
+		t.Fatalf("duplicate check out = %d: %s", duplicateCheckOut.Code, duplicateCheckOut.Body.String())
+	}
+}
+
+func TestAttendancePINSetupValidatesAndCannotOverwriteExistingPIN(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-PIN")
+	seedUser(t, db, 8, "attendance-pin", "cashier", branchID, nil)
+	r := New(db, nil)
+
+	invalid := requestJSON(r, http.MethodPost, "/api/v1/attendance/setup-pin", `{"username":"attendance-pin","pin":"12ab56"}`, "")
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid PIN setup = %d: %s", invalid.Code, invalid.Body.String())
+	}
+
+	setup := requestJSON(r, http.MethodPost, "/api/v1/attendance/setup-pin", `{"username":"attendance-pin","pin":"123456"}`, "")
+	if setup.Code != http.StatusOK || strings.Contains(setup.Body.String(), "accessToken") {
+		t.Fatalf("PIN setup = %d: %s", setup.Code, setup.Body.String())
+	}
+	cookies := setup.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "sbc_attendance_session" || !cookies[0].HttpOnly {
+		t.Fatalf("PIN setup did not issue an HttpOnly session cookie: %#v", cookies)
+	}
+
+	repeated := requestJSON(r, http.MethodPost, "/api/v1/attendance/setup-pin", `{"username":"attendance-pin","pin":"654321"}`, "")
+	if repeated.Code != http.StatusConflict {
+		t.Fatalf("repeated PIN setup = %d: %s", repeated.Code, repeated.Body.String())
+	}
+}
+
+func TestAttendancePINLoginRateLimitResetsAfterSuccessfulLogin(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-PIN-LIMIT")
+	pinHash, err := bcrypt.GenerateFromPassword([]byte("123456"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedUser(t, db, 9, "attendance-pin-limit", "cashier", branchID, nil)
+	if _, err := db.Exec(`UPDATE users SET attendance_pin_hash=$1 WHERE id=9`, string(pinHash)); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	login := func(pin string) *httptest.ResponseRecorder {
+		return requestJSON(r, http.MethodPost, "/api/v1/attendance/login", `{"username":"attendance-pin-limit","pin":"`+pin+`"}`, "")
+	}
+	for i := 0; i < 9; i++ {
+		if res := login("000000"); res.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d = %d: %s", i+1, res.Code, res.Body.String())
+		}
+	}
+	if res := login("123456"); res.Code != http.StatusOK {
+		t.Fatalf("successful PIN login = %d: %s", res.Code, res.Body.String())
+	}
+	for i := 0; i < 10; i++ {
+		if res := login("000000"); res.Code != http.StatusUnauthorized {
+			t.Fatalf("after reset attempt %d = %d: %s", i+1, res.Code, res.Body.String())
+		}
+	}
+	if res := login("000000"); res.Code != http.StatusTooManyRequests {
+		t.Fatalf("rate limit = %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestUsersRequireAdminToken(t *testing.T) {
 	r := New(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users", nil)
@@ -286,6 +432,52 @@ func TestFranchisePlanFiltersMenuAndIngredients(t *testing.T) {
 	}
 }
 
+func TestFranchiseSessionCannotReadOrWriteAnotherFranchiseBranch(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	var franchiseA, franchiseB, branchA, branchB int64
+	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('Franchise A','a@example.com','L','active') RETURNING id`).Scan(&franchiseA); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('Franchise B','b@example.com','L','active') RETURNING id`).Scan(&franchiseB); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,'Branch A','FR-A','active') RETURNING id`, franchiseA).Scan(&branchA); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,'Branch B','FR-B','active') RETURNING id`, franchiseB).Scan(&branchB); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO users(id,name,username,email,password_hash,role,franchisee_id,branch_id) VALUES(7,'Owner A','owner-a','owner-a@example.com','hash','franchise_owner',$1,$2)`, franchiseA, branchA); err != nil {
+		t.Fatal(err)
+	}
+	seedInventory(t, db, branchA, "ของ Franchise A", 1)
+	seedInventory(t, db, branchB, "ของ Franchise B", 1)
+	r := New(db, nil)
+	token := testTokenWithFranchise(t, "franchise_owner", branchA, franchiseA)
+
+	branches := requestJSON(r, http.MethodGet, "/api/v1/branches", "", token)
+	if branches.Code != http.StatusOK || !strings.Contains(branches.Body.String(), "Branch A") || strings.Contains(branches.Body.String(), "Branch B") {
+		t.Fatalf("franchise branch isolation = %d: %s", branches.Code, branches.Body.String())
+	}
+	inventory := requestJSON(r, http.MethodGet, "/api/v1/inventory?branchId="+strconv.FormatInt(branchB, 10), "", token)
+	if inventory.Code != http.StatusOK || !strings.Contains(inventory.Body.String(), "ของ Franchise A") || strings.Contains(inventory.Body.String(), "ของ Franchise B") {
+		t.Fatalf("franchise inventory isolation = %d: %s", inventory.Code, inventory.Body.String())
+	}
+	created := requestJSON(r, http.MethodPost, "/api/v1/stock-requests", `{"branchId":`+strconv.FormatInt(branchB, 10)+`,"note":"ต้องอยู่ในสาขา A","items":[{"name":"นม","quantity":1,"unit":"กล่อง"}]}`, token)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("franchise cross-branch request = %d: %s", created.Code, created.Body.String())
+	}
+	requestID := responseID(t, created)
+	var savedBranchID int64
+	if err := db.QueryRow(`SELECT branch_id FROM stock_requests WHERE id=$1`, requestID).Scan(&savedBranchID); err != nil || savedBranchID != branchA {
+		t.Fatalf("stock request branch = %d, want %d, err=%v", savedBranchID, branchA, err)
+	}
+}
+
 func TestPurchaseOrderReceiptAddsStockAndCreatesMovement(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -437,6 +629,36 @@ func TestLoginRateLimitResetsAfterSuccessfulLogin(t *testing.T) {
 	}
 }
 
+func TestPlatformLoginSetsSecureHttpOnlyCookieInProduction(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	t.Setenv("APP_ENV", "production")
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "PROD-COOKIE")
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedUser(t, db, 7, "production-admin", "admin", branchID, passwordHash)
+	r := New(db, nil)
+	login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", `{"username":"production-admin","password":"correct-password"}`, "")
+	if login.Code != http.StatusOK || strings.Contains(login.Body.String(), "accessToken") {
+		t.Fatalf("production login = %d: %s", login.Code, login.Body.String())
+	}
+	var sessionCookie *http.Cookie
+	for _, cookie := range login.Result().Cookies() {
+		if cookie.Name == "sbc_admin_session" {
+			sessionCookie = cookie
+			break
+		}
+	}
+	if sessionCookie == nil || !sessionCookie.Secure || !sessionCookie.HttpOnly || sessionCookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("invalid production session cookie: %#v", sessionCookie)
+	}
+}
+
 func TestWebsiteLeadLifecycleAndBranchScope(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -566,6 +788,17 @@ func requestJSONFromIP(r http.Handler, method, path, body, token, ip string) *ht
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	return res
+}
+
+func requestJSONWithCookie(r http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.AddCookie(cookie)
 	res := httptest.NewRecorder()
 	r.ServeHTTP(res, req)
 	return res

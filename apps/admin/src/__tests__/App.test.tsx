@@ -1,5 +1,12 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { logout, restoreSession } from '../api/auth';
 import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
@@ -30,5 +37,26 @@ describe('Admin App session', () => {
       await screen.findByRole('button', { name: 'admin-logout' }),
     );
     expect(screen.getByText('admin-login')).toBeTruthy();
+    expect(logout).toHaveBeenCalledOnce();
+  });
+
+  it('shows login when the restored cookie is missing or belongs to another role', async () => {
+    vi.mocked(restoreSession).mockResolvedValueOnce({
+      user: { id: 2, role: 'franchise_owner' },
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('admin-login')).toBeTruthy();
+  });
+
+  it('ends the session when an authenticated request reports expiry', async () => {
+    render(<App />);
+    await screen.findByRole('button', { name: 'admin-logout' });
+
+    fireEvent(window, new Event('sbc:session-expired'));
+
+    await waitFor(() => expect(screen.getByText('admin-login')).toBeTruthy());
+    expect(logout).toHaveBeenCalledOnce();
   });
 });

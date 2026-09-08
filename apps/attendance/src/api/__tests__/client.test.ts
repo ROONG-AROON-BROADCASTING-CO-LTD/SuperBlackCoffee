@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { publicRequest } from '../client';
+import { publicRequest, secured } from '../client';
 import { loginAttendance } from '../attendance';
 
 describe('attendance API client', () => {
@@ -43,5 +43,19 @@ describe('attendance API client', () => {
     await expect(loginAttendance('staff', '123456')).resolves.toMatchObject({
       user: { name: 'พนักงาน' },
     });
+  });
+
+  it('does not attach a JavaScript-readable Bearer token to protected requests', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { ok: true } }), {
+        status: 200,
+      }),
+    );
+
+    await secured<{ ok: boolean }>('/attendance/today');
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(options?.credentials).toBe('include');
+    expect(new Headers(options?.headers).get('Authorization')).toBeNull();
   });
 });

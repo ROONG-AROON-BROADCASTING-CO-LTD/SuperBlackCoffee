@@ -6,6 +6,12 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  getAttendanceStatus,
+  logoutAttendance,
+  restoreAttendanceSession,
+} from '../api/attendance';
+import { ApiRequestError } from '../api/client';
 import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
@@ -104,6 +110,27 @@ describe('Attendance App session', () => {
     await waitFor(() => {
       expect(screen.getByText('attendance-login')).toBeTruthy();
     });
+    expect(logoutAttendance).toHaveBeenCalledOnce();
+  });
+
+  it('shows login when the HttpOnly attendance session cannot be restored', async () => {
+    vi.mocked(restoreAttendanceSession).mockRejectedValueOnce(
+      new Error('เซสชันหมดอายุ'),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText('attendance-login')).toBeTruthy();
+  });
+
+  it('returns to login when loading attendance data finds an expired session', async () => {
+    vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
+      new ApiRequestError('เซสชันหมดอายุ', 401),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText('attendance-login')).toBeTruthy();
   });
 
   it('disables attendance actions when today is a day off', async () => {
