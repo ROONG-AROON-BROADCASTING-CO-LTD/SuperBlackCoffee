@@ -352,6 +352,12 @@ export function DashboardSidebar({
               }}
               onMouseEnter={(event) => {
                 window.clearTimeout(hoverTimerRef.current);
+                // A selected item already has its connected active surface.
+                // In compact mode it must never open the duplicate hover card.
+                if (collapsed && label === activePage) {
+                  clearHoveredMenu();
+                  return;
+                }
                 const anchorRect = event.currentTarget.getBoundingClientRect();
                 const sidebarRect = event.currentTarget
                   .closest('.MuiDrawer-paper')

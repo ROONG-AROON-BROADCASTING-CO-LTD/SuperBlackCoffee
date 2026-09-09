@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { DashboardMain, coffeeIngredientsImage } from '@stackbuild/ui';
+import { DashboardMain } from '@stackbuild/ui';
 import {
   EmployeesSkeleton,
   AttendanceSkeleton,
@@ -24,7 +24,12 @@ import {
   adminPagePaths,
   type AdminPage,
 } from '../../routes/adminRoutes';
-import { EmployeesManagementPage as AdminEmployeesPage } from '../../pages/dashboard/management';
+import {
+  EmployeesManagementPage as AdminEmployeesPage,
+  IngredientsManagementPage as AdminIngredientsPage,
+  ProductsManagementPage as AdminProductsPage,
+  StockManagementPage as AdminStockPage,
+} from '../../pages/dashboard/management';
 const AdminBranchesPage = lazy(() =>
   import('../../pages/dashboard/AdminBranchesPage').then((module) => ({
     default: module.AdminBranchesPage,
@@ -45,11 +50,6 @@ const AdminLeaveRequestsPage = lazy(() =>
     default: module.LeaveRequestsManagementPage,
   })),
 );
-const AdminIngredientsPage = lazy(() =>
-  import('../../pages/dashboard/management').then((module) => ({
-    default: module.IngredientsManagementPage,
-  })),
-);
 const AdminOrdersPage = lazy(() =>
   import('../../pages/dashboard/AdminOrdersPage').then((module) => ({
     default: module.AdminOrdersPage,
@@ -63,16 +63,6 @@ const AdminAuditPage = lazy(() =>
 const AdminOverviewPage = lazy(() =>
   import('../../pages/dashboard/AdminOverviewPage').then((module) => ({
     default: module.AdminOverviewPage,
-  })),
-);
-const AdminProductsPage = lazy(() =>
-  import('../../pages/dashboard/management').then((module) => ({
-    default: module.ProductsManagementPage,
-  })),
-);
-const AdminStockPage = lazy(() =>
-  import('../../pages/dashboard/management').then((module) => ({
-    default: module.StockManagementPage,
   })),
 );
 
@@ -117,11 +107,6 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     searchParams.get('tab') === 'franchise' ? 'franchise' : 'sbc';
   const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
   const scrollbarTimeoutRef = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    const ingredientImage = new Image();
-    ingredientImage.src = coffeeIngredientsImage;
-    void ingredientImage.decode().catch(() => undefined);
-  }, []);
   useEffect(() => {
     void listBranches()
       .then(setBranchDirectory)

@@ -6,6 +6,9 @@ import { IngredientsSkeleton } from '@stackbuild/management/skeletons/ingredient
 import { ProductsSkeleton } from '@stackbuild/management/skeletons/products';
 import { StockSkeleton } from '@stackbuild/management/skeletons/stock';
 import { EmployeesManagementPage } from '@stackbuild/management/pages/employees';
+import { IngredientsManagementPage } from '@stackbuild/management/pages/ingredients';
+import { ProductsManagementPage } from '@stackbuild/management/pages/products';
+import { StockManagementPage } from '@stackbuild/management/pages/stock';
 import {
   AttendanceSkeleton,
   LeaveRequestsSkeleton,
@@ -21,21 +24,6 @@ import {
   franchisePagePaths,
 } from '../../routes/franchiseRoutes';
 
-const ProductsManagementPage = lazy(() =>
-  import('@stackbuild/management/pages/products').then((module) => ({
-    default: module.ProductsManagementPage,
-  })),
-);
-const IngredientsManagementPage = lazy(() =>
-  import('@stackbuild/management/pages/ingredients').then((module) => ({
-    default: module.IngredientsManagementPage,
-  })),
-);
-const StockManagementPage = lazy(() =>
-  import('@stackbuild/management/pages/stock').then((module) => ({
-    default: module.StockManagementPage,
-  })),
-);
 const AttendanceManagementPage = lazy(() =>
   import('@stackbuild/management/pages/attendance').then((module) => ({
     default: module.AttendanceManagementPage,
@@ -64,11 +52,11 @@ function FranchisePageSkeleton({ page }: { page: string }) {
     page === 'ตารางพนักงาน' ? (
       <EmployeesSkeleton franchiseMode showHeader />
     ) : page === 'วัตถุดิบ' ? (
-      <IngredientsSkeleton />
+      <IngredientsSkeleton readOnly allowOrdering />
     ) : page === 'เมนูและสินค้า' ? (
-      <ProductsSkeleton />
+      <ProductsSkeleton readOnly />
     ) : page === 'สต๊อก' ? (
-      <StockSkeleton />
+      <StockSkeleton readOnly />
     ) : page === 'ลงเวลาพนักงาน' ? (
       <AttendanceSkeleton franchiseMode />
     ) : page === 'คำขอลาพนักงาน' ? (

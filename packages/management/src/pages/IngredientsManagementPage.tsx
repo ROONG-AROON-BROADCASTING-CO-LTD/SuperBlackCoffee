@@ -17,7 +17,6 @@ import {
 import {
   DashboardMain,
   CircleCheckIcon,
-  coffeeIngredientsImage,
   CartIcon,
   INGREDIENT_STATUS_BADGES,
   PlusIcon,
@@ -47,7 +46,6 @@ type Ingredient = {
   unit: string;
   unitCost: number;
   status: IngredientStatus;
-  imagePosition: string;
   imageUrl: string;
 };
 type IngredientCartItem = Ingredient & { key: string; quantityToOrder: number };
@@ -86,7 +84,6 @@ export function IngredientsManagementPage({
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(
     null,
   );
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [catalogIngredientsByBranch, setCatalogIngredientsByBranch] = useState<
     Record<string, Ingredient[]>
   >({});
@@ -150,7 +147,7 @@ export function IngredientsManagementPage({
         );
         return [
           branch,
-          items.map((item, index) => ({
+          items.map((item) => ({
             id: item.id,
             name: item.name,
             quantity: item.quantity,
@@ -161,7 +158,6 @@ export function IngredientsManagementPage({
               : item.status === 'low'
                 ? 'วัตถุดิบใกล้หมด'
                 : 'พร้อมใช้') as IngredientStatus,
-            imagePosition: `${12 + ((index * 21) % 76)}% ${24 + ((index * 17) % 64)}%`,
             imageUrl: item.imageUrl,
           })),
         ] as const;
@@ -186,12 +182,6 @@ export function IngredientsManagementPage({
       active = false;
     };
   }, [activeBranch, reloadKey]);
-  useEffect(
-    () => () => {
-      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-    },
-    [imagePreviewUrl],
-  );
   useEffect(() => {
     if (activeBranch !== 'ทุกสาขา') {
       setVisibleBranchNames(new Set([activeBranch]));
@@ -236,8 +226,6 @@ export function IngredientsManagementPage({
   const displayedBranches =
     activeBranch === 'ทุกสาขา' ? branches.slice(1) : [activeBranch];
   const drawerTitle = editingIngredient ? 'แก้ไขวัตถุดิบ' : 'เพิ่มวัตถุดิบ';
-  const imageSource =
-    imagePreviewUrl ?? (editingIngredient ? coffeeIngredientsImage : null);
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantityToOrder,
     0,
@@ -391,7 +379,6 @@ export function IngredientsManagementPage({
             startIcon={<PlusIcon ref={plusIconRef} size={16} />}
             onClick={() => {
               setEditingIngredient(null);
-              setImagePreviewUrl(null);
               setIsAddDrawerOpen(true);
             }}
             onMouseEnter={() => plusIconRef.current?.startAnimation()}
@@ -447,7 +434,9 @@ export function IngredientsManagementPage({
             catalogIngredientsByBranch[branch] ?? [],
           );
           const isBranchVisible =
-            activeBranch !== 'ทุกสาขา' || visibleBranchNames.has(branch);
+            activeBranch !== 'ทุกสาขา' ||
+            index === 0 ||
+            visibleBranchNames.has(branch);
           const isBranchLoaded =
             activeBranch !== 'ทุกสาขา' || loadedBranchNames.has(branch);
           return (
@@ -490,7 +479,10 @@ export function IngredientsManagementPage({
               {!isBranchVisible ? (
                 <Box sx={{ minHeight: 420 }} />
               ) : isLoading || !isBranchLoaded ? (
-                <IngredientsSkeleton />
+                <IngredientsSkeleton
+                  readOnly={readOnly}
+                  allowOrdering={allowOrdering}
+                />
               ) : (
                 <>
                   <Box
@@ -528,30 +520,22 @@ export function IngredientsManagementPage({
                             },
                           }}
                         >
-                          <Box sx={{ position: 'relative' }}>
-                            <Box
-                              component="img"
-                              src={
-                                ingredient.imageUrl || coffeeIngredientsImage
-                              }
-                              alt={ingredient.name}
-                              loading="lazy"
-                              decoding="async"
-                              sx={{
-                                display: 'block',
-                                width: '100%',
-                                aspectRatio: { xs: '1 / 1', md: '4 / 3' },
-                                objectFit: 'cover',
-                                objectPosition: ingredient.imagePosition,
-                              }}
-                            />
+                          <Box
+                            sx={{
+                              position: 'relative',
+                              display: 'flex',
+                              justifyContent: 'flex-end',
+                              aspectRatio: '1 / 1',
+                              px: 1.5,
+                              pt: 1.5,
+                              bgcolor: '#f1e8de',
+                              overflow: 'hidden',
+                            }}
+                          >
                             <Chip
                               label={ingredient.status}
                               size="small"
                               sx={{
-                                position: 'absolute',
-                                top: 12,
-                                right: 12,
                                 height: 25,
                                 borderRadius: '12px',
                                 bgcolor: statusBadge.main,
@@ -559,6 +543,7 @@ export function IngredientsManagementPage({
                                 fontFamily: 'Kanit, sans-serif',
                                 fontSize: 11,
                                 fontWeight: 500,
+                                position: 'relative',
                               }}
                             />
                           </Box>
@@ -568,6 +553,7 @@ export function IngredientsManagementPage({
                               flexDirection: 'column',
                               flex: 1,
                               p: 2.5,
+                              pt: 1.25,
                             }}
                           >
                             <Typography
@@ -681,7 +667,6 @@ export function IngredientsManagementPage({
                                   variant="contained"
                                   onClick={() => {
                                     setEditingIngredient(ingredient);
-                                    setImagePreviewUrl(null);
                                     setIsAddDrawerOpen(true);
                                   }}
                                   sx={{
@@ -938,100 +923,11 @@ export function IngredientsManagementPage({
               }}
               sx={{
                 display: 'grid',
-                gridTemplateColumns: {
-                  xs: '1fr',
-                  md: 'minmax(0, 1fr) minmax(0, 2fr)',
-                },
                 gap: 2.5,
                 mt: 0,
                 '& .MuiOutlinedInput-root': { borderRadius: '12px' },
               }}
             >
-              <Box
-                component="label"
-                sx={{
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  aspectRatio: '1 / 1',
-                  p: 2,
-                  overflow: 'hidden',
-                  border: '1.5px dashed #c9b6a9',
-                  borderRadius: '16px',
-                  bgcolor: '#f7eee8',
-                  color: '#5f4b3d',
-                  cursor: 'pointer',
-                  transition:
-                    'background-color .2s ease, border-color .2s ease',
-                  '&:hover': { bgcolor: '#f1e4da', borderColor: '#805637' },
-                }}
-              >
-                {imageSource ? (
-                  <Box
-                    component="img"
-                    src={imageSource}
-                    alt="ตัวอย่างรูปวัตถุดิบ"
-                    sx={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                ) : (
-                  <>
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        placeItems: 'center',
-                        width: 44,
-                        height: 44,
-                        mb: 1,
-                        borderRadius: '50%',
-                        bgcolor: '#ead9cd',
-                        color: '#5f4030',
-                        fontSize: 28,
-                        lineHeight: 1,
-                      }}
-                    >
-                      +
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontFamily: 'Kanit, sans-serif',
-                        fontSize: 14,
-                        fontWeight: 500,
-                        textAlign: 'center',
-                      }}
-                    >
-                      เพิ่มรูปวัตถุดิบ
-                    </Typography>
-                    <Typography
-                      sx={{
-                        mt: 0.25,
-                        color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
-                        fontSize: 11,
-                        textAlign: 'center',
-                      }}
-                    >
-                      JPG, PNG ไม่เกิน 5 MB
-                    </Typography>
-                  </>
-                )}
-                <input
-                  hidden
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) setImagePreviewUrl(URL.createObjectURL(file));
-                  }}
-                />
-              </Box>
               <Box
                 sx={{
                   display: 'grid',
@@ -1294,23 +1190,6 @@ export function IngredientsManagementPage({
                     }}
                   >
                     <Box component="span">{item.name.slice(0, 1)}</Box>
-                    {item.imageUrl ? (
-                      <Box
-                        component="img"
-                        src={item.imageUrl}
-                        alt=""
-                        onError={(event) => {
-                          event.currentTarget.style.display = 'none';
-                        }}
-                        sx={{
-                          position: 'absolute',
-                          inset: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : null}
                   </Box>
                   <Box sx={{ minWidth: 0 }}>
                     <Box

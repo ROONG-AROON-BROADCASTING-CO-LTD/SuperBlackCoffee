@@ -28,12 +28,13 @@ import {
 import { ProductsSkeleton } from '../components/skeletons/ProductsSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { useAutoRetry } from '../hooks/useAutoRetry';
-import { listInventory } from '../api/inventory';
-import { listMenuItems } from '../api/menu';
-import coffeeMenuDefaultImage from '../assets/coffee.svg';
+import { listInventory, type InventoryItem } from '../api/inventory';
+import { listMenuItems, type MenuItem as ApiMenuItem } from '../api/menu';
 
 type ProductIngredient = { name: string; quantity: string };
 type Product = {
+  id: number;
+  branchCode: string;
   name: string;
   storePrice: number;
   storePriceAvailable: boolean;
@@ -72,9 +73,6 @@ const filtersForPlan = (plan?: 'S' | 'M' | 'L') =>
 
 const isCoffeeMenu = (category: string) =>
   category === 'เมนูร้อน' || category === 'เมนูกาแฟเย็น';
-const menuImageFallback = (product: Pick<Product, 'category'>) =>
-  isCoffeeMenu(product.category) ? coffeeMenuDefaultImage : undefined;
-
 const normalizeMenuCategory = (category: string, name: string) => {
   const normalizedName = name.toLocaleLowerCase('th-TH');
   const knownCategories = new Set([
@@ -153,6 +151,8 @@ export function ProductsManagementPage({
   const searchRef = useRef<SearchIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
   const branchSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const menuCacheRef = useRef(new Map<string, ApiMenuItem[]>());
+  const inventoryCacheRef = useRef(new Map<string, InventoryItem[]>());
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [filter, setFilter] = useState<ProductFilter>('ทั้งหมด');
@@ -256,7 +256,7 @@ export function ProductsManagementPage({
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
+    const refresh = reloadKey > 0;
     setLoadError(false);
     const branchCodes =
       activeBranch === 'ทุกสาขา'
@@ -267,42 +267,34 @@ export function ProductsManagementPage({
                 branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>],
             )
         : [branchCodeByBranch[activeBranch as Exclude<Branch, 'ทุกสาขา'>]];
-    Promise.allSettled([
-      Promise.all(branchCodes.map((branchCode) => listMenuItems(branchCode))),
-      Promise.all(
-        branchCodes.map((branchCode) =>
-          listInventory('ingredient', branchCode),
-        ),
-      ),
-      Promise.all(
-        branchCodes.map((branchCode) => listInventory('stock', branchCode)),
-      ),
-    ])
-      .then(([itemsResult, ingredientsResult, stockResult]) => {
-        if (!active) return;
-        if (
-          itemsResult.status === 'rejected' ||
-          ingredientsResult.status === 'rejected' ||
-          stockResult.status === 'rejected'
-        ) {
-          setLoadError(true);
-        }
-        const items =
-          itemsResult.status === 'fulfilled' ? itemsResult.value : [];
-        const ingredients =
-          ingredientsResult.status === 'fulfilled'
-            ? ingredientsResult.value
-            : [];
-        const stock =
-          stockResult.status === 'fulfilled' ? stockResult.value : [];
-        setAvailableIngredients(
-          [...ingredients.flat(), ...stock.flat()].map((item) => item.name),
+    const loadMenu = async () => {
+      try {
+        const items = await Promise.all(
+          branchCodes.map(async (branchCode) => {
+            const cached = refresh
+              ? undefined
+              : menuCacheRef.current.get(branchCode);
+            if (cached) return cached;
+            const next = await listMenuItems(branchCode);
+            menuCacheRef.current.set(branchCode, next);
+            return next;
+          }),
         );
+        if (!active) return;
         const uniqueItems = Array.from(
-          new Map(items.flat().map((item) => [item.id, item])).values(),
+          new Map(
+            items.flatMap((branchItems, branchIndex) =>
+              branchItems.map((item) => [
+                `${branchCodes[branchIndex]}:${item.id}`,
+                { item, branchCode: branchCodes[branchIndex] },
+              ]),
+            ),
+          ).values(),
         );
         setCatalogProducts(
-          uniqueItems.map((item, index) => ({
+          uniqueItems.map(({ item, branchCode }, index) => ({
+            id: item.id,
+            branchCode,
             name: item.name,
             storePrice: item.storePrice,
             storePriceAvailable: item.storePriceAvailable,
@@ -320,14 +312,49 @@ export function ProductsManagementPage({
             })),
           })),
         );
-      })
-      .finally(() => {
+      } catch {
+        if (active) setLoadError(true);
+      } finally {
         if (active) setIsLoading(false);
-      });
+      }
+    };
+
+    const loadInventoryOptions = async () => {
+      if (readOnly) return;
+      try {
+        const inventory = await Promise.all(
+          branchCodes.map(async (branchCode) => {
+            const cached = refresh
+              ? undefined
+              : inventoryCacheRef.current.get(branchCode);
+            if (cached) return cached;
+            const [ingredients, stock] = await Promise.all([
+              listInventory('ingredient', branchCode),
+              listInventory('stock', branchCode),
+            ]);
+            const next = [...ingredients, ...stock];
+            inventoryCacheRef.current.set(branchCode, next);
+            return next;
+          }),
+        );
+        if (active) {
+          setAvailableIngredients(inventory.flat().map((item) => item.name));
+        }
+      } catch {
+        if (active) setLoadError(true);
+      }
+    };
+
+    const cachedMenuIsReady = branchCodes.every((branchCode) =>
+      menuCacheRef.current.has(branchCode),
+    );
+    setIsLoading(!cachedMenuIsReady || refresh);
+    void loadMenu();
+    void loadInventoryOptions();
     return () => {
       active = false;
     };
-  }, [activeBranch, reloadKey]);
+  }, [activeBranch, readOnly, reloadKey]);
 
   return (
     <DashboardMain>
@@ -418,9 +445,17 @@ export function ProductsManagementPage({
       <Box sx={{ display: loadError ? 'none' : 'grid', gap: 4 }}>
         {displayedBranches.map((branch, index) => {
           const visible =
-            activeBranch !== 'ทุกสาขา' || visibleBranches.has(branch);
+            activeBranch !== 'ทุกสาขา' ||
+            index === 0 ||
+            visibleBranches.has(branch);
           const loaded =
             activeBranch !== 'ทุกสาขา' || loadedBranches.has(branch);
+          const branchCode =
+            branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>];
+          const branchMatches =
+            activeBranch === 'ทุกสาขา'
+              ? matches.filter((item) => item.branchCode === branchCode)
+              : matches;
           return (
             <Box
               key={branch}
@@ -461,7 +496,7 @@ export function ProductsManagementPage({
               {!visible ? (
                 <Box sx={{ minHeight: 420 }} />
               ) : isLoading || !loaded ? (
-                <ProductsSkeleton />
+                <ProductsSkeleton readOnly={readOnly} />
               ) : (
                 <Box
                   sx={{
@@ -474,12 +509,8 @@ export function ProductsManagementPage({
                     gap: '16px',
                   }}
                 >
-                  {matches.map((item, itemIndex) => {
-                    const productKey = `${branch}-${item.name}-${itemIndex}`;
-                    const imageSource =
-                      item.imageUrl || menuImageFallback(item);
-                    const isDefaultCoffeeImage =
-                      !item.imageUrl && isCoffeeMenu(item.category);
+                  {branchMatches.map((item) => {
+                    const productKey = `${branch}-${item.id}`;
                     return (
                       <Card
                         key={productKey}
@@ -501,36 +532,6 @@ export function ProductsManagementPage({
                             overflow: 'hidden',
                           }}
                         >
-                          {imageSource && (
-                            <Box
-                              component="img"
-                              src={imageSource}
-                              alt={item.name}
-                              loading="lazy"
-                              decoding="async"
-                              onError={(event) => {
-                                const fallback = menuImageFallback(item);
-                                if (fallback)
-                                  (
-                                    event.currentTarget as HTMLImageElement
-                                  ).src = fallback;
-                                else event.currentTarget.remove();
-                              }}
-                              sx={{
-                                display: 'block',
-                                boxSizing: 'border-box',
-                                position: 'absolute',
-                                inset: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: isDefaultCoffeeImage
-                                  ? 'contain'
-                                  : 'cover',
-                                objectPosition: item.position,
-                                p: isDefaultCoffeeImage ? { xs: 8, md: 10 } : 0,
-                              }}
-                            />
-                          )}
                           <Chip
                             label={item.status}
                             size="small"
@@ -972,16 +973,10 @@ export function ProductsManagementPage({
                   cursor: 'pointer',
                 }}
               >
-                {preview ||
-                editing?.imageUrl ||
-                (editing && isCoffeeMenu(editing.category)) ? (
+                {preview || editing?.imageUrl ? (
                   <Box
                     component="img"
-                    src={
-                      preview ??
-                      editing?.imageUrl ??
-                      (editing ? menuImageFallback(editing) : undefined)
-                    }
+                    src={preview ?? editing?.imageUrl}
                     alt="ตัวอย่างรูปสินค้า"
                     sx={{
                       position: 'absolute',

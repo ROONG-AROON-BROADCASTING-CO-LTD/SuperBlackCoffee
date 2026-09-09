@@ -1,16 +1,16 @@
 import { Box, Card, Skeleton } from '@mui/material';
 
-export function StockSkeleton() {
+export function StockSkeleton({ readOnly = false }: { readOnly?: boolean }) {
   return (
     <Box
       sx={{
         display: 'grid',
         gridTemplateColumns: {
           xs: '1fr',
-          sm: 'repeat(2, 1fr)',
-          md: 'repeat(4, 1fr)',
+          sm: 'repeat(2, minmax(0, 1fr))',
+          md: 'repeat(4, minmax(0, 1fr))',
         },
-        gap: 2,
+        gap: '16px',
       }}
       aria-label="กำลังโหลดสต๊อก"
     >
@@ -19,26 +19,54 @@ export function StockSkeleton() {
           key={i}
           variant="outlined"
           sx={{
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'hidden',
             borderRadius: '15px',
             borderColor: '#e8ddd5',
           }}
         >
-          <Skeleton variant="rectangular" height={170} />
-          <Box sx={{ p: 2.25 }}>
-            <Skeleton variant="rounded" width="68%" height={20} />
+          <Box
+            sx={{
+              position: 'relative',
+              aspectRatio: '1 / 1',
+              bgcolor: '#f1e8de',
+            }}
+          >
             <Skeleton
               variant="rounded"
-              width="48%"
-              height={14}
-              sx={{ mt: 1 }}
+              width={70}
+              height={25}
+              sx={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                borderRadius: '12px',
+              }}
             />
+          </Box>
+          <Box
+            sx={{ display: 'flex', flexDirection: 'column', flex: 1, p: 2.5 }}
+          >
+            <Skeleton variant="rounded" width="62%" height={23} />
             <Skeleton
               variant="rounded"
-              width="100%"
-              height={32}
-              sx={{ mt: 2 }}
+              width="88%"
+              height={17}
+              sx={{ mt: 0.6 }}
             />
+            {!readOnly ? (
+              <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 2 }}>
+                <Skeleton
+                  variant="rounded"
+                  sx={{ flex: 1, height: 34, borderRadius: '10px' }}
+                />
+                <Skeleton
+                  variant="rounded"
+                  sx={{ flex: 1, height: 34, borderRadius: '10px' }}
+                />
+              </Box>
+            ) : null}
           </Box>
         </Card>
       ))}

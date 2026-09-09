@@ -17,7 +17,6 @@ import {
   PlusIcon,
   SearchIcon,
   XIcon,
-  coffeeIngredientsImage,
   type IngredientStatus,
   type PlusIconHandle,
   type SearchIconHandle,
@@ -38,6 +37,7 @@ type StockItem = {
   amount: string;
   status: IngredientStatus;
   position: string;
+  imageUrl: string;
 };
 type InventoryBranch = Exclude<Branch, 'ทุกสาขา'>;
 
@@ -80,8 +80,7 @@ export function StockManagementPage({
   const displayedBranches =
     activeBranch === 'ทุกสาขา' ? branches.slice(1) : [activeBranch];
   const drawerTitle = editingItem ? 'แก้ไขสต๊อก' : 'เพิ่มสต๊อก';
-  const imageSource =
-    imagePreviewUrl ?? (editingItem ? coffeeIngredientsImage : null);
+  const imageSource = imagePreviewUrl ?? editingItem?.imageUrl ?? null;
 
   useEffect(
     () => () => {
@@ -91,6 +90,7 @@ export function StockManagementPage({
   );
   useEffect(() => {
     let active = true;
+    const loadingStartedAt = performance.now();
     setIsLoading(true);
     setLoadError(false);
     const branchNames: InventoryBranch[] =
@@ -113,6 +113,7 @@ export function StockManagementPage({
                 ? 'วัตถุดิบใกล้หมด'
                 : 'พร้อมใช้') as IngredientStatus,
             position: `${12 + ((index * 21) % 76)}% ${24 + ((index * 17) % 64)}%`,
+            imageUrl: item.imageUrl,
           })),
         ] as const;
       }),
@@ -130,7 +131,13 @@ export function StockManagementPage({
         }
       })
       .finally(() => {
-        if (active) setIsLoading(false);
+        const remainingSkeletonTime = Math.max(
+          0,
+          180 - (performance.now() - loadingStartedAt),
+        );
+        window.setTimeout(() => {
+          if (active) setIsLoading(false);
+        }, remainingSkeletonTime);
       });
     return () => {
       active = false;
@@ -270,7 +277,7 @@ export function StockManagementPage({
                 </Typography>
               )}
               {isLoading ? (
-                <StockSkeleton />
+                <StockSkeleton readOnly={readOnly} />
               ) : (
                 <Box
                   sx={{
@@ -299,21 +306,14 @@ export function StockManagementPage({
                           borderColor: '#e8ddd5',
                         }}
                       >
-                        <Box sx={{ position: 'relative' }}>
-                          <Box
-                            component="img"
-                            src={coffeeIngredientsImage}
-                            alt={item.name}
-                            loading="lazy"
-                            decoding="async"
-                            sx={{
-                              display: 'block',
-                              width: '100%',
-                              aspectRatio: { xs: '1 / 1', md: '4 / 3' },
-                              objectFit: 'cover',
-                              objectPosition: item.position,
-                            }}
-                          />
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            aspectRatio: '1 / 1',
+                            bgcolor: '#f1e8de',
+                            overflow: 'hidden',
+                          }}
+                        >
                           <Chip
                             label={item.status}
                             size="small"
