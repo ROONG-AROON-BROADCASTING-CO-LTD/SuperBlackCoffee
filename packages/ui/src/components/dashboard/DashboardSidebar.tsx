@@ -11,6 +11,7 @@ import {
   Box,
   Button,
   Drawer,
+  Fade,
   List,
   ListItemButton,
   ListItemIcon,
@@ -74,8 +75,9 @@ export function DashboardSidebar({
   const [expandedContentVisible, setExpandedContentVisible] =
     useState(!collapsed);
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
+  const [hoverCardMenu, setHoverCardMenu] = useState<string | null>(null);
+  const [hoverCardVisible, setHoverCardVisible] = useState(false);
   const [hoverAnchor, setHoverAnchor] = useState<HTMLElement | null>(null);
-  const [hoverAnchorWidth, setHoverAnchorWidth] = useState(0);
   const [hoverAnchorPosition, setHoverAnchorPosition] = useState({
     left: 0,
     top: 0,
@@ -120,13 +122,12 @@ export function DashboardSidebar({
 
   const clearHoveredMenu = () => {
     setHoveredMenu(null);
+    setHoverCardVisible(false);
     setHoverAnchor(null);
-    setHoverAnchorWidth(0);
-    setHoverAnchorPosition({ left: 0, top: 0 });
   };
 
   const hoveredNavigation = navigation.find(
-    (item) => item.label === hoveredMenu,
+    (item) => item.label === hoverCardMenu,
   );
 
   const scheduleHoverClear = () => {
@@ -362,8 +363,9 @@ export function DashboardSidebar({
                 if (collapsed && sidebarRect && sidebarRect.width > 128) return;
 
                 setHoveredMenu(label);
+                setHoverCardMenu(label);
+                setHoverCardVisible(true);
                 setHoverAnchor(event.currentTarget);
-                setHoverAnchorWidth(anchorRect.width);
                 setHoverAnchorPosition({
                   left: sidebarRect ? anchorRect.left - sidebarRect.left : 0,
                   top: sidebarRect ? anchorRect.top - sidebarRect.top : 0,
@@ -532,10 +534,15 @@ export function DashboardSidebar({
           </Box>
         ))}
       </List>
-      {collapsed &&
-        hoveredMenu !== null &&
-        hoveredMenu !== activePage &&
-        Boolean(hoverAnchor) && (
+      {collapsed && hoverCardMenu !== null && Boolean(hoverAnchor) && (
+        <Fade
+          in={hoverCardVisible && hoverCardMenu !== activePage}
+          timeout={{ enter: 140, exit: 100 }}
+          onExited={() => {
+            setHoverCardMenu(null);
+            setHoverAnchorPosition({ left: 0, top: 0 });
+          }}
+        >
           <Box
             data-sbc-sidebar-hover-card="true"
             onMouseEnter={() => window.clearTimeout(hoverTimerRef.current)}
@@ -549,12 +556,19 @@ export function DashboardSidebar({
             }}
             onClick={navigateHoveredMenu}
             sx={{
-              width: hoverAnchorWidth + 152,
+              // The hover label always belongs to the compact rail. Using the
+              // source row's measured width here made the route-driven
+              // collapse reuse a transient 230px measurement, unlike a
+              // manual collapse where the row already measures 96px.
+              width: width + 152,
               height: 48,
               position: 'absolute',
               left: hoverAnchorPosition.left,
               top: hoverAnchorPosition.top,
-              zIndex: 3,
+              // Admin's attached branch panel sits at z-index 1201. Keep the
+              // collapsed-menu label above it, matching the unobstructed
+              // Franchise sidebar rather than letting the panel cut the label.
+              zIndex: 1202,
               display: 'flex',
               alignItems: 'center',
               bgcolor: selectedColor,
@@ -596,10 +610,11 @@ export function DashboardSidebar({
                 color: 'inherit',
               }}
             >
-              {hoveredMenu}
+              {hoverCardMenu}
             </Typography>
           </Box>
-        )}
+        </Fade>
+      )}
       <Box
         sx={{
           mt: 'auto',

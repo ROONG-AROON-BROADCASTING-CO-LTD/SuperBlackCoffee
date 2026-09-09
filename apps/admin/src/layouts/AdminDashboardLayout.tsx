@@ -32,6 +32,8 @@ export function AdminDashboardLayout({
   secondarySidebarVisible?: boolean;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Match Franchise's sidebar state flow: route-driven compact pages and a
+  // user-triggered collapse both feed the same shared sidebar transition.
   const primarySidebarCollapsed = forceSidebarCollapsed || sidebarCollapsed;
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
