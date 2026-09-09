@@ -1,4 +1,4 @@
-import { secured } from './client';
+import { secured, securedBlob } from './client';
 
 export type ManagedAttendance = {
   id: number;
@@ -14,10 +14,21 @@ export type ManagedAttendance = {
 export type ManagedLeaveRequest = {
   id: number;
   name: string;
+  employeeCode?: string;
+  position?: string;
   branchName: string;
   leaveDate: string;
-  leaveType: 'sick' | 'personal' | 'other';
+  leaveEndDate?: string;
+  leaveType: 'sick' | 'personal' | 'vacation' | 'other';
   reason: string;
+  contactPhone?: string;
+  additionalDetails?: string;
+  attachments?: Array<{
+    id: number;
+    name: string;
+    contentType: string;
+    sizeBytes: number;
+  }>;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   approvedAt?: string | null;
@@ -30,6 +41,17 @@ export const listManagedAttendance = (month: string) =>
 
 export const listManagedLeaveRequests = () =>
   secured<ManagedLeaveRequest[]>('/attendance/leave-requests');
+
+export const getManagedLeaveRequestAttachment = (
+  leaveRequestID: number,
+  attachmentID: number,
+) =>
+  securedBlob(
+    `/attendance/leave-requests/${leaveRequestID}/attachments/${attachmentID}/content`,
+  );
+
+export const getManagedLeaveRequestPdf = (leaveRequestID: number) =>
+  securedBlob(`/attendance/leave-requests/${leaveRequestID}/manager-pdf`);
 
 export const updateManagedLeaveRequest = (
   id: number,

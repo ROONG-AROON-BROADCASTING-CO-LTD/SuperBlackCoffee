@@ -50,3 +50,22 @@ export async function secured<T>(
     throw new Error(messageFrom(error));
   }
 }
+
+export async function securedBlob(path: string): Promise<Blob> {
+  try {
+    const response = await apiClient.request<Blob>({
+      url: path,
+      responseType: 'blob',
+      headers: platformSessionRole
+        ? { 'X-SBC-Session-Role': platformSessionRole }
+        : undefined,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      window.dispatchEvent(new Event('sbc:session-expired'));
+      throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+    }
+    throw new Error('ไม่สามารถเปิดไฟล์แนบได้');
+  }
+}

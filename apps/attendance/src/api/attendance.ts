@@ -1,4 +1,4 @@
-import { publicRequest, secured } from './client';
+import { publicRequest, secured, securedBlob } from './client';
 
 export type AttendanceSession = {
   user: {
@@ -80,10 +80,63 @@ export const checkOut = () =>
 
 export const createLeaveRequest = (input: {
   leaveDate: string;
-  leaveType: 'sick' | 'personal' | 'other';
+  leaveEndDate: string;
+  leaveType: 'sick' | 'personal' | 'vacation' | 'other';
   reason: string;
-}) =>
-  secured<{ id: number; status: string }>('/attendance/leave-requests', {
+  contactPhone: string;
+  additionalDetails: string;
+  attachments?: File[];
+}) => {
+  if (!input.attachments?.length) {
+    return secured<{ id: number; status: string }>(
+      '/attendance/leave-requests',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    );
+  }
+  const formData = new FormData();
+  formData.set('leaveDate', input.leaveDate);
+  formData.set('leaveEndDate', input.leaveEndDate);
+  formData.set('leaveType', input.leaveType);
+  formData.set('reason', input.reason);
+  formData.set('contactPhone', input.contactPhone);
+  formData.set('additionalDetails', input.additionalDetails);
+  input.attachments.forEach((file) => formData.append('attachments', file));
+  return secured<{ id: number; status: string }>('/attendance/leave-requests', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: formData,
   });
+};
+
+export type LeaveRequestAttachment = {
+  id: number;
+  name: string;
+  contentType: string;
+  sizeBytes: number;
+};
+
+export type MyLeaveRequest = {
+  id: number;
+  leaveDate: string;
+  leaveEndDate: string;
+  leaveType: 'sick' | 'personal' | 'vacation' | 'other';
+  reason: string;
+  contactPhone: string;
+  additionalDetails: string;
+  attachments: LeaveRequestAttachment[];
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+};
+
+export const listMyLeaveRequests = () =>
+  secured<MyLeaveRequest[]>('/attendance/leave-requests/mine');
+
+export const cancelLeaveRequest = (id: number) =>
+  secured<{ id: number }>(`/attendance/leave-requests/${id}`, {
+    method: 'DELETE',
+  });
+
+export const getLeaveRequestPdf = (id: number) =>
+  securedBlob(`/attendance/leave-requests/${id}/pdf`);

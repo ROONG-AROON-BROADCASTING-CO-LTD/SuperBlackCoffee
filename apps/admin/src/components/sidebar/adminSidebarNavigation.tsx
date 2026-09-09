@@ -2,6 +2,8 @@ import {
   BoxIcon,
   BoxesIcon,
   ClockIcon,
+  FilePenLineIcon,
+  HistoryIcon,
   LayoutGridIcon,
   MapPinHouseIcon,
   MapPinPlusIcon,
@@ -32,10 +34,10 @@ export const adminSidebarNavigation = [
   },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
   { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
-  { label: 'คำขอลาพนักงาน', icon: <ReceiptTextIcon />, group: 'บุคลากร' },
+  { label: 'คำขอลาพนักงาน', icon: <FilePenLineIcon />, group: 'บุคลากร' },
   {
     label: 'ประวัติการทำรายการ',
-    icon: <ReceiptTextIcon />,
+    icon: <HistoryIcon />,
     group: 'ติดตามและตรวจสอบ',
   },
 ];

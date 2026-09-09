@@ -301,10 +301,12 @@ export default function App() {
             onAttendanceAction={toggleAttendance}
             onLeaveSuccess={async (input) => {
               try {
-                await createLeaveRequest(input);
+                const created = await createLeaveRequest(input);
                 setNotice('ส่งคำขอลาเรียบร้อยแล้ว');
+                return created;
               } catch {
                 // The leave form remains open so the employee can try again.
+                throw new Error('ไม่สามารถส่งคำขอลาได้');
               }
             }}
             history={history}

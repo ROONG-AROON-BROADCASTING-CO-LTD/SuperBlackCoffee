@@ -15,7 +15,7 @@ export class ApiRequestError extends Error {
 async function request<T>(path: string, options: RequestInit = {}) {
   try {
     const headers = new Headers(options.headers);
-    if (!headers.has('Content-Type')) {
+    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
     }
     const response = await fetch(`${API_URL}${path}`, {
@@ -43,4 +43,19 @@ export const publicRequest = request;
 
 export function secured<T>(path: string, options: RequestInit = {}) {
   return request<T>(path, options);
+}
+
+export async function securedBlob(path: string) {
+  const response = await fetch(`${API_URL}${path}`, { credentials: 'include' });
+  if (!response.ok) {
+    let message = 'ไม่สามารถเปิดเอกสารใบลาได้';
+    try {
+      const payload = (await response.json()) as ApiEnvelope<never>;
+      message = payload.message ?? message;
+    } catch {
+      // Keep the staff-facing error message for non-JSON proxy responses.
+    }
+    throw new ApiRequestError(message, response.status);
+  }
+  return response.blob();
 }

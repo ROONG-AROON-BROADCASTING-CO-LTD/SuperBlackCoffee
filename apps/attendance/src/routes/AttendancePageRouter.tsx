@@ -52,9 +52,13 @@ type AttendancePageRouterProps = {
   onAttendanceAction: () => void;
   onLeaveSuccess: (input: {
     leaveDate: string;
-    leaveType: 'sick' | 'personal' | 'other';
+    leaveEndDate: string;
+    leaveType: 'sick' | 'personal' | 'vacation' | 'other';
     reason: string;
-  }) => Promise<void>;
+    contactPhone: string;
+    additionalDetails: string;
+    attachments: File[];
+  }) => Promise<{ id: number; status: string }>;
   history: AttendanceHistoryItem[];
   summary: AttendanceSummary | null;
   isInitialLoading: boolean;

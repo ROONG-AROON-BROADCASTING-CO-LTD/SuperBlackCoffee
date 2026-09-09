@@ -1,9 +1,14 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -311,16 +316,53 @@ func (h *PlatformHandler) CreateLeaveRequest(c *gin.Context) {
 		return
 	}
 	var input struct {
-		LeaveDate string `json:"leaveDate" binding:"required"`
-		LeaveType string `json:"leaveType" binding:"required"`
-		Reason    string `json:"reason" binding:"required"`
+		LeaveDate         string `json:"leaveDate" binding:"required"`
+		LeaveEndDate      string `json:"leaveEndDate" binding:"required"`
+		LeaveType         string `json:"leaveType" binding:"required"`
+		Reason            string `json:"reason" binding:"required"`
+		ContactPhone      string `json:"contactPhone"`
+		AdditionalDetails string `json:"additionalDetails"`
 	}
-	if c.ShouldBindJSON(&input) != nil || strings.TrimSpace(input.Reason) == "" || (input.LeaveType != "sick" && input.LeaveType != "personal" && input.LeaveType != "other") {
+	var attachmentHeaders []*multipart.FileHeader
+	if strings.HasPrefix(c.ContentType(), "multipart/form-data") {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 26<<20)
+		if err := c.Request.ParseMultipartForm(26 << 20); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไฟล์แนบมีขนาดใหญ่เกินกำหนด"})
+			return
+		}
+		input.LeaveDate = c.PostForm("leaveDate")
+		input.LeaveEndDate = c.PostForm("leaveEndDate")
+		input.LeaveType = c.PostForm("leaveType")
+		input.Reason = c.PostForm("reason")
+		input.ContactPhone = c.PostForm("contactPhone")
+		input.AdditionalDetails = c.PostForm("additionalDetails")
+		form, formErr := c.MultipartForm()
+		if formErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่สามารถอ่านไฟล์แนบได้"})
+			return
+		}
+		attachmentHeaders = form.File["attachments"]
+	} else if c.ShouldBindJSON(&input) != nil {
 		c.JSON(400, gin.H{"success": false, "message": "ข้อมูลคำขอลาไม่ถูกต้อง"})
 		return
 	}
-	if _, err := time.Parse("2006-01-02", input.LeaveDate); err != nil {
+	if strings.TrimSpace(input.Reason) == "" || (input.LeaveType != "sick" && input.LeaveType != "personal" && input.LeaveType != "vacation" && input.LeaveType != "other") {
+		c.JSON(400, gin.H{"success": false, "message": "ข้อมูลคำขอลาไม่ถูกต้อง"})
+		return
+	}
+	attachments, err := readLeaveRequestAttachments(attachmentHeaders)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	startDate, err := time.Parse("2006-01-02", input.LeaveDate)
+	if err != nil {
 		c.JSON(400, gin.H{"success": false, "message": "วันที่ลาไม่ถูกต้อง"})
+		return
+	}
+	endDate, err := time.Parse("2006-01-02", input.LeaveEndDate)
+	if err != nil || endDate.Before(startDate) || endDate.Sub(startDate).Hours() > 31*24 {
+		c.JSON(400, gin.H{"success": false, "message": "ช่วงวันลาไม่ถูกต้อง"})
 		return
 	}
 	if input.LeaveDate < attendanceToday().Format("2006-01-02") {
@@ -328,7 +370,7 @@ func (h *PlatformHandler) CreateLeaveRequest(c *gin.Context) {
 		return
 	}
 	var exists bool
-	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM staff_leave_requests WHERE user_id=$1 AND leave_date=$2 AND status IN ('pending','approved'))`, claims.UserID, input.LeaveDate).Scan(&exists); err != nil {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM staff_leave_requests WHERE user_id=$1 AND leave_date <= $3 AND COALESCE(leave_end_date,leave_date) >= $2 AND status IN ('pending','approved'))`, claims.UserID, input.LeaveDate, input.LeaveEndDate).Scan(&exists); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบคำขอลาได้"})
 		return
 	}
@@ -336,13 +378,211 @@ func (h *PlatformHandler) CreateLeaveRequest(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "มีคำขอลาสำหรับวันนี้อยู่แล้ว"})
 		return
 	}
-	var id int64
-	err := h.db.QueryRowContext(c.Request.Context(), `INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES($1,$2,$3,$4,$5) RETURNING id`, claims.UserID, claims.BranchID, input.LeaveDate, input.LeaveType, strings.TrimSpace(input.Reason)).Scan(&id)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถส่งคำขอลาได้"})
 		return
 	}
+	defer tx.Rollback()
+	var id int64
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_end_date,leave_type,reason,contact_phone,additional_details) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, claims.UserID, claims.BranchID, input.LeaveDate, input.LeaveEndDate, input.LeaveType, strings.TrimSpace(input.Reason), strings.TrimSpace(input.ContactPhone), strings.TrimSpace(input.AdditionalDetails)).Scan(&id)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถส่งคำขอลาได้"})
+		return
+	}
+	for _, attachment := range attachments {
+		if _, err := tx.ExecContext(c.Request.Context(), `INSERT INTO staff_leave_request_attachments(leave_request_id,original_name,content_type,size_bytes,content) VALUES($1,$2,$3,$4,$5)`, id, attachment.name, attachment.contentType, len(attachment.content), attachment.content); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกไฟล์แนบได้"})
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถส่งคำขอลาได้"})
+		return
+	}
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id, "status": "pending"}})
+}
+
+type leaveRequestAttachment struct {
+	name        string
+	contentType string
+	content     []byte
+}
+
+func readLeaveRequestAttachments(headers []*multipart.FileHeader) ([]leaveRequestAttachment, error) {
+	if len(headers) > 5 {
+		return nil, fmt.Errorf("แนบเอกสารได้สูงสุด 5 ไฟล์")
+	}
+	attachments := make([]leaveRequestAttachment, 0, len(headers))
+	allowedTypes := map[string]bool{"image/jpeg": true, "image/png": true, "image/webp": true, "application/pdf": true}
+	for _, header := range headers {
+		if header.Size <= 0 || header.Size > 5<<20 {
+			return nil, fmt.Errorf("ไฟล์แนบแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB")
+		}
+		file, err := header.Open()
+		if err != nil {
+			return nil, fmt.Errorf("ไม่สามารถอ่านไฟล์แนบได้")
+		}
+		content, readErr := io.ReadAll(io.LimitReader(file, 5<<20+1))
+		file.Close()
+		if readErr != nil || len(content) == 0 || len(content) > 5<<20 {
+			return nil, fmt.Errorf("ไฟล์แนบแต่ละไฟล์ต้องมีขนาดไม่เกิน 5 MB")
+		}
+		contentType := http.DetectContentType(content)
+		if !allowedTypes[contentType] {
+			return nil, fmt.Errorf("รองรับเฉพาะไฟล์ JPG, PNG, WEBP และ PDF")
+		}
+		name := filepath.Base(strings.TrimSpace(header.Filename))
+		if name == "." || name == "" || len([]rune(name)) > 160 {
+			return nil, fmt.Errorf("ชื่อไฟล์แนบไม่ถูกต้อง")
+		}
+		attachments = append(attachments, leaveRequestAttachment{name: name, contentType: contentType, content: content})
+	}
+	return attachments, nil
+}
+
+func (h *PlatformHandler) ListMyLeaveRequests(c *gin.Context) {
+	claims, ok := attendanceClaims(c)
+	if !ok {
+		return
+	}
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,leave_date::text,COALESCE(leave_end_date,leave_date)::text,leave_type,reason,contact_phone,additional_details,status,created_at FROM staff_leave_requests WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30`, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านคำขอลาได้"})
+		return
+	}
+	defer rows.Close()
+	attachmentsByRequest := map[int64][]gin.H{}
+	attachmentRows, err := h.db.QueryContext(c.Request.Context(), `SELECT a.leave_request_id,a.id,a.original_name,a.content_type,a.size_bytes FROM staff_leave_request_attachments a JOIN staff_leave_requests l ON l.id=a.leave_request_id WHERE l.user_id=$1 ORDER BY a.id`, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านไฟล์แนบคำขอลาได้"})
+		return
+	}
+	defer attachmentRows.Close()
+	for attachmentRows.Next() {
+		var requestID, attachmentID int64
+		var name, contentType string
+		var sizeBytes int
+		if err := attachmentRows.Scan(&requestID, &attachmentID, &name, &contentType, &sizeBytes); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านไฟล์แนบคำขอลาได้"})
+			return
+		}
+		attachmentsByRequest[requestID] = append(attachmentsByRequest[requestID], gin.H{"id": attachmentID, "name": name, "contentType": contentType, "sizeBytes": sizeBytes})
+	}
+	items := []gin.H{}
+	for rows.Next() {
+		var id int64
+		var leaveDate, leaveEndDate, leaveType, reason, contactPhone, additionalDetails, status string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &leaveDate, &leaveEndDate, &leaveType, &reason, &contactPhone, &additionalDetails, &status, &createdAt); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านคำขอลาได้"})
+			return
+		}
+		items = append(items, gin.H{"id": id, "leaveDate": leaveDate, "leaveEndDate": leaveEndDate, "leaveType": leaveType, "reason": reason, "contactPhone": contactPhone, "additionalDetails": additionalDetails, "attachments": attachmentsByRequest[id], "status": status, "createdAt": createdAt})
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+}
+
+// DeleteMyLeaveRequest cancels a pending request. The attachment foreign key
+// cascades, so cancelling also removes every document the employee attached.
+func (h *PlatformHandler) DeleteMyLeaveRequest(c *gin.Context) {
+	claims, ok := attendanceClaims(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสคำขอลาไม่ถูกต้อง"})
+		return
+	}
+	result, err := h.db.ExecContext(c.Request.Context(), `DELETE FROM staff_leave_requests WHERE id=$1 AND user_id=$2 AND status='pending'`, id, claims.UserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถยกเลิกคำขอลาได้"})
+		return
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil || deleted == 0 {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ยกเลิกได้เฉพาะคำขอที่รอพิจารณา"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
+}
+
+func (h *PlatformHandler) DownloadMyLeaveRequestAttachment(c *gin.Context) {
+	claims, ok := attendanceClaims(c)
+	if !ok {
+		return
+	}
+	requestID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	attachmentID, attachmentErr := strconv.ParseInt(c.Param("attachmentId"), 10, 64)
+	if err != nil || attachmentErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสไฟล์แนบไม่ถูกต้อง"})
+		return
+	}
+	var name, contentType string
+	var content []byte
+	err = h.db.QueryRowContext(c.Request.Context(), `SELECT a.original_name,a.content_type,a.content FROM staff_leave_request_attachments a JOIN staff_leave_requests l ON l.id=a.leave_request_id WHERE a.id=$1 AND a.leave_request_id=$2 AND l.user_id=$3`, attachmentID, requestID, claims.UserID).Scan(&name, &contentType, &content)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบไฟล์แนบ"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปิดไฟล์แนบได้"})
+		return
+	}
+	c.Header("Content-Disposition", `inline; filename="`+strings.ReplaceAll(name, `"`, "'")+`"`)
+	c.Data(http.StatusOK, contentType, content)
+}
+
+func (h *PlatformHandler) DownloadLeaveRequestPDF(c *gin.Context) {
+	claims, ok := attendanceClaims(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสคำขอลาไม่ถูกต้อง"})
+		return
+	}
+	var data leaveRequestPDFData
+	err = h.db.QueryRowContext(c.Request.Context(), `SELECT l.id,l.created_at,u.name,COALESCE(u.username,''),u.role,b.name,l.leave_type,l.leave_date,COALESCE(l.leave_end_date,l.leave_date),l.contact_phone,l.reason,l.additional_details,l.status FROM staff_leave_requests l JOIN users u ON u.id=l.user_id JOIN branches b ON b.id=l.branch_id WHERE l.id=$1 AND l.user_id=$2`, id, claims.UserID).Scan(&data.ID, &data.SubmittedAt, &data.Name, &data.EmployeeCode, &data.Position, &data.BranchName, &data.LeaveType, &data.LeaveDate, &data.LeaveEndDate, &data.ContactPhone, &data.Reason, &data.AdditionalDetails, &data.Status)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบคำขอลา"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างเอกสารใบลาได้"})
+		return
+	}
+	attachments, err := h.leaveRequestImageAttachments(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านเอกสารแนบใบลาได้"})
+		return
+	}
+	pdf, err := leaveRequestPDF(data, attachments...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างเอกสารใบลาได้"})
+		return
+	}
+	c.Header("Content-Disposition", `inline; filename="leave-request-`+strconv.FormatInt(id, 10)+`.pdf"`)
+	c.Data(http.StatusOK, "application/pdf", pdf)
+}
+
+func (h *PlatformHandler) leaveRequestImageAttachments(ctx context.Context, leaveRequestID int64) ([]leaveRequestPDFAttachment, error) {
+	rows, err := h.db.QueryContext(ctx, `SELECT original_name,content_type,content FROM staff_leave_request_attachments WHERE leave_request_id=$1 AND content_type IN ('image/jpeg','image/png') ORDER BY id`, leaveRequestID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	attachments := []leaveRequestPDFAttachment{}
+	for rows.Next() {
+		var attachment leaveRequestPDFAttachment
+		if err := rows.Scan(&attachment.Name, &attachment.ContentType, &attachment.Content); err != nil {
+			return nil, err
+		}
+		attachments = append(attachments, attachment)
+	}
+	return attachments, rows.Err()
 }
 
 func attendanceManagementScope(c *gin.Context) (string, []any, bool) {
@@ -404,7 +644,7 @@ func (h *PlatformHandler) ListLeaveRequests(c *gin.Context) {
 	if !ok {
 		return
 	}
-	query := `SELECT l.id,u.name,b.name,l.leave_date::text,l.leave_type,l.reason,l.status,l.created_at,l.approved_at,COALESCE(approver.name,''),l.decision_note
+	query := `SELECT l.id,u.name,COALESCE(u.username,''),u.role,b.name,l.leave_date::text,COALESCE(l.leave_end_date,l.leave_date)::text,l.leave_type,l.reason,COALESCE(l.contact_phone,''),COALESCE(l.additional_details,''),l.status,l.created_at,l.approved_at,COALESCE(approver.name,''),COALESCE(l.decision_note,'')
 		FROM staff_leave_requests l JOIN users u ON u.id=l.user_id JOIN branches b ON b.id=l.branch_id
 		LEFT JOIN users approver ON approver.id=l.approved_by
 		WHERE ` + scope + ` ORDER BY l.leave_date DESC,l.created_at DESC LIMIT 100`
@@ -414,20 +654,104 @@ func (h *PlatformHandler) ListLeaveRequests(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
+	attachmentsByRequest := map[int64][]gin.H{}
+	attachmentRows, err := h.db.QueryContext(c.Request.Context(), `SELECT a.leave_request_id,a.id,a.original_name,a.content_type,a.size_bytes FROM staff_leave_request_attachments a JOIN staff_leave_requests l ON l.id=a.leave_request_id JOIN users u ON u.id=l.user_id JOIN branches b ON b.id=l.branch_id WHERE `+scope+` ORDER BY a.id`, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านไฟล์แนบคำขอลาได้"})
+		return
+	}
+	defer attachmentRows.Close()
+	for attachmentRows.Next() {
+		var requestID, attachmentID int64
+		var name, contentType string
+		var sizeBytes int
+		if err := attachmentRows.Scan(&requestID, &attachmentID, &name, &contentType, &sizeBytes); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านไฟล์แนบคำขอลาได้"})
+			return
+		}
+		attachmentsByRequest[requestID] = append(attachmentsByRequest[requestID], gin.H{"id": attachmentID, "name": name, "contentType": contentType, "sizeBytes": sizeBytes})
+	}
 	items := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var name, branchName, date, leaveType, reason, status string
+		var name, employeeCode, position, branchName, date, endDate, leaveType, reason, contactPhone, additionalDetails, status string
 		var createdAt time.Time
 		var approvedAt *time.Time
 		var approvedBy, decisionNote string
-		if err := rows.Scan(&id, &name, &branchName, &date, &leaveType, &reason, &status, &createdAt, &approvedAt, &approvedBy, &decisionNote); err != nil {
+		if err := rows.Scan(&id, &name, &employeeCode, &position, &branchName, &date, &endDate, &leaveType, &reason, &contactPhone, &additionalDetails, &status, &createdAt, &approvedAt, &approvedBy, &decisionNote); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านคำขอลาได้"})
 			return
 		}
-		items = append(items, gin.H{"id": id, "name": name, "branchName": branchName, "leaveDate": date, "leaveType": leaveType, "reason": reason, "status": status, "createdAt": createdAt, "approvedAt": approvedAt, "approvedBy": approvedBy, "decisionNote": decisionNote})
+		items = append(items, gin.H{"id": id, "name": name, "employeeCode": employeeCode, "position": position, "branchName": branchName, "leaveDate": date, "leaveEndDate": endDate, "leaveType": leaveType, "reason": reason, "contactPhone": contactPhone, "additionalDetails": additionalDetails, "attachments": attachmentsByRequest[id], "status": status, "createdAt": createdAt, "approvedAt": approvedAt, "approvedBy": approvedBy, "decisionNote": decisionNote})
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+}
+
+func (h *PlatformHandler) DownloadManagedLeaveRequestAttachment(c *gin.Context) {
+	scope, args, ok := attendanceManagementScope(c)
+	if !ok {
+		return
+	}
+	requestID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	attachmentID, attachmentErr := strconv.ParseInt(c.Param("attachmentId"), 10, 64)
+	if err != nil || attachmentErr != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสไฟล์แนบไม่ถูกต้อง"})
+		return
+	}
+	attachmentPlaceholder := len(args) + 1
+	requestPlaceholder := attachmentPlaceholder + 1
+	args = append(args, attachmentID, requestID)
+	var name, contentType string
+	var content []byte
+	query := `SELECT a.original_name,a.content_type,a.content FROM staff_leave_request_attachments a JOIN staff_leave_requests l ON l.id=a.leave_request_id JOIN users u ON u.id=l.user_id JOIN branches b ON b.id=l.branch_id WHERE ` + scope + ` AND a.id=$` + strconv.Itoa(attachmentPlaceholder) + ` AND l.id=$` + strconv.Itoa(requestPlaceholder)
+	err = h.db.QueryRowContext(c.Request.Context(), query, args...).Scan(&name, &contentType, &content)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบไฟล์แนบ"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปิดไฟล์แนบได้"})
+		return
+	}
+	c.Header("Content-Disposition", `inline; filename="`+strings.ReplaceAll(name, `"`, "'")+`"`)
+	c.Data(http.StatusOK, contentType, content)
+}
+
+func (h *PlatformHandler) DownloadManagedLeaveRequestPDF(c *gin.Context) {
+	scope, args, ok := attendanceManagementScope(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสคำขอลาไม่ถูกต้อง"})
+		return
+	}
+	args = append(args, id)
+	idPlaceholder := len(args)
+	var data leaveRequestPDFData
+	query := `SELECT l.id,l.created_at,u.name,COALESCE(u.username,''),u.role,b.name,l.leave_type,l.leave_date,COALESCE(l.leave_end_date,l.leave_date),l.contact_phone,l.reason,l.additional_details,l.status FROM staff_leave_requests l JOIN users u ON u.id=l.user_id JOIN branches b ON b.id=l.branch_id WHERE ` + scope + ` AND l.id=$` + strconv.Itoa(idPlaceholder)
+	err = h.db.QueryRowContext(c.Request.Context(), query, args...).Scan(&data.ID, &data.SubmittedAt, &data.Name, &data.EmployeeCode, &data.Position, &data.BranchName, &data.LeaveType, &data.LeaveDate, &data.LeaveEndDate, &data.ContactPhone, &data.Reason, &data.AdditionalDetails, &data.Status)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบคำขอลา"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างเอกสารใบลาได้"})
+		return
+	}
+	attachments, err := h.leaveRequestImageAttachments(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านเอกสารแนบใบลาได้"})
+		return
+	}
+	pdf, err := leaveRequestPDF(data, attachments...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างเอกสารใบลาได้"})
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="leave-request-`+strconv.FormatInt(id, 10)+`.pdf"`)
+	c.Data(http.StatusOK, "application/pdf", pdf)
 }
 
 func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
@@ -456,12 +780,12 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	query := `UPDATE staff_leave_requests l SET status=$` + strconv.Itoa(placeholder) + `,approved_by=$` + strconv.Itoa(placeholder+1) + `,approved_at=now(),decision_note=$` + strconv.Itoa(placeholder+2) + `,updated_at=now()
-		FROM users u JOIN branches b ON b.id=u.branch_id WHERE l.id=$` + strconv.Itoa(placeholder+3) + ` AND l.status='pending' AND u.id=l.user_id AND ` + scope + ` RETURNING l.user_id,l.branch_id,l.leave_date::text,l.leave_type`
+		FROM users u JOIN branches b ON b.id=u.branch_id WHERE l.id=$` + strconv.Itoa(placeholder+3) + ` AND l.status='pending' AND u.id=l.user_id AND ` + scope + ` RETURNING l.user_id,l.branch_id,l.leave_date::text,COALESCE(l.leave_end_date,l.leave_date)::text,l.leave_type`
 	claims := middleware.ClaimsFrom(c)
 	args = append(args, input.Status, claims.UserID, strings.TrimSpace(input.DecisionNote), requestID)
 	var userID, branchID int64
-	var leaveDate, leaveType string
-	if err := tx.QueryRowContext(c.Request.Context(), query, args...).Scan(&userID, &branchID, &leaveDate, &leaveType); err == sql.ErrNoRows {
+	var leaveDate, leaveEndDate, leaveType string
+	if err := tx.QueryRowContext(c.Request.Context(), query, args...).Scan(&userID, &branchID, &leaveDate, &leaveEndDate, &leaveType); err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบคำขอลาในขอบเขตที่ดูแล"})
 		return
 	} else if err != nil {
@@ -470,14 +794,15 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 	}
 	if input.Status == "approved" {
 		shiftStatus := "leave"
-		if leaveType == "sick" {
+		switch leaveType {
+		case "sick":
 			shiftStatus = "sick_leave"
-		} else if leaveType == "personal" {
+		case "personal":
 			shiftStatus = "personal_leave"
 		}
 		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
-			SELECT u.id,u.branch_id,$3,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),$4,$5 FROM users u WHERE u.id=$1 AND u.branch_id=$2
-			ON CONFLICT (user_id,shift_date) DO UPDATE SET status=EXCLUDED.status,leave_type=EXCLUDED.leave_type`, userID, branchID, leaveDate, shiftStatus, leaveType)
+			SELECT u.id,u.branch_id,dates.shift_date,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),$5,$6 FROM users u CROSS JOIN LATERAL generate_series($3::date,$4::date,interval '1 day') AS dates(shift_date) WHERE u.id=$1 AND u.branch_id=$2
+			ON CONFLICT (user_id,shift_date) DO UPDATE SET status=EXCLUDED.status,leave_type=EXCLUDED.leave_type`, userID, branchID, leaveDate, leaveEndDate, shiftStatus, leaveType)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอัปเดตตารางกะจากคำขอลาได้"})
 			return

@@ -23,6 +23,14 @@ export { BadgeAlertIcon } from './components/icons/BadgeAlertIcon';
 export { CircleCheckIcon } from './components/icons/CircleCheckIcon';
 export { ReceiptIcon } from './components/icons/ReceiptIcon';
 export {
+  FilePenLineIcon,
+  type FilePenLineIconHandle,
+} from './components/icons/FilePenLineIcon';
+export {
+  HistoryIcon,
+  type HistoryIconHandle,
+} from './components/icons/HistoryIcon';
+export {
   ReceiptTextIcon,
   type ReceiptTextIconHandle,
 } from './components/icons/ReceiptTextIcon';

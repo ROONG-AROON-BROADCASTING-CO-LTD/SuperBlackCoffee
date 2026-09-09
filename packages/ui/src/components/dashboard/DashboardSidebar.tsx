@@ -74,6 +74,12 @@ export function DashboardSidebar({
   const [expandedContentVisible, setExpandedContentVisible] =
     useState(!collapsed);
   const [hoveredMenu, setHoveredMenu] = useState<string | null>(null);
+  const [hoverAnchor, setHoverAnchor] = useState<HTMLElement | null>(null);
+  const [hoverAnchorWidth, setHoverAnchorWidth] = useState(0);
+  const [hoverAnchorPosition, setHoverAnchorPosition] = useState({
+    left: 0,
+    top: 0,
+  });
   const [clickedMenu, setClickedMenu] = useState<string | null>(null);
   const hoverTimerRef = useRef<number | undefined>(undefined);
   const [, setScrollbarThumb] = useState({
@@ -112,11 +118,47 @@ export function DashboardSidebar({
     });
   };
 
+  const clearHoveredMenu = () => {
+    setHoveredMenu(null);
+    setHoverAnchor(null);
+    setHoverAnchorWidth(0);
+    setHoverAnchorPosition({ left: 0, top: 0 });
+  };
+
+  const hoveredNavigation = navigation.find(
+    (item) => item.label === hoveredMenu,
+  );
+
+  const scheduleHoverClear = () => {
+    // Keep the shared hover state alive while the pointer crosses from the
+    // sidebar button into the portalled label; this prevents a visible flash.
+    hoverTimerRef.current = window.setTimeout(clearHoveredMenu, 220);
+  };
+
+  const isInsideHoverCard = (target: EventTarget | null) =>
+    target instanceof Element &&
+    target.closest('[data-sbc-sidebar-hover-card="true"]') !== null;
+
+  const navigateHoveredMenu = () => {
+    if (!hoveredMenu) return;
+    setClickedMenu(hoveredMenu);
+    window.setTimeout(() => setClickedMenu(null), 350);
+    onNavigate(hoveredMenu);
+    clearHoveredMenu();
+  };
+
   useEffect(() => {
     updateScrollbarThumb();
     window.addEventListener('resize', updateScrollbarThumb);
     return () => window.removeEventListener('resize', updateScrollbarThumb);
   }, [collapsed, navigation.length]);
+
+  useEffect(() => {
+    // A page can force the sidebar into its compact layout after navigation.
+    // Do not reuse an expanded row as the Popper anchor in that new layout.
+    window.clearTimeout(hoverTimerRef.current);
+    clearHoveredMenu();
+  }, [collapsed]);
 
   useLayoutEffect(() => {
     if (collapsed) {
@@ -243,7 +285,12 @@ export function DashboardSidebar({
       </Box>
       <List
         ref={navigationListRef}
-        onScroll={updateScrollbarThumb}
+        onScroll={() => {
+          // A scroll changes the row's viewport coordinates. Hide the label
+          // instead of leaving it at a stale position until the next hover.
+          clearHoveredMenu();
+          updateScrollbarThumb();
+        }}
         sx={{
           flex: 1,
           minHeight: 0,
@@ -297,23 +344,45 @@ export function DashboardSidebar({
               onClick={() => {
                 setClickedMenu(label);
                 window.setTimeout(() => setClickedMenu(null), 350);
+                // Prevent an expanded row's hover anchor from leaking into a
+                // route that immediately forces the sidebar to collapse.
+                clearHoveredMenu();
                 onNavigate(label);
               }}
-              onMouseEnter={() => {
+              onMouseEnter={(event) => {
                 window.clearTimeout(hoverTimerRef.current);
+                const anchorRect = event.currentTarget.getBoundingClientRect();
+                const sidebarRect = event.currentTarget
+                  .closest('.MuiDrawer-paper')
+                  ?.getBoundingClientRect();
+
+                // When navigation forces the sidebar to collapse, the pointer
+                // can briefly re-enter a row that still has the old 230px
+                // layout. Never use that stale row as a compact Popper anchor.
+                if (collapsed && sidebarRect && sidebarRect.width > 128) return;
+
                 setHoveredMenu(label);
+                setHoverAnchor(event.currentTarget);
+                setHoverAnchorWidth(anchorRect.width);
+                setHoverAnchorPosition({
+                  left: sidebarRect ? anchorRect.left - sidebarRect.left : 0,
+                  top: sidebarRect ? anchorRect.top - sidebarRect.top : 0,
+                });
               }}
-              onMouseLeave={() => {
-                hoverTimerRef.current = window.setTimeout(
-                  () => setHoveredMenu(null),
-                  350,
-                );
+              onMouseLeave={(event) => {
+                // The label card is rendered in a portal, so treat it as the
+                // same hover surface as its source row. Without this check,
+                // moving from the icon into the label schedules a close before
+                // the card can take over and creates the visible flash.
+                if (!isInsideHoverCard(event.relatedTarget)) {
+                  scheduleHoverClear();
+                }
               }}
               sx={{
                 minHeight: 48,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 position: 'relative',
-                transition: 'none',
+                transition: 'background-color .18s ease',
                 borderRadius: '12px',
                 // The selected final item has curved pseudo-elements below it.
                 // Reserve that space only for the final row so it renders the
@@ -321,38 +390,71 @@ export function DashboardSidebar({
                 mb: index === navigation.length - 1 ? 2 : 0.5,
                 '&.Mui-selected': disableActiveConnection
                   ? {
-                      bgcolor: activeBackground,
+                      bgcolor: 'transparent !important',
                       color: '#171411',
-                      borderRadius: '12px 0 0 12px',
+                      borderRadius: 0,
+                      overflow: 'visible',
                       mr: 0,
                     }
                   : collapsed
                     ? {
-                        bgcolor: activeBackground,
+                        bgcolor: 'transparent !important',
                         color: '#171411',
-                        borderRadius: '16px 0 0 16px',
+                        borderRadius: 0,
+                        overflow: 'visible',
                         mr: 0,
                         width: 'calc(100% + 1px)',
                         position: 'relative',
                         zIndex: 1,
                       }
                     : {
-                        bgcolor: activeBackground,
+                        bgcolor: 'transparent !important',
                         color: '#171411',
-                        borderRadius: '16px 0 0 16px',
+                        borderRadius: 0,
+                        overflow: 'visible',
                         mr: 0,
                         width: 'calc(100% + 1px)',
                         position: 'relative',
                         zIndex: 1,
                       },
-                '&.Mui-selected:hover': { bgcolor: activeBackground },
-                '&:not(.Mui-selected):hover': {
-                  bgcolor: selectedColor,
-                  borderRadius: '16px 0 0 16px !important',
-                  width: 'calc(100% - 8px)',
-                  position: 'relative',
-                  zIndex: 2,
+                '&.Mui-selected:hover': {
+                  bgcolor: 'transparent !important',
                 },
+                // Keep the active surface independent from ListItemButton's
+                // built-in radius. The route fallback briefly reapplies that
+                // radius, so the connected edge used to turn round on click.
+                '&.Mui-selected::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  right: -1,
+                  bottom: 0,
+                  left: 0,
+                  bgcolor: activeBackground,
+                  borderRadius: '16px 0 0 16px',
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                },
+                '&.Mui-selected .MuiListItemIcon-root': {
+                  position: 'absolute',
+                  zIndex: 1,
+                },
+                '&.Mui-selected .MuiListItemText-root': {
+                  position: 'relative',
+                  zIndex: 1,
+                },
+                '&:not(.Mui-selected):hover': collapsed
+                  ? {
+                      bgcolor: 'transparent',
+                      width: '100%',
+                      position: 'relative',
+                      zIndex: 2,
+                    }
+                  : {
+                      bgcolor: selectedColor,
+                      width: '100%',
+                      borderRadius: '16px',
+                    },
               }}
             >
               <ListItemIcon
@@ -369,7 +471,9 @@ export function DashboardSidebar({
               >
                 {isValidElement(icon)
                   ? cloneElement(icon as ReactElement<{ animate?: boolean }>, {
-                      animate: hoveredMenu === label || clickedMenu === label,
+                      animate:
+                        (!collapsed && hoveredMenu === label) ||
+                        clickedMenu === label,
                     })
                   : icon}
               </ListItemIcon>
@@ -428,6 +532,74 @@ export function DashboardSidebar({
           </Box>
         ))}
       </List>
+      {collapsed &&
+        hoveredMenu !== null &&
+        hoveredMenu !== activePage &&
+        Boolean(hoverAnchor) && (
+          <Box
+            data-sbc-sidebar-hover-card="true"
+            onMouseEnter={() => window.clearTimeout(hoverTimerRef.current)}
+            onMouseLeave={(event) => {
+              const relatedTarget = event.relatedTarget;
+              const isBackOnAnchor =
+                relatedTarget instanceof Node &&
+                Boolean(hoverAnchor?.contains(relatedTarget));
+
+              if (!isBackOnAnchor) scheduleHoverClear();
+            }}
+            onClick={navigateHoveredMenu}
+            sx={{
+              width: hoverAnchorWidth + 152,
+              height: 48,
+              position: 'absolute',
+              left: hoverAnchorPosition.left,
+              top: hoverAnchorPosition.top,
+              zIndex: 3,
+              display: 'flex',
+              alignItems: 'center',
+              bgcolor: selectedColor,
+              color: '#fff',
+              borderRadius: '16px',
+              fontSize: 14,
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              boxSizing: 'border-box',
+              cursor: 'pointer',
+            }}
+          >
+            <Box
+              sx={{
+                // Match the original sidebar icon rail (left: 0, width: 64),
+                // rather than centering the replacement icon in the full row.
+                width: 64,
+                minWidth: 64,
+                display: 'grid',
+                placeItems: 'center',
+                lineHeight: 0,
+              }}
+            >
+              {isValidElement(hoveredNavigation?.icon)
+                ? cloneElement(
+                    hoveredNavigation.icon as ReactElement<{
+                      animate?: boolean;
+                    }>,
+                    { animate: false },
+                  )
+                : hoveredNavigation?.icon}
+            </Box>
+            <Typography
+              sx={{
+                ml: -1,
+                px: 1,
+                fontSize: 14,
+                fontWeight: 500,
+                color: 'inherit',
+              }}
+            >
+              {hoveredMenu}
+            </Typography>
+          </Box>
+        )}
       <Box
         sx={{
           mt: 'auto',
