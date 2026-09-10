@@ -79,6 +79,16 @@ describe('admin API client', () => {
     ).rejects.toThrow('เข้าสู่ระบบไม่สำเร็จ');
   });
 
+  it('preserves an API failure message returned in a successful HTTP response', async () => {
+    mocks.request.mockResolvedValueOnce({
+      data: { success: false, message: 'ข้อมูลสาขาไม่พร้อมใช้งาน' },
+    });
+
+    await expect(secured('/branches')).rejects.toThrow(
+      'ข้อมูลสาขาไม่พร้อมใช้งาน',
+    );
+  });
+
   it('ends only the admin session by identifying its platform role', async () => {
     mocks.request.mockResolvedValueOnce({ data: { success: true } });
 

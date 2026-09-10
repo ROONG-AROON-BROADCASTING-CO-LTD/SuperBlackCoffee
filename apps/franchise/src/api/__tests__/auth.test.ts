@@ -68,4 +68,20 @@ describe('franchise auth API', () => {
       }),
     );
   });
+
+  it('keeps a server authorization failure visible to the franchise user', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: false,
+          message: 'บัญชีนี้ไม่มีสิทธิ์ใช้งาน',
+        }),
+        { status: 403 },
+      ),
+    );
+
+    await expect(login('owner', 'wrong-password')).rejects.toThrow(
+      'บัญชีนี้ไม่มีสิทธิ์ใช้งาน',
+    );
+  });
 });

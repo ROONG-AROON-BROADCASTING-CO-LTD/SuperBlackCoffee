@@ -6,6 +6,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cancelLeaveRequest, listMyLeaveRequests } from '../../api/attendance';
 import { AttendanceLeaveRequestPage } from '../AttendanceLeaveRequestPage';
 
 vi.mock('../../api/attendance', () => ({
@@ -85,5 +86,42 @@ describe('AttendanceLeaveRequestPage', () => {
       delete (HTMLInputElement.prototype as { showPicker?: unknown })
         .showPicker;
     }
+  });
+
+  it('moves the end date to the next calendar day across a year boundary', () => {
+    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('ตั้งแต่วันที่'), {
+      target: { value: '2026-12-31' },
+    });
+
+    expect((screen.getByLabelText('ถึงวันที่') as HTMLInputElement).value).toBe(
+      '2027-01-01',
+    );
+  });
+
+  it('confirms cancellation, deletes the request, and removes it from history', async () => {
+    vi.mocked(listMyLeaveRequests).mockResolvedValueOnce([
+      {
+        id: 44,
+        leaveDate: '2026-09-09',
+        leaveEndDate: '2026-09-10',
+        leaveType: 'sick',
+        reason: 'ป่วย',
+        contactPhone: '',
+        additionalDetails: '',
+        attachments: [],
+        status: 'pending',
+        createdAt: '2026-09-01T00:00:00Z',
+      },
+    ]);
+    vi.mocked(cancelLeaveRequest).mockResolvedValueOnce({ id: 44 });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    await screen.findByText('2026-09-09 ถึง 2026-09-10');
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }));
+
+    await waitFor(() => expect(cancelLeaveRequest).toHaveBeenCalledWith(44));
+    expect(screen.queryByText('2026-09-09 ถึง 2026-09-10')).toBeNull();
   });
 });

@@ -211,7 +211,11 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 			t.Fatalf("อ่านโควตาวันหยุดของ %d: %v", userID, err)
 		}
 		if monthlyDaysOff != 4 || totalDaysOff != 5 {
-			t.Fatalf("พนักงาน %d ได้วันหยุดรายเดือน=%d รวม=%d, ต้องการ 4 และ 5 (รวมวันนักขัตฤกษ์)", userID, monthlyDaysOff, totalDaysOff)
+			var generatedRows int
+			if err := db.QueryRow(`SELECT COUNT(*) FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-12-01' AND shift_date < '2100-01-01'`, userID).Scan(&generatedRows); err != nil {
+				t.Fatalf("อ่านจำนวนกะของ %d: %v", userID, err)
+			}
+			t.Fatalf("พนักงาน %d ได้กะ=%d วันหยุดรายเดือน=%d รวม=%d, ต้องการ 31, 4 และ 5 (รวมวันนักขัตฤกษ์)", userID, generatedRows, monthlyDaysOff, totalDaysOff)
 		}
 	}
 	var sharedMonthlyDayOffs int
