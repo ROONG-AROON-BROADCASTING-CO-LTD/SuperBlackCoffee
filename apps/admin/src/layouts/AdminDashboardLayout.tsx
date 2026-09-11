@@ -4,6 +4,7 @@ import { Box } from '@mui/material';
 import { DashboardSidebar, DashboardTopbar } from '@stackbuild/ui';
 
 type NavigationItem = {
+  id?: string;
   label: string;
   icon: ReactNode;
   badge?: number;
@@ -12,6 +13,7 @@ type NavigationItem = {
 
 export function AdminDashboardLayout({
   activePage,
+  activeNavigationKey = activePage,
   navigation,
   onNavigate,
   onLogout,
@@ -22,6 +24,7 @@ export function AdminDashboardLayout({
   secondarySidebarVisible = false,
 }: {
   activePage: string;
+  activeNavigationKey?: string;
   navigation: NavigationItem[];
   onNavigate: (page: string) => void;
   onLogout: () => void;
@@ -38,7 +41,7 @@ export function AdminDashboardLayout({
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <DashboardSidebar
-        activePage={activePage}
+        activePage={activeNavigationKey}
         navigation={navigation}
         onNavigate={onNavigate}
         onLogout={onLogout}

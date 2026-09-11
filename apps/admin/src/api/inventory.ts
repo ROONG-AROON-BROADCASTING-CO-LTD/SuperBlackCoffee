@@ -11,6 +11,8 @@ export type InventoryItem = {
   unitCost: number;
   status: 'ready' | 'low' | 'out';
   imageUrl: string;
+  expiryDate?: string | null;
+  expiryStatus?: 'none' | 'expiring_soon' | 'expired';
 };
 export type InventoryInput = {
   name: string;
@@ -20,6 +22,7 @@ export type InventoryInput = {
   unit: string;
   reorderLevel: number;
   unitCost: number;
+  expiryDate: string | null;
 };
 export const listInventory = (
   kind: 'ingredient' | 'stock',

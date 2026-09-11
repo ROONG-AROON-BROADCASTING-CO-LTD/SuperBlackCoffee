@@ -5,6 +5,7 @@ export type BranchSales = {
   id: number;
   name: string;
   code: string;
+  size: 'S' | 'M' | 'L';
   status: 'active' | 'inactive' | 'maintenance';
   sales: number;
   orders: number;

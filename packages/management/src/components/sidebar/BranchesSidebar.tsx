@@ -14,16 +14,24 @@ export const branchCodeByBranch: Record<Exclude<Branch, 'ทุกสาขา'>
   พิษณุโลก: 'SBC-PLK-001',
 };
 
+export type BranchCodeMap = Record<string, string>;
+export type BranchSidebarGroup = {
+  label?: string;
+  branches: readonly string[];
+};
+
 export function BranchesSidebar({
   activeBranch,
   onBranchChange,
   branchOptions = branches,
+  branchGroups,
   allBranchLabel = 'ทุกสาขา',
   visible = true,
 }: {
-  activeBranch: Branch;
-  onBranchChange: (branch: Branch) => void;
+  activeBranch: string;
+  onBranchChange: (branch: string) => void;
   branchOptions?: readonly string[];
+  branchGroups?: readonly BranchSidebarGroup[];
   allBranchLabel?: string;
   visible?: boolean;
 }) {
@@ -73,39 +81,63 @@ export function BranchesSidebar({
       }}
     >
       <List disablePadding>
-        {branchOptions.map((branch) => (
-          <ListItemButton
-            key={branch}
-            selected={branch === activeBranch}
-            onClick={() => onBranchChange(branch as Branch)}
-            sx={{
-              minHeight: 42,
-              mb: 0.5,
-              borderRadius: '10px',
-              fontFamily: 'Kanit, sans-serif',
-              '&.Mui-selected': {
-                bgcolor: '#201914',
-                color: '#fff',
-                '&:hover': { bgcolor: '#3c2d24' },
-              },
-              '&:hover': { bgcolor: '#f1e7df' },
-            }}
-          >
-            <ListItemText
-              primary={
+        {(branchGroups ?? [{ branches: branchOptions }]).map(
+          (group, groupIndex) => (
+            <Box
+              key={group.label ?? `branch-group-${groupIndex}`}
+              sx={{ mb: groupIndex === 0 ? 1.25 : 0 }}
+            >
+              {group.label ? (
                 <Typography
                   sx={{
+                    px: 1.25,
+                    pb: 0.5,
+                    color: '#7b6a5e',
                     fontFamily: 'Kanit, sans-serif',
-                    fontSize: 13,
-                    fontWeight: 500,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: 0.2,
                   }}
                 >
-                  {branch === 'ทุกสาขา' ? allBranchLabel : branch}
+                  {group.label}
                 </Typography>
-              }
-            />
-          </ListItemButton>
-        ))}
+              ) : null}
+              {group.branches.map((branch) => (
+                <ListItemButton
+                  key={branch}
+                  selected={branch === activeBranch}
+                  onClick={() => onBranchChange(branch)}
+                  sx={{
+                    minHeight: 42,
+                    mb: 0.5,
+                    borderRadius: '10px',
+                    fontFamily: 'Kanit, sans-serif',
+                    '&.Mui-selected': {
+                      bgcolor: '#201914',
+                      color: '#fff',
+                      '&:hover': { bgcolor: '#3c2d24' },
+                    },
+                    '&:hover': { bgcolor: '#f1e7df' },
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography
+                        sx={{
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 13,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {branch === 'ทุกสาขา' ? allBranchLabel : branch}
+                      </Typography>
+                    }
+                  />
+                </ListItemButton>
+              ))}
+            </Box>
+          ),
+        )}
       </List>
     </Box>
   );

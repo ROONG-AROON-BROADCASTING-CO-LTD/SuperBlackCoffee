@@ -1,4 +1,11 @@
-import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import {
+  type FormEvent,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -31,33 +38,72 @@ import {
 import {
   branchCodeByBranch,
   branches,
-  type Branch,
+  type BranchCodeMap,
 } from '../components/sidebar/BranchesSidebar';
 import { IngredientsSkeleton } from '../components/skeletons/IngredientsSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { useAutoRetry } from '../hooks/useAutoRetry';
-import { listInventory } from '../api/inventory';
+import {
+  createInventory,
+  deleteInventory,
+  listInventory,
+  updateInventory,
+  type InventoryInput,
+} from '../api/inventory';
 import { createStockRequest } from '../api/stock-requests';
 
 type Ingredient = {
   id: number;
   name: string;
+  category: string;
   quantity: number;
   unit: string;
+  reorderLevel: number;
   unitCost: number;
   status: IngredientStatus;
   imageUrl: string;
+  expiryDate: string | null;
+  expiryStatus: 'none' | 'expiring_soon' | 'expired';
 };
 type IngredientCartItem = Ingredient & { key: string; quantityToOrder: number };
-type InventoryBranch = Exclude<Branch, 'ทุกสาขา'>;
+type InventoryBranch = string;
 
 const filters = [
   'ทั้งหมด',
   'วัตถุดิบใกล้หมด',
   'วัตถุดิบหมด',
   'วัตถุดิบค้างสต๊อก',
+  'ใกล้หมดอายุ',
+  'หมดอายุ',
 ] as const;
 type IngredientFilter = (typeof filters)[number];
+
+const expiryBadge = {
+  expiring_soon: {
+    label: 'ใกล้หมดอายุ',
+    color: '#9a5a10',
+    background: '#fff0d8',
+  },
+  expired: { label: 'หมดอายุแล้ว', color: '#b42318', background: '#fde8e7' },
+} as const;
+
+function formatExpiryDate(expiryDate: string | null) {
+  if (!expiryDate) return null;
+  const parsed = new Date(
+    expiryDate.length === 10 ? `${expiryDate}T00:00:00Z` : expiryDate,
+  );
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(parsed);
+}
+
+function inputDateValue(expiryDate: string | null) {
+  return expiryDate?.slice(0, 10) ?? '';
+}
 
 export function IngredientsManagementPage({
   activeBranch,
@@ -65,12 +111,16 @@ export function IngredientsManagementPage({
   readOnly = false,
   allowOrdering = false,
   onRequestCreated,
+  branchOptions = branches,
+  branchCodes = branchCodeByBranch,
 }: {
-  activeBranch: Branch;
+  activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
   readOnly?: boolean;
   allowOrdering?: boolean;
   onRequestCreated?: () => void;
+  branchOptions?: readonly string[];
+  branchCodes?: BranchCodeMap;
 }) {
   const plusIconRef = useRef<PlusIconHandle>(null);
   const searchIconRef = useRef<SearchIconHandle>(null);
@@ -84,6 +134,9 @@ export function IngredientsManagementPage({
   const [editingIngredient, setEditingIngredient] = useState<Ingredient | null>(
     null,
   );
+  const [editingBranch, setEditingBranch] = useState<InventoryBranch | null>(
+    null,
+  );
   const [catalogIngredientsByBranch, setCatalogIngredientsByBranch] = useState<
     Record<string, Ingredient[]>
   >({});
@@ -91,6 +144,11 @@ export function IngredientsManagementPage({
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
+  const [inventoryNotice, setInventoryNotice] = useState<{
+    severity: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [isSavingInventory, setIsSavingInventory] = useState(false);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<IngredientCartItem[]>([]);
@@ -120,13 +178,21 @@ export function IngredientsManagementPage({
     () => new Set(),
   );
   const branchSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const availableBranchNames = useMemo(
+    () => branchOptions.filter((branch) => branch !== 'ทุกสาขา'),
+    [branchOptions],
+  );
   const filterIngredients = (items: Ingredient[]) =>
     items.filter((ingredient) => {
       const matchesQuery = ingredient.name
         .toLowerCase()
         .includes(deferredQuery.trim().toLowerCase());
       const matchesFilter =
-        filter === 'ทั้งหมด' || ingredient.status === filter;
+        filter === 'ทั้งหมด' ||
+        ingredient.status === filter ||
+        (filter === 'ใกล้หมดอายุ' &&
+          ingredient.expiryStatus === 'expiring_soon') ||
+        (filter === 'หมดอายุ' && ingredient.expiryStatus === 'expired');
       return matchesQuery && matchesFilter;
     });
   useEffect(() => {
@@ -134,24 +200,19 @@ export function IngredientsManagementPage({
     setIsLoading(true);
     setLoadError(false);
     const branchNames: InventoryBranch[] =
-      activeBranch === 'ทุกสาขา'
-        ? branches.filter(
-            (branch): branch is InventoryBranch => branch !== 'ทุกสาขา',
-          )
-        : [activeBranch];
+      activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
     void Promise.all(
       branchNames.map(async (branch) => {
-        const items = await listInventory(
-          'ingredient',
-          branchCodeByBranch[branch],
-        );
+        const items = await listInventory('ingredient', branchCodes[branch]);
         return [
           branch,
           items.map((item) => ({
             id: item.id,
             name: item.name,
+            category: item.category,
             quantity: item.quantity,
             unit: item.unit,
+            reorderLevel: item.reorderLevel,
             unitCost: item.unitCost,
             status: (item.status === 'out'
               ? 'วัตถุดิบหมด'
@@ -159,6 +220,8 @@ export function IngredientsManagementPage({
                 ? 'วัตถุดิบใกล้หมด'
                 : 'พร้อมใช้') as IngredientStatus,
             imageUrl: item.imageUrl,
+            expiryDate: item.expiryDate ?? null,
+            expiryStatus: item.expiryStatus ?? 'none',
           })),
         ] as const;
       }),
@@ -181,7 +244,7 @@ export function IngredientsManagementPage({
     return () => {
       active = false;
     };
-  }, [activeBranch, reloadKey]);
+  }, [activeBranch, availableBranchNames, branchCodes, reloadKey]);
   useEffect(() => {
     if (activeBranch !== 'ทุกสาขา') {
       setVisibleBranchNames(new Set([activeBranch]));
@@ -208,7 +271,7 @@ export function IngredientsManagementPage({
                   setLoadedBranchNames((names) =>
                     names.has(branch) ? names : new Set(names).add(branch),
                   ),
-                branch === branches[1] ? 360 : 220,
+                branch === availableBranchNames[0] ? 360 : 220,
               ),
             );
         });
@@ -222,9 +285,9 @@ export function IngredientsManagementPage({
       observer.disconnect();
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [activeBranch]);
+  }, [activeBranch, availableBranchNames]);
   const displayedBranches =
-    activeBranch === 'ทุกสาขา' ? branches.slice(1) : [activeBranch];
+    activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
   const drawerTitle = editingIngredient ? 'แก้ไขวัตถุดิบ' : 'เพิ่มวัตถุดิบ';
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantityToOrder,
@@ -254,6 +317,71 @@ export function IngredientsManagementPage({
             item.key === key ? { ...item, quantityToOrder } : item,
           ),
     );
+
+  const saveIngredient = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const branch =
+      activeBranch === 'ทุกสาขา'
+        ? (String(formData.get('branch')) as InventoryBranch)
+        : (editingBranch ?? activeBranch);
+    const expiryDate = String(formData.get('expiryDate') ?? '').trim();
+    const data: InventoryInput = {
+      name: String(formData.get('name') ?? '').trim(),
+      category: String(formData.get('category') ?? 'other'),
+      kind: 'ingredient',
+      quantity: Number(formData.get('quantity') ?? 0),
+      unit: String(formData.get('unit') ?? ''),
+      reorderLevel: Number(formData.get('reorderLevel') ?? 0),
+      unitCost: Number(formData.get('unitCost') ?? 0),
+      expiryDate: expiryDate || null,
+    };
+    if (!data.name || !data.unit || Number.isNaN(data.quantity)) return;
+    setIsSavingInventory(true);
+    try {
+      if (editingIngredient) {
+        await updateInventory(editingIngredient.id, data, branchCodes[branch]);
+      } else {
+        await createInventory(data, branchCodes[branch]);
+      }
+      setIsAddDrawerOpen(false);
+      setEditingIngredient(null);
+      setEditingBranch(null);
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({
+        severity: 'success',
+        message: editingIngredient ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่มวัตถุดิบแล้ว',
+      });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error ? error.message : 'บันทึกวัตถุดิบไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingInventory(false);
+    }
+  };
+
+  const removeIngredient = async (
+    ingredient: Ingredient,
+    branch: InventoryBranch,
+  ) => {
+    setDeleteTargetKey(null);
+    setIsSavingInventory(true);
+    try {
+      await deleteInventory(ingredient.id, branchCodes[branch]);
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({ severity: 'success', message: 'ลบวัตถุดิบแล้ว' });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message: error instanceof Error ? error.message : 'ลบวัตถุดิบไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingInventory(false);
+    }
+  };
 
   return (
     <DashboardMain>
@@ -379,6 +507,11 @@ export function IngredientsManagementPage({
             startIcon={<PlusIcon ref={plusIconRef} size={16} />}
             onClick={() => {
               setEditingIngredient(null);
+              setEditingBranch(
+                activeBranch === 'ทุกสาขา'
+                  ? availableBranchNames[0]
+                  : activeBranch,
+              );
               setIsAddDrawerOpen(true);
             }}
             onMouseEnter={() => plusIconRef.current?.startAnimation()}
@@ -525,6 +658,7 @@ export function IngredientsManagementPage({
                               position: 'relative',
                               display: 'flex',
                               justifyContent: 'flex-end',
+                              gap: 0.75,
                               aspectRatio: '1 / 1',
                               px: 1.5,
                               pt: 1.5,
@@ -546,6 +680,27 @@ export function IngredientsManagementPage({
                                 position: 'relative',
                               }}
                             />
+                            {ingredient.expiryStatus !== 'none' ? (
+                              <Chip
+                                label={
+                                  expiryBadge[ingredient.expiryStatus].label
+                                }
+                                size="small"
+                                sx={{
+                                  height: 25,
+                                  borderRadius: '12px',
+                                  bgcolor:
+                                    expiryBadge[ingredient.expiryStatus]
+                                      .background,
+                                  color:
+                                    expiryBadge[ingredient.expiryStatus].color,
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  position: 'relative',
+                                }}
+                              />
+                            ) : null}
                           </Box>
                           <Box
                             sx={{
@@ -617,6 +772,34 @@ export function IngredientsManagementPage({
                                   {ingredient.unit}
                                 </Box>
                               </Typography>
+                              <Typography
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  px: 1,
+                                  py: 0.45,
+                                  color:
+                                    ingredient.expiryStatus === 'expired'
+                                      ? '#b42318'
+                                      : ingredient.expiryStatus ===
+                                          'expiring_soon'
+                                        ? '#9a5a10'
+                                        : '#5f4b3d',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                วันหมดอายุ
+                                <Box
+                                  component="span"
+                                  sx={{ fontWeight: 700, lineHeight: 1 }}
+                                >
+                                  {formatExpiryDate(ingredient.expiryDate) ??
+                                    'ไม่ระบุ'}
+                                </Box>
+                              </Typography>
                             </Box>
                             {allowOrdering ? (
                               <Box
@@ -667,6 +850,7 @@ export function IngredientsManagementPage({
                                   variant="contained"
                                   onClick={() => {
                                     setEditingIngredient(ingredient);
+                                    setEditingBranch(branch as InventoryBranch);
                                     setIsAddDrawerOpen(true);
                                   }}
                                   sx={{
@@ -765,7 +949,13 @@ export function IngredientsManagementPage({
                                   fullWidth
                                   variant="contained"
                                   color="error"
-                                  onClick={() => setDeleteTargetKey(null)}
+                                  disabled={isSavingInventory}
+                                  onClick={() =>
+                                    void removeIngredient(
+                                      ingredient,
+                                      branch as InventoryBranch,
+                                    )
+                                  }
                                   sx={{
                                     minHeight: 38,
                                     borderRadius: '10px',
@@ -916,11 +1106,11 @@ export function IngredientsManagementPage({
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
           >
             <Box
+              key={
+                editingIngredient?.id ?? `new-${editingBranch ?? activeBranch}`
+              }
               component="form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setIsAddDrawerOpen(false);
-              }}
+              onSubmit={(event) => void saveIngredient(event)}
               sx={{
                 display: 'grid',
                 gap: 2.5,
@@ -941,6 +1131,7 @@ export function IngredientsManagementPage({
                 <TextField
                   required
                   fullWidth
+                  name="name"
                   label="ชื่อวัตถุดิบ"
                   placeholder="เช่น เมล็ดกาแฟคั่วกลาง"
                   defaultValue={editingIngredient?.name}
@@ -950,12 +1141,10 @@ export function IngredientsManagementPage({
                   required
                   select
                   fullWidth
+                  name="category"
                   label="หมวดหมู่"
-                  defaultValue=""
+                  defaultValue={editingIngredient?.category ?? 'other'}
                 >
-                  <MenuItem value="" disabled>
-                    เลือกหมวดหมู่
-                  </MenuItem>
                   <MenuItem value="coffee">เมล็ดกาแฟ</MenuItem>
                   <MenuItem value="milk">นมและครีม</MenuItem>
                   <MenuItem value="syrup">ไซรัปและผงชง</MenuItem>
@@ -963,6 +1152,8 @@ export function IngredientsManagementPage({
                 </TextField>
                 <TextField
                   fullWidth
+                  required
+                  name="quantity"
                   label="จำนวนคงเหลือ"
                   type="number"
                   defaultValue={editingIngredient?.quantity}
@@ -972,8 +1163,9 @@ export function IngredientsManagementPage({
                   required
                   select
                   fullWidth
+                  name="unit"
                   label="หน่วย"
-                  defaultValue="kg"
+                  defaultValue={editingIngredient?.unit ?? 'kg'}
                 >
                   <MenuItem value="kg">กิโลกรัม</MenuItem>
                   <MenuItem value="liter">ลิตร</MenuItem>
@@ -982,16 +1174,48 @@ export function IngredientsManagementPage({
                 </TextField>
                 <TextField
                   fullWidth
+                  name="reorderLevel"
                   label="แจ้งเตือนเมื่อคงเหลือ"
                   type="number"
+                  defaultValue={editingIngredient?.reorderLevel ?? 0}
                   slotProps={{ htmlInput: { min: 0 } }}
                 />
                 <TextField
                   fullWidth
-                  label="หมายเหตุ"
-                  placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"
-                  sx={{ gridColumn: { sm: '1 / -1' } }}
+                  required
+                  name="unitCost"
+                  label="ต้นทุนต่อหน่วย"
+                  type="number"
+                  defaultValue={editingIngredient?.unitCost ?? 0}
+                  slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
                 />
+                <TextField
+                  fullWidth
+                  name="expiryDate"
+                  label="วันหมดอายุ"
+                  type="date"
+                  defaultValue={inputDateValue(
+                    editingIngredient?.expiryDate ?? null,
+                  )}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText="เว้นว่างได้หากวัตถุดิบไม่มีวันหมดอายุ"
+                />
+                {activeBranch === 'ทุกสาขา' && !editingIngredient ? (
+                  <TextField
+                    required
+                    select
+                    fullWidth
+                    name="branch"
+                    label="สาขา"
+                    defaultValue={editingBranch ?? availableBranchNames[0]}
+                  >
+                    {availableBranchNames.map((branch) => (
+                      <MenuItem key={branch} value={branch}>
+                        {branch}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                ) : null}
                 <Box
                   sx={{
                     display: 'flex',
@@ -1016,6 +1240,7 @@ export function IngredientsManagementPage({
                   <Button
                     type="submit"
                     variant="contained"
+                    disabled={isSavingInventory}
                     sx={{
                       minHeight: 40,
                       borderRadius: '12px',
@@ -1025,7 +1250,11 @@ export function IngredientsManagementPage({
                       '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                     }}
                   >
-                    {editingIngredient ? 'บันทึกการแก้ไข' : 'บันทึกวัตถุดิบ'}
+                    {isSavingInventory
+                      ? 'กำลังบันทึก…'
+                      : editingIngredient
+                        ? 'บันทึกการแก้ไข'
+                        : 'บันทึกวัตถุดิบ'}
                   </Button>
                 </Box>
               </Box>
@@ -1427,6 +1656,21 @@ export function IngredientsManagementPage({
           </Box>
         </Box>
       </Drawer>
+      <Snackbar
+        open={Boolean(inventoryNotice)}
+        autoHideDuration={5000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ mb: isCartSuccessVisible ? 10 : 2 }}
+        onClose={() => setInventoryNotice(null)}
+      >
+        <Alert
+          severity={inventoryNotice?.severity ?? 'success'}
+          variant="filled"
+          sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
+        >
+          {inventoryNotice?.message}
+        </Alert>
+      </Snackbar>
       <Snackbar
         open={isCartSuccessVisible}
         autoHideDuration={5000}

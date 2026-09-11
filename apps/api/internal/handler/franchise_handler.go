@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -39,12 +40,17 @@ type franchiseInput struct {
 	Plan       string `json:"plan" binding:"required,oneof=S M L"`
 	BranchName string `json:"branchName" binding:"required"`
 	BranchCode string `json:"branchCode" binding:"required"`
+	BranchSize string `json:"branchSize" binding:"omitempty,oneof=S M L"`
 	Username   string `json:"username"`
 	Password   string `json:"password"`
 }
 
 type franchiseStatusInput struct {
 	Status string `json:"status" binding:"required,oneof=active inactive"`
+}
+
+type branchSizeInput struct {
+	Size string `json:"size" binding:"required,oneof=S M L"`
 }
 
 const franchiseCatalogTemplateBranchCode = "SBC-AYA-001"
@@ -55,7 +61,7 @@ func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan st
 		SELECT $1,i.name,i.category,i.kind,i.quantity,i.unit,i.reorder_level,i.unit_cost,i.image_url
 		FROM inventory_items i
 		JOIN branches source ON source.id=i.branch_id AND source.code=$2
-		WHERE $3='L' OR (
+		WHERE $3 != 'S' OR i.kind='stock' OR (
 			i.kind='ingredient' AND EXISTS (
 				SELECT 1 FROM menu_item_ingredients mi
 				JOIN menu_items m ON m.id=mi.menu_item_id
@@ -72,8 +78,7 @@ func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan st
 		INSERT INTO menu_items(branch_id,name,category,store_price,store_price_available,lineman_price,lineman_price_available,cost_price,lineman_cost_price,status,image_url)
 		SELECT $1,m.name,m.category,m.store_price,m.store_price_available,m.lineman_price,m.lineman_price_available,m.cost_price,m.lineman_cost_price,m.status,m.image_url
 		FROM menu_items m JOIN branches source ON source.id=m.branch_id AND source.code=$2
-		WHERE $3='L' OR ($3='M' AND lower(m.category) NOT IN ('เบเกอรี่','bakery'))
-		OR ($3='S' AND lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
+		WHERE $3 != 'S' OR lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
 		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, franchiseCatalogTemplateBranchCode, plan)
 	if err != nil {
 		return err
@@ -87,8 +92,7 @@ func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan st
 		JOIN inventory_items source_inventory ON source_inventory.id=mi.inventory_item_id
 		JOIN menu_items target_menu ON target_menu.branch_id=$1 AND target_menu.name=source_menu.name
 		JOIN inventory_items target_inventory ON target_inventory.branch_id=$1 AND target_inventory.name=source_inventory.name
-		WHERE $3='L' OR ($3='M' AND lower(source_menu.category) NOT IN ('เบเกอรี่','bakery'))
-		OR ($3='S' AND lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
+		WHERE $3 != 'S' OR lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
 		ON CONFLICT (menu_item_id,inventory_item_id) DO NOTHING`, branchID, franchiseCatalogTemplateBranchCode, plan)
 	return err
 }
@@ -108,6 +112,9 @@ func (h *PlatformHandler) CreateFranchisee(c *gin.Context) {
 	if len(input.Password) < 8 {
 		input.Password = "Temporary!" + input.Username
 	}
+	if input.BranchSize == "" {
+		input.BranchSize = input.Plan
+	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างแฟรนไชส์ได้"})
@@ -118,10 +125,10 @@ func (h *PlatformHandler) CreateFranchisee(c *gin.Context) {
 	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO franchisees(name,email,plan,status) VALUES($1,$2,$3,'invited') RETURNING id`, input.Name, input.Email, input.Plan).Scan(&franchiseeID)
 	var branchID int64
 	if err == nil {
-		err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,$2,$3,'inactive') RETURNING id`, franchiseeID, input.BranchName, input.BranchCode).Scan(&branchID)
+		err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO branches(franchisee_id,name,code,size,status) VALUES($1,$2,$3,$4,'inactive') RETURNING id`, franchiseeID, input.BranchName, input.BranchCode, input.BranchSize).Scan(&branchID)
 	}
 	if err == nil {
-		err = copyFranchiseCatalog(c.Request.Context(), tx, branchID, input.Plan)
+		err = copyFranchiseCatalog(c.Request.Context(), tx, branchID, input.BranchSize)
 	}
 	if err == nil {
 		passwordHash, hashErr := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -188,7 +195,7 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 		return
 	}
 	claims := middleware.ClaimsFrom(c)
-	query := `SELECT b.id,b.name,b.code,b.status,b.franchisee_id,f.name FROM branches b LEFT JOIN franchisees f ON f.id=b.franchisee_id`
+	query := `SELECT b.id,b.name,b.code,b.size,b.status,b.franchisee_id,f.name FROM branches b LEFT JOIN franchisees f ON f.id=b.franchisee_id`
 	args := []any{}
 	if claims.Role != "admin" {
 		if claims.Role == "branch_manager" && claims.BranchID != nil {
@@ -212,14 +219,14 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 	result := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var name, code, status string
+		var name, code, size, status string
 		var franchiseeID sql.NullInt64
 		var franchiseName sql.NullString
-		if err := rows.Scan(&id, &name, &code, &status, &franchiseeID, &franchiseName); err != nil {
+		if err := rows.Scan(&id, &name, &code, &size, &status, &franchiseeID, &franchiseName); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลสาขาได้"})
 			return
 		}
-		branch := gin.H{"id": id, "name": name, "code": code, "status": status, "franchiseeName": franchiseName.String}
+		branch := gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "franchiseeName": franchiseName.String}
 		if franchiseeID.Valid {
 			branch["franchiseeId"] = franchiseeID.Int64
 		}
@@ -228,12 +235,39 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 	c.JSON(200, gin.H{"success": true, "data": result})
 }
 
+func (h *PlatformHandler) UpdateBranchSize(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	branchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || branchID < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสสาขาไม่ถูกต้อง"})
+		return
+	}
+	var input branchSizeInput
+	if c.ShouldBindJSON(&input) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ขนาดสาขาต้องเป็น S, M หรือ L"})
+		return
+	}
+	result, err := h.db.ExecContext(c.Request.Context(), `UPDATE branches SET size=$1 WHERE id=$2`, input.Size, branchID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนขนาดสาขาได้"})
+		return
+	}
+	if rowsAffected(result) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขา"})
+		return
+	}
+	h.invalidateBranchCache(c, branchID)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": branchID, "size": input.Size}})
+}
+
 // BranchSales preserves the Admin branch overview until a future sales provider is connected.
 func (h *PlatformHandler) BranchSales(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,code,status FROM branches WHERE franchisee_id IS NULL ORDER BY name`)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,code,size,status FROM branches WHERE franchisee_id IS NULL ORDER BY name`)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถโหลดข้อมูลสาขาได้"})
 		return
@@ -242,12 +276,12 @@ func (h *PlatformHandler) BranchSales(c *gin.Context) {
 	result := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var name, code, status string
-		if err := rows.Scan(&id, &name, &code, &status); err != nil {
+		var name, code, size, status string
+		if err := rows.Scan(&id, &name, &code, &size, &status); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลสาขาได้"})
 			return
 		}
-		result = append(result, gin.H{"id": id, "name": name, "code": code, "status": status, "sales": 0, "orders": 0})
+		result = append(result, gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "sales": 0, "orders": 0})
 	}
 	c.JSON(200, gin.H{"success": true, "data": result})
 }

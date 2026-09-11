@@ -30,7 +30,11 @@ const cardSx = {
 };
 
 type Page =
-  'คำสั่งซื้อ' | 'เมนูและสินค้า' | 'วัตถุดิบ' | 'สต๊อก' | 'ตารางพนักงาน';
+  | 'คำสั่งซื้อ'
+  | 'เมนูและสินค้า'
+  | 'วัตถุดิบ'
+  | 'สต๊อกอุปกรณ์เครื่องดื่ม'
+  | 'ตารางพนักงาน';
 
 function Metric({
   label,
@@ -141,7 +145,6 @@ export function FranchiseOverviewPage({
     queryFn: () => listInventory('ingredient', branchCode),
   });
   const stock = useQuery({
-    enabled: plan === 'L',
     queryKey: ['franchise-dashboard-stock', branchCode],
     queryFn: () => listInventory('stock', branchCode),
   });
@@ -176,16 +179,12 @@ export function FranchiseOverviewPage({
         ready: ingredientItems.length - ingredientAlert,
         color: '#b98d69',
       },
-      ...(plan === 'L'
-        ? [
-            {
-              label: 'สต๊อก',
-              total: stockItems.length,
-              ready: stockItems.length - stockAlert,
-              color: '#d8c0ad',
-            },
-          ]
-        : []),
+      {
+        label: 'สต๊อกอุปกรณ์เครื่องดื่ม',
+        total: stockItems.length,
+        ready: stockItems.length - stockAlert,
+        color: '#d8c0ad',
+      },
     ];
     return { menuItems, unavailable, ingredientAlert, stockAlert, sources };
   }, [ingredients.data, menu.data, plan, stock.data]);
@@ -195,7 +194,7 @@ export function FranchiseOverviewPage({
     menu.isLoading ||
     ingredients.isLoading ||
     employees.isLoading ||
-    (plan === 'L' && stock.isLoading);
+    stock.isLoading;
   const updatedAt = new Intl.DateTimeFormat('th-TH', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -228,7 +227,7 @@ export function FranchiseOverviewPage({
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Chip
-            label={`แพ็กเกจ ${plan}`}
+            label={`ขนาดสาขา ${plan}`}
             sx={{
               borderRadius: '9px',
               bgcolor: '#e3f2e8',
@@ -379,14 +378,12 @@ export function FranchiseOverviewPage({
                 >
                   ดูวัตถุดิบ
                 </Button>
-                {plan === 'L' && (
-                  <Button
-                    variant="outlined"
-                    onClick={() => onNavigate('สต๊อก')}
-                  >
-                    ดูสต๊อก
-                  </Button>
-                )}
+                <Button
+                  variant="outlined"
+                  onClick={() => onNavigate('สต๊อกอุปกรณ์เครื่องดื่ม')}
+                >
+                  ดูสต๊อกอุปกรณ์เครื่องดื่ม
+                </Button>
               </Box>
             </Card>
 
@@ -406,9 +403,11 @@ export function FranchiseOverviewPage({
                 {[
                   ['เมนูที่ไม่พร้อมขาย', data.unavailable, 'เมนูและสินค้า'],
                   ['วัตถุดิบใกล้หมด/หมด', data.ingredientAlert, 'วัตถุดิบ'],
-                  ...(plan === 'L'
-                    ? [['รายการสต๊อกที่ต้องตรวจสอบ', data.stockAlert, 'สต๊อก']]
-                    : []),
+                  [
+                    'รายการสต๊อกที่ต้องตรวจสอบ',
+                    data.stockAlert,
+                    'สต๊อกอุปกรณ์เครื่องดื่ม',
+                  ],
                 ].map(([label, value, page]) => (
                   <Button
                     key={label}

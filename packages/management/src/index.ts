@@ -23,10 +23,17 @@ export { useAutoRetry } from './hooks/useAutoRetry';
 export { setManagementSessionRole } from './api/client';
 export { getDashboardSummary } from './api/dashboard';
 export type { DashboardSummary } from './api/dashboard';
-export { listInventory } from './api/inventory';
-export type { InventoryItem } from './api/inventory';
-export { listMenuItems } from './api/menu';
-export type { MenuItem } from './api/menu';
+export { listManagedBranches } from './api/branches';
+export type { ManagedBranch } from './api/branches';
+export {
+  createInventory,
+  deleteInventory,
+  listInventory,
+  updateInventory,
+} from './api/inventory';
+export type { InventoryInput, InventoryItem } from './api/inventory';
+export { listMenuItems, updateMenuItem } from './api/menu';
+export type { MenuInput, MenuItem } from './api/menu';
 export { listEmployees } from './api/users';
 export type { Employee } from './api/users';
 export { createStockRequest, listStockRequests } from './api/stock-requests';

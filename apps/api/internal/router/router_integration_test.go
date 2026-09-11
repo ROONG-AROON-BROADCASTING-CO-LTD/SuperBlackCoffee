@@ -496,6 +496,13 @@ func TestInventoryRouteReadsFromIsolatedPostgres(t *testing.T) {
 	if !strings.Contains(res.Body.String(), "นมทดสอบ") {
 		t.Fatalf("inventory response missing item: %s", res.Body.String())
 	}
+	if _, err := db.Exec(`INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,'แก้วเครื่องดื่ม','cup','drink_equipment','stock',3,'ใบ',1,2),($1,'กล่องพัสดุ','box','postal_equipment','stock',4,'ใบ',1,5)`, branchID); err != nil {
+		t.Fatalf("สร้างสต๊อกแยกประเภท: %v", err)
+	}
+	postal := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=postal_equipment", "", testToken(t, "admin"))
+	if postal.Code != http.StatusOK || !strings.Contains(postal.Body.String(), "กล่องพัสดุ") || strings.Contains(postal.Body.String(), "แก้วเครื่องดื่ม") {
+		t.Fatalf("postal stock filter = %d: %s", postal.Code, postal.Body.String())
+	}
 }
 
 func TestFranchisePlanFiltersMenuAndIngredients(t *testing.T) {
@@ -508,7 +515,7 @@ func TestFranchisePlanFiltersMenuAndIngredients(t *testing.T) {
 	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('ทดสอบ S','plan-s@example.com','S','active') RETURNING id`).Scan(&franchiseID); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,status) VALUES($1,'สาขาทดสอบ S','PLAN-S','active') RETURNING id`, franchiseID).Scan(&branchID); err != nil {
+	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,size,status) VALUES($1,'สาขาทดสอบ S','PLAN-S','S','active') RETURNING id`, franchiseID).Scan(&branchID); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`INSERT INTO inventory_items(branch_id,name,category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,'เมล็ดกาแฟ','coffee','ingredient',10,'กรัม',1,1) RETURNING id`, branchID).Scan(&coffeeInventoryID); err != nil {
@@ -540,8 +547,29 @@ func TestFranchisePlanFiltersMenuAndIngredients(t *testing.T) {
 		t.Fatalf("S ingredient access = %d: %s", ingredients.Code, ingredients.Body.String())
 	}
 	stock := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock", "", token)
-	if stock.Code != http.StatusForbidden {
+	if stock.Code != http.StatusOK {
 		t.Fatalf("S stock access = %d: %s", stock.Code, stock.Body.String())
+	}
+	adminToken := testToken(t, "admin")
+	adminMenu := requestJSON(r, http.MethodGet, "/api/v1/menu-items?branchCode=PLAN-S", "", adminToken)
+	if adminMenu.Code != http.StatusOK || !strings.Contains(adminMenu.Body.String(), "อเมริกาโน่") || strings.Contains(adminMenu.Body.String(), "ข้าวกะเพรา") {
+		t.Fatalf("admin S menu access = %d: %s", adminMenu.Code, adminMenu.Body.String())
+	}
+	adminIngredients := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=ingredient&branchCode=PLAN-S", "", adminToken)
+	if adminIngredients.Code != http.StatusOK || !strings.Contains(adminIngredients.Body.String(), "เมล็ดกาแฟ") || strings.Contains(adminIngredients.Body.String(), `"หมู"`) {
+		t.Fatalf("admin S ingredient access = %d: %s", adminIngredients.Code, adminIngredients.Body.String())
+	}
+	resized := requestJSON(r, http.MethodPatch, "/api/v1/branches/"+strconv.FormatInt(branchID, 10)+"/size", `{"size":"M"}`, adminToken)
+	if resized.Code != http.StatusOK {
+		t.Fatalf("resize branch to M = %d: %s", resized.Code, resized.Body.String())
+	}
+	adminMenu = requestJSON(r, http.MethodGet, "/api/v1/menu-items?branchCode=PLAN-S", "", adminToken)
+	if adminMenu.Code != http.StatusOK || !strings.Contains(adminMenu.Body.String(), "อเมริกาโน่") || !strings.Contains(adminMenu.Body.String(), "ข้าวกะเพรา") {
+		t.Fatalf("admin M menu access = %d: %s", adminMenu.Code, adminMenu.Body.String())
+	}
+	adminIngredients = requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=ingredient&branchCode=PLAN-S", "", adminToken)
+	if adminIngredients.Code != http.StatusOK || !strings.Contains(adminIngredients.Body.String(), "เมล็ดกาแฟ") || !strings.Contains(adminIngredients.Body.String(), `"หมู"`) {
+		t.Fatalf("admin M ingredient access = %d: %s", adminIngredients.Code, adminIngredients.Body.String())
 	}
 }
 
@@ -765,15 +793,19 @@ func TestInventoryAndMenuCRUDWriteAuditEvents(t *testing.T) {
 	seedUser(t, db, 7, "admin-crud", "admin", branchID, nil)
 	r := New(db, nil)
 	token := testToken(t, "admin")
-	createInventory := requestJSON(r, http.MethodPost, "/api/v1/inventory?branchId=1", `{"name":"นม CRUD","category":"dairy","kind":"ingredient","quantity":3,"unit":"ลิตร","reorderLevel":1,"unitCost":45}`, token)
+	createInventory := requestJSON(r, http.MethodPost, "/api/v1/inventory?branchId=1", `{"name":"นม CRUD","category":"dairy","kind":"ingredient","quantity":3,"unit":"ลิตร","reorderLevel":1,"unitCost":45,"expiryDate":"2026-12-31"}`, token)
 	if createInventory.Code != http.StatusCreated {
 		t.Fatalf("create inventory = %d: %s", createInventory.Code, createInventory.Body.String())
 	}
 	inventoryID := responseID(t, createInventory)
+	var expiryDate string
+	if err := db.QueryRow(`SELECT expiry_date::text FROM inventory_items WHERE id=$1`, inventoryID).Scan(&expiryDate); err != nil || expiryDate != "2026-12-31" {
+		t.Fatalf("created expiry date = %q, err = %v", expiryDate, err)
+	}
 	for _, method := range []string{http.MethodPatch, http.MethodDelete} {
 		body := ""
 		if method == http.MethodPatch {
-			body = `{"name":"นม CRUD ใหม่","category":"dairy","kind":"ingredient","quantity":4,"unit":"ลิตร","reorderLevel":1,"unitCost":50}`
+			body = `{"name":"นม CRUD ใหม่","category":"dairy","kind":"ingredient","quantity":4,"unit":"ลิตร","reorderLevel":1,"unitCost":50,"expiryDate":null}`
 		}
 		res := requestJSON(r, method, "/api/v1/inventory/"+strconv.FormatInt(inventoryID, 10)+"?branchId=1", body, token)
 		if res.Code != map[string]int{http.MethodPatch: http.StatusOK, http.MethodDelete: http.StatusNoContent}[method] {
@@ -941,13 +973,14 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if res := requestJSONFromIP(r, http.MethodPost, "/api/v1/website/leads", `{"name":"ผู้สนใจทดสอบ","phone":"0812345678"}`, "", "198.51.100.50"); res.Code != http.StatusTooManyRequests {
 		t.Fatalf("lead limit = %d: %s", res.Code, res.Body.String())
 	}
-	franchise := requestJSON(r, http.MethodPost, "/api/v1/franchisees", `{"name":"แฟรนไชส์ทดสอบ","email":"franchise@example.com","plan":"M","branchName":"สาขาแฟรนไชส์","branchCode":"FR-TEST","username":"franchise_test","password":"Password123!"}`, testToken(t, "admin"))
+	franchise := requestJSON(r, http.MethodPost, "/api/v1/franchisees", `{"name":"แฟรนไชส์ทดสอบ","email":"franchise@example.com","plan":"M","branchName":"สาขาแฟรนไชส์","branchCode":"FR-TEST","branchSize":"S","username":"franchise_test","password":"Password123!"}`, testToken(t, "admin"))
 	if franchise.Code != http.StatusCreated {
 		t.Fatalf("create franchise = %d: %s", franchise.Code, franchise.Body.String())
 	}
-	var branchStatus string
-	if err := db.QueryRow(`SELECT status FROM branches WHERE code='FR-TEST'`).Scan(&branchStatus); err != nil || branchStatus != "inactive" {
-		t.Fatalf("franchise branch status = %q, err = %v", branchStatus, err)
+	var branchStatus, branchSize string
+	var franchiseBranchID int64
+	if err := db.QueryRow(`SELECT id,status,size FROM branches WHERE code='FR-TEST'`).Scan(&franchiseBranchID, &branchStatus, &branchSize); err != nil || branchStatus != "inactive" || branchSize != "S" {
+		t.Fatalf("franchise branch status/size = %q/%q, err = %v", branchStatus, branchSize, err)
 	}
 	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", `{"username":"franchise_test","password":"Password123!"}`, ""); login.Code != http.StatusForbidden {
 		t.Fatalf("inactive franchise login = %d: %s", login.Code, login.Body.String())
@@ -958,6 +991,12 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	}
 	if err := db.QueryRow(`SELECT status FROM branches WHERE code='FR-TEST'`).Scan(&branchStatus); err != nil || branchStatus != "active" {
 		t.Fatalf("activated franchise branch status = %q, err = %v", branchStatus, err)
+	}
+	if resized := requestJSON(r, http.MethodPatch, "/api/v1/branches/"+strconv.FormatInt(franchiseBranchID, 10)+"/size", `{"size":"M"}`, testToken(t, "admin")); resized.Code != http.StatusOK {
+		t.Fatalf("resize franchise branch = %d: %s", resized.Code, resized.Body.String())
+	}
+	if err := db.QueryRow(`SELECT size FROM branches WHERE id=$1`, franchiseBranchID).Scan(&branchSize); err != nil || branchSize != "M" {
+		t.Fatalf("resized franchise branch = %q, err = %v", branchSize, err)
 	}
 	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", `{"username":"franchise_test","password":"Password123!"}`, ""); login.Code != http.StatusOK {
 		t.Fatalf("active franchise login = %d: %s", login.Code, login.Body.String())

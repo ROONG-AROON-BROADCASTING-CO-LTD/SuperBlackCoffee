@@ -34,7 +34,7 @@ func TestMenuPlanAccess(t *testing.T) {
 		{"S blocks food", franchisePlanS, "อาหาร", false},
 		{"S blocks bakery", franchisePlanS, "เบเกอรี่", false},
 		{"M allows food", franchisePlanM, "อาหาร", true},
-		{"M blocks bakery", franchisePlanM, "เบเกอรี่", false},
+		{"M allows bakery", franchisePlanM, "เบเกอรี่", true},
 		{"L allows all", franchisePlanL, "เบเกอรี่", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestFilterMenuForPlan(t *testing.T) {
 	if got := handler.filterMenuForPlan(franchisePlanS, items); len(got) != 1 || got[0].Name != "ชา" {
 		t.Fatalf("S menu filter = %#v", got)
 	}
-	if got := handler.filterMenuForPlan(franchisePlanM, items); len(got) != 2 || got[1].Name != "ข้าว" {
+	if got := handler.filterMenuForPlan(franchisePlanM, items); len(got) != 3 {
 		t.Fatalf("M menu filter = %#v", got)
 	}
 	if got := handler.filterMenuForPlan(franchisePlanL, items); len(got) != 3 {

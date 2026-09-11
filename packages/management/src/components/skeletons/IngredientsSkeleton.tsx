@@ -62,6 +62,7 @@ export function IngredientsSkeleton({
             <Box sx={{ display: 'grid', gap: 0.8, mt: 0.8, px: 1 }}>
               <Skeleton variant="rounded" width="100%" height={22} />
               <Skeleton variant="rounded" width="100%" height={22} />
+              <Skeleton variant="rounded" width="100%" height={22} />
             </Box>
             {allowOrdering ? (
               <Box sx={{ display: 'flex', mt: 'auto', pt: 2 }}>

@@ -38,7 +38,7 @@ const overviewActions: OverviewAction[] = [
   {
     title: 'ตรวจสอบสต๊อก',
     description: 'ดูคำขอเติมสินค้าและสถานะการจัดส่ง',
-    page: 'สต๊อก',
+    page: 'สต๊อกอุปกรณ์เครื่องดื่ม',
     marker: '02',
   },
   {
@@ -687,14 +687,14 @@ export function AdminOverviewPage({
                     detail="ตรวจสอบรายการจากสาขา"
                     count={followUps.pendingStock}
                     tone="#d59a31"
-                    onClick={() => onNavigate('สต๊อก')}
+                    onClick={() => onNavigate('สต๊อกอุปกรณ์เครื่องดื่ม')}
                   />
                   <FollowUpRow
                     title="คำขอสต๊อกที่กำลังดำเนินการ"
                     detail="อนุมัติแล้วหรือกำลังจัดเตรียม"
                     count={followUps.activeStock}
                     tone="#4c8f70"
-                    onClick={() => onNavigate('สต๊อก')}
+                    onClick={() => onNavigate('สต๊อกอุปกรณ์เครื่องดื่ม')}
                   />
                 </Stack>
               </Box>

@@ -66,7 +66,7 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ยังไม่ได้เปิดใช้งาน"})
 			return
 		}
-		err = h.db.QueryRowContext(c.Request.Context(), `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *user.FranchiseeID, *user.BranchID).Scan(&plan)
+		err = h.db.QueryRowContext(c.Request.Context(), `SELECT b.size FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *user.FranchiseeID, *user.BranchID).Scan(&plan)
 		if err != nil {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ยังไม่ได้เปิดใช้งาน"})
 			return
@@ -91,7 +91,7 @@ func (h *PlatformHandler) Session(c *gin.Context) {
 	}
 	plan := ""
 	if claims.FranchiseeID != nil && claims.BranchID != nil {
-		if h.db == nil || h.db.QueryRowContext(c.Request.Context(), `SELECT f.plan FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan) != nil {
+		if h.db == nil || h.db.QueryRowContext(c.Request.Context(), `SELECT b.size FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan) != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันแฟรนไชส์ไม่พร้อมใช้งาน"})
 			return
 		}

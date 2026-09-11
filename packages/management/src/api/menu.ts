@@ -21,7 +21,27 @@ export type MenuItem = {
   imageUrl: string;
 };
 
+export type MenuInput = {
+  name: string;
+  category: string;
+  storePrice: number;
+  linemanPrice: number;
+  linemanCostPrice: number;
+  costPrice: number;
+  ingredients: { inventoryItemId: number; quantity: number; unit: string }[];
+};
+
 export const listMenuItems = (branchCode = 'SBC-AYA-001') =>
   secured<MenuItem[]>(
     `/menu-items?branchCode=${encodeURIComponent(branchCode)}`,
+  );
+
+export const updateMenuItem = (
+  id: number,
+  data: MenuInput,
+  branchCode: string,
+) =>
+  secured<{ id: number }>(
+    `/menu-items/${id}?branchCode=${encodeURIComponent(branchCode)}`,
+    { method: 'PATCH', data },
   );

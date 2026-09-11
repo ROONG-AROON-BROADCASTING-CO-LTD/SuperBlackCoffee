@@ -5,6 +5,7 @@ import {
   Card,
   Chip,
   InputAdornment,
+  MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
@@ -15,9 +16,14 @@ import {
   type BranchStatus,
   type SearchIconHandle,
 } from '@stackbuild/ui';
-import { listBranchSales } from '../../api';
+import { listBranchSales, updateBranchSize } from '../../api';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
-import { AutoRetrySnackbar, useAutoRetry } from '@stackbuild/management';
+import {
+  ActionSnackbar,
+  type ActionNotice,
+  AutoRetrySnackbar,
+  useAutoRetry,
+} from '@stackbuild/management';
 
 const periods = ['วันนี้', 'เดือนนี้', 'ปีนี้'] as const;
 type Period = (typeof periods)[number];
@@ -25,6 +31,7 @@ type Branch = {
   id: number;
   name: string;
   code: string;
+  size: 'S' | 'M' | 'L';
   status: BranchStatus;
   sales: number;
   orders: number;
@@ -54,6 +61,8 @@ export function AdminBranchesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [updatingBranchId, setUpdatingBranchId] = useState<number | null>(null);
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
 
   useEffect(() => {
@@ -101,6 +110,26 @@ export function AdminBranchesPage() {
     (total, branch) => total + branch.orders,
     0,
   );
+  const changeBranchSize = async (branchId: number, size: Branch['size']) => {
+    setUpdatingBranchId(branchId);
+    try {
+      await updateBranchSize(branchId, size);
+      setBranches((current) =>
+        current.map((branch) =>
+          branch.id === branchId ? { ...branch, size } : branch,
+        ),
+      );
+      setActionNotice({ message: 'บันทึกขนาดสาขาแล้ว' });
+    } catch (error) {
+      setActionNotice({
+        message:
+          error instanceof Error ? error.message : 'ไม่สามารถบันทึกขนาดสาขาได้',
+        severity: 'error',
+      });
+    } finally {
+      setUpdatingBranchId(null);
+    }
+  };
 
   return (
     <DashboardMain>
@@ -341,6 +370,32 @@ export function AdminBranchesPage() {
                     {branch.orders.toLocaleString('th-TH')}{' '}
                     ออเดอร์ที่ชำระเงินแล้ว
                   </Typography>
+                  <TextField
+                    select
+                    size="small"
+                    label="ขนาดสาขา"
+                    value={branch.size}
+                    disabled={updatingBranchId === branch.id}
+                    onChange={(event) =>
+                      void changeBranchSize(
+                        branch.id,
+                        event.target.value as Branch['size'],
+                      )
+                    }
+                    sx={{
+                      mt: 1.5,
+                      width: '100%',
+                      '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+                    }}
+                  >
+                    <MenuItem value="S">S — น้ำและสต๊อก</MenuItem>
+                    <MenuItem value="M">
+                      M — น้ำ อาหาร เบเกอรี่ และสต๊อก
+                    </MenuItem>
+                    <MenuItem value="L">
+                      L — น้ำ อาหาร เบเกอรี่ และสต๊อก
+                    </MenuItem>
+                  </TextField>
                 </Box>
               </Box>
             </Card>
@@ -360,6 +415,10 @@ export function AdminBranchesPage() {
         </Typography>
       )}
       <AutoRetrySnackbar open={loadError} />
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
     </DashboardMain>
   );
 }

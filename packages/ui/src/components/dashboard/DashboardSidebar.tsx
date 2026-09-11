@@ -30,6 +30,7 @@ import {
 import superBlackLogo from '../../assets/superblack-logo.png';
 
 type NavigationItem = {
+  id?: string;
   label: string;
   icon: ReactNode;
   badge?: number;
@@ -127,7 +128,7 @@ export function DashboardSidebar({
   };
 
   const hoveredNavigation = navigation.find(
-    (item) => item.label === hoverCardMenu,
+    (item) => (item.id ?? item.label) === hoverCardMenu,
   );
 
   const scheduleHoverClear = () => {
@@ -312,8 +313,8 @@ export function DashboardSidebar({
           '&::-webkit-scrollbar': { width: 0, height: 0 },
         }}
       >
-        {navigation.map(({ label, icon, badge, group }, index) => (
-          <Box key={label}>
+        {navigation.map(({ id, label, icon, badge, group }, index) => (
+          <Box key={id ?? label}>
             {group &&
               group !== navigation[index - 1]?.group &&
               !collapsed &&
@@ -339,22 +340,22 @@ export function DashboardSidebar({
                 </Typography>
               )}
             <ListItemButton
-              selected={label === activePage}
+              selected={(id ?? label) === activePage}
               disableRipple
               disableTouchRipple
               onClick={() => {
-                setClickedMenu(label);
+                setClickedMenu(id ?? label);
                 window.setTimeout(() => setClickedMenu(null), 350);
                 // Prevent an expanded row's hover anchor from leaking into a
                 // route that immediately forces the sidebar to collapse.
                 clearHoveredMenu();
-                onNavigate(label);
+                onNavigate(id ?? label);
               }}
               onMouseEnter={(event) => {
                 window.clearTimeout(hoverTimerRef.current);
                 // A selected item already has its connected active surface.
                 // In compact mode it must never open the duplicate hover card.
-                if (collapsed && label === activePage) {
+                if (collapsed && (id ?? label) === activePage) {
                   clearHoveredMenu();
                   return;
                 }
@@ -368,8 +369,8 @@ export function DashboardSidebar({
                 // layout. Never use that stale row as a compact Popper anchor.
                 if (collapsed && sidebarRect && sidebarRect.width > 128) return;
 
-                setHoveredMenu(label);
-                setHoverCardMenu(label);
+                setHoveredMenu(id ?? label);
+                setHoverCardMenu(id ?? label);
                 setHoverCardVisible(true);
                 setHoverAnchor(event.currentTarget);
                 setHoverAnchorPosition({
@@ -480,8 +481,8 @@ export function DashboardSidebar({
                 {isValidElement(icon)
                   ? cloneElement(icon as ReactElement<{ animate?: boolean }>, {
                       animate:
-                        (!collapsed && hoveredMenu === label) ||
-                        clickedMenu === label,
+                        (!collapsed && hoveredMenu === (id ?? label)) ||
+                        clickedMenu === (id ?? label),
                     })
                   : icon}
               </ListItemIcon>
@@ -616,7 +617,7 @@ export function DashboardSidebar({
                 color: 'inherit',
               }}
             >
-              {hoverCardMenu}
+              {hoveredNavigation?.label}
             </Typography>
           </Box>
         </Fade>
@@ -642,8 +643,8 @@ export function DashboardSidebar({
             color: '#fff',
             bgcolor: '#b42318',
             borderRadius: '12px',
-            fontSize: '0.875rem',
-            fontWeight: 500,
+            fontSize: 14,
+            fontWeight: 400,
             '&:hover': { bgcolor: '#8f1c13' },
           }}
         >
@@ -658,7 +659,10 @@ export function DashboardSidebar({
             <Box
               sx={{
                 position: 'absolute',
-                left: collapsed ? '50%' : 14,
+                // The logout SVG has a 16px inherited inline offset inside
+                // MUI's Button content. Offset it by 5px here so its visible
+                // box starts at the same x coordinate as menu icons.
+                left: collapsed ? '50%' : 5,
                 top: '50%',
                 display: 'flex',
                 transform: collapsed
@@ -669,7 +673,7 @@ export function DashboardSidebar({
             >
               <LogoutIcon
                 ref={logoutIconRef}
-                size={19}
+                size={22}
                 style={{ display: 'flex', alignItems: 'center', lineHeight: 0 }}
               />
             </Box>
@@ -678,7 +682,8 @@ export function DashboardSidebar({
                 component="span"
                 sx={{
                   position: 'absolute',
-                  left: 42,
+                  // Match ListItemText's 44px offset in every sidebar row.
+                  left: 44,
                   top: '50%',
                   display: 'inline-flex',
                   alignItems: 'center',

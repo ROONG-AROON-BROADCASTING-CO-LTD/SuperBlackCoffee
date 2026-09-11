@@ -67,6 +67,8 @@ func (h *PlatformHandler) invalidateBranchCache(c *gin.Context, branchID int64) 
 		fmt.Sprintf("sbc:dashboard:%d", branchID),
 		"sbc:dashboard:all",
 	)
+	h.cache.DeletePattern(c, fmt.Sprintf("sbc:inventory:%d:*", branchID))
+	h.cache.DeletePattern(c, fmt.Sprintf("sbc:menu:%d:*", branchID))
 	h.cache.DeletePattern(c, fmt.Sprintf("sbc:report:daily:*:%d", branchID))
 	h.cache.DeletePattern(c, "sbc:report:daily:*:all")
 }

@@ -11,15 +11,23 @@ import { IngredientsManagementPage } from '../IngredientsManagementPage';
 import { ProductsManagementPage } from '../ProductsManagementPage';
 import { StockManagementPage } from '../StockManagementPage';
 import { listInventory } from '../../api/inventory';
-import { listMenuItems } from '../../api/menu';
+import { listMenuItems, updateMenuItem } from '../../api/menu';
 import { createStockRequest } from '../../api/stock-requests';
 
-vi.mock('../../api/inventory', () => ({ listInventory: vi.fn() }));
-vi.mock('../../api/menu', () => ({ listMenuItems: vi.fn() }));
+vi.mock('../../api/inventory', () => ({
+  deleteInventory: vi.fn(),
+  listInventory: vi.fn(),
+  updateInventory: vi.fn(),
+}));
+vi.mock('../../api/menu', () => ({
+  listMenuItems: vi.fn(),
+  updateMenuItem: vi.fn(),
+}));
 vi.mock('../../api/stock-requests', () => ({ createStockRequest: vi.fn() }));
 
 const mockedListInventory = vi.mocked(listInventory);
 const mockedListMenuItems = vi.mocked(listMenuItems);
+const mockedUpdateMenuItem = vi.mocked(updateMenuItem);
 const mockedCreateStockRequest = vi.mocked(createStockRequest);
 
 const ingredient = {
@@ -33,6 +41,8 @@ const ingredient = {
   unitCost: 125,
   status: 'low' as const,
   imageUrl: '',
+  expiryDate: '2026-12-31',
+  expiryStatus: 'expiring_soon' as const,
 };
 
 const renderPage = (page: React.ReactNode) => {
@@ -61,11 +71,20 @@ describe('inventory management pages', () => {
         linemanCostPrice: 50,
         costPrice: 40,
         status: 'available',
-        ingredients: [],
+        ingredients: [
+          {
+            inventoryItemId: ingredient.id,
+            name: ingredient.name,
+            quantity: 18,
+            unit: 'กรัม',
+            costAmount: 12,
+          },
+        ],
         imageUrl: '',
       },
     ]);
     mockedCreateStockRequest.mockResolvedValue({ id: 1, status: 'pending' });
+    mockedUpdateMenuItem.mockResolvedValue({ id: 1 });
   });
 
   afterEach(() => {
@@ -91,6 +110,39 @@ describe('inventory management pages', () => {
     ).toBeNull();
     expect(screen.queryByRole('button', { name: 'อาหาร' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'เบเกอรี่' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'ดูสูตรการทำ' }));
+    expect(screen.getByText('สูตรการทำ')).toBeTruthy();
+    expect(screen.getByText(`1. ${ingredient.name}`)).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'บันทึกสูตรการทำ' }),
+    ).toBeNull();
+  });
+
+  it('saves a recipe from the Admin product card', async () => {
+    renderPage(<ProductsManagementPage activeBranch="อยุธยา" />);
+
+    await waitFor(() =>
+      expect(screen.getByText('อเมริกาโน่ทดสอบ')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'จัดการสูตรการทำ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกสูตรการทำ' }));
+
+    await waitFor(() =>
+      expect(mockedUpdateMenuItem).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          name: 'อเมริกาโน่ทดสอบ',
+          ingredients: [
+            {
+              inventoryItemId: ingredient.id,
+              quantity: 18,
+              unit: 'กรัม',
+            },
+          ],
+        }),
+        'SBC-AYA-001',
+      ),
+    );
   });
 
   it('adds ingredients to the franchise cart and submits the exact request', async () => {
@@ -131,8 +183,23 @@ describe('inventory management pages', () => {
     );
   });
 
+  it('shows the expiry date and warning status on an ingredient card', async () => {
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    await waitFor(() => expect(screen.getByText('ใกล้หมดอายุ')).toBeTruthy());
+    expect(screen.getByText('วันหมดอายุ')).toBeTruthy();
+    expect(screen.getByText('31 ธ.ค. 2569')).toBeTruthy();
+  });
+
   it('keeps stock data visible but hides stock maintenance actions in read-only mode', async () => {
-    renderPage(<StockManagementPage activeBranch="อยุธยา" readOnly />);
+    renderPage(
+      <StockManagementPage
+        activeBranch="อยุธยา"
+        readOnly
+        stockCategory="postal_equipment"
+        stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
+      />,
+    );
 
     await waitFor(() => expect(screen.getByText(ingredient.name)).toBeTruthy());
 
@@ -142,5 +209,10 @@ describe('inventory management pages', () => {
     expect(screen.queryByRole('button', { name: 'เพิ่มสต๊อก' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'แก้ไขสต๊อก' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'ลบสต๊อก' })).toBeNull();
+    expect(mockedListInventory).toHaveBeenCalledWith(
+      'stock',
+      'SBC-AYA-001',
+      'postal_equipment',
+    );
   });
 });

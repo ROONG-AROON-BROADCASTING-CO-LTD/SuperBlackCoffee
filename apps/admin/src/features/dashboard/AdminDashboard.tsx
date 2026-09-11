@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardMain } from '@stackbuild/ui';
 import {
   EmployeesSkeleton,
@@ -8,6 +8,7 @@ import {
   ProductsSkeleton,
   StockSkeleton,
   BranchesSidebar,
+  branchCodeByBranch,
   type Branch,
 } from '@stackbuild/management';
 import { adminSidebarNavigation } from '../../components/sidebar/adminSidebarNavigation';
@@ -76,7 +77,8 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <AdminOrdersSkeleton />
     ) : page === 'ประวัติการทำรายการ' ? (
       <AdminAuditSkeleton />
-    ) : page === 'สต๊อก' ? (
+    ) : page === 'สต๊อกอุปกรณ์เครื่องดื่ม' ||
+      page === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
       <StockSkeleton />
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton />
@@ -102,7 +104,10 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activePage = adminPageFromPath(location.pathname);
   const branchParam = searchParams.get('branch');
-  const activeBranch = (branchParam || 'ทุกสาขา') as Branch;
+  const selectedBranch = branchParam || 'ทุกสาขา';
+  const activeBranch = (
+    selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกสาขา' : selectedBranch
+  ) as Branch;
   const activeOrderTab =
     searchParams.get('tab') === 'franchise' ? 'franchise' : 'sbc';
   const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
@@ -128,22 +133,108 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       document.documentElement.classList.remove('sbc-is-scrolling');
     };
   }, []);
-  const navigate = (page: string) => {
-    const nextPage = page as AdminPage;
-    if (nextPage === activePage) return;
-    routerNavigate(adminPagePaths[nextPage]);
+  const navigate = (navigationTarget: string) => {
+    const isFranchiseCatalogTarget = navigationTarget.startsWith('franchise-');
+    const nextPage = (
+      isFranchiseCatalogTarget
+        ? navigationTarget.replace('franchise-', '')
+        : navigationTarget.replace('sbc-', '')
+    ) as AdminPage;
+    const catalogPageByTarget: Record<string, AdminPage> = {
+      products: 'เมนูและสินค้า',
+      'drink-stock': 'สต๊อกอุปกรณ์เครื่องดื่ม',
+      'postal-stock': 'สต๊อกอุปกรณ์ไปรษณีย์',
+      ingredients: 'วัตถุดิบ',
+    };
+    const destinationPage = catalogPageByTarget[nextPage] ?? nextPage;
+    const nextBranch = isFranchiseCatalogTarget ? 'แฟรนไชส์ทั้งหมด' : undefined;
+    const alreadyAtDestination =
+      activePage === destinationPage &&
+      (nextBranch
+        ? selectedBranch === nextBranch
+        : selectedBranch === 'ทุกสาขา');
+    if (alreadyAtDestination) return;
+    routerNavigate({
+      pathname: adminPagePaths[destinationPage],
+      search: nextBranch ? `?branch=${encodeURIComponent(nextBranch)}` : '',
+    });
   };
   const isIngredientPage = activePage === 'วัตถุดิบ';
-  const isStockPage = activePage === 'สต๊อก';
+  const isStockPage = activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม';
+  const isPostalStockPage = activePage === 'สต๊อกอุปกรณ์ไปรษณีย์';
+  const franchiseBranchOptions = useMemo(
+    () =>
+      branchDirectory
+        .filter((branch) => Boolean(branch.franchiseeId))
+        .map((branch) => branch.name),
+    [branchDirectory],
+  );
   const usesCompactPersonnelSidebar =
     activePage === 'ตารางพนักงาน' || activePage === 'ลงเวลาพนักงาน';
   const hasBranchSidebar =
     isIngredientPage ||
     isStockPage ||
+    isPostalStockPage ||
     activePage === 'เมนูและสินค้า' ||
     activePage === 'คำสั่งซื้อ';
+  const isCatalogPage =
+    isIngredientPage ||
+    isStockPage ||
+    isPostalStockPage ||
+    activePage === 'เมนูและสินค้า';
+  const isFranchiseCatalogSelection =
+    isCatalogPage &&
+    (selectedBranch === 'แฟรนไชส์ทั้งหมด' ||
+      franchiseBranchOptions.includes(selectedBranch));
+  const activeNavigationKey = isCatalogPage
+    ? `${isFranchiseCatalogSelection ? 'franchise' : 'sbc'}-${
+        activePage === 'เมนูและสินค้า'
+          ? 'products'
+          : activePage === 'วัตถุดิบ'
+            ? 'ingredients'
+            : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
+              ? 'drink-stock'
+              : 'postal-stock'
+      }`
+    : activePage;
+  const catalogBranchOptions = useMemo(
+    () =>
+      selectedBranch === 'แฟรนไชส์ทั้งหมด'
+        ? ['ทุกสาขา', ...franchiseBranchOptions]
+        : undefined,
+    [franchiseBranchOptions, selectedBranch],
+  );
+  const catalogBranchCodes = useMemo(
+    () => ({
+      ...branchCodeByBranch,
+      ...Object.fromEntries(
+        branchDirectory.map((branch) => [branch.name, branch.code]),
+      ),
+    }),
+    [branchDirectory],
+  );
+  const catalogBranchGroups = useMemo(
+    () => [
+      { branches: ['ทุกสาขา'] },
+      {
+        label: 'สาขา SBC',
+        branches: branchDirectory
+          .filter((branch) => !branch.franchiseeId)
+          .map((branch) => branch.name),
+      },
+      {
+        label: 'แฟรนไชส์',
+        branches: ['แฟรนไชส์ทั้งหมด', ...franchiseBranchOptions],
+      },
+    ],
+    [branchDirectory, franchiseBranchOptions],
+  );
   const pageContent = isIngredientPage ? (
-    <AdminIngredientsPage activeBranch={activeBranch} />
+    <AdminIngredientsPage
+      activeBranch={activeBranch}
+      branchOptions={catalogBranchOptions}
+      branchCodes={catalogBranchCodes}
+    />
   ) : activePage === 'ภาพรวม' ? (
     <AdminOverviewPage onNavigate={navigate} />
   ) : activePage === 'คำสั่งซื้อ' ? (
@@ -164,9 +255,27 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   ) : activePage === 'ประวัติการทำรายการ' ? (
     <AdminAuditPage />
   ) : isStockPage ? (
-    <AdminStockPage activeBranch={activeBranch} />
+    <AdminStockPage
+      activeBranch={activeBranch}
+      stockCategory="drink_equipment"
+      stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
+      branchOptions={catalogBranchOptions}
+      branchCodes={catalogBranchCodes}
+    />
+  ) : isPostalStockPage ? (
+    <AdminStockPage
+      activeBranch={activeBranch}
+      stockCategory="postal_equipment"
+      stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
+      branchOptions={catalogBranchOptions}
+      branchCodes={catalogBranchCodes}
+    />
   ) : activePage === 'เมนูและสินค้า' ? (
-    <AdminProductsPage activeBranch={activeBranch} />
+    <AdminProductsPage
+      activeBranch={activeBranch}
+      branchOptions={catalogBranchOptions}
+      branchCodes={catalogBranchCodes}
+    />
   ) : activePage === 'สาขาแฟรนไชส์' ? (
     <AdminFranchiseBranchesPage />
   ) : activePage === 'ตารางพนักงาน' ? (
@@ -180,15 +289,19 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   );
   const pageTitle = isIngredientPage
     ? activeBranch === 'ทุกสาขา'
-      ? 'วัตถุดิบ ทุกสาขา'
+      ? selectedBranch === 'แฟรนไชส์ทั้งหมด'
+        ? 'วัตถุดิบ ทุกแฟรนไชส์'
+        : 'วัตถุดิบ ทุกสาขา'
       : `วัตถุดิบ สาขา${activeBranch}`
-    : isStockPage
+    : isStockPage || isPostalStockPage
       ? activeBranch === 'ทุกสาขา'
-        ? 'สต๊อก ทุกสาขา'
-        : `สต๊อก สาขา${activeBranch}`
+        ? `${activePage} ${selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกแฟรนไชส์' : 'ทุกสาขา'}`
+        : `${activePage} สาขา${activeBranch}`
       : activePage === 'เมนูและสินค้า'
         ? activeBranch === 'ทุกสาขา'
-          ? 'เมนูและสินค้า ทุกสาขา'
+          ? selectedBranch === 'แฟรนไชส์ทั้งหมด'
+            ? 'เมนูและสินค้า ทุกแฟรนไชส์'
+            : 'เมนูและสินค้า ทุกสาขา'
           : `เมนูและสินค้า สาขา${activeBranch}`
         : activePage === 'คำสั่งซื้อ'
           ? activeBranch === 'ทุกสาขา'
@@ -204,6 +317,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   return (
     <AdminDashboardLayout
       activePage={activePage}
+      activeNavigationKey={activeNavigationKey}
       pageTitle={pageTitle}
       navigation={adminSidebarNavigation}
       onNavigate={navigate}
@@ -212,7 +326,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       secondarySidebarVisible={hasBranchSidebar}
       secondarySidebar={
         <BranchesSidebar
-          activeBranch={activeBranch}
+          activeBranch={selectedBranch}
           onBranchChange={(branch) => {
             setSearchParams(
               (current) => {
@@ -235,8 +349,18 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
                     )
                     .map((branch) => branch.name),
                 ]
-              : undefined
+              : isCatalogPage
+                ? [
+                    'ทุกสาขา',
+                    'แฟรนไชส์ทั้งหมด',
+                    ...branchDirectory
+                      .filter((branch) => !branch.franchiseeId)
+                      .map((branch) => branch.name),
+                    ...franchiseBranchOptions,
+                  ]
+                : undefined
           }
+          branchGroups={isCatalogPage ? catalogBranchGroups : undefined}
           allBranchLabel={
             activePage === 'คำสั่งซื้อ' && activeOrderTab === 'franchise'
               ? 'ทุกแฟรนไชส์'

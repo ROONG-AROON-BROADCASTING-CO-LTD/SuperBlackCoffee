@@ -21,17 +21,42 @@ import {
   type XIconHandle,
 } from '@stackbuild/ui';
 import {
+  ActionSnackbar,
+  type ActionNotice,
+} from '../components/ActionSnackbar';
+import {
   branchCodeByBranch,
   branches,
-  type Branch,
+  type BranchCodeMap,
 } from '../components/sidebar/BranchesSidebar';
 import { ProductsSkeleton } from '../components/skeletons/ProductsSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { useAutoRetry } from '../hooks/useAutoRetry';
 import { listInventory, type InventoryItem } from '../api/inventory';
-import { listMenuItems, type MenuItem as ApiMenuItem } from '../api/menu';
+import {
+  listMenuItems,
+  updateMenuItem,
+  type MenuItem as ApiMenuItem,
+} from '../api/menu';
 
-type ProductIngredient = { name: string; quantity: string };
+type ProductIngredient = {
+  inventoryItemId: number;
+  name: string;
+  quantity: number;
+  unit: string;
+};
+type ProductIngredientDraft = { name: string; quantity: string };
+type RecipeIngredientDraft = {
+  inventoryItemId: number | '';
+  quantity: number | '';
+  unit: string;
+};
+type IngredientOption = {
+  id: number;
+  name: string;
+  unit: string;
+  branchCode: string;
+};
 type Product = {
   id: number;
   branchCode: string;
@@ -64,11 +89,7 @@ type ProductFilter = (typeof filters)[number];
 
 const filtersForPlan = (plan?: 'S' | 'M' | 'L') =>
   filters.filter(
-    (filter) =>
-      plan === 'L' ||
-      plan === undefined ||
-      (plan === 'M' && filter !== 'เบเกอรี่') ||
-      (plan === 'S' && filter !== 'อาหาร' && filter !== 'เบเกอรี่'),
+    (filter) => plan !== 'S' || (filter !== 'อาหาร' && filter !== 'เบเกอรี่'),
   );
 
 const isCoffeeMenu = (category: string) =>
@@ -142,10 +163,14 @@ export function ProductsManagementPage({
   activeBranch,
   franchisePlan,
   readOnly = false,
+  branchOptions = branches,
+  branchCodes = branchCodeByBranch,
 }: {
-  activeBranch: Branch;
+  activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
   readOnly?: boolean;
+  branchOptions?: readonly string[];
+  branchCodes?: BranchCodeMap;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
   const searchRef = useRef<SearchIconHandle>(null);
@@ -157,6 +182,10 @@ export function ProductsManagementPage({
   const deferredQuery = useDeferredValue(query);
   const [filter, setFilter] = useState<ProductFilter>('ทั้งหมด');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [recipeProduct, setRecipeProduct] = useState<Product | null>(null);
+  const [recipeDraft, setRecipeDraft] = useState<RecipeIngredientDraft[]>([]);
+  const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -165,11 +194,11 @@ export function ProductsManagementPage({
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
-  const [availableIngredients, setAvailableIngredients] = useState<string[]>(
-    [],
-  );
+  const [availableIngredients, setAvailableIngredients] = useState<
+    IngredientOption[]
+  >([]);
   const [productIngredients, setProductIngredients] = useState<
-    ProductIngredient[]
+    ProductIngredientDraft[]
   >([{ name: '', quantity: '' }]);
   const [visibleBranches, setVisibleBranches] = useState<Set<string>>(
     () => new Set(),
@@ -183,12 +212,8 @@ export function ProductsManagementPage({
         (item) =>
           item.name.includes(deferredQuery) &&
           (filter === 'ทั้งหมด' || item.category === filter) &&
-          (franchisePlan === 'L' ||
-            franchisePlan === undefined ||
-            (franchisePlan === 'M' && item.category !== 'เบเกอรี่') ||
-            (franchisePlan === 'S' &&
-              item.category !== 'อาหาร' &&
-              item.category !== 'เบเกอรี่')),
+          (franchisePlan !== 'S' ||
+            (item.category !== 'อาหาร' && item.category !== 'เบเกอรี่')),
       ),
     [catalogProducts, deferredQuery, filter, franchisePlan],
   );
@@ -196,8 +221,17 @@ export function ProductsManagementPage({
   useEffect(() => {
     if (!filtersForPlan(franchisePlan).includes(filter)) setFilter('ทั้งหมด');
   }, [filter, franchisePlan]);
+  const availableBranchNames = useMemo(
+    () => branchOptions.filter((branch) => branch !== 'ทุกสาขา'),
+    [branchOptions],
+  );
   const displayedBranches =
-    activeBranch === 'ทุกสาขา' ? branches.slice(1) : [activeBranch];
+    activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
+  const recipeIngredientOptions = recipeProduct
+    ? availableIngredients.filter(
+        (item) => item.branchCode === recipeProduct.branchCode,
+      )
+    : [];
   const openAdd = () => {
     setEditing(null);
     setPreview(null);
@@ -207,8 +241,95 @@ export function ProductsManagementPage({
   const openEdit = (item: Product) => {
     setEditing(item);
     setPreview(null);
-    setProductIngredients(item.ingredients);
+    setProductIngredients(
+      item.ingredients.map((ingredient) => ({
+        name: ingredient.name,
+        quantity: `${ingredient.quantity} ${ingredient.unit}`,
+      })),
+    );
     setDrawerOpen(true);
+  };
+  const openRecipe = (item: Product) => {
+    setRecipeProduct(item);
+    setRecipeDraft(
+      item.ingredients.map((ingredient) => ({
+        inventoryItemId: ingredient.inventoryItemId,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+      })),
+    );
+  };
+  const saveRecipe = async () => {
+    if (!recipeProduct || readOnly) return;
+    const ingredients = recipeDraft.filter(
+      (ingredient) =>
+        ingredient.inventoryItemId !== '' &&
+        ingredient.quantity !== '' &&
+        ingredient.quantity > 0 &&
+        ingredient.unit.trim() !== '',
+    );
+    if (ingredients.length !== recipeDraft.length) {
+      setActionNotice({
+        message: 'กรุณาเลือกวัตถุดิบ ระบุปริมาณ และหน่วยให้ครบ',
+        severity: 'error',
+      });
+      return;
+    }
+    setIsSavingRecipe(true);
+    try {
+      await updateMenuItem(
+        recipeProduct.id,
+        {
+          name: recipeProduct.name,
+          category: recipeProduct.category,
+          storePrice: recipeProduct.storePrice,
+          linemanPrice: recipeProduct.lineManPrice,
+          linemanCostPrice: recipeProduct.lineManCostPrice,
+          costPrice: recipeProduct.costPrice,
+          ingredients: ingredients.map((ingredient) => ({
+            inventoryItemId: ingredient.inventoryItemId as number,
+            quantity: ingredient.quantity as number,
+            unit: ingredient.unit.trim(),
+          })),
+        },
+        recipeProduct.branchCode,
+      );
+      const updatedIngredients = ingredients.map((ingredient) => {
+        const option = recipeIngredientOptions.find(
+          (item) => item.id === ingredient.inventoryItemId,
+        );
+        const existingIngredient = recipeProduct.ingredients.find(
+          (item) => item.inventoryItemId === ingredient.inventoryItemId,
+        );
+        return {
+          inventoryItemId: ingredient.inventoryItemId as number,
+          name: option?.name ?? existingIngredient?.name ?? 'วัตถุดิบ',
+          quantity: ingredient.quantity as number,
+          unit: ingredient.unit.trim(),
+        };
+      });
+      setCatalogProducts((items) =>
+        items.map((item) =>
+          item.id === recipeProduct.id &&
+          item.branchCode === recipeProduct.branchCode
+            ? { ...item, ingredients: updatedIngredients }
+            : item,
+        ),
+      );
+      menuCacheRef.current.delete(recipeProduct.branchCode);
+      setRecipeProduct(null);
+      setActionNotice({ message: 'บันทึกสูตรการทำแล้ว' });
+    } catch (error) {
+      setActionNotice({
+        message:
+          error instanceof Error
+            ? error.message
+            : 'ไม่สามารถบันทึกสูตรการทำได้',
+        severity: 'error',
+      });
+    } finally {
+      setIsSavingRecipe(false);
+    }
   };
 
   useEffect(() => {
@@ -252,25 +373,20 @@ export function ProductsManagementPage({
       observer.disconnect();
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [activeBranch]);
+  }, [activeBranch, availableBranchNames]);
 
   useEffect(() => {
     let active = true;
     const refresh = reloadKey > 0;
     setLoadError(false);
-    const branchCodes =
+    const requestedBranchCodes =
       activeBranch === 'ทุกสาขา'
-        ? branches
-            .slice(1)
-            .map(
-              (branch) =>
-                branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>],
-            )
-        : [branchCodeByBranch[activeBranch as Exclude<Branch, 'ทุกสาขา'>]];
+        ? availableBranchNames.map((branch) => branchCodes[branch])
+        : [branchCodes[activeBranch]];
     const loadMenu = async () => {
       try {
         const items = await Promise.all(
-          branchCodes.map(async (branchCode) => {
+          requestedBranchCodes.map(async (branchCode) => {
             const cached = refresh
               ? undefined
               : menuCacheRef.current.get(branchCode);
@@ -285,8 +401,8 @@ export function ProductsManagementPage({
           new Map(
             items.flatMap((branchItems, branchIndex) =>
               branchItems.map((item) => [
-                `${branchCodes[branchIndex]}:${item.id}`,
-                { item, branchCode: branchCodes[branchIndex] },
+                `${requestedBranchCodes[branchIndex]}:${item.id}`,
+                { item, branchCode: requestedBranchCodes[branchIndex] },
               ]),
             ),
           ).values(),
@@ -307,8 +423,10 @@ export function ProductsManagementPage({
             position: `${12 + ((index * 21) % 76)}% ${24 + ((index * 17) % 64)}%`,
             imageUrl: item.imageUrl,
             ingredients: (item.ingredients ?? []).map((ingredient) => ({
+              inventoryItemId: ingredient.inventoryItemId,
               name: ingredient.name,
-              quantity: `${ingredient.quantity} ${ingredient.unit}`,
+              quantity: ingredient.quantity,
+              unit: ingredient.unit,
             })),
           })),
         );
@@ -323,7 +441,7 @@ export function ProductsManagementPage({
       if (readOnly) return;
       try {
         const inventory = await Promise.all(
-          branchCodes.map(async (branchCode) => {
+          requestedBranchCodes.map(async (branchCode) => {
             const cached = refresh
               ? undefined
               : inventoryCacheRef.current.get(branchCode);
@@ -338,14 +456,23 @@ export function ProductsManagementPage({
           }),
         );
         if (active) {
-          setAvailableIngredients(inventory.flat().map((item) => item.name));
+          setAvailableIngredients(
+            inventory.flatMap((items, index) =>
+              items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                unit: item.unit,
+                branchCode: branchCodes[index],
+              })),
+            ),
+          );
         }
       } catch {
         if (active) setLoadError(true);
       }
     };
 
-    const cachedMenuIsReady = branchCodes.every((branchCode) =>
+    const cachedMenuIsReady = requestedBranchCodes.every((branchCode) =>
       menuCacheRef.current.has(branchCode),
     );
     setIsLoading(!cachedMenuIsReady || refresh);
@@ -354,7 +481,7 @@ export function ProductsManagementPage({
     return () => {
       active = false;
     };
-  }, [activeBranch, readOnly, reloadKey]);
+  }, [activeBranch, availableBranchNames, branchCodes, readOnly, reloadKey]);
 
   return (
     <DashboardMain>
@@ -450,8 +577,7 @@ export function ProductsManagementPage({
             visibleBranches.has(branch);
           const loaded =
             activeBranch !== 'ทุกสาขา' || loadedBranches.has(branch);
-          const branchCode =
-            branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>];
+          const branchCode = branchCodes[branch];
           const branchMatches =
             activeBranch === 'ทุกสาขา'
               ? matches.filter((item) => item.branchCode === branchCode)
@@ -701,6 +827,31 @@ export function ProductsManagementPage({
                               </Box>
                             </Typography>
                           </Box>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => openRecipe(item)}
+                            sx={{
+                              mt: 1.5,
+                              minHeight: 34,
+                              borderRadius: '10px',
+                              borderColor: '#d8c8bd',
+                              color: '#5f4030',
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              '&:hover': {
+                                borderColor: '#805637',
+                                bgcolor: '#f7eee8',
+                              },
+                            }}
+                          >
+                            {readOnly
+                              ? 'ดูสูตรการทำ'
+                              : item.ingredients.length === 0
+                                ? 'เพิ่มสูตรการทำ'
+                                : 'จัดการสูตรการทำ'}
+                          </Button>
                           {!readOnly ? (
                             <Box
                               sx={{
@@ -839,6 +990,301 @@ export function ProductsManagementPage({
           ไม่พบเมนูหรือสินค้าที่ค้นหา
         </Typography>
       )}
+      <Drawer
+        anchor="bottom"
+        open={recipeProduct !== null}
+        onClose={() => setRecipeProduct(null)}
+        transitionDuration={{ enter: 300, exit: 220 }}
+        sx={{ zIndex: 1301 }}
+        slotProps={{
+          paper: {
+            sx: {
+              left: { md: '280px' },
+              width: { md: 'calc(100% - 304px)' },
+              height: { xs: '76vh', sm: 'min(76vh, 640px)' },
+              overflow: 'hidden',
+              borderRadius: '24px 24px 0 0',
+              bgcolor: '#fffaf7',
+            },
+          },
+        }}
+      >
+        {recipeProduct ? (
+          <Box
+            sx={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              px: { xs: 2.5, sm: 4 },
+              pt: 1.5,
+              pb: 3,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 5,
+                mx: 'auto',
+                mb: 2,
+                borderRadius: 99,
+                bgcolor: '#d8c8bd',
+              }}
+            />
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2,
+              }}
+            >
+              <Box>
+                <Typography
+                  sx={{
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 22,
+                    fontWeight: 600,
+                  }}
+                >
+                  สูตรการทำ
+                </Typography>
+                <Typography
+                  sx={{
+                    color: 'text.secondary',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 14,
+                  }}
+                >
+                  {recipeProduct.name}
+                </Typography>
+              </Box>
+              <Button
+                aria-label="ปิดสูตรการทำ"
+                onClick={() => setRecipeProduct(null)}
+                sx={{
+                  minWidth: 40,
+                  width: 40,
+                  height: 40,
+                  p: 0,
+                  borderRadius: '12px',
+                  bgcolor: '#f7eee8',
+                  color: '#5f4b3d',
+                  '&:hover': { bgcolor: '#f1e4da' },
+                }}
+              >
+                <XIcon size={20} />
+              </Button>
+            </Box>
+            <Divider sx={{ mt: 2, borderColor: '#e8ddd5' }} />
+            <Box sx={{ flex: 1, overflowY: 'auto', py: 2.5 }}>
+              {readOnly ? (
+                recipeProduct.ingredients.length > 0 ? (
+                  <Box sx={{ display: 'grid', gap: 1 }}>
+                    {recipeProduct.ingredients.map((ingredient, index) => (
+                      <Box
+                        key={ingredient.inventoryItemId}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 2,
+                          px: 2,
+                          py: 1.25,
+                          border: '1px solid #e8ddd5',
+                          borderRadius: '12px',
+                          bgcolor: '#fff',
+                        }}
+                      >
+                        <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                          {index + 1}. {ingredient.name}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: '#805637',
+                            fontFamily: 'Kanit, sans-serif',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {ingredient.quantity} {ingredient.unit}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                ) : (
+                  <Typography
+                    sx={{
+                      py: 4,
+                      textAlign: 'center',
+                      color: 'text.secondary',
+                      fontFamily: 'Kanit, sans-serif',
+                    }}
+                  >
+                    เมนูนี้ยังไม่มีสูตรการทำ
+                  </Typography>
+                )
+              ) : (
+                <Box sx={{ display: 'grid', gap: 1.25 }}>
+                  {recipeDraft.map((ingredient, index) => (
+                    <Box
+                      key={`${ingredient.inventoryItemId}-${index}`}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr 88px 78px 40px',
+                          sm: 'minmax(0, 1fr) 120px 110px 40px',
+                        },
+                        gap: 1,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <TextField
+                        select
+                        size="small"
+                        value={ingredient.inventoryItemId}
+                        label={index === 0 ? 'วัตถุดิบ' : undefined}
+                        onChange={(event) => {
+                          const inventoryItemId = Number(event.target.value);
+                          const option = recipeIngredientOptions.find(
+                            (item) => item.id === inventoryItemId,
+                          );
+                          setRecipeDraft((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    inventoryItemId,
+                                    unit: option?.unit ?? item.unit,
+                                  }
+                                : item,
+                            ),
+                          );
+                        }}
+                      >
+                        <MenuItem value="" disabled>
+                          เลือกวัตถุดิบ
+                        </MenuItem>
+                        {recipeIngredientOptions.map((option) => (
+                          <MenuItem key={option.id} value={option.id}>
+                            {option.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        size="small"
+                        type="number"
+                        label={index === 0 ? 'ปริมาณ' : undefined}
+                        slotProps={{ htmlInput: { min: 0, step: 'any' } }}
+                        value={ingredient.quantity}
+                        onChange={(event) =>
+                          setRecipeDraft((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    quantity:
+                                      event.target.value === ''
+                                        ? ''
+                                        : Number(event.target.value),
+                                  }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                      <TextField
+                        size="small"
+                        label={index === 0 ? 'หน่วย' : undefined}
+                        value={ingredient.unit}
+                        onChange={(event) =>
+                          setRecipeDraft((items) =>
+                            items.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, unit: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                      <Button
+                        aria-label="ลบวัตถุดิบจากสูตร"
+                        disabled={recipeDraft.length === 0}
+                        onClick={() =>
+                          setRecipeDraft((items) =>
+                            items.filter((_, itemIndex) => itemIndex !== index),
+                          )
+                        }
+                        sx={{
+                          minWidth: 40,
+                          width: 40,
+                          height: 40,
+                          p: 0,
+                          borderRadius: '10px',
+                          bgcolor: '#fff0ee',
+                          color: '#b42318',
+                        }}
+                      >
+                        <XIcon size={18} />
+                      </Button>
+                    </Box>
+                  ))}
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      setRecipeDraft((items) => [
+                        ...items,
+                        { inventoryItemId: '', quantity: '', unit: '' },
+                      ])
+                    }
+                    sx={{
+                      justifySelf: 'start',
+                      minHeight: 36,
+                      borderRadius: '10px',
+                      borderColor: '#d8c8bd',
+                      color: '#805637',
+                      fontFamily: 'Kanit, sans-serif',
+                    }}
+                  >
+                    + เพิ่มวัตถุดิบในสูตร
+                  </Button>
+                </Box>
+              )}
+            </Box>
+            {!readOnly ? (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                <Button
+                  onClick={() => setRecipeProduct(null)}
+                  sx={{
+                    minHeight: 40,
+                    borderRadius: '12px',
+                    color: '#5f4b3d',
+                    fontFamily: 'Kanit, sans-serif',
+                  }}
+                >
+                  ยกเลิก
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={isSavingRecipe}
+                  onClick={() => void saveRecipe()}
+                  sx={{
+                    minHeight: 40,
+                    borderRadius: '12px',
+                    bgcolor: '#201914',
+                    fontFamily: 'Kanit, sans-serif',
+                    '&:hover': { bgcolor: '#3c2d24' },
+                  }}
+                >
+                  {isSavingRecipe ? 'กำลังบันทึก...' : 'บันทึกสูตรการทำ'}
+                </Button>
+              </Box>
+            ) : null}
+          </Box>
+        ) : null}
+      </Drawer>
+      <ActionSnackbar
+        notice={actionNotice}
+        onClose={() => setActionNotice(null)}
+      />
       <Drawer
         anchor="bottom"
         open={drawerOpen}
@@ -1188,11 +1634,17 @@ export function ProductsManagementPage({
                           <MenuItem value="" disabled>
                             เลือกวัตถุดิบ
                           </MenuItem>
-                          {availableIngredients.map((name) => (
-                            <MenuItem key={name} value={name}>
-                              {name}
-                            </MenuItem>
-                          ))}
+                          {availableIngredients
+                            .filter(
+                              (option) =>
+                                !editing ||
+                                option.branchCode === editing.branchCode,
+                            )
+                            .map((option) => (
+                              <MenuItem key={option.id} value={option.name}>
+                                {option.name}
+                              </MenuItem>
+                            ))}
                         </TextField>
                         <TextField
                           value={ingredient.quantity}

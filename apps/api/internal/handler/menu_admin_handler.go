@@ -19,7 +19,7 @@ func (h *PlatformHandler) ListMenuItems(c *gin.Context) {
 	if !ok {
 		return
 	}
-	plan, ok := h.requestPlan(c)
+	plan, ok := h.requestPlan(c, branchID)
 	if !ok {
 		return
 	}
@@ -56,12 +56,12 @@ func (h *PlatformHandler) CreateMenuItem(c *gin.Context) {
 	if !ok {
 		return
 	}
-	plan, ok := h.requestPlan(c)
+	plan, ok := h.requestPlan(c, branchID)
 	if !ok {
 		return
 	}
 	if !menuAllowedForPlan(plan, input.Category) {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ขนาดสาขานี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
 		return
 	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
@@ -116,12 +116,12 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 	if !ok {
 		return
 	}
-	plan, ok := h.requestPlan(c)
+	plan, ok := h.requestPlan(c, branchID)
 	if !ok {
 		return
 	}
 	if !menuAllowedForPlan(plan, input.Category) {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ขนาดสาขานี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
 		return
 	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
@@ -173,7 +173,7 @@ func (h *PlatformHandler) DeleteMenuItem(c *gin.Context) {
 	if !ok {
 		return
 	}
-	plan, ok := h.requestPlan(c)
+	plan, ok := h.requestPlan(c, branchID)
 	if !ok || !h.ensureMenuDeleteAllowed(c, plan, branchID, id) {
 		return
 	}

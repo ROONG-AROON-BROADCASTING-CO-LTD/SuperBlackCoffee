@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -25,7 +25,7 @@ import {
 import {
   branchCodeByBranch,
   branches,
-  type Branch,
+  type BranchCodeMap,
 } from '../components/sidebar/BranchesSidebar';
 import { listInventory } from '../api/inventory';
 import { StockSkeleton } from '../components/skeletons/StockSkeleton';
@@ -39,17 +39,23 @@ type StockItem = {
   position: string;
   imageUrl: string;
 };
-type InventoryBranch = Exclude<Branch, 'ทุกสาขา'>;
-
 const filters = ['ทั้งหมด', 'ใกล้หมด', 'หมด', 'ค้างสต๊อก'] as const;
 type StockFilter = (typeof filters)[number];
 
 export function StockManagementPage({
   activeBranch,
   readOnly = false,
+  stockCategory = 'drink_equipment',
+  stockLabel = 'สต๊อกอุปกรณ์เครื่องดื่ม',
+  branchOptions = branches,
+  branchCodes = branchCodeByBranch,
 }: {
-  activeBranch: Branch;
+  activeBranch: string;
   readOnly?: boolean;
+  stockCategory?: 'drink_equipment' | 'postal_equipment';
+  stockLabel?: string;
+  branchOptions?: readonly string[];
+  branchCodes?: BranchCodeMap;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
   const searchRef = useRef<SearchIconHandle>(null);
@@ -77,9 +83,13 @@ export function StockManagementPage({
           (filter === 'หมด' && item.status === 'วัตถุดิบหมด') ||
           (filter === 'ค้างสต๊อก' && item.status === 'วัตถุดิบค้างสต๊อก')),
     );
+  const availableBranchNames = useMemo(
+    () => branchOptions.filter((branch) => branch !== 'ทุกสาขา'),
+    [branchOptions],
+  );
   const displayedBranches =
-    activeBranch === 'ทุกสาขา' ? branches.slice(1) : [activeBranch];
-  const drawerTitle = editingItem ? 'แก้ไขสต๊อก' : 'เพิ่มสต๊อก';
+    activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
+  const drawerTitle = editingItem ? `แก้ไข${stockLabel}` : `เพิ่ม${stockLabel}`;
   const imageSource = imagePreviewUrl ?? editingItem?.imageUrl ?? null;
 
   useEffect(
@@ -93,15 +103,15 @@ export function StockManagementPage({
     const loadingStartedAt = performance.now();
     setIsLoading(true);
     setLoadError(false);
-    const branchNames: InventoryBranch[] =
-      activeBranch === 'ทุกสาขา'
-        ? branches.filter(
-            (branch): branch is InventoryBranch => branch !== 'ทุกสาขา',
-          )
-        : [activeBranch];
+    const branchNames =
+      activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
     void Promise.all(
       branchNames.map(async (branch) => {
-        const items = await listInventory('stock', branchCodeByBranch[branch]);
+        const items = await listInventory(
+          'stock',
+          branchCodes[branch],
+          stockCategory,
+        );
         return [
           branch,
           items.map((item, index) => ({
@@ -142,7 +152,13 @@ export function StockManagementPage({
     return () => {
       active = false;
     };
-  }, [activeBranch, reloadKey]);
+  }, [
+    activeBranch,
+    availableBranchNames,
+    branchCodes,
+    reloadKey,
+    stockCategory,
+  ]);
   const openAdd = () => {
     setEditingItem(null);
     setImagePreviewUrl(null);
@@ -171,7 +187,7 @@ export function StockManagementPage({
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => searchRef.current?.startAnimation()}
           onBlur={() => searchRef.current?.stopAnimation()}
-          placeholder="ค้นหาสต๊อก"
+          placeholder={`ค้นหา${stockLabel}`}
           size="small"
           sx={{
             width: { xs: '100%', lg: 310 },
@@ -205,7 +221,7 @@ export function StockManagementPage({
               '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
             }}
           >
-            เพิ่มสต๊อก
+            เพิ่ม{stockLabel}
           </Button>
         ) : null}
       </Box>
@@ -384,7 +400,7 @@ export function StockManagementPage({
                                   },
                                 }}
                               >
-                                แก้ไขสต๊อก
+                                แก้ไข{stockLabel}
                               </Button>
                               <Button
                                 size="small"
@@ -401,7 +417,7 @@ export function StockManagementPage({
                                   '&:hover': { boxShadow: 'none' },
                                 }}
                               >
-                                ลบสต๊อก
+                                ลบ{stockLabel}
                               </Button>
                             </Box>
                           ) : null}
@@ -430,7 +446,7 @@ export function StockManagementPage({
                                 fontWeight: 600,
                               }}
                             >
-                              ยืนยันการลบสต๊อก?
+                              ยืนยันการลบ{stockLabel}?
                             </Typography>
                             <Typography
                               sx={{
@@ -439,7 +455,7 @@ export function StockManagementPage({
                                 fontSize: 13,
                               }}
                             >
-                              รายการนี้จะถูกลบออกจากสต๊อก
+                              รายการนี้จะถูกลบออกจาก{stockLabel}
                             </Typography>
                             <Box
                               sx={{ display: 'flex', width: '100%', gap: 1 }}
@@ -595,7 +611,9 @@ export function StockManagementPage({
               fontFamily: 'Kanit, sans-serif',
             }}
           >
-            {editingItem ? 'แก้ไขข้อมูลสต๊อก' : 'กรอกข้อมูลเพื่อเพิ่มสต๊อกใหม่'}
+            {editingItem
+              ? `แก้ไขข้อมูล${stockLabel}`
+              : `กรอกข้อมูลเพื่อเพิ่ม${stockLabel}ใหม่`}
           </Typography>
           <Divider
             sx={{
@@ -685,7 +703,7 @@ export function StockManagementPage({
                         textAlign: 'center',
                       }}
                     >
-                      เพิ่มรูปสต๊อก
+                      เพิ่มรูป{stockLabel}
                     </Typography>
                     <Typography
                       sx={{
@@ -723,7 +741,7 @@ export function StockManagementPage({
                 <TextField
                   required
                   fullWidth
-                  label="ชื่อสต๊อก"
+                  label={`ชื่อ${stockLabel}`}
                   placeholder="เช่น แก้วกระดาษ 16 oz"
                   defaultValue={editingItem?.name}
                   sx={{ gridColumn: { sm: '1 / -1' } }}

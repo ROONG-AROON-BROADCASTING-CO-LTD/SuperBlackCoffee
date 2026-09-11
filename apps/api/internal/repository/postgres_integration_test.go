@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"y/internal/database"
 	"y/internal/model"
@@ -75,6 +76,42 @@ func TestPostgresInventoryRepositoryCRUDAndStatus(t *testing.T) {
 	deleted, err := repo.Delete(context.Background(), branchID, id)
 	if err != nil || !deleted {
 		t.Fatalf("deleted = %t, err = %v", deleted, err)
+	}
+	stockID, err := repo.Create(context.Background(), branchID, model.InventoryItem{Name: "กล่องพัสดุ", Category: "box", StockCategory: "postal_equipment", Kind: model.InventoryKindStock, Quantity: 2, Unit: "ใบ", ReorderLevel: 1, UnitCost: 10})
+	if err != nil || stockID < 1 {
+		t.Fatalf("create postal stock id = %d, err = %v", stockID, err)
+	}
+	items, err = repo.List(context.Background(), branchID, "stock")
+	if err != nil || len(items) != 1 || items[0].StockCategory != "postal_equipment" {
+		t.Fatalf("postal stock = %#v, err = %v", items, err)
+	}
+}
+
+func TestPostgresInventoryRepositoryReturnsExpiryWarnings(t *testing.T) {
+	db := openRepositoryTestDB(t)
+	branchID := seedTestBranch(t, db)
+	repo := NewPostgresInventoryRepository(db)
+	expiringSoon := time.Now().UTC().AddDate(0, 0, 3)
+	expired := time.Now().UTC().AddDate(0, 0, -1)
+	if _, err := repo.Create(context.Background(), branchID, model.InventoryItem{Name: "นมใกล้หมดอายุ", Category: "dairy", Kind: model.InventoryKindIngredient, Quantity: 4, Unit: "ลิตร", UnitCost: 45, ExpiryDate: &expiringSoon}); err != nil {
+		t.Fatalf("create expiring inventory: %v", err)
+	}
+	if _, err := repo.Create(context.Background(), branchID, model.InventoryItem{Name: "นมหมดอายุ", Category: "dairy", Kind: model.InventoryKindIngredient, Quantity: 4, Unit: "ลิตร", UnitCost: 45, ExpiryDate: &expired}); err != nil {
+		t.Fatalf("create expired inventory: %v", err)
+	}
+	items, err := repo.List(context.Background(), branchID, "ingredient")
+	if err != nil || len(items) != 2 {
+		t.Fatalf("list = %#v, err = %v", items, err)
+	}
+	statuses := map[string]string{}
+	for _, item := range items {
+		if item.ExpiryDate == nil {
+			t.Fatalf("expiry date missing for %#v", item)
+		}
+		statuses[item.Name] = item.ExpiryStatus
+	}
+	if statuses["นมใกล้หมดอายุ"] != "expiring_soon" || statuses["นมหมดอายุ"] != "expired" {
+		t.Fatalf("expiry statuses = %#v", statuses)
 	}
 }
 

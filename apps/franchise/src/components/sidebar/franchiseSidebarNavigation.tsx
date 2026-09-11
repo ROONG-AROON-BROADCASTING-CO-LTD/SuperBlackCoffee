@@ -13,7 +13,16 @@ export const navigation = [
   { label: 'ภาพรวม', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
   { label: 'คำขอวัตถุดิบ', icon: <ReceiptIcon />, group: 'งานประจำวัน' },
   { label: 'เมนูและสินค้า', icon: <ReceiptTextIcon />, group: 'สินค้าและคลัง' },
-  { label: 'สต๊อก', icon: <BoxIcon />, group: 'สินค้าและคลัง' },
+  {
+    label: 'สต๊อกอุปกรณ์เครื่องดื่ม',
+    icon: <BoxIcon />,
+    group: 'สินค้าและคลัง',
+  },
+  {
+    label: 'สต๊อกอุปกรณ์ไปรษณีย์',
+    icon: <BoxIcon />,
+    group: 'สินค้าและคลัง',
+  },
   { label: 'วัตถุดิบ', icon: <BoxesIcon />, group: 'สินค้าและคลัง' },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
   { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
@@ -21,5 +30,4 @@ export const navigation = [
 ] as const;
 
 export type FranchisePlan = 'S' | 'M' | 'L';
-export const navigationForPlan = (plan: FranchisePlan) =>
-  navigation.filter((item) => plan === 'L' || item.label !== 'สต๊อก');
+export const navigationForPlan = (_plan: FranchisePlan) => [...navigation];

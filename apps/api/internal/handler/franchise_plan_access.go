@@ -27,18 +27,24 @@ func (h *PlatformHandler) ensureCatalogWriteAllowed(c *gin.Context) bool {
 	return false
 }
 
-func (h *PlatformHandler) requestPlan(c *gin.Context) (string, bool) {
+// requestPlan resolves the size for the branch selected by the current request.
+// Admins may select any branch, while other accounts remain constrained by
+// branchScope before reaching this function.
+func (h *PlatformHandler) requestPlan(c *gin.Context, branchID int64) (string, bool) {
 	claims := middleware.ClaimsFrom(c)
-	if claims.Role != "franchise_owner" {
-		return franchisePlanL, true
-	}
-	if claims.FranchiseeID == nil {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ไม่มีแพ็กเกจการใช้งาน"})
-		return "", false
-	}
 	var plan string
-	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT plan FROM franchisees WHERE id=$1`, *claims.FranchiseeID).Scan(&plan); err != nil || (plan != franchisePlanS && plan != franchisePlanM && plan != franchisePlanL) {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ไม่พบแพ็กเกจแฟรนไชส์"})
+	query := `SELECT size FROM branches WHERE id=$1`
+	args := []any{branchID}
+	if claims.Role == "franchise_owner" {
+		if claims.FranchiseeID == nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ไม่มีขนาดสาขาที่ใช้งานได้"})
+			return "", false
+		}
+		query += ` AND franchisee_id=$2`
+		args = append(args, *claims.FranchiseeID)
+	}
+	if err := h.db.QueryRowContext(c.Request.Context(), query, args...).Scan(&plan); err != nil || (plan != franchisePlanS && plan != franchisePlanM && plan != franchisePlanL) {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ไม่พบขนาดสาขา"})
 		return "", false
 	}
 	return plan, true
@@ -50,13 +56,10 @@ func normalizedCategory(category string) string {
 
 func menuAllowedForPlan(plan, category string) bool {
 	category = normalizedCategory(category)
-	if plan == franchisePlanL {
+	if plan != franchisePlanS {
 		return true
 	}
-	if plan == franchisePlanS {
-		return category != "อาหาร" && category != "food" && category != "เบเกอรี่" && category != "bakery"
-	}
-	return category != "เบเกอรี่" && category != "bakery"
+	return category != "อาหาร" && category != "food" && category != "เบเกอรี่" && category != "bakery"
 }
 
 func (h *PlatformHandler) filterMenuForPlan(plan string, items []model.MenuItem) []model.MenuItem {
@@ -73,7 +76,7 @@ func (h *PlatformHandler) filterMenuForPlan(plan string, items []model.MenuItem)
 }
 
 func (h *PlatformHandler) filterInventoryForPlan(c *gin.Context, plan string, branchID int64, items []model.InventoryItem) ([]model.InventoryItem, error) {
-	if plan == franchisePlanL {
+	if plan != franchisePlanS {
 		return items, nil
 	}
 	rows, err := h.db.QueryContext(c.Request.Context(), `
@@ -81,8 +84,7 @@ func (h *PlatformHandler) filterInventoryForPlan(c *gin.Context, plan string, br
 		FROM menu_item_ingredients mii
 		JOIN menu_items m ON m.id=mii.menu_item_id
 		WHERE m.branch_id=$1
-		AND CASE WHEN $2='S' THEN lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
-		             ELSE lower(m.category) NOT IN ('เบเกอรี่','bakery') END`, branchID, plan)
+		AND lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')`, branchID)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +102,10 @@ func (h *PlatformHandler) filterInventoryForPlan(c *gin.Context, plan string, br
 	}
 	filtered := make([]model.InventoryItem, 0, len(items))
 	for _, item := range items {
+		if item.Kind == model.InventoryKindStock {
+			filtered = append(filtered, item)
+			continue
+		}
 		if item.Kind == model.InventoryKindIngredient {
 			if _, ok := allowed[item.ID]; ok {
 				filtered = append(filtered, item)
@@ -110,7 +116,7 @@ func (h *PlatformHandler) filterInventoryForPlan(c *gin.Context, plan string, br
 }
 
 func (h *PlatformHandler) ensureInventoryWriteAllowed(c *gin.Context, plan string, branchID, inventoryID int64) bool {
-	if plan == franchisePlanL || inventoryID == 0 {
+	if plan != franchisePlanS || inventoryID == 0 {
 		return true
 	}
 	var kind model.InventoryKind
@@ -118,15 +124,11 @@ func (h *PlatformHandler) ensureInventoryWriteAllowed(c *gin.Context, plan strin
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return false
 	}
-	if kind == model.InventoryKindStock {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่มีสิทธิ์จัดการสต็อก"})
-		return false
-	}
 	return true
 }
 
 func (h *PlatformHandler) ensureMenuDeleteAllowed(c *gin.Context, plan string, branchID, menuID int64) bool {
-	if plan == franchisePlanL {
+	if plan != franchisePlanS {
 		return true
 	}
 	var category string
@@ -135,7 +137,7 @@ func (h *PlatformHandler) ensureMenuDeleteAllowed(c *gin.Context, plan string, b
 		return false
 	}
 	if !menuAllowedForPlan(plan, category) {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "แพ็กเกจแฟรนไชส์นี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ขนาดสาขานี้ไม่รองรับหมวดหมู่เมนูดังกล่าว"})
 		return false
 	}
 	return true

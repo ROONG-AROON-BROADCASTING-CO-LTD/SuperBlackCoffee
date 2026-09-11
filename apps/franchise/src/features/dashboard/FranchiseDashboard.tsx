@@ -55,7 +55,8 @@ function FranchisePageSkeleton({ page }: { page: string }) {
       <IngredientsSkeleton readOnly allowOrdering />
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton readOnly />
-    ) : page === 'สต๊อก' ? (
+    ) : page === 'สต๊อกอุปกรณ์เครื่องดื่ม' ||
+      page === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
       <StockSkeleton readOnly />
     ) : page === 'ลงเวลาพนักงาน' ? (
       <AttendanceSkeleton franchiseMode />
@@ -122,8 +123,20 @@ export function FranchiseDashboard({
           />
         ) : activePage === 'คำขอวัตถุดิบ' ? (
           <FranchiseIngredientRequestsPage />
-        ) : activePage === 'สต๊อก' ? (
-          <StockManagementPage activeBranch={franchiseBranch} readOnly />
+        ) : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม' ? (
+          <StockManagementPage
+            activeBranch={franchiseBranch}
+            readOnly
+            stockCategory="drink_equipment"
+            stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
+          />
+        ) : activePage === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
+          <StockManagementPage
+            activeBranch={franchiseBranch}
+            readOnly
+            stockCategory="postal_equipment"
+            stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
+          />
         ) : activePage === 'ตารางพนักงาน' ? (
           <EmployeesManagementPage franchiseMode />
         ) : activePage === 'ลงเวลาพนักงาน' ? (
