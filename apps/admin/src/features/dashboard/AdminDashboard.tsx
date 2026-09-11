@@ -213,21 +213,12 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     }),
     [branchDirectory],
   );
-  const catalogBranchGroups = useMemo(
-    () => [
-      { branches: ['ทุกสาขา'] },
-      {
-        label: 'สาขา SBC',
-        branches: branchDirectory
-          .filter((branch) => !branch.franchiseeId)
-          .map((branch) => branch.name),
-      },
-      {
-        label: 'แฟรนไชส์',
-        branches: ['แฟรนไชส์ทั้งหมด', ...franchiseBranchOptions],
-      },
-    ],
-    [branchDirectory, franchiseBranchOptions],
+  const sbcBranchOptions = useMemo(
+    () =>
+      branchDirectory
+        .filter((branch) => !branch.franchiseeId)
+        .map((branch) => branch.name),
+    [branchDirectory],
   );
   const pageContent = isIngredientPage ? (
     <AdminIngredientsPage
@@ -350,21 +341,18 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
                     .map((branch) => branch.name),
                 ]
               : isCatalogPage
-                ? [
-                    'ทุกสาขา',
-                    'แฟรนไชส์ทั้งหมด',
-                    ...branchDirectory
-                      .filter((branch) => !branch.franchiseeId)
-                      .map((branch) => branch.name),
-                    ...franchiseBranchOptions,
-                  ]
+                ? isFranchiseCatalogSelection
+                  ? ['แฟรนไชส์ทั้งหมด', ...franchiseBranchOptions]
+                  : ['ทุกสาขา', ...sbcBranchOptions]
                 : undefined
           }
-          branchGroups={isCatalogPage ? catalogBranchGroups : undefined}
           allBranchLabel={
-            activePage === 'คำสั่งซื้อ' && activeOrderTab === 'franchise'
+            (activePage === 'คำสั่งซื้อ' && activeOrderTab === 'franchise') ||
+            isFranchiseCatalogSelection
               ? 'ทุกแฟรนไชส์'
-              : 'ทุกสาขา'
+              : isCatalogPage
+                ? 'ทุกสาขา SBC'
+                : 'ทุกสาขา'
           }
           visible={hasBranchSidebar}
         />

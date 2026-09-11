@@ -17,6 +17,7 @@ export { LogInIcon, type LogInIconHandle } from './components/icons/LogInIcon';
 export { LogoutIcon } from './components/icons/LogoutIcon';
 export { LayoutGridIcon } from './components/icons/LayoutGridIcon';
 export { CoffeeIcon } from './components/icons/CoffeeIcon';
+export { CupSodaIcon } from './components/icons/CupSodaIcon';
 export { HeartIcon } from './components/icons/HeartIcon';
 export { BadgeIcon } from './components/icons/BadgeIcon';
 export { BadgeAlertIcon } from './components/icons/BadgeAlertIcon';
@@ -62,6 +63,7 @@ export {
 export { XIcon, type XIconHandle } from './components/icons/XIcon';
 export { ClockIcon, type ClockIconHandle } from './components/icons/ClockIcon';
 export { TimerIcon, type TimerIconHandle } from './components/icons/TimerIcon';
+export { TruckIcon } from './components/icons/TruckIcon';
 export {
   CalendarDaysIcon,
   type CalendarDaysIconHandle,

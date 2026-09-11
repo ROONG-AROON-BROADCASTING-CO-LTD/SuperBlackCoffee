@@ -1,6 +1,9 @@
 import {
   BoxIcon,
   BoxesIcon,
+  CartIcon,
+  CoffeeIcon,
+  CupSodaIcon,
   ClockIcon,
   FilePenLineIcon,
   HistoryIcon,
@@ -9,6 +12,8 @@ import {
   MapPinPlusIcon,
   ReceiptIcon,
   ReceiptTextIcon,
+  SendIcon,
+  TruckIcon,
   UsersIcon,
 } from '@stackbuild/ui';
 
@@ -18,19 +23,19 @@ export const adminSidebarNavigation = [
   {
     id: 'sbc-products',
     label: 'เมนูและสินค้า',
-    icon: <ReceiptTextIcon />,
+    icon: <CartIcon />,
     group: 'สินค้าและคลังสาขา SBC',
   },
   {
     id: 'sbc-drink-stock',
     label: 'สต๊อกอุปกรณ์เครื่องดื่ม',
-    icon: <BoxIcon />,
+    icon: <CoffeeIcon />,
     group: 'สินค้าและคลังสาขา SBC',
   },
   {
     id: 'sbc-postal-stock',
     label: 'สต๊อกอุปกรณ์ไปรษณีย์',
-    icon: <BoxIcon />,
+    icon: <SendIcon />,
     group: 'สินค้าและคลังสาขา SBC',
   },
   {
@@ -48,19 +53,19 @@ export const adminSidebarNavigation = [
   {
     id: 'franchise-drink-stock',
     label: 'สต๊อกอุปกรณ์เครื่องดื่ม',
-    icon: <BoxIcon />,
+    icon: <CupSodaIcon />,
     group: 'สินค้าและคลังแฟรนไชส์',
   },
   {
     id: 'franchise-postal-stock',
     label: 'สต๊อกอุปกรณ์ไปรษณีย์',
-    icon: <BoxIcon />,
+    icon: <TruckIcon />,
     group: 'สินค้าและคลังแฟรนไชส์',
   },
   {
     id: 'franchise-ingredients',
     label: 'วัตถุดิบ',
-    icon: <BoxesIcon />,
+    icon: <BoxIcon />,
     group: 'สินค้าและคลังแฟรนไชส์',
   },
   {

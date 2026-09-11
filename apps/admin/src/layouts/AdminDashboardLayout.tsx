@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { DashboardSidebar, DashboardTopbar } from '@stackbuild/ui';
 
@@ -35,9 +35,16 @@ export function AdminDashboardLayout({
   secondarySidebarVisible?: boolean;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // Match Franchise's sidebar state flow: route-driven compact pages and a
-  // user-triggered collapse both feed the same shared sidebar transition.
-  const primarySidebarCollapsed = forceSidebarCollapsed || sidebarCollapsed;
+  const [forceCollapsedManuallyExpanded, setForceCollapsedManuallyExpanded] =
+    useState(false);
+  useEffect(() => {
+    // Each compact page starts with the compact rail, while retaining the
+    // visible round toggle so the user can expand it again when needed.
+    setForceCollapsedManuallyExpanded(false);
+  }, [forceSidebarCollapsed, activePage]);
+  const primarySidebarCollapsed = forceSidebarCollapsed
+    ? !forceCollapsedManuallyExpanded
+    : sidebarCollapsed;
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <DashboardSidebar
@@ -49,8 +56,13 @@ export function AdminDashboardLayout({
         activeBackground="#fbfaf8"
         accentColor="#bf9576"
         collapsed={primarySidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((value) => !value)}
-        hideToggle={forceSidebarCollapsed}
+        onToggle={() => {
+          if (forceSidebarCollapsed) {
+            setForceCollapsedManuallyExpanded((value) => !value);
+            return;
+          }
+          setSidebarCollapsed((value) => !value);
+        }}
         attachedPanel={secondarySidebar}
       />
       <Box

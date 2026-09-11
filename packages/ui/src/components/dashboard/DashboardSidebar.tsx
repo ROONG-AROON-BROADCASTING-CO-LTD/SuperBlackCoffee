@@ -121,6 +121,23 @@ export function DashboardSidebar({
     });
   };
 
+  const scrollNavigationList = (deltaY: number) => {
+    const list = navigationListRef.current;
+    if (!list) return;
+
+    const maxScrollTop = list.scrollHeight - list.clientHeight;
+    if (maxScrollTop <= 0) return;
+
+    const nextScrollTop = Math.max(
+      0,
+      Math.min(maxScrollTop, list.scrollTop + deltaY),
+    );
+    if (nextScrollTop === list.scrollTop) return;
+
+    list.scrollTop = nextScrollTop;
+    updateScrollbarThumb();
+  };
+
   const clearHoveredMenu = () => {
     setHoveredMenu(null);
     setHoverCardVisible(false);
@@ -287,6 +304,13 @@ export function DashboardSidebar({
       </Box>
       <List
         ref={navigationListRef}
+        onWheel={(event) => {
+          // Never allow wheel input from the sidebar to bubble into the page.
+          // In particular, at the first/last row the list cannot move further,
+          // but the page must still remain fixed underneath it.
+          event.preventDefault();
+          scrollNavigationList(event.deltaY);
+        }}
         onScroll={() => {
           // A scroll changes the row's viewport coordinates. Hide the label
           // instead of leaving it at a stale position until the next hover.
@@ -560,6 +584,13 @@ export function DashboardSidebar({
                 Boolean(hoverAnchor?.contains(relatedTarget));
 
               if (!isBackOnAnchor) scheduleHoverClear();
+            }}
+            onWheel={(event) => {
+              // The compact hover label is portalled above the navigation
+              // list. Forward its wheel input so it cannot block sidebar
+              // scrolling while the pointer is over the label.
+              event.preventDefault();
+              scrollNavigationList(event.deltaY);
             }}
             onClick={navigateHoveredMenu}
             sx={{
