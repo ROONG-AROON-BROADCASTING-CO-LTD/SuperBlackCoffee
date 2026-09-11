@@ -60,6 +60,14 @@ describe('Franchise App session', () => {
     expect(await screen.findByText('franchise-login')).toBeTruthy();
   });
 
+  it('shows login when restoring the franchise session fails', async () => {
+    vi.mocked(restoreSession).mockRejectedValueOnce(new Error('เซสชันหมดอายุ'));
+
+    render(<App />);
+
+    expect(await screen.findByText('franchise-login')).toBeTruthy();
+  });
+
   it('ends the session when an authenticated request reports expiry', async () => {
     sessionStorage.setItem('sbc-franchise-active-page', 'overview');
     sessionStorage.setItem('sbc-franchise-sidebar-collapsed', 'true');

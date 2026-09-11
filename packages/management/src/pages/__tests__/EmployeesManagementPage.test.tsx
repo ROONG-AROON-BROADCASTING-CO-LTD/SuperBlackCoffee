@@ -16,7 +16,10 @@ import {
   updateEmployee,
 } from '../../api/users';
 import { listBranches } from '../../api/branches';
-import { listStaffSchedules } from '../../api/staff-schedules';
+import {
+  generateStaffSchedules,
+  listStaffSchedules,
+} from '../../api/staff-schedules';
 import { exportDailyReportAsPdf } from '../../utils/exportCalendarPdf';
 
 vi.mock('../../api/users', () => ({
@@ -42,6 +45,7 @@ const mockedDeleteEmployee = vi.mocked(deleteEmployee);
 const mockedUpdateEmployee = vi.mocked(updateEmployee);
 const mockedListBranches = vi.mocked(listBranches);
 const mockedListStaffSchedules = vi.mocked(listStaffSchedules);
+const mockedGenerateStaffSchedules = vi.mocked(generateStaffSchedules);
 const exportPdf = vi.mocked(exportDailyReportAsPdf);
 
 const employee = {
@@ -102,6 +106,10 @@ describe('EmployeesManagementPage', () => {
         status: 'scheduled',
       },
     ]);
+    mockedGenerateStaffSchedules.mockResolvedValue({
+      created: 31,
+      month,
+    });
     mockedUpdateEmployee.mockResolvedValue({ id: employee.id });
     mockedCreateEmployee.mockResolvedValue({ id: 91 });
     mockedDeleteEmployee.mockResolvedValue();
@@ -137,6 +145,32 @@ describe('EmployeesManagementPage', () => {
           }),
         ]),
       }),
+    );
+  });
+
+  it('explains the weekly rotation rule before automatically generating schedules', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'จัดตารางอัตโนมัติ' }));
+
+    expect(
+      screen.getByText('หากสาขามีพนักงาน 2 คน ระบบจะสลับกะเป็นรายสัปดาห์'),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' })).toBeTruthy();
+    expect(mockedGenerateStaffSchedules).not.toHaveBeenCalled();
+  });
+
+  it('generates the selected branch schedule only after confirmation', async () => {
+    const month = new Date().toISOString().slice(0, 7);
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'จัดตารางอัตโนมัติ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' }));
+
+    await waitFor(() =>
+      expect(mockedGenerateStaffSchedules).toHaveBeenCalledWith(month, 51),
     );
   });
 

@@ -50,6 +50,14 @@ describe('Admin App session', () => {
     expect(await screen.findByText('admin-login')).toBeTruthy();
   });
 
+  it('shows login when restoring the admin session fails', async () => {
+    vi.mocked(restoreSession).mockRejectedValueOnce(new Error('เซสชันหมดอายุ'));
+
+    render(<App />);
+
+    expect(await screen.findByText('admin-login')).toBeTruthy();
+  });
+
   it('ends the session when an authenticated request reports expiry', async () => {
     render(<App />);
     await screen.findByRole('button', { name: 'admin-logout' });

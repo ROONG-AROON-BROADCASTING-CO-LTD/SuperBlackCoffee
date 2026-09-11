@@ -464,13 +464,21 @@ export function EmployeesManagementPage({
                 : 'จัดตารางอัตโนมัติ'}
           </Button>
           {confirmAutoSchedule ? (
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => setConfirmAutoSchedule(false)}
-            >
-              ยกเลิก
-            </Button>
+            <>
+              <Typography
+                color="text.secondary"
+                sx={{ alignSelf: 'center', fontSize: 12 }}
+              >
+                หากสาขามีพนักงาน 2 คน ระบบจะสลับกะเป็นรายสัปดาห์
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setConfirmAutoSchedule(false)}
+              >
+                ยกเลิก
+              </Button>
+            </>
           ) : null}
           <Button
             variant="contained"

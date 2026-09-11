@@ -227,6 +227,133 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 	}
 }
 
+func TestGenerateStaffSchedulesAlternatesTwoEmployeesByWeek(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	const monthKey = "2098-01"
+
+	var branchID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบสลับกะ-%d", fixtureID), fmt.Sprintf("WEEKLY-SWAP-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	userIDs := make([]int64, 2)
+	for index := range userIDs {
+		username := fmt.Sprintf("weekly-swap-%d-%d", fixtureID, index)
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00','12:00','21:00') RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
+			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, userID := range userIDs {
+			_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
+			_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		}
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	// Avoid fetching the external holiday calendar; this scenario has no holidays.
+	syncedThaiHolidayYears.Store(2098, struct{}{})
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"%s","branchId":%d}`, monthKey, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	month, err := time.Parse("2006-01", monthKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstMonday := month
+	for firstMonday.Weekday() != time.Monday {
+		firstMonday = firstMonday.AddDate(0, 0, 1)
+	}
+	secondMonday := firstMonday.AddDate(0, 0, 7)
+	readHours := func(userID int64, date time.Time) (string, string) {
+		t.Helper()
+		var startsAt, endsAt string
+		if err := db.QueryRow(`SELECT starts_at::text,ends_at::text FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, userID, date.Format("2006-01-02")).Scan(&startsAt, &endsAt); err != nil {
+			t.Fatalf("อ่านกะ %d วันที่ %s: %v", userID, date.Format("2006-01-02"), err)
+		}
+		return startsAt, endsAt
+	}
+
+	firstEmployeeWeekOneStart, firstEmployeeWeekOneEnd := readHours(userIDs[0], firstMonday)
+	secondEmployeeWeekOneStart, secondEmployeeWeekOneEnd := readHours(userIDs[1], firstMonday)
+	firstEmployeeSameWeekStart, firstEmployeeSameWeekEnd := readHours(userIDs[0], firstMonday.AddDate(0, 0, 1))
+	secondEmployeeSameWeekStart, secondEmployeeSameWeekEnd := readHours(userIDs[1], firstMonday.AddDate(0, 0, 1))
+	firstEmployeeWeekTwoStart, firstEmployeeWeekTwoEnd := readHours(userIDs[0], secondMonday)
+	secondEmployeeWeekTwoStart, secondEmployeeWeekTwoEnd := readHours(userIDs[1], secondMonday)
+	if firstEmployeeWeekOneStart == secondEmployeeWeekOneStart || firstEmployeeWeekOneEnd == secondEmployeeWeekOneEnd {
+		t.Fatalf("สัปดาห์แรกต้องแบ่งเป็นคนละกะ: (%s-%s), (%s-%s)", firstEmployeeWeekOneStart, firstEmployeeWeekOneEnd, secondEmployeeWeekOneStart, secondEmployeeWeekOneEnd)
+	}
+	if firstEmployeeSameWeekStart != firstEmployeeWeekOneStart || firstEmployeeSameWeekEnd != firstEmployeeWeekOneEnd || secondEmployeeSameWeekStart != secondEmployeeWeekOneStart || secondEmployeeSameWeekEnd != secondEmployeeWeekOneEnd {
+		t.Fatalf("พนักงานสองคนต้องอยู่กะเดิมตลอดสัปดาห์: Monday=(%s-%s),(%s-%s); Tuesday=(%s-%s),(%s-%s)", firstEmployeeWeekOneStart, firstEmployeeWeekOneEnd, secondEmployeeWeekOneStart, secondEmployeeWeekOneEnd, firstEmployeeSameWeekStart, firstEmployeeSameWeekEnd, secondEmployeeSameWeekStart, secondEmployeeSameWeekEnd)
+	}
+	if firstEmployeeWeekTwoStart != secondEmployeeWeekOneStart || firstEmployeeWeekTwoEnd != secondEmployeeWeekOneEnd || secondEmployeeWeekTwoStart != firstEmployeeWeekOneStart || secondEmployeeWeekTwoEnd != firstEmployeeWeekOneEnd {
+		t.Fatalf("สัปดาห์ถัดไปต้องสลับกะ: week one=(%s-%s),(%s-%s); week two=(%s-%s),(%s-%s)", firstEmployeeWeekOneStart, firstEmployeeWeekOneEnd, secondEmployeeWeekOneStart, secondEmployeeWeekOneEnd, firstEmployeeWeekTwoStart, firstEmployeeWeekTwoEnd, secondEmployeeWeekTwoStart, secondEmployeeWeekTwoEnd)
+	}
+}
+
+func TestGenerateStaffSchedulesKeepsDailyAlternationForThreeEmployees(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	const monthKey = "2097-01"
+
+	var branchID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบสามคน-%d", fixtureID), fmt.Sprintf("THREE-STAFF-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	userIDs := make([]int64, 3)
+	for index := range userIDs {
+		username := fmt.Sprintf("three-staff-%d-%d", fixtureID, index)
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00','12:00','21:00') RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
+			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, userID := range userIDs {
+			_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
+			_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		}
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	syncedThaiHolidayYears.Store(2097, struct{}{})
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"%s","branchId":%d}`, monthKey, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	month, err := time.Parse("2006-01", monthKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	readStart := func(userID int64, date time.Time) string {
+		t.Helper()
+		var startsAt string
+		if err := db.QueryRow(`SELECT starts_at::text FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, userID, date.Format("2006-01-02")).Scan(&startsAt); err != nil {
+			t.Fatalf("อ่านกะ %d วันที่ %s: %v", userID, date.Format("2006-01-02"), err)
+		}
+		return startsAt
+	}
+	for _, userID := range userIDs {
+		if firstDay, secondDay := readStart(userID, month), readStart(userID, month.AddDate(0, 0, 1)); firstDay == secondDay {
+			t.Fatalf("พนักงาน %d ในสาขาสามคนต้องยังสลับกะรายวัน: %s และ %s", userID, firstDay, secondDay)
+		}
+	}
+}
+
 func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 	db := openStaffScheduleTestDB(t)
 	fixtureID := time.Now().UnixNano()

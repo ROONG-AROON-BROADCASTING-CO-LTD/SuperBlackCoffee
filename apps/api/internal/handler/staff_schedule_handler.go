@@ -537,7 +537,8 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 	query := `WITH staff_members AS (
   SELECT u.id AS user_id,u.branch_id,u.default_starts_at,u.default_ends_at,
     u.default_second_starts_at,u.default_second_ends_at,
-    ROW_NUMBER() OVER (PARTITION BY u.branch_id ORDER BY u.id)::int - 1 AS employee_offset
+  ROW_NUMBER() OVER (PARTITION BY u.branch_id ORDER BY u.id)::int - 1 AS employee_offset,
+  COUNT(*) OVER (PARTITION BY u.branch_id)::int AS branch_staff_count
   FROM users u
   JOIN branches b ON b.id=u.branch_id
   WHERE u.role IN ('cashier','branch_manager') AND u.branch_id=$3`
@@ -570,8 +571,24 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 )
 INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
 SELECT c.user_id,c.branch_id,c.shift_date,
-  CASE WHEN ((EXTRACT(DAY FROM c.shift_date)::int + c.user_id) % 2) = 0 THEN c.default_starts_at ELSE COALESCE(c.default_second_starts_at,c.default_starts_at) END,
-  CASE WHEN ((EXTRACT(DAY FROM c.shift_date)::int + c.user_id) % 2) = 0 THEN c.default_ends_at ELSE COALESCE(c.default_second_ends_at,c.default_ends_at) END,
+  CASE
+    WHEN c.branch_staff_count = 2 THEN
+      CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
+        THEN c.default_starts_at
+        ELSE COALESCE(c.default_second_starts_at,c.default_starts_at)
+      END
+    WHEN ((EXTRACT(DAY FROM c.shift_date)::int + c.user_id) % 2) = 0 THEN c.default_starts_at
+    ELSE COALESCE(c.default_second_starts_at,c.default_starts_at)
+  END,
+  CASE
+    WHEN c.branch_staff_count = 2 THEN
+      CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
+        THEN c.default_ends_at
+        ELSE COALESCE(c.default_second_ends_at,c.default_ends_at)
+      END
+    WHEN ((EXTRACT(DAY FROM c.shift_date)::int + c.user_id) % 2) = 0 THEN c.default_ends_at
+    ELSE COALESCE(c.default_second_ends_at,c.default_ends_at)
+  END,
   CASE
     WHEN h.holiday_date IS NOT NULL THEN 'day_off'
     WHEN c.day_number IS NOT NULL AND c.day_number IN (
