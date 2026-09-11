@@ -139,7 +139,7 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	var id int64
-	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,expiry_date) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, branchID, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate).Scan(&id)
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,expiry_date) VALUES($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10) RETURNING id`, branchID, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate).Scan(&id)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
@@ -204,7 +204,7 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
 	}
-	result, err := tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET name=$1,category=$2,stock_category=$3,kind=$4,quantity=$5,unit=$6,reorder_level=$7,unit_cost=$8,expiry_date=$9,updated_at=now() WHERE id=$10 AND branch_id=$11`, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate, id, branchID)
+	result, err := tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET name=$1,category=$2,stock_category=NULLIF($3,''),kind=$4,quantity=$5,unit=$6,reorder_level=$7,unit_cost=$8,expiry_date=$9,updated_at=now() WHERE id=$10 AND branch_id=$11`, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการสต็อกได้"})
 		return

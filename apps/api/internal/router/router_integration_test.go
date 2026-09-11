@@ -499,7 +499,7 @@ func TestInventoryRouteReadsFromIsolatedPostgres(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost) VALUES($1,'แก้วเครื่องดื่ม','cup','drink_equipment','stock',3,'ใบ',1,2),($1,'กล่องพัสดุ','box','postal_equipment','stock',4,'ใบ',1,5)`, branchID); err != nil {
 		t.Fatalf("สร้างสต๊อกแยกประเภท: %v", err)
 	}
-	postal := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=postal_equipment", "", testToken(t, "admin"))
+	postal := requestJSON(r, http.MethodGet, "/api/v1/inventory?branchId=1&kind=stock&stockCategory=postal_equipment", "", testToken(t, "admin"))
 	if postal.Code != http.StatusOK || !strings.Contains(postal.Body.String(), "กล่องพัสดุ") || strings.Contains(postal.Body.String(), "แก้วเครื่องดื่ม") {
 		t.Fatalf("postal stock filter = %d: %s", postal.Code, postal.Body.String())
 	}
