@@ -11,6 +11,8 @@ export type MenuItem = {
   linemanCostPrice: number;
   costPrice: number;
   status: 'available' | 'soldout';
+  recipeStatus?: 'ready' | 'missing_recipe' | 'insufficient_stock';
+  sellable?: boolean;
   ingredients: {
     inventoryItemId: number;
     name: string;
@@ -36,6 +38,12 @@ export type MenuInput = {
 export const listMenuItems = (branchCode = 'SBC-AYA-001') =>
   secured<MenuItem[]>(
     `/menu-items?branchCode=${encodeURIComponent(branchCode)}`,
+  );
+
+export const createMenuItem = (data: MenuInput, branchCode: string) =>
+  secured<{ id: number }>(
+    `/menu-items?branchCode=${encodeURIComponent(branchCode)}`,
+    { method: 'POST', data },
   );
 
 export const updateMenuItem = (

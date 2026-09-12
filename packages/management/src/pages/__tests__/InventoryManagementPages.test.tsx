@@ -12,7 +12,7 @@ import { IngredientsManagementPage } from '../IngredientsManagementPage';
 import { ProductsManagementPage } from '../ProductsManagementPage';
 import { StockManagementPage } from '../StockManagementPage';
 import { listInventory } from '../../api/inventory';
-import { listMenuItems, updateMenuItem } from '../../api/menu';
+import { createMenuItem, listMenuItems, updateMenuItem } from '../../api/menu';
 import { createStockRequest } from '../../api/stock-requests';
 
 vi.mock('../../api/inventory', () => ({
@@ -21,6 +21,7 @@ vi.mock('../../api/inventory', () => ({
   updateInventory: vi.fn(),
 }));
 vi.mock('../../api/menu', () => ({
+  createMenuItem: vi.fn(),
   listMenuItems: vi.fn(),
   updateMenuItem: vi.fn(),
 }));
@@ -28,6 +29,7 @@ vi.mock('../../api/stock-requests', () => ({ createStockRequest: vi.fn() }));
 
 const mockedListInventory = vi.mocked(listInventory);
 const mockedListMenuItems = vi.mocked(listMenuItems);
+const mockedCreateMenuItem = vi.mocked(createMenuItem);
 const mockedUpdateMenuItem = vi.mocked(updateMenuItem);
 const mockedCreateStockRequest = vi.mocked(createStockRequest);
 
@@ -86,6 +88,7 @@ describe('inventory management pages', () => {
       },
     ]);
     mockedCreateStockRequest.mockResolvedValue({ id: 1, status: 'pending' });
+    mockedCreateMenuItem.mockResolvedValue({ id: 2 });
     mockedUpdateMenuItem.mockResolvedValue({ id: 1 });
   });
 
@@ -163,6 +166,82 @@ describe('inventory management pages', () => {
     expect(screen.getByText('ต้นทุน LINE MAN')).toBeTruthy();
     expect(screen.getByText('ราคาขาย LINE MAN')).toBeTruthy();
     expect(screen.queryByText('ต้นทุน หน้าร้าน')).toBeNull();
+  });
+
+  it('marks a menu without a recipe as not ready for sale', async () => {
+    mockedListMenuItems.mockResolvedValueOnce([
+      {
+        id: 2,
+        name: 'เมนูที่ยังไม่มีสูตร',
+        category: 'เมนูกาแฟเย็น',
+        storePrice: 60,
+        storePriceAvailable: true,
+        linemanPrice: 70,
+        linemanPriceAvailable: true,
+        linemanCostPrice: 40,
+        costPrice: 30,
+        status: 'soldout',
+        recipeStatus: 'missing_recipe',
+        sellable: false,
+        ingredients: [],
+        preparationSteps: '',
+        imageUrl: '',
+      },
+    ]);
+
+    renderPage(<ProductsManagementPage activeBranch="อยุธยา" />);
+
+    await waitFor(() =>
+      expect(screen.getByText('เมนูที่ยังไม่มีสูตร')).toBeTruthy(),
+    );
+    expect(screen.getByText('ต้องเพิ่มสูตร')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'เพิ่มสูตรการทำ' })).toBeTruthy();
+  });
+
+  it('saves a menu without a recipe as a draft for the API to keep off sale', async () => {
+    renderPage(<ProductsManagementPage activeBranch="อยุธยา" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'เพิ่มเมนูและสินค้า' }),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มเมนูและสินค้า' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อสินค้า' }), {
+      target: { value: 'เมนูร่างทดสอบ' },
+    });
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ราคาต้นทุนหน้าร้าน' }),
+      { target: { value: '20' } },
+    );
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ราคาขายหน้าร้าน' }),
+      { target: { value: '60' } },
+    );
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ราคาต้นทุน LINE MAN' }),
+      { target: { value: '25' } },
+    );
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ราคาขาย LINE MAN' }),
+      { target: { value: '70' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกสินค้า' }));
+
+    await waitFor(() =>
+      expect(mockedCreateMenuItem).toHaveBeenCalledWith(
+        {
+          name: 'เมนูร่างทดสอบ',
+          category: 'เมนูร้อน',
+          storePrice: 60,
+          linemanPrice: 70,
+          linemanCostPrice: 25,
+          costPrice: 20,
+          ingredients: [],
+        },
+        'SBC-AYA-001',
+      ),
+    );
   });
 
   it('keeps each sales channel cost and selling price together in the product form', async () => {
@@ -279,9 +358,15 @@ describe('inventory management pages', () => {
 
     await waitFor(() => expect(screen.getByText(ingredient.name)).toBeTruthy());
 
+    expect(screen.getByText('คงเหลือ')).toBeTruthy();
+    expect(screen.getByText('4 ถุง')).toBeTruthy();
+    expect(screen.getByText('ต้นทุน')).toBeTruthy();
+    expect(screen.getByText('125.00 บาท/ถุง')).toBeTruthy();
+    expect(screen.getByText('แจ้งเตือนเมื่อเหลือ')).toBeTruthy();
+    expect(screen.getByText('5 ถุง')).toBeTruthy();
     expect(
-      screen.getByText('คงเหลือ 4 ถุง · ต้นทุน 125.00 บาท/ถุง'),
-    ).toBeTruthy();
+      screen.queryByText('คงเหลือ 4 ถุง · ต้นทุน 125.00 บาท/ถุง'),
+    ).toBeNull();
     expect(screen.queryByRole('button', { name: 'เพิ่มสต๊อก' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'แก้ไขสต๊อก' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'ลบสต๊อก' })).toBeNull();
@@ -289,6 +374,45 @@ describe('inventory management pages', () => {
       'stock',
       'SBC-AYA-001',
       'postal_equipment',
+    );
+  });
+
+  it('adds drink equipment to the franchise cart and submits the exact request', async () => {
+    renderPage(
+      <StockManagementPage
+        activeBranch="อยุธยา"
+        readOnly
+        allowOrdering
+        stockCategory="drink_equipment"
+        stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText(ingredient.name)).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'สั่งอุปกรณ์' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'ตะกร้าอุปกรณ์เครื่องดื่ม' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: `เพิ่มจำนวน ${ingredient.name}` }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันสั่งอุปกรณ์' }));
+
+    await waitFor(() =>
+      expect(mockedCreateStockRequest).toHaveBeenCalledWith(
+        {
+          note: 'คำขออุปกรณ์เครื่องดื่มจาก Franchise',
+          items: [
+            {
+              inventoryItemId: ingredient.id,
+              name: ingredient.name,
+              quantity: 2,
+              unit: ingredient.unit,
+            },
+          ],
+        },
+        expect.anything(),
+      ),
     );
   });
 });

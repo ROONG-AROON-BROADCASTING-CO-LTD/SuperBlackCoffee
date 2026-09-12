@@ -34,6 +34,10 @@ func (h *PlatformHandler) ListMenuItems(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถดึงรายการเมนูได้"})
 		return
 	}
+	if err := h.applyMenuRecipeStatuses(c.Request.Context(), branchID, result); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบความพร้อมของเมนูได้"})
+		return
+	}
 	result = h.filterMenuForPlan(plan, result)
 	h.cache.SetJSON(c, cacheKey, result, 30*time.Second)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
@@ -70,6 +74,11 @@ func (h *PlatformHandler) CreateMenuItem(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
+	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, input.Ingredients)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 	var id int64
 	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO menu_items(branch_id,name,category,store_price,lineman_price,cost_price,lineman_cost_price,preparation_steps,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'available') RETURNING id`, branchID, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice, input.PreparationSteps).Scan(&id)
 	for _, ingredient := range input.Ingredients {
@@ -130,6 +139,11 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
+	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, input.Ingredients)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
+		return
+	}
 	result, err := tx.ExecContext(c.Request.Context(), `UPDATE menu_items SET name=$1,category=$2,store_price=$3,store_price_available=true,lineman_price=$4,lineman_price_available=true,cost_price=$5,lineman_cost_price=$6,preparation_steps=$7,updated_at=now() WHERE id=$8 AND branch_id=$9`, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice, input.PreparationSteps, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนู"})

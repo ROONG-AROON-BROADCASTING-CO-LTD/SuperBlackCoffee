@@ -34,6 +34,7 @@ import { DataLoadNotice } from '../components/DataLoadNotice';
 import { useAutoRetry } from '../hooks/useAutoRetry';
 import { listInventory, type InventoryItem } from '../api/inventory';
 import {
+  createMenuItem,
   listMenuItems,
   updateMenuItem,
   type MenuItem as ApiMenuItem,
@@ -55,8 +56,11 @@ type IngredientOption = {
   id: number;
   name: string;
   unit: string;
+  quantity: number;
   branchCode: string;
 };
+type ProductAvailability =
+  'พร้อมขาย' | 'หมดชั่วคราว' | 'ต้องเพิ่มสูตร' | 'วัตถุดิบไม่พอ';
 type Product = {
   id: number;
   branchCode: string;
@@ -68,7 +72,7 @@ type Product = {
   lineManCostPrice: number;
   costPrice: number;
   category: string;
-  status: 'พร้อมขาย' | 'หมดชั่วคราว';
+  status: ProductAvailability;
   position: string;
   ingredients: ProductIngredient[];
   imageUrl: string;
@@ -161,6 +165,56 @@ const normalizeMenuCategory = (category: string, name: string) => {
   return category;
 };
 
+const availabilityFromMenu = (item: ApiMenuItem): ProductAvailability => {
+  if (item.recipeStatus === 'missing_recipe') return 'ต้องเพิ่มสูตร';
+  if (item.recipeStatus === 'insufficient_stock') return 'วัตถุดิบไม่พอ';
+  return item.status === 'soldout' ? 'หมดชั่วคราว' : 'พร้อมขาย';
+};
+
+const recipeAvailabilityFromDraft = (
+  ingredients: RecipeIngredientDraft[],
+  options: IngredientOption[],
+): ProductAvailability => {
+  if (ingredients.length === 0) return 'ต้องเพิ่มสูตร';
+  const quantitiesByIngredient = new Map<number, number>();
+  for (const ingredient of ingredients) {
+    if (
+      ingredient.inventoryItemId === '' ||
+      ingredient.quantity === '' ||
+      ingredient.quantity <= 0 ||
+      !ingredient.unit.trim()
+    )
+      return 'ต้องเพิ่มสูตร';
+    quantitiesByIngredient.set(
+      ingredient.inventoryItemId,
+      (quantitiesByIngredient.get(ingredient.inventoryItemId) ?? 0) +
+        ingredient.quantity,
+    );
+  }
+  for (const [inventoryItemId, quantity] of quantitiesByIngredient) {
+    const option = options.find((item) => item.id === inventoryItemId);
+    const recipeIngredient = ingredients.find(
+      (item) => item.inventoryItemId === inventoryItemId,
+    );
+    if (
+      !option ||
+      !recipeIngredient ||
+      option.unit.trim().replace(/\.$/, '').toLowerCase() !==
+        recipeIngredient.unit.trim().replace(/\.$/, '').toLowerCase() ||
+      option.quantity < quantity
+    )
+      return 'วัตถุดิบไม่พอ';
+  }
+  return 'พร้อมขาย';
+};
+
+const statusChipColor = (status: ProductAvailability) => {
+  if (status === 'พร้อมขาย') return '#177245';
+  if (status === 'ต้องเพิ่มสูตร') return '#9a5a10';
+  if (status === 'วัตถุดิบไม่พอ') return '#b42318';
+  return '#805637';
+};
+
 export function ProductsManagementPage({
   activeBranch,
   franchisePlan,
@@ -189,6 +243,7 @@ export function ProductsManagementPage({
   const [recipeDraft, setRecipeDraft] = useState<RecipeIngredientDraft[]>([]);
   const [recipeStepsDraft, setRecipeStepsDraft] = useState('');
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -264,6 +319,95 @@ export function ProductsManagementPage({
       })),
     );
   };
+  const saveProduct = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const branchCode = editing?.branchCode ?? branchCodes[activeBranch];
+    if (!branchCode) {
+      setActionNotice({
+        message: 'กรุณาเลือกสาขาเดียวก่อนเพิ่มเมนูและสินค้า',
+        severity: 'error',
+      });
+      return;
+    }
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get('name') ?? '').trim();
+    const category = String(formData.get('category') ?? '').trim();
+    const storePrice = Number(formData.get('storePrice'));
+    const lineManPrice = Number(formData.get('lineManPrice'));
+    const costPrice = Number(formData.get('costPrice'));
+    const lineManCostPrice = Number(formData.get('lineManCostPrice'));
+    if (
+      !name ||
+      !category ||
+      [storePrice, lineManPrice, costPrice, lineManCostPrice].some(
+        (value) => !Number.isFinite(value) || value < 0,
+      )
+    ) {
+      setActionNotice({
+        message: 'กรอกข้อมูลเมนูและราคาให้ครบ',
+        severity: 'error',
+      });
+      return;
+    }
+    const ingredients = [] as {
+      inventoryItemId: number;
+      quantity: number;
+      unit: string;
+    }[];
+    for (const ingredient of productIngredients) {
+      const value = ingredient.quantity.trim();
+      if (!ingredient.name && !value) continue;
+      const option = availableIngredients.find(
+        (item) =>
+          item.branchCode === branchCode && item.name === ingredient.name,
+      );
+      const [quantityText, ...unitParts] = value.split(/\s+/);
+      const quantity = Number(quantityText);
+      const unit = unitParts.join(' ').trim() || option?.unit || '';
+      if (!option || !Number.isFinite(quantity) || quantity <= 0 || !unit) {
+        setActionNotice({
+          message: 'กรุณาเลือกวัตถุดิบและระบุปริมาณให้ถูกต้อง',
+          severity: 'error',
+        });
+        return;
+      }
+      ingredients.push({ inventoryItemId: option.id, quantity, unit });
+    }
+    setIsSavingProduct(true);
+    try {
+      const payload = {
+        name,
+        category,
+        storePrice,
+        linemanPrice: lineManPrice,
+        linemanCostPrice: lineManCostPrice,
+        costPrice,
+        ingredients,
+      };
+      if (editing) await updateMenuItem(editing.id, payload, branchCode);
+      else await createMenuItem(payload, branchCode);
+      menuCacheRef.current.delete(branchCode);
+      setDrawerOpen(false);
+      setReloadKey((key) => key + 1);
+      setActionNotice({
+        message:
+          ingredients.length === 0
+            ? 'บันทึกเมนูร่างแล้ว กรุณาเพิ่มสูตรก่อนเปิดขาย'
+            : 'บันทึกเมนูและตรวจสอบความพร้อมแล้ว',
+        severity: 'success',
+      });
+    } catch (error) {
+      setActionNotice({
+        message:
+          error instanceof Error
+            ? error.message
+            : 'ไม่สามารถบันทึกเมนูและสินค้าได้',
+        severity: 'error',
+      });
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
   const saveRecipe = async () => {
     if (!recipeProduct || readOnly) return;
     const ingredients = recipeDraft.filter(
@@ -314,6 +458,10 @@ export function ProductsManagementPage({
           unit: ingredient.unit.trim(),
         };
       });
+      const nextStatus = recipeAvailabilityFromDraft(
+        ingredients,
+        recipeIngredientOptions,
+      );
       setCatalogProducts((items) =>
         items.map((item) =>
           item.id === recipeProduct.id &&
@@ -322,13 +470,20 @@ export function ProductsManagementPage({
                 ...item,
                 ingredients: updatedIngredients,
                 preparationSteps: recipeStepsDraft.trim(),
+                status: nextStatus,
               }
             : item,
         ),
       );
       menuCacheRef.current.delete(recipeProduct.branchCode);
       setRecipeProduct(null);
-      setActionNotice({ message: 'บันทึกสูตรการทำแล้ว' });
+      setActionNotice({
+        message:
+          nextStatus === 'พร้อมขาย'
+            ? 'บันทึกสูตรการทำแล้ว เมนูพร้อมขาย'
+            : `บันทึกสูตรการทำแล้ว แต่เมนูยัง${nextStatus}`,
+        severity: nextStatus === 'พร้อมขาย' ? 'success' : 'error',
+      });
     } catch (error) {
       setActionNotice({
         message:
@@ -432,7 +587,7 @@ export function ProductsManagementPage({
             lineManCostPrice: item.linemanCostPrice ?? item.costPrice,
             costPrice: item.costPrice,
             category: normalizeMenuCategory(item.category, item.name),
-            status: item.status === 'soldout' ? 'หมดชั่วคราว' : 'พร้อมขาย',
+            status: availabilityFromMenu(item),
             position: `${12 + ((index * 21) % 76)}% ${24 + ((index * 17) % 64)}%`,
             imageUrl: item.imageUrl,
             preparationSteps: item.preparationSteps ?? '',
@@ -476,6 +631,7 @@ export function ProductsManagementPage({
                 id: item.id,
                 name: item.name,
                 unit: item.unit,
+                quantity: item.quantity,
                 branchCode: validBranchCodes[index],
               })),
             ),
@@ -749,10 +905,7 @@ export function ProductsManagementPage({
                               right: 12,
                               height: 25,
                               borderRadius: '12px',
-                              bgcolor:
-                                item.status === 'พร้อมขาย'
-                                  ? '#177245'
-                                  : '#805637',
+                              bgcolor: statusChipColor(item.status),
                               color: '#fff',
                               fontFamily: 'Kanit, sans-serif',
                               fontSize: 11,
@@ -1479,10 +1632,7 @@ export function ProductsManagementPage({
           >
             <Box
               component="form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setDrawerOpen(false);
-              }}
+              onSubmit={saveProduct}
               sx={{
                 display: 'grid',
                 gridTemplateColumns: {
@@ -1567,6 +1717,7 @@ export function ProductsManagementPage({
                   required
                   fullWidth
                   label="ชื่อสินค้า"
+                  name="name"
                   defaultValue={editing?.name}
                   sx={{ gridColumn: { sm: '1 / -1' } }}
                 />
@@ -1575,7 +1726,8 @@ export function ProductsManagementPage({
                   select
                   fullWidth
                   label="หมวดหมู่"
-                  defaultValue="เมนูร้อน"
+                  name="category"
+                  defaultValue={editing?.category ?? 'เมนูร้อน'}
                 >
                   <MenuItem value="เมนูร้อน">เมนูร้อน</MenuItem>
                   <MenuItem value="เมนูกาแฟเย็น">เมนูกาแฟเย็น</MenuItem>
@@ -1587,16 +1739,54 @@ export function ProductsManagementPage({
                   <MenuItem value="อาหาร">อาหาร</MenuItem>
                   <MenuItem value="เบเกอรี่">เบเกอรี่</MenuItem>
                 </TextField>
-                <TextField
-                  required
-                  select
-                  fullWidth
-                  label="สถานะ"
-                  defaultValue="available"
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    minHeight: 56,
+                    px: 1.5,
+                    border: '1px solid #e8ddd5',
+                    borderRadius: '12px',
+                    bgcolor: '#fffaf7',
+                  }}
                 >
-                  <MenuItem value="available">พร้อมขาย</MenuItem>
-                  <MenuItem value="soldout">หมดชั่วคราว</MenuItem>
-                </TextField>
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: 'text.secondary',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 12,
+                      }}
+                    >
+                      สถานะระบบ
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: 'text.secondary',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 10,
+                      }}
+                    >
+                      ระบบคำนวณจากสูตรและสต๊อก
+                    </Typography>
+                  </Box>
+                  <Chip
+                    label={editing?.status ?? 'ต้องเพิ่มสูตร'}
+                    size="small"
+                    sx={{
+                      borderRadius: '12px',
+                      bgcolor: statusChipColor(
+                        editing?.status ?? 'ต้องเพิ่มสูตร',
+                      ),
+                      color: '#fff',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  />
+                </Box>
                 <Box
                   role="group"
                   aria-label="ราคาตามช่องทางขาย"
@@ -1644,6 +1834,7 @@ export function ProductsManagementPage({
                         required
                         fullWidth
                         label="ราคาต้นทุนหน้าร้าน"
+                        name="costPrice"
                         type="number"
                         defaultValue={editing?.costPrice}
                         helperText="ใช้คำนวณกำไร/ขาดทุน"
@@ -1652,6 +1843,7 @@ export function ProductsManagementPage({
                         required
                         fullWidth
                         label="ราคาขายหน้าร้าน"
+                        name="storePrice"
                         type="number"
                         defaultValue={editing?.storePrice}
                       />
@@ -1691,6 +1883,7 @@ export function ProductsManagementPage({
                         required
                         fullWidth
                         label="ราคาต้นทุน LINE MAN"
+                        name="lineManCostPrice"
                         type="number"
                         defaultValue={editing?.lineManCostPrice}
                         helperText="อ้างอิงต้นทุนจากสูตร LINE MAN"
@@ -1708,6 +1901,7 @@ export function ProductsManagementPage({
                         required
                         fullWidth
                         label="ราคาขาย LINE MAN"
+                        name="lineManPrice"
                         type="number"
                         defaultValue={editing?.lineManPrice}
                       />
@@ -1887,6 +2081,7 @@ export function ProductsManagementPage({
                   <Button
                     type="submit"
                     variant="contained"
+                    disabled={isSavingProduct}
                     sx={{
                       minHeight: 40,
                       borderRadius: '12px',
@@ -1894,7 +2089,11 @@ export function ProductsManagementPage({
                       fontFamily: 'Kanit, sans-serif',
                     }}
                   >
-                    {editing ? 'บันทึกการแก้ไข' : 'บันทึกสินค้า'}
+                    {isSavingProduct
+                      ? 'กำลังบันทึก...'
+                      : editing
+                        ? 'บันทึกการแก้ไข'
+                        : 'บันทึกสินค้า'}
                   </Button>
                 </Box>
               </Box>

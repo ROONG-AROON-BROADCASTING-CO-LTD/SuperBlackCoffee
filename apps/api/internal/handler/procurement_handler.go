@@ -351,7 +351,16 @@ func (h *PlatformHandler) ListStockMovements(c *gin.Context) {
 	if limit < 1 || limit > 100 {
 		limit = 100
 	}
-	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT m.id,m.inventory_item_id,i.name,m.movement_type,m.quantity_delta,m.quantity_before,m.quantity_after,m.reference_type,m.reference_id,m.note,m.created_at FROM stock_movements m JOIN inventory_items i ON i.id=m.inventory_item_id WHERE m.branch_id=$1 ORDER BY m.created_at DESC,m.id DESC LIMIT $2`, branchID, limit)
+	claims := middleware.ClaimsFrom(c)
+	query := `SELECT m.id,m.inventory_item_id,i.name,m.movement_type,m.quantity_delta,m.quantity_before,m.quantity_after,m.reference_type,m.reference_id,m.note,m.created_at FROM stock_movements m JOIN inventory_items i ON i.id=m.inventory_item_id WHERE m.branch_id=$1`
+	args := []any{branchID}
+	if claims != nil && claims.Role == "cashier" {
+		query += " AND m.actor_id=$2"
+		args = append(args, claims.UserID)
+	}
+	query += " ORDER BY m.created_at DESC,m.id DESC LIMIT $" + strconv.Itoa(len(args)+1)
+	args = append(args, limit)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถดึงประวัติสต๊อกได้"})
 		return

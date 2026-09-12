@@ -3,10 +3,15 @@ package model
 import "time"
 
 type MenuStatus string
+type MenuRecipeStatus string
 
 const (
 	MenuStatusAvailable MenuStatus = "available"
 	MenuStatusSoldOut   MenuStatus = "soldout"
+
+	MenuRecipeReady             MenuRecipeStatus = "ready"
+	MenuRecipeMissing           MenuRecipeStatus = "missing_recipe"
+	MenuRecipeInsufficientStock MenuRecipeStatus = "insufficient_stock"
 )
 
 type MenuItem struct {
@@ -24,6 +29,8 @@ type MenuItem struct {
 	ImageURL              string           `json:"imageUrl"`
 	Ingredients           []MenuIngredient `json:"ingredients,omitempty"`
 	PreparationSteps      string           `json:"preparationSteps"`
+	RecipeStatus          MenuRecipeStatus `json:"recipeStatus"`
+	Sellable              bool             `json:"sellable"`
 	CreatedAt             time.Time        `json:"createdAt,omitempty"`
 	UpdatedAt             time.Time        `json:"updatedAt,omitempty"`
 }

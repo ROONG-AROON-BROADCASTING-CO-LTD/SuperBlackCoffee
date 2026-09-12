@@ -26,6 +26,10 @@ func registerPublicRoutes(r *gin.Engine, deps routeDependencies) {
 	v1.POST("/attendance/setup-pin", deps.platform.SetupAttendancePIN)
 	v1.POST("/attendance/logout", deps.platform.AttendanceLogout)
 	v1.GET("/attendance/session", middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.AttendanceSession)
+	v1.POST("/stock/login", deps.platform.StockLogin)
+	v1.POST("/stock/logout", deps.platform.StockLogout)
+	v1.GET("/stock/session", middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.StockSession)
+	v1.POST("/stock/consume", middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.ConsumeStockFromMenus)
 }
 
 func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
@@ -58,9 +62,9 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.DELETE("/menu-items/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.DeleteMenuItem)
 	protected.POST("/inventory", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.CreateInventory)
 	protected.PATCH("/inventory/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.UpdateInventory)
-	protected.POST("/inventory/:id/adjust", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.AdjustInventory)
+	protected.POST("/inventory/:id/adjust", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.AdjustInventory)
 	protected.DELETE("/inventory/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.DeleteInventory)
-	protected.GET("/stock-movements", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.ListStockMovements)
+	protected.GET("/stock-movements", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.ListStockMovements)
 	protected.POST("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.CreateStockRequest)
 	protected.GET("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.ListStockRequests)
 	protected.GET("/audit-events", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListAuditEvents)

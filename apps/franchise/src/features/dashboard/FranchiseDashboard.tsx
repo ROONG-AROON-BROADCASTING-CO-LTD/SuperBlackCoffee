@@ -136,8 +136,10 @@ export function FranchiseDashboard({
           <StockManagementPage
             activeBranch={franchiseBranch}
             readOnly
+            allowOrdering
             stockCategory="drink_equipment"
             stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
+            onRequestCreated={() => navigate('คำขอวัตถุดิบ')}
           />
         ) : activePage === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
           <StockManagementPage

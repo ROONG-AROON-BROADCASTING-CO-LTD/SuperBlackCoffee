@@ -860,6 +860,59 @@ func TestInventoryAndMenuCRUDWriteAuditEvents(t *testing.T) {
 	}
 }
 
+func TestMenuRecipeAvailabilityControlsSellableStatus(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "MENU-READINESS")
+	seedUser(t, db, 7, "admin-menu-readiness", "admin", branchID, nil)
+	r := New(db, nil)
+	token := testToken(t, "admin")
+	branchQuery := "?branchId=" + strconv.FormatInt(branchID, 10)
+
+	draft := requestJSON(r, http.MethodPost, "/api/v1/menu-items"+branchQuery, `{"name":"เมนูร่าง","category":"coffee","storePrice":60,"linemanPrice":70,"costPrice":20,"ingredients":[]}`, token)
+	if draft.Code != http.StatusCreated {
+		t.Fatalf("create draft menu = %d: %s", draft.Code, draft.Body.String())
+	}
+	draftID := responseID(t, draft)
+	var savedStatus string
+	if err := db.QueryRow(`SELECT status FROM menu_items WHERE id=$1`, draftID).Scan(&savedStatus); err != nil || savedStatus != "available" {
+		t.Fatalf("draft menu status = %q, want available, err=%v", savedStatus, err)
+	}
+	listedDraft := requestJSON(r, http.MethodGet, "/api/v1/menu-items"+branchQuery, "", token)
+	if listedDraft.Code != http.StatusOK || !strings.Contains(listedDraft.Body.String(), `"recipeStatus":"missing_recipe"`) || !strings.Contains(listedDraft.Body.String(), `"sellable":false`) {
+		t.Fatalf("draft menu readiness = %d: %s", listedDraft.Code, listedDraft.Body.String())
+	}
+
+	inventoryID := seedInventory(t, db, branchID, "กาแฟพร้อมขาย", 10)
+	readyPayload := `{"name":"เมนูร่าง","category":"coffee","storePrice":60,"linemanPrice":70,"costPrice":20,"ingredients":[{"inventoryItemId":` + strconv.FormatInt(inventoryID, 10) + `,"quantity":5,"unit":"กรัม"}]}`
+	updated := requestJSON(r, http.MethodPatch, "/api/v1/menu-items/"+strconv.FormatInt(draftID, 10)+branchQuery, readyPayload, token)
+	if updated.Code != http.StatusOK {
+		t.Fatalf("update ready recipe = %d: %s", updated.Code, updated.Body.String())
+	}
+	listedReady := requestJSON(r, http.MethodGet, "/api/v1/menu-items"+branchQuery, "", token)
+	if listedReady.Code != http.StatusOK || !strings.Contains(listedReady.Body.String(), `"recipeStatus":"ready"`) || !strings.Contains(listedReady.Body.String(), `"sellable":true`) {
+		t.Fatalf("ready menu status = %d: %s", listedReady.Code, listedReady.Body.String())
+	}
+
+	if _, err := db.Exec(`UPDATE inventory_items SET quantity=4 WHERE id=$1`, inventoryID); err != nil {
+		t.Fatalf("reduce menu ingredient stock: %v", err)
+	}
+	listedInsufficient := requestJSON(r, http.MethodGet, "/api/v1/menu-items"+branchQuery, "", token)
+	if listedInsufficient.Code != http.StatusOK || !strings.Contains(listedInsufficient.Body.String(), `"recipeStatus":"insufficient_stock"`) || !strings.Contains(listedInsufficient.Body.String(), `"sellable":false`) {
+		t.Fatalf("insufficient menu status = %d: %s", listedInsufficient.Code, listedInsufficient.Body.String())
+	}
+
+	otherBranchID := seedBranch(t, db, "OTHER-MENU-READINESS")
+	foreignInventoryID := seedInventory(t, db, otherBranchID, "กาแฟสาขาอื่น", 10)
+	foreignPayload := `{"name":"เมนูต่างสาขา","category":"coffee","storePrice":60,"linemanPrice":70,"costPrice":20,"ingredients":[{"inventoryItemId":` + strconv.FormatInt(foreignInventoryID, 10) + `,"quantity":1,"unit":"กรัม"}]}`
+	if res := requestJSON(r, http.MethodPost, "/api/v1/menu-items"+branchQuery, foreignPayload, token); res.Code != http.StatusBadRequest {
+		t.Fatalf("foreign inventory recipe = %d: %s", res.Code, res.Body.String())
+	}
+}
+
 func TestLoginRateLimitResetsAfterSuccessfulLogin(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
