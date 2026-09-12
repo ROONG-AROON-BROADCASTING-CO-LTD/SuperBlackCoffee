@@ -11,6 +11,7 @@ export const adminPagePaths = {
   ตารางพนักงาน: '/employees',
   ลงเวลาพนักงาน: '/attendance',
   คำขอลาพนักงาน: '/leave-requests',
+  ตรวจมาตรฐานและบริการ: '/operations',
 } as const;
 
 export type AdminPage = keyof typeof adminPagePaths;

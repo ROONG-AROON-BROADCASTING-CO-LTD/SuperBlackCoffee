@@ -20,6 +20,7 @@ export type MenuItem = {
     unit: string;
     costAmount: number;
   }[];
+  linemanIngredients?: MenuItem['ingredients'];
   imageUrl: string;
   preparationSteps?: string;
 };
@@ -32,6 +33,16 @@ export type MenuInput = {
   linemanCostPrice: number;
   costPrice: number;
   ingredients: { inventoryItemId: number; quantity: number; unit: string }[];
+  storefrontIngredients?: {
+    inventoryItemId: number;
+    quantity: number;
+    unit: string;
+  }[];
+  linemanIngredients?: {
+    inventoryItemId: number;
+    quantity: number;
+    unit: string;
+  }[];
   preparationSteps?: string;
 };
 

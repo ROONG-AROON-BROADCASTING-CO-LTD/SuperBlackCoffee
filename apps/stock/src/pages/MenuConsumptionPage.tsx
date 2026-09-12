@@ -19,6 +19,7 @@ type MenuConsumptionPageProps = {
   onConsume: (
     items: Array<{ menuItemId: number; quantity: number }>,
     note: string,
+    channel: 'storefront' | 'lineman',
   ) => Promise<void>;
 };
 
@@ -32,6 +33,9 @@ export function MenuConsumptionPage({
   const [note, setNote] = useState('สรุปยอดสิ้นกะ');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [channel, setChannel] = useState<'storefront' | 'lineman'>(
+    'storefront',
+  );
   const list = useMemo(
     () =>
       menus.filter((menu) =>
@@ -57,7 +61,7 @@ export function MenuConsumptionPage({
     setSaving(true);
     setError('');
     try {
-      await onConsume(items, note);
+      await onConsume(items, note, channel);
       setCart({});
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'ไม่สามารถตัดสต๊อกได้');
@@ -75,7 +79,21 @@ export function MenuConsumptionPage({
           เลือกจำนวนที่ขาย ระบบจะตัดวัตถุดิบตามสูตรอัตโนมัติ
         </Typography>
       </Box>
-      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 3 }}>
+      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '15px' }}>
+        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <Button
+            variant={channel === 'storefront' ? 'contained' : 'outlined'}
+            onClick={() => setChannel('storefront')}
+          >
+            หน้าร้าน
+          </Button>
+          <Button
+            variant={channel === 'lineman' ? 'contained' : 'outlined'}
+            onClick={() => setChannel('lineman')}
+          >
+            LINE MAN
+          </Button>
+        </Stack>
         <TextField
           fullWidth
           label="ค้นหาเมนู"
@@ -111,6 +129,17 @@ export function MenuConsumptionPage({
                 menu.recipeStatus === 'missing_recipe'
                   ? 'ไม่มีสูตร'
                   : 'วัตถุดิบไม่พอ';
+              const ingredients = menu.ingredients ?? [];
+              const lowestIngredient = ingredients.reduce<
+                (typeof ingredients)[number] | undefined
+              >(
+                (lowest, ingredient) =>
+                  !lowest ||
+                  ingredient.inventoryQuantity < lowest.inventoryQuantity
+                    ? ingredient
+                    : lowest,
+                undefined,
+              );
               return (
                 <Card
                   key={menu.id}
@@ -176,6 +205,17 @@ export function MenuConsumptionPage({
                         ? 'ตัดวัตถุดิบตามสูตรอัตโนมัติ'
                         : 'ยังไม่สามารถตัดสต๊อกได้'}
                     </Typography>
+                    {lowestIngredient && (
+                      <Typography
+                        sx={{ mt: 1, color: '#5f4030', fontSize: 13 }}
+                      >
+                        วัตถุดิบ {ingredients.length} รายการ · เหลือน้อยสุด{' '}
+                        {lowestIngredient.inventoryQuantity.toLocaleString(
+                          'th-TH',
+                        )}{' '}
+                        {lowestIngredient.inventoryUnit}
+                      </Typography>
+                    )}
                     <Typography
                       sx={{
                         mt: 1.5,
@@ -229,7 +269,7 @@ export function MenuConsumptionPage({
           <Paper
             sx={{
               p: 2.5,
-              borderRadius: 3,
+              borderRadius: '15px',
               height: 'fit-content',
               position: { xl: 'sticky' },
               top: { xl: 24 },

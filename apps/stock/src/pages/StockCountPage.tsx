@@ -96,7 +96,7 @@ export function StockCountPage({
           กรอกยอดจริงที่นับได้ ระบบจะบันทึกส่วนต่างและประวัติผู้บันทึกให้ทันที
         </Typography>
       </Box>
-      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 3 }}>
+      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '15px' }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           sx={{ gap: 1.25, justifyContent: 'space-between' }}
@@ -136,7 +136,7 @@ export function StockCountPage({
               variant="outlined"
               sx={{
                 p: 2,
-                borderRadius: 3,
+                borderRadius: '15px',
                 borderColor:
                   item.status === 'out'
                     ? 'error.light'
@@ -202,7 +202,7 @@ export function StockCountPage({
             inset: { xs: 'auto 12px 12px', sm: 'auto 32px 32px auto' },
             width: { xs: 'auto', sm: 440 },
             p: 2.5,
-            borderRadius: 3,
+            borderRadius: '15px',
           }}
         >
           <Stack sx={{ gap: 1.5 }}>

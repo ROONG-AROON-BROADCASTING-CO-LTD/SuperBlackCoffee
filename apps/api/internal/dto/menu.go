@@ -6,12 +6,14 @@ type MenuIngredientRequest struct {
 	Unit            string  `json:"unit"`
 }
 type MenuRequest struct {
-	Name             string                  `json:"name"`
-	Category         string                  `json:"category"`
-	StorePrice       float64                 `json:"storePrice"`
-	LinemanPrice     float64                 `json:"linemanPrice"`
-	LinemanCostPrice float64                 `json:"linemanCostPrice"`
-	CostPrice        float64                 `json:"costPrice"`
-	Ingredients      []MenuIngredientRequest `json:"ingredients"`
-	PreparationSteps string                  `json:"preparationSteps"`
+	Name                  string                  `json:"name"`
+	Category              string                  `json:"category"`
+	StorePrice            float64                 `json:"storePrice"`
+	LinemanPrice          float64                 `json:"linemanPrice"`
+	LinemanCostPrice      float64                 `json:"linemanCostPrice"`
+	CostPrice             float64                 `json:"costPrice"`
+	Ingredients           []MenuIngredientRequest `json:"ingredients"`
+	StorefrontIngredients []MenuIngredientRequest `json:"storefrontIngredients"`
+	LinemanIngredients    []MenuIngredientRequest `json:"linemanIngredients"`
+	PreparationSteps      string                  `json:"preparationSteps"`
 }

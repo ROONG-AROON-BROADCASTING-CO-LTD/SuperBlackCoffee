@@ -17,10 +17,23 @@ describe('MenuConsumptionPage', () => {
             status: 'available',
             recipeStatus: 'ready',
             sellable: true,
+            ingredients: [
+              {
+                inventoryItemId: 1,
+                name: 'กาแฟ',
+                quantity: 20,
+                unit: 'กรัม',
+                inventoryQuantity: 1000,
+                inventoryUnit: 'กรัม',
+              },
+            ],
           },
         ]}
       />,
     );
+    expect(
+      screen.getByText('วัตถุดิบ 1 รายการ · เหลือน้อยสุด 1,000 กรัม'),
+    ).toBeTruthy();
     fireEvent.click(
       screen.getByRole('button', { name: 'ตัดสต๊อก อเมริกาโน่เย็น' }),
     );
@@ -31,6 +44,7 @@ describe('MenuConsumptionPage', () => {
       expect(onConsume).toHaveBeenCalledWith(
         [{ menuItemId: 7, quantity: 1 }],
         'สรุปยอดสิ้นกะ',
+        'storefront',
       ),
     );
   });

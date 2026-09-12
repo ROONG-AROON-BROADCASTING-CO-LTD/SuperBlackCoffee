@@ -17,7 +17,7 @@ export function StockHistoryPage({
           <Paper
             key={item.id}
             variant="outlined"
-            sx={{ p: 2, borderRadius: 3 }}
+            sx={{ p: 2, borderRadius: '15px' }}
           >
             <Typography sx={{ fontWeight: 700 }}>
               {item.inventoryItemName}

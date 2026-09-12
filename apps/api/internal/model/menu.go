@@ -28,9 +28,12 @@ type MenuItem struct {
 	Status                MenuStatus       `json:"status"`
 	ImageURL              string           `json:"imageUrl"`
 	Ingredients           []MenuIngredient `json:"ingredients,omitempty"`
+	LinemanIngredients    []MenuIngredient `json:"linemanIngredients,omitempty"`
 	PreparationSteps      string           `json:"preparationSteps"`
 	RecipeStatus          MenuRecipeStatus `json:"recipeStatus"`
 	Sellable              bool             `json:"sellable"`
+	LinemanRecipeStatus   MenuRecipeStatus `json:"linemanRecipeStatus"`
+	LinemanSellable       bool             `json:"linemanSellable"`
 	CreatedAt             time.Time        `json:"createdAt,omitempty"`
 	UpdatedAt             time.Time        `json:"updatedAt,omitempty"`
 }

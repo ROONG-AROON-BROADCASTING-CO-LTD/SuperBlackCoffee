@@ -84,4 +84,14 @@ describe('franchise auth API', () => {
       'บัญชีนี้ไม่มีสิทธิ์ใช้งาน',
     );
   });
+
+  it('shows a recoverable error when a proxy returns a non-JSON response', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('gateway unavailable', { status: 502 }),
+    );
+
+    await expect(restoreSession()).rejects.toThrow(
+      'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
+    );
+  });
 });

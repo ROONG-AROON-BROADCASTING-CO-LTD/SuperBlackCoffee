@@ -75,6 +75,7 @@ type Product = {
   status: ProductAvailability;
   position: string;
   ingredients: ProductIngredient[];
+  linemanIngredients: ProductIngredient[];
   imageUrl: string;
   preparationSteps: string;
 };
@@ -312,7 +313,10 @@ export function ProductsManagementPage({
     setRecipeProduct(item);
     setRecipeStepsDraft(item.preparationSteps);
     setRecipeDraft(
-      item.ingredients.map((ingredient) => ({
+      (salesChannel === 'lineman'
+        ? item.linemanIngredients
+        : item.ingredients
+      ).map((ingredient) => ({
         inventoryItemId: ingredient.inventoryItemId,
         quantity: ingredient.quantity,
         unit: ingredient.unit,
@@ -441,6 +445,22 @@ export function ProductsManagementPage({
             quantity: ingredient.quantity as number,
             unit: ingredient.unit.trim(),
           })),
+          storefrontIngredients: (salesChannel === 'store'
+            ? ingredients
+            : recipeProduct.ingredients
+          ).map((ingredient) => ({
+            inventoryItemId: ingredient.inventoryItemId as number,
+            quantity: ingredient.quantity as number,
+            unit: ingredient.unit.trim(),
+          })),
+          linemanIngredients: (salesChannel === 'lineman'
+            ? ingredients
+            : recipeProduct.linemanIngredients
+          ).map((ingredient) => ({
+            inventoryItemId: ingredient.inventoryItemId as number,
+            quantity: ingredient.quantity as number,
+            unit: ingredient.unit.trim(),
+          })),
         },
         recipeProduct.branchCode,
       );
@@ -468,7 +488,14 @@ export function ProductsManagementPage({
           item.branchCode === recipeProduct.branchCode
             ? {
                 ...item,
-                ingredients: updatedIngredients,
+                ingredients:
+                  salesChannel === 'store'
+                    ? updatedIngredients
+                    : item.ingredients,
+                linemanIngredients:
+                  salesChannel === 'lineman'
+                    ? updatedIngredients
+                    : item.linemanIngredients,
                 preparationSteps: recipeStepsDraft.trim(),
                 status: nextStatus,
               }
@@ -592,6 +619,16 @@ export function ProductsManagementPage({
             imageUrl: item.imageUrl,
             preparationSteps: item.preparationSteps ?? '',
             ingredients: (item.ingredients ?? []).map((ingredient) => ({
+              inventoryItemId: ingredient.inventoryItemId,
+              name: ingredient.name,
+              quantity: ingredient.quantity,
+              unit: ingredient.unit,
+            })),
+            linemanIngredients: (
+              item.linemanIngredients ??
+              item.ingredients ??
+              []
+            ).map((ingredient) => ({
               inventoryItemId: ingredient.inventoryItemId,
               name: ingredient.name,
               quantity: ingredient.quantity,
@@ -1250,7 +1287,8 @@ export function ProductsManagementPage({
                     fontSize: 14,
                   }}
                 >
-                  {recipeProduct.name}
+                  {recipeProduct.name}· สูตร
+                  {salesChannel === 'lineman' ? ' LINE MAN' : 'หน้าร้าน'}
                 </Typography>
               </Box>
               <Button

@@ -15,6 +15,7 @@ import {
 import { adminSidebarNavigation } from '../../components/sidebar/adminSidebarNavigation';
 import { AdminDashboardLayout } from '../../layouts/AdminDashboardLayout';
 import { AdminOverviewSkeleton } from '../../components/skeletons/AdminOverviewSkeleton';
+import { AdminOperationsPage } from '../../pages/dashboard/AdminOperationsPage';
 import { AdminAuditSkeleton } from '../../components/skeletons/AdminAuditSkeleton';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
 import { AdminOrdersSkeleton } from '../../components/skeletons/AdminOrdersSkeleton';
@@ -295,6 +296,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     <AdminAttendancePage />
   ) : activePage === 'คำขอลาพนักงาน' ? (
     <AdminLeaveRequestsPage />
+  ) : activePage === 'ตรวจมาตรฐานและบริการ' ? (
+    <AdminOperationsPage />
   ) : (
     <AdminBranchesPage />
   );

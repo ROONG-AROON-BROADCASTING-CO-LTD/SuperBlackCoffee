@@ -1,5 +1,6 @@
 export * from './auth';
 export * from './dashboard';
+export * from './operations';
 export * from './inventory';
 export * from './menu';
 export * from './stock-requests';

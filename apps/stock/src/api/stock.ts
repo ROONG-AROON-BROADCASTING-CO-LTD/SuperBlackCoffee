@@ -38,6 +38,17 @@ export type MenuItem = {
   status: 'available' | 'soldout';
   recipeStatus: 'ready' | 'missing_recipe' | 'insufficient_stock';
   sellable: boolean;
+  linemanRecipeStatus?: 'ready' | 'missing_recipe' | 'insufficient_stock';
+  linemanSellable?: boolean;
+  ingredients?: Array<{
+    inventoryItemId: number;
+    name: string;
+    quantity: number;
+    unit: string;
+    inventoryQuantity: number;
+    inventoryUnit: string;
+  }>;
+  linemanIngredients?: MenuItem['ingredients'];
 };
 
 export const loginStock = (username: string, pin: string) =>
@@ -67,8 +78,9 @@ export const listMenuItems = () => request<MenuItem[]>('/menu-items');
 export const consumeStockFromMenus = (
   items: Array<{ menuItemId: number; quantity: number }>,
   note: string,
+  channel: 'storefront' | 'lineman',
 ) =>
   request<{ menuCount: number }>('/stock/consume', {
     method: 'POST',
-    body: JSON.stringify({ items, note }),
+    body: JSON.stringify({ items, note, channel }),
   });

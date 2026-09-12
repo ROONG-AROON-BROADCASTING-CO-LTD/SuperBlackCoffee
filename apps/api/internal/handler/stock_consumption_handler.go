@@ -14,8 +14,9 @@ type stockConsumptionItem struct {
 	Quantity   float64 `json:"quantity" binding:"required,gt=0"`
 }
 type stockConsumptionInput struct {
-	Items []stockConsumptionItem `json:"items" binding:"required,min=1,dive"`
-	Note  string                 `json:"note" binding:"required,max=500"`
+	Items   []stockConsumptionItem `json:"items" binding:"required,min=1,dive"`
+	Note    string                 `json:"note" binding:"required,max=500"`
+	Channel string                 `json:"channel" binding:"required,oneof=storefront lineman"`
 }
 
 // ConsumeStockFromMenus calculates recipe consumption server-side and records it atomically.
@@ -52,7 +53,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ไม่พร้อมขาย"})
 			return
 		}
-		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1`, item.MenuItemID)
+		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel=$2`, item.MenuItemID, input.Channel)
 		if queryErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 			return
@@ -71,7 +72,11 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 		}
 		rows.Close()
 		if !hasRecipe {
-			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ยังไม่มีสูตรวัตถุดิบ"})
+			channelName := "หน้าร้าน"
+			if input.Channel == "lineman" {
+				channelName = "LINE MAN"
+			}
+			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ยังไม่มีสูตรวัตถุดิบสำหรับ " + channelName})
 			return
 		}
 	}
@@ -102,7 +107,11 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			return
 		}
 	}
-	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_consumption", 0, "consumed", gin.H{"itemCount": len(input.Items), "note": input.Note}); err != nil {
+	menuQuantity := 0.0
+	for _, item := range input.Items {
+		menuQuantity += item.Quantity
+	}
+	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_consumption", 0, "consumed", gin.H{"itemCount": len(input.Items), "menuQuantity": menuQuantity, "channel": input.Channel, "note": input.Note}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติได้"})
 		return
 	}

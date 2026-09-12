@@ -29,9 +29,11 @@ type InventoryItem struct {
 }
 
 type MenuIngredient struct {
-	InventoryItemID int64   `json:"inventoryItemId"`
-	Name            string  `json:"name"`
-	Quantity        float64 `json:"quantity"`
-	Unit            string  `json:"unit"`
-	CostAmount      float64 `json:"costAmount"`
+	InventoryItemID   int64   `json:"inventoryItemId"`
+	Name              string  `json:"name"`
+	Quantity          float64 `json:"quantity"`
+	Unit              string  `json:"unit"`
+	InventoryQuantity float64 `json:"inventoryQuantity"`
+	InventoryUnit     string  `json:"inventoryUnit"`
+	CostAmount        float64 `json:"costAmount"`
 }

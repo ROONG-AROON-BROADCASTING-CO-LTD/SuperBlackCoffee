@@ -74,18 +74,24 @@ func (h *PlatformHandler) CreateMenuItem(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, input.Ingredients)
+	storefrontIngredients, linemanIngredients := normalizedMenuRecipes(input)
+	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, storefrontIngredients)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
 	}
 	var id int64
 	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO menu_items(branch_id,name,category,store_price,lineman_price,cost_price,lineman_cost_price,preparation_steps,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'available') RETURNING id`, branchID, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice, input.PreparationSteps).Scan(&id)
-	for _, ingredient := range input.Ingredients {
-		if err != nil {
-			break
+	for _, recipe := range []struct {
+		channel     string
+		ingredients []dto.MenuIngredientRequest
+	}{{"storefront", storefrontIngredients}, {"lineman", linemanIngredients}} {
+		for _, ingredient := range recipe.ingredients {
+			if err != nil {
+				break
+			}
+			_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount,channel) VALUES($1,$2,$3,$4,0,$5)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit, recipe.channel)
 		}
-		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount) VALUES($1,$2,$3,$4,0)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit)
 	}
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างเมนูได้"})
@@ -139,7 +145,8 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, input.Ingredients)
+	storefrontIngredients, linemanIngredients := normalizedMenuRecipes(input)
+	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, storefrontIngredients)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
@@ -150,11 +157,16 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		return
 	}
 	_, err = tx.ExecContext(c.Request.Context(), `DELETE FROM menu_item_ingredients WHERE menu_item_id=$1`, id)
-	for _, ingredient := range input.Ingredients {
-		if err != nil {
-			break
+	for _, recipe := range []struct {
+		channel     string
+		ingredients []dto.MenuIngredientRequest
+	}{{"storefront", storefrontIngredients}, {"lineman", linemanIngredients}} {
+		for _, ingredient := range recipe.ingredients {
+			if err != nil {
+				break
+			}
+			_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount,channel) VALUES($1,$2,$3,$4,0,$5)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit, recipe.channel)
 		}
-		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount) VALUES($1,$2,$3,$4,0)`, id, ingredient.InventoryItemID, ingredient.Quantity, ingredient.Unit)
 	}
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขเมนูได้"})
@@ -170,6 +182,20 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 	}
 	h.invalidateBranchCache(c, branchID)
 	c.JSON(200, gin.H{"success": true, "data": gin.H{"id": id}})
+}
+
+// normalizedMenuRecipes accepts legacy clients and makes their existing recipe
+// available to both channels until the admin customises the LINE MAN formula.
+func normalizedMenuRecipes(input dto.MenuRequest) ([]dto.MenuIngredientRequest, []dto.MenuIngredientRequest) {
+	storefront := input.StorefrontIngredients
+	if storefront == nil {
+		storefront = input.Ingredients
+	}
+	lineman := input.LinemanIngredients
+	if lineman == nil {
+		lineman = storefront
+	}
+	return storefront, lineman
 }
 func (h *PlatformHandler) DeleteMenuItem(c *gin.Context) {
 	if h.unavailable(c) {

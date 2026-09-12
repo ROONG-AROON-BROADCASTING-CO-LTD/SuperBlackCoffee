@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Snackbar } from '@mui/material';
+import { Alert, Snackbar, useMediaQuery } from '@mui/material';
+import { CircleCheckIcon, SbcThemeProvider } from '@stackbuild/ui';
 import { ApiRequestError } from './api/client';
 import {
   adjustInventory,
@@ -14,13 +15,12 @@ import {
   type MenuItem,
   type StockSession,
 } from './api/stock';
+import { stockNavigation } from './components/StockNavigation';
+import { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
 import { StockLoginPage } from './features/auth/StockLoginPage';
 import { StockAppLayout } from './layouts/StockAppLayout';
-import { StockCountPage } from './pages/StockCountPage';
-import { StockHistoryPage } from './pages/StockHistoryPage';
+import { StockPageRouter } from './routes/StockPageRouter';
 import type { StockMovement } from './api/stock';
-import { StockOverviewPage } from './pages/StockOverviewPage';
-import { MenuConsumptionPage } from './pages/MenuConsumptionPage';
 import type { StockPage } from './types/stock';
 
 const paths: Record<StockPage, string> = {
@@ -38,8 +38,17 @@ const pageFromPath = (pathname: string): StockPage =>
         ? 'history'
         : 'overview';
 
+function isInvalidStockSession(error: unknown) {
+  return (
+    error instanceof ApiRequestError &&
+    (error.status === 401 || error.status === 403)
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState<StockSession | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [initialDataLoading, setInitialDataLoading] = useState(false);
   const [page, setPage] = useState<StockPage>(() =>
     pageFromPath(window.location.pathname),
   );
@@ -48,17 +57,37 @@ export default function App() {
   const [postalStock, setPostalStock] = useState<InventoryItem[]>([]);
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [loading, setLoading] = useState(true);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [notice, setNotice] = useState('');
+  const [connectionError, setConnectionError] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
+  const isTabletOrSmaller = useMediaQuery('(max-width:899.95px)');
+  const title = useMemo(
+    () =>
+      stockNavigation.find((item) => item.page === page)?.label ??
+      stockNavigation[0].label,
+    [page],
+  );
 
-  const refreshInventory = async () => {
+  const getInventory = async () => {
     const [nextIngredients, nextDrink, nextPostal] = await Promise.all([
       listInventory('ingredient'),
       listInventory('stock', 'drink_equipment'),
       listInventory('stock', 'postal_equipment'),
     ]);
+    return {
+      ingredients: nextIngredients,
+      drinkStock: nextDrink,
+      postalStock: nextPostal,
+    };
+  };
+
+  const setInventory = ({
+    ingredients: nextIngredients,
+    drinkStock: nextDrink,
+    postalStock: nextPostal,
+  }: Awaited<ReturnType<typeof getInventory>>) => {
     setIngredients(nextIngredients);
     setDrinkStock(nextDrink);
     setPostalStock(nextPostal);
@@ -68,13 +97,15 @@ export default function App() {
     let active = true;
     void restoreStockSession()
       .then((next) => {
-        if (active) setSession(next);
+        if (!active) return;
+        setInitialDataLoading(true);
+        setSession(next);
       })
       .catch(() => {
         if (active) setSession(null);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setCheckingSession(false);
       });
     return () => {
       active = false;
@@ -82,23 +113,46 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (!session) return;
-    setLoading(true);
-    void Promise.all([
-      refreshInventory(),
-      listMyStockMovements(),
-      listMenuItems(),
-    ])
-      .then(([, nextMovements, nextMenus]) => {
+    let active = true;
+    setInitialDataLoading(true);
+    void Promise.all([getInventory(), listMyStockMovements(), listMenuItems()])
+      .then(([nextInventory, nextMovements, nextMenus]) => {
+        if (!active) return;
+        setInventory(nextInventory);
         setMovements(nextMovements);
         setMenus(nextMenus);
+        setConnectionError(false);
       })
       .catch((error) => {
-        setNotice(
-          error instanceof Error ? error.message : 'ไม่สามารถโหลดสต๊อกได้',
-        );
+        if (!active) return;
+        if (isInvalidStockSession(error)) {
+          setSession(null);
+          setIngredients([]);
+          setDrinkStock([]);
+          setPostalStock([]);
+          setMenus([]);
+          setMovements([]);
+          return;
+        }
+        setConnectionError(true);
       })
-      .finally(() => setLoading(false));
-  }, [session]);
+      .finally(() => {
+        if (active) setInitialDataLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [retryTick, session]);
+  useEffect(() => {
+    if (!session || !connectionError) return;
+    const retry = () => setRetryTick((tick) => tick + 1);
+    const interval = window.setInterval(retry, 10_000);
+    window.addEventListener('online', retry);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('online', retry);
+    };
+  }, [connectionError, session]);
   useEffect(() => {
     const listener = () => setPage(pageFromPath(window.location.pathname));
     window.addEventListener('popstate', listener);
@@ -110,27 +164,37 @@ export default function App() {
       window.history.pushState(null, '', paths[next]);
     setPage(next);
   };
+  const startSession = (nextSession: StockSession) => {
+    setInitialDataLoading(true);
+    setSession(nextSession);
+    navigate('sales');
+  };
   const submitLogin = async (username: string, pin: string) => {
     setLoginLoading(true);
     setLoginError('');
     try {
-      setSession(await loginStock(username, pin));
+      startSession(await loginStock(username, pin));
     } catch (error) {
       setLoginError(
         error instanceof Error ? error.message : 'ไม่สามารถเข้าสู่ระบบได้',
       );
+      throw error;
     } finally {
       setLoginLoading(false);
     }
   };
-  const signOut = async () => {
-    await logoutStock().catch(() => undefined);
+  const signOut = () => {
+    void logoutStock();
     setSession(null);
     setIngredients([]);
     setDrinkStock([]);
     setPostalStock([]);
     setMenus([]);
     setMovements([]);
+    setInitialDataLoading(false);
+    setConnectionError(false);
+    window.history.replaceState(null, '', paths.overview);
+    setPage('overview');
   };
   const handleAdjust = async (
     item: InventoryItem,
@@ -138,10 +202,11 @@ export default function App() {
     note: string,
   ) => {
     const result = await adjustInventory(item.id, quantity, note);
-    const [_, nextMovements] = await Promise.all([
-      refreshInventory(),
+    const [nextInventory, nextMovements] = await Promise.all([
+      getInventory(),
       listMyStockMovements(),
     ]);
+    setInventory(nextInventory);
     setMovements(nextMovements);
     setNotice(
       `บันทึก ${item.name} คงเหลือ ${result.quantity} ${item.unit} แล้ว`,
@@ -150,74 +215,84 @@ export default function App() {
   const handleConsume = async (
     items: Array<{ menuItemId: number; quantity: number }>,
     note: string,
+    channel: 'storefront' | 'lineman',
   ) => {
-    const result = await consumeStockFromMenus(items, note);
-    const [, nextMovements, nextMenus] = await Promise.all([
-      refreshInventory(),
+    const result = await consumeStockFromMenus(items, note, channel);
+    const [nextInventory, nextMovements, nextMenus] = await Promise.all([
+      getInventory(),
       listMyStockMovements(),
       listMenuItems(),
     ]);
+    setInventory(nextInventory);
     setMovements(nextMovements);
     setMenus(nextMenus);
     setNotice(`ตัดวัตถุดิบจาก ${result.menuCount} เมนูเรียบร้อยแล้ว`);
   };
-  const content = useMemo(
-    () =>
-      page === 'sales' ? (
-        <MenuConsumptionPage
-          menus={menus}
-          loading={loading}
-          onConsume={handleConsume}
-        />
-      ) : page === 'count' ? (
-        <StockCountPage
-          ingredients={ingredients}
-          drinkStock={drinkStock}
-          postalStock={postalStock}
-          loading={loading}
-          onAdjust={handleAdjust}
-        />
-      ) : page === 'history' ? (
-        <StockHistoryPage movements={movements} />
-      ) : (
-        <StockOverviewPage
-          ingredients={ingredients}
-          drinkStock={drinkStock}
-          postalStock={postalStock}
-        />
-      ),
-    [page, ingredients, drinkStock, postalStock, loading, movements, menus],
-  );
+  if (checkingSession) return null;
 
-  if (loading && !session) return null;
-  if (!session)
-    return (
-      <StockLoginPage
-        onLogin={submitLogin}
-        error={loginError}
-        loading={loginLoading}
-      />
-    );
   return (
-    <>
-      <StockAppLayout
-        page={page}
-        onPage={navigate}
-        onLogout={() => void signOut()}
-        name={session.user.name}
-        branchName={session.user.branchName}
-      >
-        {content}
-      </StockAppLayout>
-      <Snackbar
-        open={Boolean(notice)}
-        autoHideDuration={3600}
-        onClose={() => setNotice('')}
-      >
-        <Alert severity="success" onClose={() => setNotice('')}>
-          {notice}
-        </Alert>
-      </Snackbar>
-    </>
+    <SbcThemeProvider
+      secondary="#805637"
+      background="#fbfaf8"
+      borderRadius={15}
+    >
+      {session ? (
+        <StockAppLayout
+          page={page}
+          title={title}
+          onPage={navigate}
+          onLogout={signOut}
+          name={session.user.name}
+          branchName={session.user.branchName}
+        >
+          <StockPageRouter
+            page={page}
+            ingredients={ingredients}
+            drinkStock={drinkStock}
+            postalStock={postalStock}
+            menus={menus}
+            movements={movements}
+            isInitialLoading={initialDataLoading}
+            onAdjust={handleAdjust}
+            onConsume={handleConsume}
+          />
+          {notice ? (
+            <Snackbar
+              open
+              autoHideDuration={4_000}
+              onClose={(_event, reason) => {
+                if (reason !== 'clickaway') setNotice('');
+              }}
+              anchorOrigin={{
+                vertical: isTabletOrSmaller ? 'top' : 'bottom',
+                horizontal: 'center',
+              }}
+              sx={
+                isTabletOrSmaller
+                  ? { top: 'calc(72px + env(safe-area-inset-top) + 12px)' }
+                  : { mb: 2 }
+              }
+            >
+              <Alert
+                severity="success"
+                variant="filled"
+                icon={<CircleCheckIcon animate={Boolean(notice)} />}
+                sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
+              >
+                {notice}
+              </Alert>
+            </Snackbar>
+          ) : null}
+          <AutoRetrySnackbar open={connectionError} />
+        </StockAppLayout>
+      ) : (
+        <StockLoginPage
+          onLogin={submitLogin}
+          onClearError={() => setLoginError('')}
+          error={loginError}
+          loading={loginLoading}
+        />
+      )}
+    </SbcThemeProvider>
   );
 }

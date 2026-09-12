@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"bytes"
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"y/internal/dto"
 	"y/internal/middleware"
 	"y/internal/model"
 )
@@ -112,5 +115,57 @@ func TestCanRecordAttendanceOnlyForWorkingShiftStates(t *testing.T) {
 				t.Fatalf("canRecordAttendance(%q) = %t, want %t", test.status, got, test.want)
 			}
 		})
+	}
+}
+
+func TestNormalizedMenuRecipesKeepsChannelRecipesSeparateAndSupportsLegacyClients(t *testing.T) {
+	storefront := []dto.MenuIngredientRequest{{InventoryItemID: 1, Quantity: 20, Unit: "กรัม"}}
+	lineman := []dto.MenuIngredientRequest{{InventoryItemID: 2, Quantity: 35, Unit: "กรัม"}}
+	for _, test := range []struct {
+		name                        string
+		input                       dto.MenuRequest
+		wantStorefront, wantLineman []dto.MenuIngredientRequest
+	}{
+		{
+			name:           "separate formulas stay separate",
+			input:          dto.MenuRequest{StorefrontIngredients: storefront, LinemanIngredients: lineman},
+			wantStorefront: storefront, wantLineman: lineman,
+		},
+		{
+			name:           "legacy ingredients populate both channels",
+			input:          dto.MenuRequest{Ingredients: storefront},
+			wantStorefront: storefront, wantLineman: storefront,
+		},
+		{
+			name:           "explicitly empty line man formula remains empty",
+			input:          dto.MenuRequest{StorefrontIngredients: storefront, LinemanIngredients: []dto.MenuIngredientRequest{}},
+			wantStorefront: storefront, wantLineman: []dto.MenuIngredientRequest{},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			gotStorefront, gotLineman := normalizedMenuRecipes(test.input)
+			if !reflect.DeepEqual(gotStorefront, test.wantStorefront) || !reflect.DeepEqual(gotLineman, test.wantLineman) {
+				t.Fatalf("normalized recipes = storefront %#v, lineman %#v; want storefront %#v, lineman %#v", gotStorefront, gotLineman, test.wantStorefront, test.wantLineman)
+			}
+		})
+	}
+}
+
+func TestConsumeStockFromMenusRejectsInvalidChannelBeforeAccessingBranchData(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := &PlatformHandler{db: &sql.DB{}}
+	res := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(res)
+	ctx.Request = httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/stock/consume",
+		bytes.NewBufferString(`{"items":[{"menuItemId":1,"quantity":1}],"note":"ปิดกะ","channel":"unknown"}`),
+	)
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	handler.ConsumeStockFromMenus(ctx)
+
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusBadRequest, res.Body.String())
 	}
 }

@@ -1,6 +1,11 @@
 import { secured } from './client';
 
-export type DashboardSummary = { todaySales: number; todayOrders: number };
+export type DashboardSummary = {
+  todaySales: number;
+  todayOrders: number;
+  todayMenuStockCuts: number;
+  todayStockEntries: number;
+};
 export type BranchSales = {
   id: number;
   name: string;
@@ -10,7 +15,9 @@ export type BranchSales = {
   sales: number;
   orders: number;
 };
-export const getDashboardSummary = () =>
-  secured<DashboardSummary>('/dashboard');
+export const getDashboardSummary = (branchCode?: string) =>
+  secured<DashboardSummary>(
+    `/dashboard${branchCode ? `?branchCode=${encodeURIComponent(branchCode)}` : ''}`,
+  );
 export const listBranchSales = (period: 'today' | 'month' | 'year') =>
   secured<BranchSales[]>(`/branches/sales?period=${period}`);

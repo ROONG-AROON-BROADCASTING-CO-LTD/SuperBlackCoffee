@@ -17,6 +17,7 @@
     "test:management": "vitest run packages/management/src/pages/__tests__",
     "test:franchise": "vitest run apps/franchise/src",
     "test:admin": "vitest run apps/admin/src",
+    "test:attendance": "pnpm --filter @stackbuild/attendance test",
     "test:stock": "pnpm --filter @stackbuild/stock test",
     "test:frontend": "vitest run",
     "test:api:integration": "cd apps/api && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5434/test_app go test -p 1 ./...",

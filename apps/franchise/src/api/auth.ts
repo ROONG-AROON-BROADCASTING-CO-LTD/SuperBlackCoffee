@@ -9,7 +9,17 @@ async function requestSession(path: string, options: RequestInit = {}) {
     credentials: 'include',
     ...options,
   });
-  const body = await response.json();
+  const raw = await response.text();
+  let body: { success?: boolean; data?: FranchiseSession; message?: string };
+  try {
+    body = JSON.parse(raw) as typeof body;
+  } catch {
+    throw new Error(
+      response.status === 404
+        ? 'ไม่พบระบบที่ต้องการ กรุณาลองใหม่อีกครั้ง'
+        : 'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
+    );
+  }
   if (!response.ok || !body.success)
     throw new Error(body.message ?? 'ไม่สามารถตรวจสอบเซสชันได้');
   return body.data as FranchiseSession;

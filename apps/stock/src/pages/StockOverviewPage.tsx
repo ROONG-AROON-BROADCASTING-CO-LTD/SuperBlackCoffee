@@ -39,7 +39,7 @@ export function StockOverviewPage({
           tone={low.length ? 'error.main' : 'success.main'}
         />
       </Box>
-      <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+      <Paper sx={{ p: 2.5, borderRadius: '15px' }}>
         <Typography sx={{ fontWeight: 700, mb: 1.5 }}>
           รายการที่ต้องติดตาม
         </Typography>
@@ -80,7 +80,7 @@ function Summary({
   tone?: string;
 }) {
   return (
-    <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+    <Paper sx={{ p: 2.5, borderRadius: '15px' }}>
       <Typography color="text.secondary">{label}</Typography>
       <Typography variant="h4" color={tone} sx={{ fontWeight: 800 }}>
         {value}

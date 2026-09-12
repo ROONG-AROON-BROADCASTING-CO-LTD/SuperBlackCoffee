@@ -39,6 +39,98 @@ func TestProtectedRoutesRequireToken(t *testing.T) {
 	}
 }
 
+func TestOperationsRoutesRequireAnOperationsRole(t *testing.T) {
+	r := New(nil, nil)
+	for _, test := range []struct {
+		name, role string
+		want       int
+	}{
+		{name: "cashier is forbidden", role: "cashier", want: http.StatusForbidden},
+		{name: "admin reaches database handler", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "franchise owner is forbidden", role: "franchise_owner", want: http.StatusForbidden},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/maintenance-tickets", nil)
+			req.Header.Set("Authorization", "Bearer "+testToken(t, test.role))
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != test.want {
+				t.Fatalf("status = %d, want %d: %s", res.Code, test.want, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestMaintenanceTicketRoutesRejectInvalidInputBeforeDatabaseAccess(t *testing.T) {
+	r := New(nil, nil)
+	for _, test := range []struct {
+		name, method, path, body string
+	}{
+		{name: "invalid priority", method: http.MethodPost, path: "/api/v1/maintenance-tickets", body: `{"branchCode":"SBC-AYA-001","title":"เครื่องชงมีปัญหา","priority":"invalid"}`},
+		{name: "missing branch", method: http.MethodPost, path: "/api/v1/maintenance-tickets", body: `{"title":"เครื่องชงมีปัญหา"}`},
+		{name: "invalid ticket id", method: http.MethodPatch, path: "/api/v1/maintenance-tickets/not-an-id/status", body: `{"status":"completed"}`},
+		{name: "invalid ticket status", method: http.MethodPatch, path: "/api/v1/maintenance-tickets/1/status", body: `{"status":"invalid"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(test.method, test.path, strings.NewReader(test.body))
+			req.Header.Set("Authorization", "Bearer "+testToken(t, "admin"))
+			req.Header.Set("Content-Type", "application/json")
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusBadRequest, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestMaintenanceTicketRoutesFailSafelyWhenDatabaseIsUnavailable(t *testing.T) {
+	r := New(nil, nil)
+	for _, test := range []struct {
+		name, method, path, body string
+	}{
+		{name: "create", method: http.MethodPost, path: "/api/v1/maintenance-tickets", body: `{"branchCode":"SBC-AYA-001","title":"เครื่องชงมีปัญหา","priority":"normal"}`},
+		{name: "update", method: http.MethodPatch, path: "/api/v1/maintenance-tickets/1/status", body: `{"status":"completed"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(test.method, test.path, strings.NewReader(test.body))
+			req.Header.Set("Authorization", "Bearer "+testToken(t, "admin"))
+			req.Header.Set("Content-Type", "application/json")
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != http.StatusServiceUnavailable {
+				t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusServiceUnavailable, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestStockConsumptionRouteEnforcesStaffScopeAndValidatesInput(t *testing.T) {
+	r := New(nil, nil)
+	validBody := `{"items":[{"menuItemId":1,"quantity":1}],"note":"ปิดกะ","channel":"storefront"}`
+	for _, test := range []struct {
+		name, role, body string
+		want             int
+	}{
+		{name: "requires authentication", body: validBody, want: http.StatusUnauthorized},
+		{name: "blocks platform admin", role: "admin", body: validBody, want: http.StatusForbidden},
+		{name: "reaches unavailable handler for a valid staff request", role: "cashier", body: validBody, want: http.StatusServiceUnavailable},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/stock/consume", strings.NewReader(test.body))
+			if test.role != "" {
+				req.Header.Set("Authorization", "Bearer "+testToken(t, test.role))
+			}
+			req.Header.Set("Content-Type", "application/json")
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != test.want {
+				t.Fatalf("status = %d, want %d: %s", res.Code, test.want, res.Body.String())
+			}
+		})
+	}
+}
+
 func TestProtectedRoutesAcceptAttendanceSessionCookie(t *testing.T) {
 	r := New(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard", nil)

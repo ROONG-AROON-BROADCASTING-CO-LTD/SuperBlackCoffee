@@ -86,4 +86,9 @@ export const adminSidebarNavigation = [
     icon: <HistoryIcon />,
     group: 'ติดตามและตรวจสอบ',
   },
+  {
+    label: 'ตรวจมาตรฐานและบริการ',
+    icon: <FilePenLineIcon />,
+    group: 'ติดตามและตรวจสอบ',
+  },
 ];

@@ -181,9 +181,13 @@ export function AdminOverviewPage({
 }: {
   onNavigate: (page: AdminPage) => void;
 }) {
-  const dashboard = useDashboardSummary();
-  const stockRequests = useStockRequests();
   const [selectedBranch, setSelectedBranch] = useState<Branch>('ทุกสาขา');
+  const selectedBranchCode =
+    selectedBranch === 'ทุกสาขา'
+      ? undefined
+      : branchCodeByBranch[selectedBranch];
+  const dashboard = useDashboardSummary(selectedBranchCode);
+  const stockRequests = useStockRequests();
   const branchSales = useQuery({
     queryKey: ['overview-branch-sales'],
     queryFn: () => listBranchSales('today'),
@@ -209,6 +213,8 @@ export function AdminOverviewPage({
   });
   const sales = dashboard.data?.todaySales ?? 0;
   const orders = dashboard.data?.todayOrders ?? 0;
+  const stockCuts = dashboard.data?.todayMenuStockCuts ?? 0;
+  const stockEntries = dashboard.data?.todayStockEntries ?? 0;
   const isLoading =
     dashboard.isLoading ||
     stockRequests.isLoading ||
@@ -229,11 +235,10 @@ export function AdminOverviewPage({
     stockRequests.isError ||
     branchSales.isError ||
     branchStock.isError;
-  const selectedBranchCode =
-    selectedBranch === 'ทุกสาขา' ? null : branchCodeByBranch[selectedBranch];
+  const selectedBranchFilter = selectedBranchCode ?? null;
   const branchSalesRows = (branchSales.data ?? []).filter(
     (branch) =>
-      selectedBranchCode === null || branch.code === selectedBranchCode,
+      selectedBranchFilter === null || branch.code === selectedBranchFilter,
   );
   const maxBranchSales = Math.max(
     ...branchSalesRows.map((branch) => branch.sales),
@@ -349,22 +354,22 @@ export function AdminOverviewPage({
             }}
           >
             <MetricCard
-              label="ยอดขายวันนี้"
-              value={hasError ? '—' : formatCurrency(overviewSales)}
+              label="เมนูที่ตัดสต๊อกวันนี้"
+              value={hasError ? '—' : `${formatCount(stockCuts)} รายการ`}
               helper={
                 hasError
                   ? 'โหลดข้อมูลไม่สำเร็จ'
-                  : 'รวมเฉพาะรายการที่ชำระเงินแล้ว'
+                  : 'จากการบันทึกขายผ่าน Stock app'
               }
               accent={hasError ? '#b63b35' : '#805637'}
             />
             <MetricCard
-              label="คำสั่งซื้อที่ชำระแล้ว"
-              value={hasError ? '—' : `${formatCount(overviewOrders)} รายการ`}
+              label="รอบที่บันทึกตัดสต๊อก"
+              value={hasError ? '—' : `${formatCount(stockEntries)} รอบ`}
               helper={
                 hasError
                   ? 'โหลดข้อมูลไม่สำเร็จ'
-                  : 'คำสั่งซื้อที่บันทึกสำเร็จในวันนี้'
+                  : 'รายการที่พนักงานยืนยันในวันนี้'
               }
               accent={hasError ? '#b63b35' : '#4c8f70'}
             />
