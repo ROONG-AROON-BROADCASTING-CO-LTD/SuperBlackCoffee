@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publicRequest, secured } from '../client';
 import {
   cancelLeaveRequest,
+  checkIn,
+  checkOut,
   createLeaveRequest,
+  getAttendanceStatus,
   getLeaveRequestPdf,
   loginAttendance,
 } from '../attendance';
@@ -62,6 +65,39 @@ describe('attendance API client', () => {
     const [, options] = fetchMock.mock.calls[0];
     expect(options?.credentials).toBe('include');
     expect(new Headers(options?.headers).get('Authorization')).toBeNull();
+  });
+
+  it('uses the protected attendance status and mutation endpoints', async () => {
+    const successResponse = () =>
+      new Response(
+        JSON.stringify({ success: true, data: { checkedIn: false } }),
+        { status: 200 },
+      );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse());
+
+    await getAttendanceStatus();
+    await checkIn();
+    await checkOut();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/attendance/today'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/attendance/check-in'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('/attendance/check-out'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
   });
 
   it('preserves an authenticated 401 response so the app can end an expired session', async () => {

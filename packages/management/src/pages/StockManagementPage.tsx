@@ -400,7 +400,7 @@ export function StockManagementPage({
                                   },
                                 }}
                               >
-                                แก้ไข{stockLabel}
+                                แก้ไขสต๊อก
                               </Button>
                               <Button
                                 size="small"
@@ -417,7 +417,7 @@ export function StockManagementPage({
                                   '&:hover': { boxShadow: 'none' },
                                 }}
                               >
-                                ลบ{stockLabel}
+                                ลบสต๊อก
                               </Button>
                             </Box>
                           ) : null}
@@ -524,7 +524,7 @@ export function StockManagementPage({
             sx: {
               left: { md: '280px' },
               width: { md: 'calc(100% - 304px)' },
-              height: { xs: '82vh', sm: 'min(82vh, 720px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',

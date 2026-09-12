@@ -53,33 +53,60 @@ type branchSizeInput struct {
 	Size string `json:"size" binding:"required,oneof=S M L"`
 }
 
+type companyBranchInput struct {
+	Name string `json:"name" binding:"required"`
+	Code string `json:"code" binding:"required"`
+	Size string `json:"size" binding:"required,oneof=S M L"`
+}
+
 const franchiseCatalogTemplateBranchCode = "SBC-AYA-001"
 
-func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan string) error {
-	_, err := tx.ExecContext(c, `
-		INSERT INTO inventory_items(branch_id,name,category,kind,quantity,unit,reorder_level,unit_cost,image_url)
-		SELECT $1,i.name,i.category,i.kind,i.quantity,i.unit,i.reorder_level,i.unit_cost,i.image_url
+// copyCompanyCatalog gives a new SBC branch the same starting catalogue as an
+// existing SBC branch.  The first branch can still be created on a new system;
+// its catalogue simply starts empty until central items are added.
+func copyCompanyCatalog(c context.Context, tx *sql.Tx, branchID int64, size string) error {
+	var sourceBranchID int64
+	err := tx.QueryRowContext(c, `
+		SELECT b.id
+		FROM branches b
+		WHERE b.franchisee_id IS NULL
+		  AND b.id <> $1
+		  AND EXISTS (SELECT 1 FROM menu_items m WHERE m.branch_id=b.id)
+		ORDER BY
+			CASE WHEN b.code=$2 THEN 0 ELSE 1 END,
+			CASE b.size WHEN 'L' THEN 0 WHEN 'M' THEN 1 ELSE 2 END,
+			b.id
+		LIMIT 1`, branchID, franchiseCatalogTemplateBranchCode).Scan(&sourceBranchID)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(c, `
+		INSERT INTO inventory_items(branch_id,catalog_item_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,image_url,expiry_date)
+		SELECT $1,i.catalog_item_id,i.name,i.category,i.stock_category,i.kind,i.quantity,i.unit,i.reorder_level,i.unit_cost,i.image_url,i.expiry_date
 		FROM inventory_items i
-		JOIN branches source ON source.id=i.branch_id AND source.code=$2
-		WHERE $3 != 'S' OR i.kind='stock' OR (
-			i.kind='ingredient' AND EXISTS (
-				SELECT 1 FROM menu_item_ingredients mi
-				JOIN menu_items m ON m.id=mi.menu_item_id
-				WHERE mi.inventory_item_id=i.id AND m.branch_id=source.id
-				AND CASE WHEN $3='S' THEN lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
-					         ELSE lower(m.category) NOT IN ('เบเกอรี่','bakery') END
-			)
-		)
-		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, franchiseCatalogTemplateBranchCode, plan)
+		WHERE i.branch_id=$2
+		  AND ($3 <> 'S' OR i.kind='stock' OR i.category <> 'วัตถุดิบอาหาร' OR EXISTS (
+			SELECT 1 FROM menu_item_ingredients mi
+			JOIN menu_items m ON m.id=mi.menu_item_id
+			WHERE mi.inventory_item_id=i.id
+			  AND m.branch_id=$2
+			  AND lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
+		  ))
+		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, sourceBranchID, size)
 	if err != nil {
 		return err
 	}
 	_, err = tx.ExecContext(c, `
 		INSERT INTO menu_items(branch_id,name,category,store_price,store_price_available,lineman_price,lineman_price_available,cost_price,lineman_cost_price,status,image_url)
 		SELECT $1,m.name,m.category,m.store_price,m.store_price_available,m.lineman_price,m.lineman_price_available,m.cost_price,m.lineman_cost_price,m.status,m.image_url
-		FROM menu_items m JOIN branches source ON source.id=m.branch_id AND source.code=$2
-		WHERE $3 != 'S' OR lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
-		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, franchiseCatalogTemplateBranchCode, plan)
+		FROM menu_items m
+		WHERE m.branch_id=$2
+		  AND ($3 <> 'S' OR lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
+		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, sourceBranchID, size)
 	if err != nil {
 		return err
 	}
@@ -88,12 +115,94 @@ func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan st
 		SELECT target_menu.id,target_inventory.id,mi.quantity,mi.unit,mi.cost_amount
 		FROM menu_item_ingredients mi
 		JOIN menu_items source_menu ON source_menu.id=mi.menu_item_id
-		JOIN branches source ON source.id=source_menu.branch_id AND source.code=$2
 		JOIN inventory_items source_inventory ON source_inventory.id=mi.inventory_item_id
 		JOIN menu_items target_menu ON target_menu.branch_id=$1 AND target_menu.name=source_menu.name
-		JOIN inventory_items target_inventory ON target_inventory.branch_id=$1 AND target_inventory.name=source_inventory.name
-		WHERE $3 != 'S' OR lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
-		ON CONFLICT (menu_item_id,inventory_item_id) DO NOTHING`, branchID, franchiseCatalogTemplateBranchCode, plan)
+		JOIN inventory_items target_inventory ON target_inventory.branch_id=$1 AND target_inventory.catalog_item_id=source_inventory.catalog_item_id
+		WHERE source_menu.branch_id=$2
+		  AND ($3 <> 'S' OR lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
+		ON CONFLICT (menu_item_id,inventory_item_id) DO NOTHING`, branchID, sourceBranchID, size)
+	return err
+}
+
+func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan string) error {
+	var sourceBranchID int64
+	err := tx.QueryRowContext(c, `
+		SELECT b.id
+		FROM branches b
+		WHERE b.franchisee_id IS NULL
+		  AND b.id <> $1
+		ORDER BY
+			CASE
+				WHEN $2 = 'S' AND b.code = $3 THEN 0
+				WHEN $2 IN ('M', 'L') AND b.size = $2 THEN 0
+				WHEN $2 IN ('M', 'L') AND b.size IN ('M', 'L') THEN 1
+				WHEN b.code = $3 THEN 2
+				ELSE 3
+			END,
+			b.id
+		LIMIT 1`, branchID, plan, franchiseCatalogTemplateBranchCode).Scan(&sourceBranchID)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(c, `
+		INSERT INTO inventory_items(branch_id,catalog_item_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,image_url,expiry_date)
+		SELECT $1,i.catalog_item_id,i.name,i.category,i.stock_category,i.kind,i.quantity,i.unit,i.reorder_level,i.unit_cost,i.image_url,i.expiry_date
+		FROM inventory_items i
+		WHERE i.branch_id=$2
+		  AND ($3 != 'S' OR i.kind='stock' OR i.category <> 'วัตถุดิบอาหาร' OR (
+			i.kind='ingredient' AND EXISTS (
+				SELECT 1 FROM menu_item_ingredients mi
+				JOIN menu_items m ON m.id=mi.menu_item_id
+				WHERE mi.inventory_item_id=i.id AND m.branch_id=$2
+				AND CASE WHEN $3='S' THEN lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery')
+					         ELSE lower(m.category) NOT IN ('เบเกอรี่','bakery') END
+			)
+		  ))
+		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, sourceBranchID, plan)
+	if err != nil {
+		return err
+	}
+	// Older franchise catalogues were copied before stock categories existed.
+	// Align their stock buckets with the central template as well, so equipment
+	// is returned by the drink and postal stock endpoints.
+	if _, err = tx.ExecContext(c, `
+		UPDATE inventory_items target
+		SET stock_category=source.stock_category
+		FROM inventory_items source
+		WHERE target.branch_id=$1
+		AND target.kind='stock'
+		AND source.kind='stock'
+		AND source.branch_id=$2
+		AND target.name=source.name
+		AND source.stock_category IS NOT NULL
+		AND target.stock_category IS DISTINCT FROM source.stock_category`, branchID, sourceBranchID); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(c, `
+		INSERT INTO menu_items(branch_id,name,category,store_price,store_price_available,lineman_price,lineman_price_available,cost_price,lineman_cost_price,status,image_url)
+		SELECT $1,m.name,m.category,m.store_price,m.store_price_available,m.lineman_price,m.lineman_price_available,m.cost_price,m.lineman_cost_price,m.status,m.image_url
+		FROM menu_items m
+		WHERE m.branch_id=$2
+		  AND ($3 != 'S' OR lower(m.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
+		ON CONFLICT (branch_id,name) DO NOTHING`, branchID, sourceBranchID, plan)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(c, `
+		INSERT INTO menu_item_ingredients(menu_item_id,inventory_item_id,quantity,unit,cost_amount)
+		SELECT target_menu.id,target_inventory.id,mi.quantity,mi.unit,mi.cost_amount
+		FROM menu_item_ingredients mi
+		JOIN menu_items source_menu ON source_menu.id=mi.menu_item_id
+		JOIN inventory_items source_inventory ON source_inventory.id=mi.inventory_item_id
+		JOIN menu_items target_menu ON target_menu.branch_id=$1 AND target_menu.name=source_menu.name
+		JOIN inventory_items target_inventory ON target_inventory.branch_id=$1 AND target_inventory.catalog_item_id=source_inventory.catalog_item_id
+		WHERE source_menu.branch_id=$2
+		  AND ($3 != 'S' OR lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
+		ON CONFLICT (menu_item_id,inventory_item_id) DO NOTHING`, branchID, sourceBranchID, plan)
 	return err
 }
 
@@ -235,6 +344,50 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 	c.JSON(200, gin.H{"success": true, "data": result})
 }
 
+// CreateCompanyBranch creates an SBC-owned branch, unlike CreateFranchisee
+// which creates a franchise owner and their branch together.
+func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	var input companyBranchInput
+	if c.ShouldBindJSON(&input) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ข้อมูลสาขาไม่ถูกต้อง"})
+		return
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.ToUpper(strings.TrimSpace(input.Code))
+	if input.Name == "" || input.Code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุชื่อและรหัสสาขา"})
+		return
+	}
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างสาขาได้"})
+		return
+	}
+	defer tx.Rollback()
+	var branchID int64
+	err = tx.QueryRowContext(c.Request.Context(), `
+		INSERT INTO branches(name,code,size,status)
+		VALUES($1,$2,$3,'active')
+		RETURNING id`, input.Name, input.Code, input.Size).Scan(&branchID)
+	if err == nil {
+		err = copyCompanyCatalog(c.Request.Context(), tx, branchID, input.Size)
+	}
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "รหัสสาขานี้มีอยู่แล้วหรือไม่สามารถคัดลอกรายการเริ่มต้นได้"})
+		return
+	}
+	if err = tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกสาขาได้"})
+		return
+	}
+	h.invalidateBranchCache(c, branchID)
+	h.recordAudit(c, branchID, "branch", branchID, "created", gin.H{"name": input.Name, "code": input.Code, "size": input.Size})
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": branchID, "name": input.Name, "code": input.Code, "size": input.Size, "status": "active"}})
+}
+
 func (h *PlatformHandler) UpdateBranchSize(c *gin.Context) {
 	if h.unavailable(c) {
 		return
@@ -249,13 +402,37 @@ func (h *PlatformHandler) UpdateBranchSize(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ขนาดสาขาต้องเป็น S, M หรือ L"})
 		return
 	}
-	result, err := h.db.ExecContext(c.Request.Context(), `UPDATE branches SET size=$1 WHERE id=$2`, input.Size, branchID)
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนขนาดสาขาได้"})
+		return
+	}
+	defer tx.Rollback()
+	var isFranchiseBranch bool
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT franchisee_id IS NOT NULL FROM branches WHERE id=$1`, branchID).Scan(&isFranchiseBranch); err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขา"})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนขนาดสาขาได้"})
+		return
+	}
+	result, err := tx.ExecContext(c.Request.Context(), `UPDATE branches SET size=$1 WHERE id=$2`, input.Size, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนขนาดสาขาได้"})
 		return
 	}
 	if rowsAffected(result) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขา"})
+		return
+	}
+	if isFranchiseBranch {
+		if err = copyFranchiseCatalog(c.Request.Context(), tx, branchID, input.Size); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถปรับรายการตามขนาดสาขาได้"})
+			return
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนขนาดสาขาได้"})
 		return
 	}
 	h.invalidateBranchCache(c, branchID)

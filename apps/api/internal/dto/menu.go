@@ -13,4 +13,5 @@ type MenuRequest struct {
 	LinemanCostPrice float64                 `json:"linemanCostPrice"`
 	CostPrice        float64                 `json:"costPrice"`
 	Ingredients      []MenuIngredientRequest `json:"ingredients"`
+	PreparationSteps string                  `json:"preparationSteps"`
 }

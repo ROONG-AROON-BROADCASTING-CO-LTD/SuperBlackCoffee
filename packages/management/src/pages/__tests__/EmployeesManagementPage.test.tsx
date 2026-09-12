@@ -229,6 +229,33 @@ describe('EmployeesManagementPage', () => {
     });
   });
 
+  it('saves the selected weekdays for an employee second shift', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.change(screen.getByLabelText('เวลาเข้างาน กะที่ 2'), {
+      target: { value: '13:00' },
+    });
+    fireEvent.change(screen.getByLabelText('เวลาออกงาน กะที่ 2'), {
+      target: { value: '22:00' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'วันจันทร์' }));
+    fireEvent.click(screen.getByRole('button', { name: 'วันพุธ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขพนักงาน' }));
+
+    await waitFor(() => {
+      expect(mockedUpdateEmployee).toHaveBeenCalledWith(
+        employee.id,
+        expect.objectContaining({
+          defaultSecondStartsAt: '13:00',
+          defaultSecondEndsAt: '22:00',
+          defaultSecondShiftDays: [1, 3],
+        }),
+      );
+    });
+  });
+
   it('removes an employee from the schedule immediately and confirms the deletion', async () => {
     renderPage();
     await waitForPage();

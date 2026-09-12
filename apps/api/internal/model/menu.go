@@ -23,6 +23,7 @@ type MenuItem struct {
 	Status                MenuStatus       `json:"status"`
 	ImageURL              string           `json:"imageUrl"`
 	Ingredients           []MenuIngredient `json:"ingredients,omitempty"`
+	PreparationSteps      string           `json:"preparationSteps"`
 	CreatedAt             time.Time        `json:"createdAt,omitempty"`
 	UpdatedAt             time.Time        `json:"updatedAt,omitempty"`
 }

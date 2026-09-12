@@ -171,6 +171,6 @@ describe('AdminFranchiseBranchesPage', () => {
         'ไม่สามารถโหลดข้อมูลแฟรนไชส์ได้',
       ),
     );
-    expect(screen.getByText(/เชื่อมต่อระบบไม่ได้ จะลองใหม่ใน/)).toBeTruthy();
+    expect(screen.getByText('กำลังลองเชื่อมต่อใหม่อัตโนมัติ')).toBeTruthy();
   });
 });

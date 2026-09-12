@@ -144,6 +144,9 @@ export function EmployeesManagementPage({
   const [defaultEndsAt, setDefaultEndsAt] = useState('17:00');
   const [defaultSecondStartsAt, setDefaultSecondStartsAt] = useState('');
   const [defaultSecondEndsAt, setDefaultSecondEndsAt] = useState('');
+  const [defaultSecondShiftDays, setDefaultSecondShiftDays] = useState<
+    number[]
+  >([]);
   const [hoveredTimeField, setHoveredTimeField] = useState<
     'start' | 'end' | 'secondStart' | 'secondEnd' | null
   >(null);
@@ -254,7 +257,11 @@ export function EmployeesManagementPage({
         defaultStartsAt,
         defaultEndsAt,
         ...(defaultSecondStartsAt && defaultSecondEndsAt
-          ? { defaultSecondStartsAt, defaultSecondEndsAt }
+          ? {
+              defaultSecondStartsAt,
+              defaultSecondEndsAt,
+              defaultSecondShiftDays,
+            }
           : {}),
       }),
     onSuccess: () => {
@@ -355,6 +362,7 @@ export function EmployeesManagementPage({
     setDefaultEndsAt(employee.defaultEndsAt?.slice(0, 5) || '17:00');
     setDefaultSecondStartsAt(employee.defaultSecondStartsAt?.slice(0, 5) || '');
     setDefaultSecondEndsAt(employee.defaultSecondEndsAt?.slice(0, 5) || '');
+    setDefaultSecondShiftDays(employee.defaultSecondShiftDays ?? []);
     setIsEmployeeDrawerOpen(true);
   };
   const removeEmployee = async (employee: (typeof employees)[number]) => {
@@ -494,6 +502,7 @@ export function EmployeesManagementPage({
               setDefaultEndsAt('');
               setDefaultSecondStartsAt('');
               setDefaultSecondEndsAt('');
+              setDefaultSecondShiftDays([]);
               setIsEmployeeDrawerOpen(true);
             }}
             sx={{ bgcolor: '#805637', '&:hover': { bgcolor: '#60412a' } }}
@@ -1162,7 +1171,7 @@ export function EmployeesManagementPage({
             sx: {
               left: { md: '280px' },
               width: { md: 'calc(100% - 304px)' },
-              height: { xs: '82vh', sm: 'min(82vh, 620px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',
@@ -1343,7 +1352,9 @@ export function EmployeesManagementPage({
             sx: {
               left: { md: '280px' },
               width: { md: 'calc(100% - 304px)' },
-              height: { xs: '82vh', sm: 'min(82vh, 720px)' },
+              // Keep the sheet just below the application top bar on larger screens,
+              // while preserving enough room for the form itself to scroll internally.
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',
@@ -1435,6 +1446,7 @@ export function EmployeesManagementPage({
                   hasSecondShift &&
                   (!defaultSecondStartsAt ||
                     !defaultSecondEndsAt ||
+                    defaultSecondShiftDays.length === 0 ||
                     defaultSecondStartsAt === '00:00' ||
                     defaultSecondEndsAt === '00:00');
                 if (
@@ -1456,6 +1468,7 @@ export function EmployeesManagementPage({
                   const updatedEndsAt = defaultEndsAt;
                   const updatedSecondStartsAt = defaultSecondStartsAt;
                   const updatedSecondEndsAt = defaultSecondEndsAt;
+                  const updatedSecondShiftDays = defaultSecondShiftDays;
                   void updateEmployee(editingEmployeeId, {
                     name: updatedName,
                     role: newEmployeeRole,
@@ -1464,6 +1477,7 @@ export function EmployeesManagementPage({
                     defaultEndsAt: updatedEndsAt,
                     defaultSecondStartsAt: updatedSecondStartsAt,
                     defaultSecondEndsAt: updatedSecondEndsAt,
+                    defaultSecondShiftDays: updatedSecondShiftDays,
                   })
                     .then(() => {
                       queryClient.setQueryData<Employee[]>(
@@ -1480,6 +1494,8 @@ export function EmployeesManagementPage({
                                   defaultEndsAt: updatedEndsAt,
                                   defaultSecondStartsAt: updatedSecondStartsAt,
                                   defaultSecondEndsAt: updatedSecondEndsAt,
+                                  defaultSecondShiftDays:
+                                    updatedSecondShiftDays,
                                 }
                               : employee,
                           ),
@@ -1792,6 +1808,43 @@ export function EmployeesManagementPage({
                       animated={hoveredTimeField === 'secondEnd'}
                     />
                   </Box>
+                </Box>
+              </Box>
+              <Box sx={{ gridColumn: '1 / -1', mt: 0.25 }}>
+                <Typography sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}>
+                  เลือกวันที่ทำกะที่ 2
+                </Typography>
+                <Box
+                  aria-label="วันทำงานกะที่ 2"
+                  sx={{
+                    display: 'flex',
+                    gap: 0.75,
+                    overflowX: 'auto',
+                    pb: 0.5,
+                  }}
+                >
+                  {thaiWeekday.map((day, index) => {
+                    const weekday = index + 1;
+                    const selected = defaultSecondShiftDays.includes(weekday);
+                    return (
+                      <Button
+                        key={day}
+                        size="small"
+                        variant={selected ? 'contained' : 'outlined'}
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setDefaultSecondShiftDays((current) =>
+                            current.includes(weekday)
+                              ? current.filter((value) => value !== weekday)
+                              : [...current, weekday],
+                          )
+                        }
+                        sx={{ minWidth: 80, whiteSpace: 'nowrap' }}
+                      >
+                        {day}
+                      </Button>
+                    );
+                  })}
                 </Box>
               </Box>
               {createEmployeeMutation.error ? (

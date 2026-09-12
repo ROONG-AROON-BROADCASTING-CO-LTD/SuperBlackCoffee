@@ -8,6 +8,10 @@ import {
 import { QueryClientContext, type QueryClient } from '@tanstack/react-query';
 import { Alert, Box, Snackbar } from '@mui/material';
 import { BadgeAlertIcon } from '@stackbuild/ui';
+import {
+  hasAutoRetryErrors,
+  subscribeToAutoRetryErrors,
+} from './autoRetryErrorStore';
 
 const retrySeconds = 10;
 
@@ -82,5 +86,10 @@ function QueryAutoRetrySnackbarContent({
   queryClient: QueryClient;
 }) {
   const hasQueryError = useActiveQueryError(queryClient);
-  return <AutoRetrySnackbar open={hasQueryError} />;
+  const hasManualLoadError = useSyncExternalStore(
+    subscribeToAutoRetryErrors,
+    hasAutoRetryErrors,
+    () => false,
+  );
+  return <AutoRetrySnackbar open={hasQueryError || hasManualLoadError} />;
 }

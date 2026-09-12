@@ -405,7 +405,7 @@ func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	response := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(response)
-	ctx.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(fmt.Sprintf(`{"name":"พนักงานเวลาใหม่","role":"cashier","branchId":%d,"defaultStartsAt":"09:00","defaultEndsAt":"18:00","defaultSecondStartsAt":"13:00","defaultSecondEndsAt":"22:00"}`, branchID)))
+	ctx.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(fmt.Sprintf(`{"name":"พนักงานเวลาใหม่","role":"cashier","branchId":%d,"defaultStartsAt":"09:00","defaultEndsAt":"18:00","defaultSecondStartsAt":"13:00","defaultSecondEndsAt":"22:00","defaultSecondShiftDays":[1,2,3,4,5,6,7]}`, branchID)))
 	ctx.Request.Header.Set("Content-Type", "application/json")
 	ctx.Params = gin.Params{{Key: "id", Value: strconv.FormatInt(userID, 10)}}
 	ctx.Set("claims", &middleware.Claims{Role: "admin"})
@@ -415,16 +415,7 @@ func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 		t.Fatalf("update = %d: %s (%v)", response.Code, response.Body.String(), ctx.Errors.Last())
 	}
 
-	expectedHours := func(date string) (string, string) {
-		day, err := strconv.Atoi(date[len(date)-2:])
-		if err != nil {
-			t.Fatalf("อ่านวันจาก %q: %v", date, err)
-		}
-		if (day+int(userID))%2 == 0 {
-			return "09:00:00", "18:00:00"
-		}
-		return "13:00:00", "22:00:00"
-	}
+	expectedHours := func(string) (string, string) { return "13:00:00", "22:00:00" }
 	firstStart, firstEnd := expectedHours(firstDate)
 	secondStart, secondEnd := expectedHours(secondDate)
 	for _, test := range []struct {
@@ -480,6 +471,16 @@ func TestCreateStaffMemberAllowsNoSecondShiftButRejectsAnIncompleteOne(t *testin
 	}
 	if secondStart.Valid || secondEnd.Valid {
 		t.Fatalf("กะที่ 2 ต้องเป็น NULL เมื่อไม่ระบุ แต่ได้ (%v, %v)", secondStart, secondEnd)
+	}
+
+	weekdayUsername := fmt.Sprintf("optional-shift-days-%d", fixtureID)
+	weekdayResponse := createRequest(fmt.Sprintf(`{"name":"พนักงานเลือกวันกะสอง","username":"%s","password":"password123","role":"cashier","branchId":%d,"defaultStartsAt":"08:00","defaultEndsAt":"17:00","defaultSecondStartsAt":"13:00","defaultSecondEndsAt":"22:00","defaultSecondShiftDays":[1,3,5]}`, weekdayUsername, branchID))
+	if weekdayResponse.Code != http.StatusCreated {
+		t.Fatalf("สร้างพนักงานพร้อมวันกะที่ 2 = %d: %s", weekdayResponse.Code, weekdayResponse.Body.String())
+	}
+	var weekdayValues string
+	if err := db.QueryRow(`SELECT array_to_string(default_second_shift_days, ',') FROM users WHERE username=$1`, weekdayUsername).Scan(&weekdayValues); err != nil || weekdayValues != "1,3,5" {
+		t.Fatalf("วันกะที่ 2 = %q, err = %v", weekdayValues, err)
 	}
 
 	incompleteResponse := createRequest(fmt.Sprintf(`{"name":"พนักงานกะไม่ครบ","username":"optional-shift-incomplete-%d","password":"password123","role":"cashier","branchId":%d,"defaultStartsAt":"08:00","defaultEndsAt":"17:00","defaultSecondStartsAt":"13:00"}`, fixtureID, branchID))

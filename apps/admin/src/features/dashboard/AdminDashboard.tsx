@@ -9,6 +9,7 @@ import {
   StockSkeleton,
   BranchesSidebar,
   branchCodeByBranch,
+  useAutoRetry,
   type Branch,
 } from '@stackbuild/management';
 import { adminSidebarNavigation } from '../../components/sidebar/adminSidebarNavigation';
@@ -111,12 +112,29 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const activeOrderTab =
     searchParams.get('tab') === 'franchise' ? 'franchise' : 'sbc';
   const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
+  const [branchLoadError, setBranchLoadError] = useState(false);
+  const [branchReloadKey, setBranchReloadKey] = useState(0);
   const scrollbarTimeoutRef = useRef<number | undefined>(undefined);
+  useAutoRetry(branchLoadError, () =>
+    setBranchReloadKey((current) => current + 1),
+  );
   useEffect(() => {
+    let active = true;
     void listBranches()
-      .then(setBranchDirectory)
-      .catch(() => setBranchDirectory([]));
-  }, []);
+      .then((branches) => {
+        if (!active) return;
+        setBranchDirectory(branches);
+        setBranchLoadError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setBranchDirectory([]);
+        setBranchLoadError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [branchReloadKey]);
   useEffect(() => {
     const revealScrollbars = () => {
       document.documentElement.classList.add('sbc-is-scrolling');
@@ -197,13 +215,6 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
               : 'postal-stock'
       }`
     : activePage;
-  const catalogBranchOptions = useMemo(
-    () =>
-      selectedBranch === 'แฟรนไชส์ทั้งหมด'
-        ? ['ทุกสาขา', ...franchiseBranchOptions]
-        : undefined,
-    [franchiseBranchOptions, selectedBranch],
-  );
   const catalogBranchCodes = useMemo(
     () => ({
       ...branchCodeByBranch,
@@ -219,6 +230,15 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
         .filter((branch) => !branch.franchiseeId)
         .map((branch) => branch.name),
     [branchDirectory],
+  );
+  const catalogBranchOptions = useMemo(
+    () => [
+      'ทุกสาขา',
+      ...(selectedBranch === 'แฟรนไชส์ทั้งหมด'
+        ? franchiseBranchOptions
+        : sbcBranchOptions),
+    ],
+    [franchiseBranchOptions, sbcBranchOptions, selectedBranch],
   );
   const pageContent = isIngredientPage ? (
     <AdminIngredientsPage

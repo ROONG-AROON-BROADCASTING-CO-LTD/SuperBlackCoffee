@@ -579,8 +579,7 @@ export function AdminIngredientsPage({
             sx: {
               left: { md: '280px' },
               width: { md: 'calc(100% - 304px)' },
-              minHeight: { sm: 520 },
-              maxHeight: '82vh',
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflowY: 'auto',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',

@@ -4,6 +4,10 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   InputAdornment,
   MenuItem,
   TextField,
@@ -16,12 +20,15 @@ import {
   type BranchStatus,
   type SearchIconHandle,
 } from '@stackbuild/ui';
-import { listBranchSales, updateBranchSize } from '../../api';
+import {
+  createCompanyBranch,
+  listBranchSales,
+  updateBranchSize,
+} from '../../api';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
 import {
   ActionSnackbar,
   type ActionNotice,
-  AutoRetrySnackbar,
   useAutoRetry,
 } from '@stackbuild/management';
 
@@ -62,6 +69,14 @@ export function AdminBranchesPage() {
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [updatingBranchId, setUpdatingBranchId] = useState<number | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [newBranch, setNewBranch] = useState({
+    name: '',
+    code: '',
+    size: 'S' as Branch['size'],
+  });
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
 
@@ -128,6 +143,34 @@ export function AdminBranchesPage() {
       });
     } finally {
       setUpdatingBranchId(null);
+    }
+  };
+  const createBranch = async () => {
+    setCreateError('');
+    setIsCreating(true);
+    try {
+      const created = await createCompanyBranch(newBranch);
+      setBranches((current) => [
+        {
+          ...created,
+          size: created.size ?? newBranch.size,
+          status: statusLabel[created.status ?? 'active'] ?? 'เปิดให้บริการ',
+          sales: 0,
+          orders: 0,
+        },
+        ...current,
+      ]);
+      setNewBranch({ name: '', code: '', size: 'S' });
+      setIsCreateDialogOpen(false);
+      setActionNotice({
+        message: 'เพิ่มสาขา SBC แล้ว และเตรียมรายการตามขนาดสาขาเรียบร้อย',
+      });
+    } catch (error) {
+      setCreateError(
+        error instanceof Error ? error.message : 'ไม่สามารถเพิ่มสาขาได้',
+      );
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -201,6 +244,24 @@ export function AdminBranchesPage() {
               {item}
             </Button>
           ))}
+          <Button
+            variant="contained"
+            onClick={() => {
+              setCreateError('');
+              setIsCreateDialogOpen(true);
+            }}
+            sx={{
+              minHeight: 34,
+              borderRadius: '12px',
+              bgcolor: '#201914',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 12,
+              boxShadow: 'none',
+              '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+            }}
+          >
+            เพิ่มสาขา SBC
+          </Button>
         </Box>
       </Box>
 
@@ -414,11 +475,109 @@ export function AdminBranchesPage() {
           ไม่พบข้อมูลสาขา
         </Typography>
       )}
-      <AutoRetrySnackbar open={loadError} />
       <ActionSnackbar
         notice={actionNotice}
         onClose={() => setActionNotice(null)}
       />
+      <Dialog
+        open={isCreateDialogOpen}
+        onClose={() => !isCreating && setIsCreateDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        slotProps={{ paper: { sx: { borderRadius: '18px' } } }}
+      >
+        <DialogTitle sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 600 }}>
+          เพิ่มสาขา SBC
+        </DialogTitle>
+        <DialogContent sx={{ display: 'grid', gap: 2, pt: '12px !important' }}>
+          <Typography
+            sx={{
+              color: 'text.secondary',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 13,
+            }}
+          >
+            ระบบจะคัดลอกเมนูและสต๊อกเริ่มต้นตามขนาดของสาขา
+          </Typography>
+          <TextField
+            autoFocus
+            required
+            label="ชื่อสาขา"
+            value={newBranch.name}
+            onChange={(event) =>
+              setNewBranch((current) => ({
+                ...current,
+                name: event.target.value,
+              }))
+            }
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <TextField
+            required
+            label="รหัสสาขา"
+            placeholder="SBC-CNX-001"
+            value={newBranch.code}
+            onChange={(event) =>
+              setNewBranch((current) => ({
+                ...current,
+                code: event.target.value.toUpperCase(),
+              }))
+            }
+            slotProps={{ htmlInput: { maxLength: 50 } }}
+          />
+          <TextField
+            select
+            required
+            label="ขนาดสาขา"
+            value={newBranch.size}
+            onChange={(event) =>
+              setNewBranch((current) => ({
+                ...current,
+                size: event.target.value as Branch['size'],
+              }))
+            }
+          >
+            <MenuItem value="S">S — น้ำและสต๊อก</MenuItem>
+            <MenuItem value="M">M — น้ำ อาหาร เบเกอรี่ และสต๊อก</MenuItem>
+            <MenuItem value="L">L — น้ำ อาหาร เบเกอรี่ และสต๊อก</MenuItem>
+          </TextField>
+          {createError ? (
+            <Typography
+              role="alert"
+              sx={{
+                color: '#a22e2a',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+              }}
+            >
+              {createError}
+            </Typography>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            disabled={isCreating}
+            onClick={() => setIsCreateDialogOpen(false)}
+            sx={{ fontFamily: 'Kanit, sans-serif' }}
+          >
+            ยกเลิก
+          </Button>
+          <Button
+            variant="contained"
+            disabled={
+              isCreating || !newBranch.name.trim() || !newBranch.code.trim()
+            }
+            onClick={() => void createBranch()}
+            sx={{
+              bgcolor: '#201914',
+              fontFamily: 'Kanit, sans-serif',
+              '&:hover': { bgcolor: '#3c2d24' },
+            }}
+          >
+            {isCreating ? 'กำลังเพิ่ม...' : 'เพิ่มสาขา'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardMain>
   );
 }

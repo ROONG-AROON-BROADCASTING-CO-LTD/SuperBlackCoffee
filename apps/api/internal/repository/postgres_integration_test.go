@@ -115,6 +115,32 @@ func TestPostgresInventoryRepositoryReturnsExpiryWarnings(t *testing.T) {
 	}
 }
 
+func TestPostgresInventoryRepositorySharesCatalogueButKeepsBranchStockSeparate(t *testing.T) {
+	db := openRepositoryTestDB(t)
+	firstBranchID := seedTestBranch(t, db)
+	var secondBranchID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES('สาขาทดสอบสอง','TEST-002') RETURNING id`).Scan(&secondBranchID); err != nil {
+		t.Fatalf("สร้างสาขาที่สอง: %v", err)
+	}
+	repo := NewPostgresInventoryRepository(db)
+	if _, err := repo.Create(context.Background(), firstBranchID, model.InventoryItem{Name: "นมกลาง", Category: "dairy", Kind: model.InventoryKindIngredient, Quantity: 2, Unit: "ลิตร", ReorderLevel: 1, UnitCost: 45}); err != nil {
+		t.Fatalf("สร้างวัตถุดิบสาขาแรก: %v", err)
+	}
+	if _, err := repo.Create(context.Background(), secondBranchID, model.InventoryItem{Name: "นมกลาง", Category: "milk", Kind: model.InventoryKindIngredient, Quantity: 9, Unit: "ขวด", ReorderLevel: 3, UnitCost: 55}); err != nil {
+		t.Fatalf("สร้างวัตถุดิบสาขาที่สอง: %v", err)
+	}
+	firstItems, err := repo.List(context.Background(), firstBranchID, "ingredient")
+	if err != nil || len(firstItems) != 1 {
+		t.Fatalf("รายการสาขาแรก = %#v, err = %v", firstItems, err)
+	}
+	if firstItems[0].Category != "milk" || firstItems[0].Unit != "ขวด" || firstItems[0].UnitCost != 55 {
+		t.Fatalf("ข้อมูลกลางของสาขาแรก = %#v", firstItems[0])
+	}
+	if firstItems[0].Quantity != 2 || firstItems[0].ReorderLevel != 1 {
+		t.Fatalf("ยอดสต๊อกสาขาแรกต้องไม่ถูกเขียนทับ: %#v", firstItems[0])
+	}
+}
+
 func TestPostgresMenuRepositoryReturnsIngredients(t *testing.T) {
 	db := openRepositoryTestDB(t)
 	branchID := seedTestBranch(t, db)

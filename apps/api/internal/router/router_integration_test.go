@@ -573,6 +573,34 @@ func TestFranchisePlanFiltersMenuAndIngredients(t *testing.T) {
 	}
 }
 
+func TestAdminCanCreateCompanyBranch(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	sourceBranchID := seedBranch(t, db, "SBC-CATALOG-001")
+	seedUser(t, db, 7, "company-creator", "admin", sourceBranchID, nil)
+	r := New(db, nil)
+
+	res := requestJSON(r, http.MethodPost, "/api/v1/branches", `{"name":"สาขาเชียงใหม่","code":"sbc-cnx-001","size":"S"}`, testToken(t, "admin"))
+	if res.Code != http.StatusCreated {
+		t.Fatalf("create company branch = %d: %s", res.Code, res.Body.String())
+	}
+	branchID := responseID(t, res)
+	var name, code, size, status string
+	var franchiseeID sql.NullInt64
+	if err := db.QueryRow(`SELECT name,code,size,status,franchisee_id FROM branches WHERE id=$1`, branchID).Scan(&name, &code, &size, &status, &franchiseeID); err != nil {
+		t.Fatal(err)
+	}
+	if name != "สาขาเชียงใหม่" || code != "SBC-CNX-001" || size != "S" || status != "active" || franchiseeID.Valid {
+		t.Fatalf("saved company branch = name=%q code=%q size=%q status=%q franchise=%v", name, code, size, status, franchiseeID)
+	}
+	if duplicate := requestJSON(r, http.MethodPost, "/api/v1/branches", `{"name":"สาขาซ้ำ","code":"SBC-CNX-001","size":"M"}`, testToken(t, "admin")); duplicate.Code != http.StatusConflict {
+		t.Fatalf("duplicate company branch = %d: %s", duplicate.Code, duplicate.Body.String())
+	}
+}
+
 func TestFranchiseSessionCannotReadOrWriteAnotherFranchiseBranch(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -962,6 +990,12 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	}
 	db := openRouterTestDB(t, url)
 	branchID := seedBranch(t, db, "FRANCHISE-ADMIN")
+	templateBranchID := seedBranch(t, db, "SBC-AYA-001")
+	if _, err := db.Exec(`INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost) VALUES
+		($1,'แก้วเครื่องดื่ม','cup','drink_equipment','stock',3,'ใบ',1,2),
+		($1,'กล่องพัสดุ','box','postal_equipment','stock',4,'ใบ',1,5)`, templateBranchID); err != nil {
+		t.Fatalf("seed franchise stock template: %v", err)
+	}
 	seedUser(t, db, 7, "admin-franchise", "admin", branchID, nil)
 	r := New(db, nil)
 	for i := 0; i < 5; i++ {
@@ -982,6 +1016,13 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if err := db.QueryRow(`SELECT id,status,size FROM branches WHERE code='FR-TEST'`).Scan(&franchiseBranchID, &branchStatus, &branchSize); err != nil || branchStatus != "inactive" || branchSize != "S" {
 		t.Fatalf("franchise branch status/size = %q/%q, err = %v", branchStatus, branchSize, err)
 	}
+	var drinkStockCategory, postalStockCategory string
+	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name='แก้วเครื่องดื่ม'`, franchiseBranchID).Scan(&drinkStockCategory); err != nil || drinkStockCategory != "drink_equipment" {
+		t.Fatalf("franchise drink stock category = %q, err = %v", drinkStockCategory, err)
+	}
+	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name='กล่องพัสดุ'`, franchiseBranchID).Scan(&postalStockCategory); err != nil || postalStockCategory != "postal_equipment" {
+		t.Fatalf("franchise postal stock category = %q, err = %v", postalStockCategory, err)
+	}
 	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", `{"username":"franchise_test","password":"Password123!"}`, ""); login.Code != http.StatusForbidden {
 		t.Fatalf("inactive franchise login = %d: %s", login.Code, login.Body.String())
 	}
@@ -991,6 +1032,15 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	}
 	if err := db.QueryRow(`SELECT status FROM branches WHERE code='FR-TEST'`).Scan(&branchStatus); err != nil || branchStatus != "active" {
 		t.Fatalf("activated franchise branch status = %q, err = %v", branchStatus, err)
+	}
+	franchiseToken := testTokenWithFranchise(t, "franchise_owner", franchiseBranchID, franchiseID)
+	drinkStock := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=drink_equipment", "", franchiseToken)
+	if drinkStock.Code != http.StatusOK || !strings.Contains(drinkStock.Body.String(), "แก้วเครื่องดื่ม") {
+		t.Fatalf("franchise drink stock = %d: %s", drinkStock.Code, drinkStock.Body.String())
+	}
+	postalStock := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=postal_equipment", "", franchiseToken)
+	if postalStock.Code != http.StatusOK || !strings.Contains(postalStock.Body.String(), "กล่องพัสดุ") {
+		t.Fatalf("franchise postal stock = %d: %s", postalStock.Code, postalStock.Body.String())
 	}
 	if resized := requestJSON(r, http.MethodPatch, "/api/v1/branches/"+strconv.FormatInt(franchiseBranchID, 10)+"/size", `{"size":"M"}`, testToken(t, "admin")); resized.Code != http.StatusOK {
 		t.Fatalf("resize franchise branch = %d: %s", resized.Code, resized.Body.String())

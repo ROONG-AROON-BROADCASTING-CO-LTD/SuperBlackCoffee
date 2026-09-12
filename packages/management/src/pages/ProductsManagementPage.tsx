@@ -72,6 +72,7 @@ type Product = {
   position: string;
   ingredients: ProductIngredient[];
   imageUrl: string;
+  preparationSteps: string;
 };
 const filters = [
   'ทั้งหมด',
@@ -86,6 +87,7 @@ const filters = [
   'เบเกอรี่',
 ] as const;
 type ProductFilter = (typeof filters)[number];
+type SalesChannel = 'store' | 'lineman';
 
 const filtersForPlan = (plan?: 'S' | 'M' | 'L') =>
   filters.filter(
@@ -181,9 +183,11 @@ export function ProductsManagementPage({
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [filter, setFilter] = useState<ProductFilter>('ทั้งหมด');
+  const [salesChannel, setSalesChannel] = useState<SalesChannel>('store');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [recipeProduct, setRecipeProduct] = useState<Product | null>(null);
   const [recipeDraft, setRecipeDraft] = useState<RecipeIngredientDraft[]>([]);
+  const [recipeStepsDraft, setRecipeStepsDraft] = useState('');
   const [isSavingRecipe, setIsSavingRecipe] = useState(false);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -251,6 +255,7 @@ export function ProductsManagementPage({
   };
   const openRecipe = (item: Product) => {
     setRecipeProduct(item);
+    setRecipeStepsDraft(item.preparationSteps);
     setRecipeDraft(
       item.ingredients.map((ingredient) => ({
         inventoryItemId: ingredient.inventoryItemId,
@@ -286,6 +291,7 @@ export function ProductsManagementPage({
           linemanPrice: recipeProduct.lineManPrice,
           linemanCostPrice: recipeProduct.lineManCostPrice,
           costPrice: recipeProduct.costPrice,
+          preparationSteps: recipeStepsDraft.trim(),
           ingredients: ingredients.map((ingredient) => ({
             inventoryItemId: ingredient.inventoryItemId as number,
             quantity: ingredient.quantity as number,
@@ -312,7 +318,11 @@ export function ProductsManagementPage({
         items.map((item) =>
           item.id === recipeProduct.id &&
           item.branchCode === recipeProduct.branchCode
-            ? { ...item, ingredients: updatedIngredients }
+            ? {
+                ...item,
+                ingredients: updatedIngredients,
+                preparationSteps: recipeStepsDraft.trim(),
+              }
             : item,
         ),
       );
@@ -383,10 +393,13 @@ export function ProductsManagementPage({
       activeBranch === 'ทุกสาขา'
         ? availableBranchNames.map((branch) => branchCodes[branch])
         : [branchCodes[activeBranch]];
+    const validBranchCodes = requestedBranchCodes.filter(
+      (branchCode): branchCode is string => Boolean(branchCode),
+    );
     const loadMenu = async () => {
       try {
         const items = await Promise.all(
-          requestedBranchCodes.map(async (branchCode) => {
+          validBranchCodes.map(async (branchCode) => {
             const cached = refresh
               ? undefined
               : menuCacheRef.current.get(branchCode);
@@ -401,8 +414,8 @@ export function ProductsManagementPage({
           new Map(
             items.flatMap((branchItems, branchIndex) =>
               branchItems.map((item) => [
-                `${requestedBranchCodes[branchIndex]}:${item.id}`,
-                { item, branchCode: requestedBranchCodes[branchIndex] },
+                `${validBranchCodes[branchIndex]}:${item.id}`,
+                { item, branchCode: validBranchCodes[branchIndex] },
               ]),
             ),
           ).values(),
@@ -422,6 +435,7 @@ export function ProductsManagementPage({
             status: item.status === 'soldout' ? 'หมดชั่วคราว' : 'พร้อมขาย',
             position: `${12 + ((index * 21) % 76)}% ${24 + ((index * 17) % 64)}%`,
             imageUrl: item.imageUrl,
+            preparationSteps: item.preparationSteps ?? '',
             ingredients: (item.ingredients ?? []).map((ingredient) => ({
               inventoryItemId: ingredient.inventoryItemId,
               name: ingredient.name,
@@ -441,7 +455,7 @@ export function ProductsManagementPage({
       if (readOnly) return;
       try {
         const inventory = await Promise.all(
-          requestedBranchCodes.map(async (branchCode) => {
+          validBranchCodes.map(async (branchCode) => {
             const cached = refresh
               ? undefined
               : inventoryCacheRef.current.get(branchCode);
@@ -462,7 +476,7 @@ export function ProductsManagementPage({
                 id: item.id,
                 name: item.name,
                 unit: item.unit,
-                branchCode: branchCodes[index],
+                branchCode: validBranchCodes[index],
               })),
             ),
           );
@@ -472,7 +486,7 @@ export function ProductsManagementPage({
       }
     };
 
-    const cachedMenuIsReady = requestedBranchCodes.every((branchCode) =>
+    const cachedMenuIsReady = validBranchCodes.every((branchCode) =>
       menuCacheRef.current.has(branchCode),
     );
     setIsLoading(!cachedMenuIsReady || refresh);
@@ -566,6 +580,61 @@ export function ProductsManagementPage({
           </Button>
         ))}
       </Box>
+      <Box
+        aria-label="ช่องทางขาย"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          mb: 2.5,
+        }}
+      >
+        <Typography
+          sx={{
+            mr: 0.5,
+            color: 'text.secondary',
+            fontFamily: 'Kanit, sans-serif',
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          แสดงราคา
+        </Typography>
+        {(
+          [
+            ['store', 'หน้าร้าน'],
+            ['lineman', 'LINE MAN'],
+          ] as const
+        ).map(([channel, label]) => {
+          const selected = salesChannel === channel;
+          return (
+            <Button
+              key={channel}
+              size="small"
+              variant={selected ? 'contained' : 'outlined'}
+              onClick={() => setSalesChannel(channel)}
+              sx={{
+                minHeight: 34,
+                borderRadius: '12px',
+                borderColor: selected ? '#201914' : '#d8c8bd',
+                bgcolor: selected ? '#201914' : '#fff',
+                color: selected ? '#fff' : '#5f4b3d',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 12,
+                fontWeight: 600,
+                boxShadow: 'none',
+                '&:hover': {
+                  borderColor: '#201914',
+                  bgcolor: selected ? '#3c2d24' : '#f5eee9',
+                  boxShadow: 'none',
+                },
+              }}
+            >
+              {label}
+            </Button>
+          );
+        })}
+      </Box>
       {loadError ? (
         <DataLoadNotice message="โหลดข้อมูลบางส่วนไม่สำเร็จ" />
       ) : null}
@@ -637,6 +706,19 @@ export function ProductsManagementPage({
                 >
                   {branchMatches.map((item) => {
                     const productKey = `${branch}-${item.id}`;
+                    const showingLineman = salesChannel === 'lineman';
+                    const channelLabel = showingLineman
+                      ? 'LINE MAN'
+                      : 'หน้าร้าน';
+                    const costPrice = showingLineman
+                      ? item.lineManCostPrice
+                      : item.costPrice;
+                    const salePrice = showingLineman
+                      ? item.lineManPrice
+                      : item.storePrice;
+                    const salePriceAvailable = showingLineman
+                      ? item.lineManPriceAvailable
+                      : item.storePriceAvailable;
                     return (
                       <Card
                         key={productKey}
@@ -674,6 +756,22 @@ export function ProductsManagementPage({
                               color: '#fff',
                               fontFamily: 'Kanit, sans-serif',
                               fontSize: 11,
+                            }}
+                          />
+                          <Chip
+                            label={channelLabel}
+                            size="small"
+                            sx={{
+                              position: 'absolute',
+                              top: 12,
+                              left: 12,
+                              height: 25,
+                              borderRadius: '12px',
+                              bgcolor: showingLineman ? '#06C755' : '#805637',
+                              color: '#fff',
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: 11,
+                              fontWeight: 600,
                             }}
                           />
                         </Box>
@@ -724,7 +822,7 @@ export function ProductsManagementPage({
                                 fontWeight: 600,
                               }}
                             >
-                              ราคาต้นทุนหน้าร้าน
+                              ต้นทุน {channelLabel}
                               <Box
                                 component="span"
                                 sx={{
@@ -733,33 +831,7 @@ export function ProductsManagementPage({
                                   lineHeight: 1,
                                 }}
                               >
-                                {item.costPrice} บาท
-                              </Box>
-                            </Typography>
-                            <Typography
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                px: 1,
-                                py: 0.45,
-                                borderRadius: '8px',
-                                color: '#06C755',
-                                fontFamily: 'Kanit, sans-serif',
-                                fontSize: 12,
-                                fontWeight: 600,
-                              }}
-                            >
-                              ราคาต้นทุน LINE MAN
-                              <Box
-                                component="span"
-                                sx={{
-                                  fontSize: 18,
-                                  fontWeight: 700,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                {item.lineManCostPrice} บาท
+                                {costPrice} บาท
                               </Box>
                             </Typography>
                             <Box
@@ -784,7 +856,7 @@ export function ProductsManagementPage({
                                 fontWeight: 600,
                               }}
                             >
-                              ราคาหน้าร้าน
+                              ราคาขาย {channelLabel}
                               <Box
                                 component="span"
                                 sx={{
@@ -793,37 +865,7 @@ export function ProductsManagementPage({
                                   lineHeight: 1,
                                 }}
                               >
-                                {item.storePriceAvailable
-                                  ? `${item.storePrice} บาท`
-                                  : '-'}
-                              </Box>
-                            </Typography>
-                            <Typography
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                px: 1,
-                                py: 0.45,
-                                borderRadius: '8px',
-                                color: '#06C755',
-                                fontFamily: 'Kanit, sans-serif',
-                                fontSize: 12,
-                                fontWeight: 600,
-                              }}
-                            >
-                              ราคา LINE MAN
-                              <Box
-                                component="span"
-                                sx={{
-                                  fontSize: 20,
-                                  fontWeight: 700,
-                                  lineHeight: 1,
-                                }}
-                              >
-                                {item.lineManPriceAvailable
-                                  ? `${item.lineManPrice} บาท`
-                                  : '-'}
+                                {salePriceAvailable ? `${salePrice} บาท` : '-'}
                               </Box>
                             </Typography>
                           </Box>
@@ -1001,7 +1043,7 @@ export function ProductsManagementPage({
             sx: {
               left: { md: '280px' },
               width: { md: 'calc(100% - 304px)' },
-              height: { xs: '76vh', sm: 'min(76vh, 640px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',
@@ -1078,37 +1120,74 @@ export function ProductsManagementPage({
             <Divider sx={{ mt: 2, borderColor: '#e8ddd5' }} />
             <Box sx={{ flex: 1, overflowY: 'auto', py: 2.5 }}>
               {readOnly ? (
-                recipeProduct.ingredients.length > 0 ? (
-                  <Box sx={{ display: 'grid', gap: 1 }}>
-                    {recipeProduct.ingredients.map((ingredient, index) => (
+                recipeProduct.ingredients.length > 0 ||
+                recipeProduct.preparationSteps.trim() ? (
+                  <Box sx={{ display: 'grid', gap: 2 }}>
+                    {recipeProduct.ingredients.length > 0 ? (
+                      <Box sx={{ display: 'grid', gap: 1 }}>
+                        {recipeProduct.ingredients.map((ingredient, index) => (
+                          <Box
+                            key={ingredient.inventoryItemId}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 2,
+                              px: 2,
+                              py: 1.25,
+                              border: '1px solid #e8ddd5',
+                              borderRadius: '12px',
+                              bgcolor: '#fff',
+                            }}
+                          >
+                            <Typography
+                              sx={{ fontFamily: 'Kanit, sans-serif' }}
+                            >
+                              {index + 1}. {ingredient.name}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                color: '#805637',
+                                fontFamily: 'Kanit, sans-serif',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {ingredient.quantity} {ingredient.unit}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : null}
+                    {recipeProduct.preparationSteps.trim() ? (
                       <Box
-                        key={ingredient.inventoryItemId}
                         sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 2,
                           px: 2,
-                          py: 1.25,
+                          py: 1.5,
                           border: '1px solid #e8ddd5',
                           borderRadius: '12px',
                           bgcolor: '#fff',
                         }}
                       >
-                        <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
-                          {index + 1}. {ingredient.name}
-                        </Typography>
                         <Typography
                           sx={{
+                            mb: 0.75,
                             color: '#805637',
                             fontFamily: 'Kanit, sans-serif',
                             fontWeight: 600,
                           }}
                         >
-                          {ingredient.quantity} {ingredient.unit}
+                          ขั้นตอนการทำ
+                        </Typography>
+                        <Typography
+                          sx={{
+                            whiteSpace: 'pre-line',
+                            fontFamily: 'Kanit, sans-serif',
+                          }}
+                        >
+                          {recipeProduct.preparationSteps}
                         </Typography>
                       </Box>
-                    ))}
+                    ) : null}
                   </Box>
                 ) : (
                   <Typography
@@ -1246,6 +1325,17 @@ export function ProductsManagementPage({
                   >
                     + เพิ่มวัตถุดิบในสูตร
                   </Button>
+                  <TextField
+                    multiline
+                    minRows={4}
+                    label="ขั้นตอนการทำ"
+                    placeholder="เช่น 1. เตรียมวัตถุดิบ\n2. ผัดและจัดเสิร์ฟ"
+                    value={recipeStepsDraft}
+                    onChange={(event) =>
+                      setRecipeStepsDraft(event.target.value)
+                    }
+                    sx={{ mt: 1 }}
+                  />
                 </Box>
               )}
             </Box>
@@ -1296,7 +1386,7 @@ export function ProductsManagementPage({
             sx: {
               left: { md: '280px' },
               width: { md: 'calc(100% - 304px)' },
-              height: { xs: '82vh', sm: 'min(82vh, 720px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',
@@ -1499,36 +1589,6 @@ export function ProductsManagementPage({
                 </TextField>
                 <TextField
                   required
-                  fullWidth
-                  label="ราคาหน้าร้าน"
-                  type="number"
-                  defaultValue={editing?.storePrice}
-                />
-                <TextField
-                  required
-                  fullWidth
-                  label="ราคา LINE MAN"
-                  type="number"
-                  defaultValue={editing?.lineManPrice}
-                />
-                <TextField
-                  required
-                  fullWidth
-                  label="ราคาต้นทุน LINE MAN"
-                  type="number"
-                  defaultValue={editing?.lineManCostPrice}
-                  helperText="อ้างอิงต้นทุนจากสูตร LINE MAN"
-                />
-                <TextField
-                  required
-                  fullWidth
-                  label="ราคาต้นทุนหน้าร้าน"
-                  type="number"
-                  defaultValue={editing?.costPrice}
-                  helperText="ใช้คำนวณกำไร/ขาดทุนสำหรับหน้าร้าน"
-                />
-                <TextField
-                  required
                   select
                   fullWidth
                   label="สถานะ"
@@ -1537,6 +1597,123 @@ export function ProductsManagementPage({
                   <MenuItem value="available">พร้อมขาย</MenuItem>
                   <MenuItem value="soldout">หมดชั่วคราว</MenuItem>
                 </TextField>
+                <Box
+                  role="group"
+                  aria-label="ราคาตามช่องทางขาย"
+                  sx={{
+                    gridColumn: { sm: '1 / -1' },
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      md: 'repeat(2, minmax(0, 1fr))',
+                    },
+                    gap: 1.5,
+                  }}
+                >
+                  <Box
+                    component="section"
+                    aria-labelledby="store-pricing-title"
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid #e8ddd5',
+                      borderRadius: '12px',
+                      bgcolor: '#fffaf7',
+                    }}
+                  >
+                    <Typography
+                      id="store-pricing-title"
+                      sx={{
+                        mb: 1,
+                        fontFamily: 'Kanit, sans-serif',
+                        fontWeight: 700,
+                      }}
+                    >
+                      หน้าร้าน
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr',
+                          sm: 'repeat(2, minmax(0, 1fr))',
+                        },
+                        gap: 1.25,
+                      }}
+                    >
+                      <TextField
+                        required
+                        fullWidth
+                        label="ราคาต้นทุนหน้าร้าน"
+                        type="number"
+                        defaultValue={editing?.costPrice}
+                        helperText="ใช้คำนวณกำไร/ขาดทุน"
+                      />
+                      <TextField
+                        required
+                        fullWidth
+                        label="ราคาขายหน้าร้าน"
+                        type="number"
+                        defaultValue={editing?.storePrice}
+                      />
+                    </Box>
+                  </Box>
+                  <Box
+                    component="section"
+                    aria-labelledby="lineman-pricing-title"
+                    sx={{
+                      p: 1.5,
+                      border: '1px solid #e8ddd5',
+                      borderRadius: '12px',
+                      bgcolor: '#fffaf7',
+                    }}
+                  >
+                    <Typography
+                      id="lineman-pricing-title"
+                      sx={{
+                        mb: 1,
+                        fontFamily: 'Kanit, sans-serif',
+                        fontWeight: 700,
+                      }}
+                    >
+                      LINE MAN
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr',
+                          sm: 'repeat(2, minmax(0, 1fr))',
+                        },
+                        gap: 1.25,
+                      }}
+                    >
+                      <TextField
+                        required
+                        fullWidth
+                        label="ราคาต้นทุน LINE MAN"
+                        type="number"
+                        defaultValue={editing?.lineManCostPrice}
+                        helperText="อ้างอิงต้นทุนจากสูตร LINE MAN"
+                        slotProps={{
+                          formHelperText: {
+                            sx: {
+                              whiteSpace: 'nowrap',
+                              fontSize: 10,
+                              lineHeight: 1.2,
+                            },
+                          },
+                        }}
+                      />
+                      <TextField
+                        required
+                        fullWidth
+                        label="ราคาขาย LINE MAN"
+                        type="number"
+                        defaultValue={editing?.lineManPrice}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
                 <Box
                   sx={{
                     gridColumn: { sm: '1 / -1' },

@@ -19,6 +19,7 @@ export type MenuItem = {
     costAmount: number;
   }[];
   imageUrl: string;
+  preparationSteps?: string;
 };
 
 export type MenuInput = {
@@ -29,6 +30,7 @@ export type MenuInput = {
   linemanCostPrice: number;
   costPrice: number;
   ingredients: { inventoryItemId: number; quantity: number; unit: string }[];
+  preparationSteps?: string;
 };
 
 export const listMenuItems = (branchCode = 'SBC-AYA-001') =>

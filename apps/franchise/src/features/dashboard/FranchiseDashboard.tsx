@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { DashboardMain } from '@stackbuild/ui';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { EmployeesSkeleton } from '@stackbuild/management/skeletons/employees';
@@ -15,6 +15,7 @@ import {
 } from '@stackbuild/management';
 import {
   franchiseBranch,
+  pageAvailableForPlan,
   type FranchisePlan,
 } from '../../components/sidebar/franchiseSidebarNavigation';
 import { FranchiseOverviewSkeleton } from '../../components/skeletons/FranchiseOverviewSkeleton';
@@ -77,7 +78,10 @@ export function FranchiseDashboard({
 }) {
   const location = useLocation();
   const routerNavigate = useNavigate();
-  const activePage = franchisePageFromPath(location.pathname);
+  const requestedPage = franchisePageFromPath(location.pathname);
+  const activePage = pageAvailableForPlan(plan, requestedPage)
+    ? requestedPage
+    : 'ภาพรวม';
   const [collapsed, setCollapsed] = useState(
     () => sessionStorage.getItem('sbc-franchise-sidebar-collapsed') === 'true',
   );
@@ -88,6 +92,11 @@ export function FranchiseDashboard({
     sessionStorage.setItem('sbc-franchise-active-page', page);
     routerNavigate(path);
   };
+  useEffect(() => {
+    if (!pageAvailableForPlan(plan, requestedPage)) {
+      routerNavigate('/', { replace: true });
+    }
+  }, [plan, requestedPage, routerNavigate]);
   return (
     <FranchiseDashboardLayout
       activePage={activePage}

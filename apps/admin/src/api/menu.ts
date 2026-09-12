@@ -19,6 +19,7 @@ export type MenuItem = {
     costAmount: number;
   }[];
   imageUrl: string;
+  preparationSteps?: string;
 };
 export type MenuInput = {
   name: string;
@@ -28,6 +29,7 @@ export type MenuInput = {
   linemanCostPrice: number;
   costPrice: number;
   ingredients: { inventoryItemId: number; quantity: number; unit: string }[];
+  preparationSteps?: string;
 };
 const branchQuery = (branchCode: string) =>
   `?branchCode=${encodeURIComponent(branchCode)}`;

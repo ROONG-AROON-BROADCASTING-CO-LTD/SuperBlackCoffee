@@ -39,6 +39,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.PATCH("/attendance/leave-requests/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.UpdateLeaveRequestStatus)
 	protected.GET("/metrics", middleware.RequireAuth(deps.secret, "admin"), middleware.Metrics)
 	protected.GET("/branches", deps.platform.ListBranches)
+	protected.POST("/branches", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CreateCompanyBranch)
 	protected.PATCH("/branches/:id/size", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateBranchSize)
 	protected.GET("/users", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListStaffUsers)
 	protected.GET("/branches/sales", middleware.RequireAuth(deps.secret, "admin"), deps.platform.BranchSales)

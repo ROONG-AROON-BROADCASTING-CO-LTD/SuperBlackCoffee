@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IngredientsManagementPage } from '../IngredientsManagementPage';
@@ -80,6 +81,7 @@ describe('inventory management pages', () => {
             costAmount: 12,
           },
         ],
+        preparationSteps: '1. สกัดกาแฟ\n2. จัดเสิร์ฟ',
         imageUrl: '',
       },
     ]);
@@ -113,6 +115,7 @@ describe('inventory management pages', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ดูสูตรการทำ' }));
     expect(screen.getByText('สูตรการทำ')).toBeTruthy();
     expect(screen.getByText(`1. ${ingredient.name}`)).toBeTruthy();
+    expect(screen.getByText(/1\. สกัดกาแฟ/)).toBeTruthy();
     expect(
       screen.queryByRole('button', { name: 'บันทึกสูตรการทำ' }),
     ).toBeNull();
@@ -139,10 +142,83 @@ describe('inventory management pages', () => {
               unit: 'กรัม',
             },
           ],
+          preparationSteps: '1. สกัดกาแฟ\n2. จัดเสิร์ฟ',
         }),
         'SBC-AYA-001',
       ),
     );
+  });
+
+  it('shows store and LINE MAN pricing on separate product card views', async () => {
+    renderPage(<ProductsManagementPage activeBranch="อยุธยา" />);
+
+    await waitFor(() =>
+      expect(screen.getByText('ต้นทุน หน้าร้าน')).toBeTruthy(),
+    );
+    expect(screen.getByText('ราคาขาย หน้าร้าน')).toBeTruthy();
+    expect(screen.queryByText('ต้นทุน LINE MAN')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'LINE MAN' }));
+
+    expect(screen.getByText('ต้นทุน LINE MAN')).toBeTruthy();
+    expect(screen.getByText('ราคาขาย LINE MAN')).toBeTruthy();
+    expect(screen.queryByText('ต้นทุน หน้าร้าน')).toBeNull();
+  });
+
+  it('keeps each sales channel cost and selling price together in the product form', async () => {
+    renderPage(<ProductsManagementPage activeBranch="อยุธยา" />);
+
+    await waitFor(() =>
+      expect(screen.getByText('อเมริกาโน่ทดสอบ')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขสินค้า' }));
+
+    const pricing = screen.getByRole('group', {
+      name: 'ราคาตามช่องทางขาย',
+    });
+    const storePricing = within(pricing).getByRole('region', {
+      name: 'หน้าร้าน',
+    });
+    const lineManPricing = within(pricing).getByRole('region', {
+      name: 'LINE MAN',
+    });
+
+    expect(
+      within(storePricing).getByRole('spinbutton', {
+        name: /ราคาต้นทุนหน้าร้าน/,
+      }),
+    ).toBeTruthy();
+    expect(
+      within(storePricing).getByRole('spinbutton', {
+        name: /ราคาขายหน้าร้าน/,
+      }),
+    ).toBeTruthy();
+    expect(
+      within(lineManPricing).getByRole('spinbutton', {
+        name: /ราคาต้นทุน LINE MAN/,
+      }),
+    ).toBeTruthy();
+    expect(
+      within(lineManPricing).getByRole('spinbutton', {
+        name: /ราคาขาย LINE MAN/,
+      }),
+    ).toBeTruthy();
+  });
+
+  it('loads the live branch catalog instead of fallback branch codes', async () => {
+    renderPage(
+      <ProductsManagementPage
+        activeBranch="PAGINATION"
+        branchOptions={['ทุกสาขา', 'PAGINATION']}
+        branchCodes={{ PAGINATION: 'PAGINATION' }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(mockedListMenuItems).toHaveBeenCalledWith('PAGINATION'),
+    );
+    expect(mockedListMenuItems).not.toHaveBeenCalledWith('SBC-AYA-001');
+    expect(mockedListMenuItems).not.toHaveBeenCalledWith('SBC-PLK-001');
   });
 
   it('adds ingredients to the franchise cart and submits the exact request', async () => {

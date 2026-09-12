@@ -138,8 +138,13 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
+	catalogID, err := ensureInventoryCatalogTx(c.Request.Context(), tx, item)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลกลางของรายการสต็อกได้"})
+		return
+	}
 	var id int64
-	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,expiry_date) VALUES($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10) RETURNING id`, branchID, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate).Scan(&id)
+	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO inventory_items(branch_id,catalog_item_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,expiry_date) VALUES($1,$2,$3,$4,NULLIF($5,''),$6,$7,$8,$9,$10,$11) RETURNING id`, branchID, catalogID, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate).Scan(&id)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
@@ -199,12 +204,17 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
+	catalogID, err := ensureInventoryCatalogTx(c.Request.Context(), tx, item)
+	if err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลกลางของรายการสต็อกได้"})
+		return
+	}
 	var previousQuantity float64
 	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity); err != nil {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
 	}
-	result, err := tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET name=$1,category=$2,stock_category=NULLIF($3,''),kind=$4,quantity=$5,unit=$6,reorder_level=$7,unit_cost=$8,expiry_date=$9,updated_at=now() WHERE id=$10 AND branch_id=$11`, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate, id, branchID)
+	result, err := tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET catalog_item_id=$1,quantity=$2,reorder_level=$3,expiry_date=$4,updated_at=now() WHERE id=$5 AND branch_id=$6`, catalogID, item.Quantity, item.ReorderLevel, item.ExpiryDate, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการสต็อกได้"})
 		return

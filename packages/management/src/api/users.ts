@@ -12,6 +12,7 @@ export type Employee = {
   defaultEndsAt?: string;
   defaultSecondStartsAt?: string;
   defaultSecondEndsAt?: string;
+  defaultSecondShiftDays?: number[];
 };
 
 export const listEmployees = () => secured<Employee[]>('/users');
@@ -25,6 +26,7 @@ export const createEmployee = (data: {
   defaultEndsAt: string;
   defaultSecondStartsAt?: string;
   defaultSecondEndsAt?: string;
+  defaultSecondShiftDays?: number[];
 }) => secured<{ id: number }>('/users', { method: 'POST', data });
 export const updateEmployee = (
   id: number,
@@ -36,6 +38,7 @@ export const updateEmployee = (
     defaultEndsAt: string;
     defaultSecondStartsAt?: string;
     defaultSecondEndsAt?: string;
+    defaultSecondShiftDays?: number[];
   },
 ) => secured<{ id: number }>(`/users/${id}`, { method: 'PATCH', data });
 export const deleteEmployee = (id: number) =>

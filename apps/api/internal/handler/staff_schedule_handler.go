@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,28 @@ import (
 )
 
 var syncedThaiHolidayYears sync.Map
+
+func validSecondShiftDays(days []int) bool {
+	seen := make(map[int]struct{}, len(days))
+	for _, day := range days {
+		if day < 1 || day > 7 {
+			return false
+		}
+		if _, exists := seen[day]; exists {
+			return false
+		}
+		seen[day] = struct{}{}
+	}
+	return true
+}
+
+func secondShiftDaysValue(days []int) string {
+	values := make([]string, len(days))
+	for index, day := range days {
+		values[index] = strconv.Itoa(day)
+	}
+	return "{" + strings.Join(values, ",") + "}"
+}
 
 // reconcileScheduledHolidayShifts converts only unworked, automatically scheduled
 // shifts to a public holiday day off. A shift with an attendance record is kept as-is
@@ -165,15 +188,16 @@ func (h *PlatformHandler) ListPublicHolidays(c *gin.Context) {
 
 func (h *PlatformHandler) CreateStaffMember(c *gin.Context) {
 	var input struct {
-		Name                  string `json:"name" binding:"required"`
-		Username              string `json:"username" binding:"required"`
-		Password              string `json:"password" binding:"required,min=8"`
-		Role                  string `json:"role" binding:"required"`
-		BranchID              int64  `json:"branchId" binding:"required"`
-		DefaultStartsAt       string `json:"defaultStartsAt"`
-		DefaultEndsAt         string `json:"defaultEndsAt"`
-		DefaultSecondStartsAt string `json:"defaultSecondStartsAt"`
-		DefaultSecondEndsAt   string `json:"defaultSecondEndsAt"`
+		Name                   string `json:"name" binding:"required"`
+		Username               string `json:"username" binding:"required"`
+		Password               string `json:"password" binding:"required,min=8"`
+		Role                   string `json:"role" binding:"required"`
+		BranchID               int64  `json:"branchId" binding:"required"`
+		DefaultStartsAt        string `json:"defaultStartsAt"`
+		DefaultEndsAt          string `json:"defaultEndsAt"`
+		DefaultSecondStartsAt  string `json:"defaultSecondStartsAt"`
+		DefaultSecondEndsAt    string `json:"defaultSecondEndsAt"`
+		DefaultSecondShiftDays []int  `json:"defaultSecondShiftDays"`
 	}
 	if c.ShouldBindJSON(&input) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรอกข้อมูลพนักงานให้ครบ และรหัสผ่านอย่างน้อย 8 ตัวอักษร"})
@@ -215,7 +239,11 @@ func (h *PlatformHandler) CreateStaffMember(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "หากเพิ่มกะที่ 2 กรุณาระบุเวลาเข้างานและเวลาออกงานให้ครบ"})
 		return
 	}
-	err = h.db.QueryRowContext(c.Request.Context(), `INSERT INTO users(name,username,email,password_hash,role,franchisee_id,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::time,NULLIF($11,'')::time) RETURNING id`, strings.TrimSpace(input.Name), username, username+"@superblackcoffee.local", string(passwordHash), input.Role, franchiseeID, input.BranchID, input.DefaultStartsAt, input.DefaultEndsAt, input.DefaultSecondStartsAt, input.DefaultSecondEndsAt).Scan(&id)
+	if !validSecondShiftDays(input.DefaultSecondShiftDays) || (input.DefaultSecondStartsAt != "" && len(input.DefaultSecondShiftDays) == 0) || (input.DefaultSecondStartsAt == "" && len(input.DefaultSecondShiftDays) > 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาเลือกวันทำงานของกะที่ 2 ให้ถูกต้อง"})
+		return
+	}
+	err = h.db.QueryRowContext(c.Request.Context(), `INSERT INTO users(name,username,email,password_hash,role,franchisee_id,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at,default_second_shift_days) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,'')::time,NULLIF($11,'')::time,$12::integer[]) RETURNING id`, strings.TrimSpace(input.Name), username, username+"@superblackcoffee.local", string(passwordHash), input.Role, franchiseeID, input.BranchID, input.DefaultStartsAt, input.DefaultEndsAt, input.DefaultSecondStartsAt, input.DefaultSecondEndsAt, secondShiftDaysValue(input.DefaultSecondShiftDays)).Scan(&id)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "username นี้ถูกใช้งานแล้ว หรือไม่พบสาขาที่เลือก"})
 		return
@@ -226,13 +254,14 @@ func (h *PlatformHandler) CreateStaffMember(c *gin.Context) {
 
 func (h *PlatformHandler) UpdateStaffMember(c *gin.Context) {
 	var input struct {
-		Name                  string `json:"name" binding:"required"`
-		Role                  string `json:"role" binding:"required"`
-		BranchID              int64  `json:"branchId" binding:"required"`
-		DefaultStartsAt       string `json:"defaultStartsAt"`
-		DefaultEndsAt         string `json:"defaultEndsAt"`
-		DefaultSecondStartsAt string `json:"defaultSecondStartsAt"`
-		DefaultSecondEndsAt   string `json:"defaultSecondEndsAt"`
+		Name                   string `json:"name" binding:"required"`
+		Role                   string `json:"role" binding:"required"`
+		BranchID               int64  `json:"branchId" binding:"required"`
+		DefaultStartsAt        string `json:"defaultStartsAt"`
+		DefaultEndsAt          string `json:"defaultEndsAt"`
+		DefaultSecondStartsAt  string `json:"defaultSecondStartsAt"`
+		DefaultSecondEndsAt    string `json:"defaultSecondEndsAt"`
+		DefaultSecondShiftDays []int  `json:"defaultSecondShiftDays"`
 	}
 	if c.ShouldBindJSON(&input) != nil || (input.Role != "cashier" && input.Role != "branch_manager") {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ข้อมูลพนักงานไม่ถูกต้อง"})
@@ -247,15 +276,19 @@ func (h *PlatformHandler) UpdateStaffMember(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "หากเพิ่มกะที่ 2 กรุณาระบุเวลาเข้างานและเวลาออกงานให้ครบ"})
 		return
 	}
-	query := `UPDATE users SET name=$1,role=$2,branch_id=$3,default_starts_at=$4,default_ends_at=$5,default_second_starts_at=NULLIF($6,'')::time,default_second_ends_at=NULLIF($7,'')::time WHERE id=$8 AND role IN ('cashier','branch_manager') AND franchisee_id IS NULL`
-	args := []any{strings.TrimSpace(input.Name), input.Role, input.BranchID, input.DefaultStartsAt, input.DefaultEndsAt, input.DefaultSecondStartsAt, input.DefaultSecondEndsAt, c.Param("id")}
+	if !validSecondShiftDays(input.DefaultSecondShiftDays) || (input.DefaultSecondStartsAt != "" && len(input.DefaultSecondShiftDays) == 0) || (input.DefaultSecondStartsAt == "" && len(input.DefaultSecondShiftDays) > 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาเลือกวันทำงานของกะที่ 2 ให้ถูกต้อง"})
+		return
+	}
+	query := `UPDATE users SET name=$1,role=$2,branch_id=$3,default_starts_at=$4,default_ends_at=$5,default_second_starts_at=NULLIF($6,'')::time,default_second_ends_at=NULLIF($7,'')::time,default_second_shift_days=$8::integer[] WHERE id=$9 AND role IN ('cashier','branch_manager') AND franchisee_id IS NULL`
+	args := []any{strings.TrimSpace(input.Name), input.Role, input.BranchID, input.DefaultStartsAt, input.DefaultEndsAt, input.DefaultSecondStartsAt, input.DefaultSecondEndsAt, secondShiftDaysValue(input.DefaultSecondShiftDays), c.Param("id")}
 	if claims.Role == "franchise_owner" {
 		branchID, ok := h.branchScope(c)
 		if !ok || branchID != input.BranchID {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ไม่มีสิทธิ์แก้ไขพนักงานนี้"})
 			return
 		}
-		query = `UPDATE users SET name=$1,role=$2,default_starts_at=$4,default_ends_at=$5,default_second_starts_at=NULLIF($6,'')::time,default_second_ends_at=NULLIF($7,'')::time WHERE id=$8 AND role IN ('cashier','branch_manager') AND branch_id=$3 AND franchisee_id=$9`
+		query = `UPDATE users SET name=$1,role=$2,default_starts_at=$4,default_ends_at=$5,default_second_starts_at=NULLIF($6,'')::time,default_second_ends_at=NULLIF($7,'')::time,default_second_shift_days=$8::integer[] WHERE id=$9 AND role IN ('cashier','branch_manager') AND branch_id=$3 AND franchisee_id=$10`
 		args = append(args, *claims.FranchiseeID)
 	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
@@ -279,11 +312,15 @@ func (h *PlatformHandler) UpdateStaffMember(c *gin.Context) {
 	_, err = tx.ExecContext(c.Request.Context(), `
 		UPDATE staff_shifts AS shift
 		SET
-			starts_at = CASE WHEN ((EXTRACT(DAY FROM shift.shift_date)::int + shift.user_id) % 2) = 0
+			starts_at = CASE WHEN cardinality(staff.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM shift.shift_date)::int = ANY(staff.default_second_shift_days)
+				THEN COALESCE(staff.default_second_starts_at, staff.default_starts_at)
+				WHEN ((EXTRACT(DAY FROM shift.shift_date)::int + shift.user_id) % 2) = 0
 				THEN staff.default_starts_at
 				ELSE COALESCE(staff.default_second_starts_at, staff.default_starts_at)
 			END,
-			ends_at = CASE WHEN ((EXTRACT(DAY FROM shift.shift_date)::int + shift.user_id) % 2) = 0
+			ends_at = CASE WHEN cardinality(staff.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM shift.shift_date)::int = ANY(staff.default_second_shift_days)
+				THEN COALESCE(staff.default_second_ends_at, staff.default_ends_at)
+				WHEN ((EXTRACT(DAY FROM shift.shift_date)::int + shift.user_id) % 2) = 0
 				THEN staff.default_ends_at
 				ELSE COALESCE(staff.default_second_ends_at, staff.default_ends_at)
 			END
@@ -536,7 +573,7 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 	}
 	query := `WITH staff_members AS (
   SELECT u.id AS user_id,u.branch_id,u.default_starts_at,u.default_ends_at,
-    u.default_second_starts_at,u.default_second_ends_at,
+    u.default_second_starts_at,u.default_second_ends_at,u.default_second_shift_days,
   ROW_NUMBER() OVER (PARTITION BY u.branch_id ORDER BY u.id)::int - 1 AS employee_offset,
   COUNT(*) OVER (PARTITION BY u.branch_id)::int AS branch_staff_count
   FROM users u
@@ -572,6 +609,7 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
 SELECT c.user_id,c.branch_id,c.shift_date,
   CASE
+    WHEN cardinality(c.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days) THEN COALESCE(c.default_second_starts_at,c.default_starts_at)
     WHEN c.branch_staff_count = 2 THEN
       CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
         THEN c.default_starts_at
@@ -581,6 +619,7 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE COALESCE(c.default_second_starts_at,c.default_starts_at)
   END,
   CASE
+    WHEN cardinality(c.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days) THEN COALESCE(c.default_second_ends_at,c.default_ends_at)
     WHEN c.branch_staff_count = 2 THEN
       CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
         THEN c.default_ends_at

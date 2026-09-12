@@ -22,13 +22,13 @@ func NewPostgresInventoryRepository(db *sql.DB) InventoryRepository {
 }
 
 func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, kind string) ([]model.InventoryItem, error) {
-	query := `SELECT id,name,category,COALESCE(stock_category,''),kind,quantity,unit,reorder_level,unit_cost,image_url,expiry_date,created_at,updated_at FROM inventory_items WHERE branch_id=$1`
+	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,COALESCE(c.unit_cost,i.unit_cost),COALESCE(c.image_url,i.image_url),i.expiry_date,i.created_at,i.updated_at FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.branch_id=$1`
 	args := []any{branchID}
 	if kind != "" {
-		query += ` AND kind=$2`
+		query += ` AND COALESCE(c.kind,i.kind)=$2`
 		args = append(args, kind)
 	}
-	query += ` ORDER BY name`
+	query += ` ORDER BY COALESCE(c.name,i.name)`
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -54,18 +54,42 @@ func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, 
 }
 
 func (r *postgresInventoryRepository) Create(ctx context.Context, branchID int64, item model.InventoryItem) (int64, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	catalogID, err := ensureInventoryCatalogTx(ctx, tx, item)
+	if err != nil {
+		return 0, err
+	}
 	var id int64
-	err := r.db.QueryRowContext(ctx, `INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,expiry_date) VALUES($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10) RETURNING id`, branchID, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate).Scan(&id)
-	return id, err
+	err = tx.QueryRowContext(ctx, `INSERT INTO inventory_items(branch_id,catalog_item_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost,expiry_date) VALUES($1,$2,$3,$4,NULLIF($5,''),$6,$7,$8,$9,$10,$11) RETURNING id`, branchID, catalogID, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
 }
 
 func (r *postgresInventoryRepository) Update(ctx context.Context, branchID, id int64, item model.InventoryItem) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `UPDATE inventory_items SET name=$1,category=$2,stock_category=NULLIF($3,''),kind=$4,quantity=$5,unit=$6,reorder_level=$7,unit_cost=$8,expiry_date=$9,updated_at=now() WHERE id=$10 AND branch_id=$11`, item.Name, item.Category, item.StockCategory, item.Kind, item.Quantity, item.Unit, item.ReorderLevel, item.UnitCost, item.ExpiryDate, id, branchID)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	catalogID, err := ensureInventoryCatalogTx(ctx, tx, item)
+	if err != nil {
+		return false, err
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE inventory_items SET catalog_item_id=$1,quantity=$2,reorder_level=$3,expiry_date=$4,updated_at=now() WHERE id=$5 AND branch_id=$6`, catalogID, item.Quantity, item.ReorderLevel, item.ExpiryDate, id, branchID)
 	if err != nil {
 		return false, err
 	}
 	n, err := result.RowsAffected()
-	return n > 0, err
+	if err != nil || n == 0 {
+		return n > 0, err
+	}
+	return true, tx.Commit()
 }
 
 func inventoryExpiryStatus(expiryDate *time.Time, now time.Time) string {

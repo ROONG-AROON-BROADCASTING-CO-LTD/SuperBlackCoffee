@@ -33,6 +33,8 @@ func TestMenuPlanAccess(t *testing.T) {
 		{"S allows beverages", franchisePlanS, "เมนูกาแฟเย็น", true},
 		{"S blocks food", franchisePlanS, "อาหาร", false},
 		{"S blocks bakery", franchisePlanS, "เบเกอรี่", false},
+		{"S blocks mixed-case English food", franchisePlanS, " Food ", false},
+		{"S blocks mixed-case English bakery", franchisePlanS, "BAKERY", false},
 		{"M allows food", franchisePlanM, "อาหาร", true},
 		{"M allows bakery", franchisePlanM, "เบเกอรี่", true},
 		{"L allows all", franchisePlanL, "เบเกอรี่", true},

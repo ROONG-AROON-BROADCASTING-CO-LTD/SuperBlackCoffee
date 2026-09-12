@@ -30,7 +30,6 @@ import { AdminFranchiseBranchesSkeleton } from '../../components/skeletons/Admin
 import {
   ActionSnackbar,
   type ActionNotice,
-  AutoRetrySnackbar,
   useAutoRetry,
 } from '@stackbuild/management';
 
@@ -477,7 +476,6 @@ export function AdminFranchiseBranchesPage() {
           {activationError}
         </Typography>
       ) : null}
-      <AutoRetrySnackbar open={loadError} />
       <Drawer
         anchor="bottom"
         open={isDrawerOpen}
@@ -488,7 +486,7 @@ export function AdminFranchiseBranchesPage() {
             sx: {
               left: { md: '254px' },
               width: { md: 'calc(100% - 278px)' },
-              height: { xs: '82vh', sm: 'min(82vh, 680px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',

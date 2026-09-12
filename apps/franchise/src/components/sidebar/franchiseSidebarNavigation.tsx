@@ -30,4 +30,11 @@ export const navigation = [
 ] as const;
 
 export type FranchisePlan = 'S' | 'M' | 'L';
-export const navigationForPlan = (_plan: FranchisePlan) => [...navigation];
+
+// Size S sells drinks only, so it does not use postal packaging stock.
+// Keep this rule here so the sidebar and route guard use one source of truth.
+export const pageAvailableForPlan = (plan: FranchisePlan, page: string) =>
+  plan !== 'S' || page !== 'สต๊อกอุปกรณ์ไปรษณีย์';
+
+export const navigationForPlan = (plan: FranchisePlan) =>
+  navigation.filter((item) => pageAvailableForPlan(plan, item.label));
