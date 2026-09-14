@@ -12,7 +12,11 @@ import {
 } from '@mui/material';
 import { coffeeIngredientsImage } from '@stackbuild/ui';
 import type { MenuItem } from '../api/stock';
-import { matchReceiptMenus } from '../utils/receiptOcr';
+import {
+  detectReceiptChannel,
+  matchReceiptMenus,
+  type ReceiptChannel,
+} from '../utils/receiptOcr';
 
 type MenuConsumptionPageProps = {
   menus: MenuItem[];
@@ -22,6 +26,12 @@ type MenuConsumptionPageProps = {
     note: string,
     channel: 'storefront' | 'lineman',
   ) => Promise<void>;
+};
+
+const receiptChannelLabel = (channel: ReceiptChannel | null) => {
+  if (channel === 'lineman') return 'ออเดอร์ LINE MAN';
+  if (channel === 'storefront') return 'ออเดอร์หน้าร้าน';
+  return 'ภาพออเดอร์';
 };
 
 export function MenuConsumptionPage({
@@ -36,6 +46,9 @@ export function MenuConsumptionPage({
   const [receiptError, setReceiptError] = useState('');
   const [receiptFileName, setReceiptFileName] = useState('');
   const [receiptProgress, setReceiptProgress] = useState('');
+  const [receiptChannel, setReceiptChannel] = useState<ReceiptChannel | null>(
+    null,
+  );
   const [readingReceipt, setReadingReceipt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [channel, setChannel] = useState<'storefront' | 'lineman'>(
@@ -62,6 +75,7 @@ export function MenuConsumptionPage({
 
     setReadingReceipt(true);
     setReceiptError('');
+    setReceiptChannel(null);
     setReceiptProgress('กำลังเตรียมอ่านข้อความจากใบเสร็จ…');
     try {
       const { createWorker } = await import('tesseract.js');
@@ -77,10 +91,16 @@ export function MenuConsumptionPage({
       const result = await worker.recognize(file);
       await worker.terminate();
 
+      const detectedChannel = detectReceiptChannel(result.data.text);
+      if (detectedChannel) setChannel(detectedChannel);
+      setReceiptChannel(detectedChannel);
+      setReceiptFileName(file.name);
       const matches = matchReceiptMenus(result.data.text, menus);
       if (!matches.length) {
         setReceiptError(
-          'ไม่พบชื่อเมนูที่ตรงกับในระบบ กรุณาใช้รูปที่คมชัดหรือเลือกจำนวนเอง',
+          'ตรวจพบ' +
+            receiptChannelLabel(detectedChannel) +
+            ' แต่ไม่พบชื่อเมนูที่ตรงกับในระบบ กรุณาเลือกเมนูและจำนวนเอง',
         );
         return;
       }
@@ -90,10 +110,17 @@ export function MenuConsumptionPage({
           matches.map((match) => [match.menuItemId, match.quantity]),
         ),
       );
-      setNote(`ตัดสต๊อกจากใบเสร็จ ${file.name}`);
-      setReceiptFileName(file.name);
+      setNote(
+        'ตัดสต๊อกจาก' + receiptChannelLabel(detectedChannel) + ' ' + file.name,
+      );
       setReceiptProgress(
-        `อ่านพบ ${matches.length} เมนู โปรดตรวจจำนวนก่อนยืนยัน`,
+        'อ่านพบ ' +
+          matches.length +
+          ' เมนู' +
+          (detectedChannel
+            ? 'จาก' + receiptChannelLabel(detectedChannel)
+            : '') +
+          ' โปรดตรวจจำนวนก่อนยืนยัน',
       );
     } catch {
       setReceiptError('ไม่สามารถอ่านใบเสร็จได้ กรุณาลองใช้รูปที่คมชัดขึ้น');
@@ -172,10 +199,11 @@ export function MenuConsumptionPage({
         >
           <Box>
             <Typography sx={{ fontWeight: 700 }}>
-              อ่านใบเสร็จเพื่อตัดสต๊อก
+              อ่านออเดอร์เพื่อตัดสต๊อก
             </Typography>
             <Typography color="text.secondary" sx={{ fontSize: 13 }}>
-              อัปโหลดรูปใบเสร็จ ระบบจะอ่านชื่อเมนูและจำนวน แล้วให้ตรวจสอบก่อนตัด
+              อัปโหลดภาพ LINE MAN หรือออเดอร์หน้าร้าน ระบบจะอ่านชื่อเมนูและจำนวน
+              แล้วให้ตรวจสอบก่อนตัด
             </Typography>
           </Box>
           <Button
@@ -184,7 +212,7 @@ export function MenuConsumptionPage({
             disabled={readingReceipt}
             sx={{ flexShrink: 0, borderColor: '#5f4030', color: '#5f4030' }}
           >
-            {readingReceipt ? 'กำลังอ่านใบเสร็จ…' : 'อัปโหลดใบเสร็จ'}
+            {readingReceipt ? 'กำลังอ่านออเดอร์…' : 'อัปโหลดภาพออเดอร์'}
             <input
               hidden
               accept="image/jpeg,image/png,image/webp"
@@ -200,6 +228,12 @@ export function MenuConsumptionPage({
         {receiptFileName && (
           <Typography sx={{ mt: 1.25, fontSize: 13, color: '#5f4030' }}>
             ไฟล์ล่าสุด: {receiptFileName}
+          </Typography>
+        )}
+        {receiptChannel && (
+          <Typography sx={{ mt: 0.75, fontSize: 13, color: '#5f4030' }}>
+            ตรวจพบช่องทาง:{' '}
+            {receiptChannel === 'lineman' ? 'LINE MAN' : 'หน้าร้าน'}
           </Typography>
         )}
         {receiptProgress && (

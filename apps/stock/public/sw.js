@@ -1,5 +1,5 @@
-const CACHE_NAME = 'sbc-staff-v2';
-const CACHE_PREFIX = 'sbc-staff-';
+const CACHE_NAME = 'sbc-stock-v2';
+const CACHE_PREFIX = 'sbc-stock-';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/icon-192.png'];
 const STATIC_DESTINATIONS = new Set(['script', 'style', 'font', 'image']);
 

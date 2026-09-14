@@ -12,6 +12,14 @@ export default defineConfig({
         dirname,
         '../../packages/ui/src/index.tsx',
       ),
+      '@stackbuild/management/pages/attendance': path.resolve(
+        dirname,
+        '../../packages/management/src/pages/AttendanceManagementPage.tsx',
+      ),
+      '@stackbuild/management/pages/leave-requests': path.resolve(
+        dirname,
+        '../../packages/management/src/pages/LeaveRequestsManagementPage.tsx',
+      ),
       '@stackbuild/management': path.resolve(
         dirname,
         '../../packages/management/src/index.ts',

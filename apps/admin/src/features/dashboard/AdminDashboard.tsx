@@ -44,12 +44,12 @@ const AdminFranchiseBranchesPage = lazy(() =>
   })),
 );
 const AdminAttendancePage = lazy(() =>
-  import('../../pages/dashboard/management').then((module) => ({
+  import('@stackbuild/management/pages/attendance').then((module) => ({
     default: module.AttendanceManagementPage,
   })),
 );
 const AdminLeaveRequestsPage = lazy(() =>
-  import('../../pages/dashboard/management').then((module) => ({
+  import('@stackbuild/management/pages/leave-requests').then((module) => ({
     default: module.LeaveRequestsManagementPage,
   })),
 );

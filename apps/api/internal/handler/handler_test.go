@@ -151,21 +151,49 @@ func TestNormalizedMenuRecipesKeepsChannelRecipesSeparateAndSupportsLegacyClient
 	}
 }
 
-func TestConsumeStockFromMenusRejectsInvalidChannelBeforeAccessingBranchData(t *testing.T) {
+func TestConsumeStockFromMenusRejectsInvalidInputBeforeAccessingBranchData(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	handler := &PlatformHandler{db: &sql.DB{}}
-	res := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(res)
-	ctx.Request = httptest.NewRequest(
-		http.MethodPost,
-		"/api/v1/stock/consume",
-		bytes.NewBufferString(`{"items":[{"menuItemId":1,"quantity":1}],"note":"ปิดกะ","channel":"unknown"}`),
-	)
-	ctx.Request.Header.Set("Content-Type", "application/json")
+	for _, test := range []struct {
+		name string
+		body string
+	}{
+		{
+			name: "unknown sales channel",
+			body: `{"items":[{"menuItemId":1,"quantity":1}],"note":"ปิดกะ","channel":"unknown"}`,
+		},
+		{
+			name: "empty consumption list",
+			body: `{"items":[],"note":"ปิดกะ","channel":"storefront"}`,
+		},
+		{
+			name: "zero menu quantity",
+			body: `{"items":[{"menuItemId":1,"quantity":0}],"note":"ปิดกะ","channel":"storefront"}`,
+		},
+		{
+			name: "missing audit note",
+			body: `{"items":[{"menuItemId":1,"quantity":1}],"channel":"storefront"}`,
+		},
+		{
+			name: "malformed JSON",
+			body: `{"items":`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			handler := &PlatformHandler{db: &sql.DB{}}
+			res := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(res)
+			ctx.Request = httptest.NewRequest(
+				http.MethodPost,
+				"/api/v1/stock/consume",
+				bytes.NewBufferString(test.body),
+			)
+			ctx.Request.Header.Set("Content-Type", "application/json")
 
-	handler.ConsumeStockFromMenus(ctx)
+			handler.ConsumeStockFromMenus(ctx)
 
-	if res.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusBadRequest, res.Body.String())
+			if res.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusBadRequest, res.Body.String())
+			}
+		})
 	}
 }
