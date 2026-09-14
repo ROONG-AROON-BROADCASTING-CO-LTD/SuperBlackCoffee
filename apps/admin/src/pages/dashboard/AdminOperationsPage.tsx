@@ -317,6 +317,7 @@ export function AdminOperationsPage() {
   const inspectionCalendarIconRef = useRef<CalendarDaysIconHandle>(null);
   const [tab, setTab] = useState<Tab>('maintenance');
   const [notice, setNotice] = useState('');
+  const [branchSizeMenuOpen, setBranchSizeMenuOpen] = useState(false);
   const [assignment, setAssignment] = useState<RandomInspection | null>(null);
   const [assetToTransfer, setAssetToTransfer] = useState<OperationRow | null>(
     null,
@@ -664,7 +665,18 @@ export function AdminOperationsPage() {
                   name="branchSize"
                   label="ขนาดสาขา"
                   defaultValue="all"
-                  slotProps={{ select: { IconComponent: ChevronDownIcon } }}
+                  slotProps={{
+                    select: {
+                      IconComponent: (iconProps) => (
+                        <ChevronDownIcon
+                          {...iconProps}
+                          animate={branchSizeMenuOpen}
+                        />
+                      ),
+                      onClose: () => setBranchSizeMenuOpen(false),
+                      onOpen: () => setBranchSizeMenuOpen(true),
+                    },
+                  }}
                   sx={inputSx}
                 >
                   <MenuItem value="all">ทุกขนาด</MenuItem>

@@ -1,5 +1,11 @@
 import type { HTMLAttributes, MouseEvent } from 'react';
-import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+} from 'react';
 import { motion, useAnimation, type Transition } from 'motion/react';
 
 export interface ChevronDownIconHandle {
@@ -8,6 +14,7 @@ export interface ChevronDownIconHandle {
 }
 
 type ChevronDownIconProps = HTMLAttributes<HTMLDivElement> & {
+  animate?: boolean;
   size?: number;
 };
 
@@ -20,60 +27,74 @@ const defaultTransition: Transition = {
 export const ChevronDownIcon = forwardRef<
   ChevronDownIconHandle,
   ChevronDownIconProps
->(({ onMouseEnter, onMouseLeave, size = 22, style, ...props }, ref) => {
-  const controls = useAnimation();
-  const isControlledRef = useRef(false);
+>(
+  (
+    { animate = false, onMouseEnter, onMouseLeave, size = 22, style, ...props },
+    ref,
+  ) => {
+    const controls = useAnimation();
+    const isControlledRef = useRef(false);
 
-  useImperativeHandle(ref, () => {
-    isControlledRef.current = true;
-    return {
-      startAnimation: () => void controls.start('animate'),
-      stopAnimation: () => void controls.start('normal'),
-    };
-  }, [controls]);
+    useEffect(() => {
+      void controls.start(animate ? 'animate' : 'normal');
+    }, [animate, controls]);
 
-  const handleMouseEnter = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (isControlledRef.current) onMouseEnter?.(event);
-      else void controls.start('animate');
-    },
-    [controls, onMouseEnter],
-  );
-  const handleMouseLeave = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      if (isControlledRef.current) onMouseLeave?.(event);
-      else void controls.start('normal');
-    },
-    [controls, onMouseLeave],
-  );
+    useImperativeHandle(ref, () => {
+      isControlledRef.current = true;
+      return {
+        startAnimation: () => void controls.start('animate'),
+        stopAnimation: () => void controls.start('normal'),
+      };
+    }, [controls]);
 
-  return (
-    <div
-      {...props}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      style={{ display: 'flex', alignItems: 'center', lineHeight: 0, ...style }}
-    >
-      <svg
-        aria-hidden="true"
-        fill="none"
-        height={size}
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-        width={size}
+    const handleMouseEnter = useCallback(
+      (event: MouseEvent<HTMLDivElement>) => {
+        if (isControlledRef.current) onMouseEnter?.(event);
+        else void controls.start('animate');
+      },
+      [controls, onMouseEnter],
+    );
+    const handleMouseLeave = useCallback(
+      (event: MouseEvent<HTMLDivElement>) => {
+        if (isControlledRef.current) onMouseLeave?.(event);
+        else void controls.start('normal');
+      },
+      [controls, onMouseLeave],
+    );
+
+    return (
+      <div
+        {...props}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          lineHeight: 0,
+          ...style,
+        }}
       >
-        <motion.path
-          animate={controls}
-          d="m6 9 6 6 6-6"
-          transition={defaultTransition}
-          variants={{ normal: { y: 0 }, animate: { y: [0, 2, 0] } }}
-        />
-      </svg>
-    </div>
-  );
-});
+        <svg
+          aria-hidden="true"
+          fill="none"
+          height={size}
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+          width={size}
+        >
+          <motion.path
+            animate={controls}
+            d="m6 9 6 6 6-6"
+            transition={defaultTransition}
+            variants={{ normal: { y: 0 }, animate: { y: [0, 2, 0] } }}
+          />
+        </svg>
+      </div>
+    );
+  },
+);
 
 ChevronDownIcon.displayName = 'ChevronDownIcon';
