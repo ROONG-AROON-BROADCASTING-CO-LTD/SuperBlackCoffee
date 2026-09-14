@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -11,7 +11,11 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDaysIcon, DashboardMain } from '@stackbuild/ui';
+import {
+  CalendarDaysIcon,
+  DashboardMain,
+  type CalendarDaysIconHandle,
+} from '@stackbuild/ui';
 import { branchCodeByBranch, branches } from '@stackbuild/management';
 import {
   createAsset,
@@ -308,6 +312,8 @@ function InvoiceFields({
 
 export function AdminOperationsPage() {
   const client = useQueryClient();
+  const inspectionDateInputRef = useRef<HTMLInputElement>(null);
+  const inspectionCalendarIconRef = useRef<CalendarDaysIconHandle>(null);
   const [tab, setTab] = useState<Tab>('maintenance');
   const [notice, setNotice] = useState('');
   const [assignment, setAssignment] = useState<RandomInspection | null>(null);
@@ -321,6 +327,14 @@ export function AdminOperationsPage() {
   const isInspectionTab =
     tab === 'inspection' || tab === 'ingredientInspection';
   const isIngredientInspectionTab = tab === 'ingredientInspection';
+  const openInspectionDatePicker = () => {
+    inspectionCalendarIconRef.current?.startAnimation();
+    window.setTimeout(
+      () => inspectionCalendarIconRef.current?.stopAnimation(),
+      950,
+    );
+    inspectionDateInputRef.current?.showPicker?.();
+  };
   const data = useQuery({
     queryKey: ['operations'],
     queryFn: async () => {
@@ -618,6 +632,8 @@ export function AdminOperationsPage() {
                   name="dueAt"
                   type="date"
                   label="กำหนดตรวจ"
+                  inputRef={inspectionDateInputRef}
+                  onClick={openInspectionDatePicker}
                   fullWidth
                   slotProps={{
                     inputLabel: { shrink: true },
@@ -627,7 +643,10 @@ export function AdminOperationsPage() {
                           position="end"
                           sx={{ pointerEvents: 'none' }}
                         >
-                          <CalendarDaysIcon size={22} />
+                          <CalendarDaysIcon
+                            ref={inspectionCalendarIconRef}
+                            size={22}
+                          />
                         </InputAdornment>
                       ),
                     },
