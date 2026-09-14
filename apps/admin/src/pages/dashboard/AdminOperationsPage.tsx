@@ -4,13 +4,14 @@ import {
   Box,
   Button,
   Card,
+  InputAdornment,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { DashboardMain } from '@stackbuild/ui';
+import { CalendarDaysIcon, DashboardMain } from '@stackbuild/ui';
 import { branchCodeByBranch, branches } from '@stackbuild/management';
 import {
   createAsset,
@@ -618,8 +619,25 @@ export function AdminOperationsPage() {
                   type="date"
                   label="กำหนดตรวจ"
                   fullWidth
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  sx={inputSx}
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      endAdornment: (
+                        <InputAdornment
+                          position="end"
+                          sx={{ pointerEvents: 'none' }}
+                        >
+                          <CalendarDaysIcon size={22} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                  sx={{
+                    ...inputSx,
+                    '& input::-webkit-calendar-picker-indicator': {
+                      display: 'none',
+                    },
+                  }}
                 />
                 <TextField
                   select
