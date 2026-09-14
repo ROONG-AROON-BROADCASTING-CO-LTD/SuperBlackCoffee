@@ -120,7 +120,12 @@ func copyCompanyCatalog(c context.Context, tx *sql.Tx, branchID int64, size stri
 		JOIN inventory_items target_inventory ON target_inventory.branch_id=$1 AND target_inventory.catalog_item_id=source_inventory.catalog_item_id
 		WHERE source_menu.branch_id=$2
 		  AND ($3 <> 'S' OR lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
-		ON CONFLICT (menu_item_id,inventory_item_id) DO NOTHING`, branchID, sourceBranchID, size)
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM menu_item_ingredients target_recipe
+			WHERE target_recipe.menu_item_id=target_menu.id
+			  AND target_recipe.inventory_item_id=target_inventory.id
+		  )`, branchID, sourceBranchID, size)
 	return err
 }
 
@@ -202,7 +207,12 @@ func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, plan st
 		JOIN inventory_items target_inventory ON target_inventory.branch_id=$1 AND target_inventory.catalog_item_id=source_inventory.catalog_item_id
 		WHERE source_menu.branch_id=$2
 		  AND ($3 != 'S' OR lower(source_menu.category) NOT IN ('อาหาร','food','เบเกอรี่','bakery'))
-		ON CONFLICT (menu_item_id,inventory_item_id) DO NOTHING`, branchID, sourceBranchID, plan)
+		  AND NOT EXISTS (
+			SELECT 1
+			FROM menu_item_ingredients target_recipe
+			WHERE target_recipe.menu_item_id=target_menu.id
+			  AND target_recipe.inventory_item_id=target_inventory.id
+		  )`, branchID, sourceBranchID, plan)
 	return err
 }
 
