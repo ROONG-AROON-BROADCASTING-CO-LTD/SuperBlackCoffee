@@ -20,7 +20,7 @@ export { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
 export { QueryAutoRetrySnackbar } from './components/AutoRetrySnackbar';
 export { ActionSnackbar, type ActionNotice } from './components/ActionSnackbar';
 export { useAutoRetry } from './hooks/useAutoRetry';
-export { setManagementSessionRole } from './api/client';
+export { secured, setManagementSessionRole } from './api/client';
 export { getDashboardSummary } from './api/dashboard';
 export type { DashboardSummary } from './api/dashboard';
 export { listManagedBranches } from './api/branches';

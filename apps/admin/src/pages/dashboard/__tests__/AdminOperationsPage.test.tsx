@@ -6,15 +6,17 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminOperationsPage } from '../AdminOperationsPage';
 import {
   createMaintenanceTicket,
+  downloadMaintenancePDF,
   listAssets,
   listInspections,
   listMaintenanceTickets,
   listServiceInvoices,
   updateMaintenanceStatus,
+  randomizeInspection,
 } from '../../../api/operations';
 
 vi.mock('../../../api/operations', () => ({
@@ -23,7 +25,13 @@ vi.mock('../../../api/operations', () => ({
   listMaintenanceTickets: vi.fn(),
   listServiceInvoices: vi.fn(),
   createMaintenanceTicket: vi.fn(),
+  downloadMaintenancePDF: vi.fn(),
+  createAsset: vi.fn(),
+  createServiceInvoice: vi.fn(),
   updateMaintenanceStatus: vi.fn(),
+  updateAsset: vi.fn(),
+  updateServiceInvoiceStatus: vi.fn(),
+  randomizeInspection: vi.fn(),
 }));
 const renderPage = () =>
   render(
@@ -54,10 +62,10 @@ describe('AdminOperationsPage', () => {
     fireEvent.change(document.querySelector('input[name="title"]')!, {
       target: { value: 'เครื่องบดกาแฟไม่ทำงาน' },
     });
-    fireEvent.change(document.querySelector('input[name="description"]')!, {
+    fireEvent.change(document.querySelector('textarea[name="description"]')!, {
       target: { value: 'มีเสียงดัง' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงาน' }));
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรายการ' }));
     await waitFor(() =>
       expect(createMaintenanceTicket).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -66,19 +74,17 @@ describe('AdminOperationsPage', () => {
         }),
       ),
     );
-    expect(screen.getByText('สร้างใบงานช่างแล้ว')).toBeTruthy();
+    expect(screen.getByText('แจ้งงานซ่อมบำรุงแล้ว')).toBeTruthy();
   });
-  it('switches to inspections without showing the maintenance creation form', async () => {
+  it('shows only scheduled technician reports in random inspection', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
     vi.mocked(listInspections).mockResolvedValue([
       {
         id: 8,
         branchCode: 'SBC-AYA-001',
         branchName: 'อยุธยา',
-        inspectorName: 'QA',
-        status: 'needs_action',
-        score: 72,
-        findings: 'ต้องทำความสะอาด',
+        inspectorName: 'ช่างเอก',
+        status: 'scheduled',
       },
     ]);
     vi.mocked(listAssets).mockResolvedValue([]);
@@ -86,7 +92,8 @@ describe('AdminOperationsPage', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'สุ่มตรวจ' }));
     expect(screen.queryByText('แจ้งงานซ่อมบำรุง')).toBeNull();
-    expect(await screen.findByText('ต้องทำความสะอาด')).toBeTruthy();
+    expect(await screen.findByText('ช่างเอก')).toBeTruthy();
+    expect(screen.queryByText('บันทึกผลตรวจ')).toBeNull();
   });
   it('closes an open maintenance ticket', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([
@@ -112,6 +119,33 @@ describe('AdminOperationsPage', () => {
       expect(updateMaintenanceStatus).toHaveBeenCalledWith(2, 'completed'),
     );
   });
+  it('downloads the selected franchise repair work order as a PDF', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([
+      {
+        id: 23,
+        branchCode: 'SBC-AYA-001',
+        branchName: 'อยุธยา',
+        title: 'เครื่องชงกาแฟมีน้ำรั่ว',
+        priority: 'urgent',
+        status: 'assigned',
+      },
+    ]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    vi.mocked(downloadMaintenancePDF).mockResolvedValue(undefined);
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'ใบงาน PDF' }));
+
+    await waitFor(() =>
+      expect(downloadMaintenancePDF).toHaveBeenCalledWith(
+        23,
+        'อยุธยา',
+        'SBC-AYA-001',
+      ),
+    );
+  });
   it('shows the API error when a maintenance ticket cannot be created', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
     vi.mocked(listInspections).mockResolvedValue([]);
@@ -127,7 +161,43 @@ describe('AdminOperationsPage', () => {
     fireEvent.change(document.querySelector('input[name="title"]')!, {
       target: { value: 'เครื่องบดกาแฟไม่ทำงาน' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงาน' }));
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรายการ' }));
     expect(await screen.findByText('ไม่สามารถบันทึกใบงานได้')).toBeTruthy();
+  });
+
+  it('creates a technician report with its checklist and no result form', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    vi.mocked(randomizeInspection).mockResolvedValue({
+      id: 12,
+      branchCode: 'SBC-AYA-001',
+      branchName: 'อยุธยา',
+      branchSize: 'S',
+      inspectorName: 'QA Team',
+      templateId: 4,
+      templateName: 'ใบงานตรวจช่างมาตรฐาน',
+      checklist: ['ร้านคาเฟ่: เครื่องชงกาแฟ', 'ตู้ชาร์จรถ EV: หัวชาร์จ'],
+      dueAt: '',
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'สุ่มตรวจ' }));
+    fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
+      target: { value: 'QA Team' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงานให้ช่าง' }));
+
+    await waitFor(() =>
+      expect(randomizeInspection).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectorName: 'QA Team', excludeDays: 30 }),
+      ),
+    );
+    expect(await screen.findByText('ใบงานช่าง: อยุธยา')).toBeTruthy();
+    expect(document.querySelector('ol li')?.textContent).toBe(
+      'ร้านคาเฟ่: เครื่องชงกาแฟ',
+    );
+    expect(screen.queryByText('บันทึกผลตรวจ')).toBeNull();
   });
 });

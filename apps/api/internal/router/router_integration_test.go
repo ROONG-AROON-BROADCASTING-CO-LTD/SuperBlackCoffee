@@ -91,6 +91,7 @@ func TestMaintenanceTicketRoutesFailSafelyWhenDatabaseIsUnavailable(t *testing.T
 	}{
 		{name: "create", method: http.MethodPost, path: "/api/v1/maintenance-tickets", body: `{"branchCode":"SBC-AYA-001","title":"เครื่องชงมีปัญหา","priority":"normal"}`},
 		{name: "update", method: http.MethodPatch, path: "/api/v1/maintenance-tickets/1/status", body: `{"status":"completed"}`},
+		{name: "inspection PDF", method: http.MethodGet, path: "/api/v1/inspections/1/pdf", body: ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			req := httptest.NewRequest(test.method, test.path, strings.NewReader(test.body))
@@ -100,6 +101,32 @@ func TestMaintenanceTicketRoutesFailSafelyWhenDatabaseIsUnavailable(t *testing.T
 			r.ServeHTTP(res, req)
 			if res.Code != http.StatusServiceUnavailable {
 				t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusServiceUnavailable, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestOperationsWorkflowRoutesRejectInvalidInputBeforeDatabaseAccess(t *testing.T) {
+	r := New(nil, nil)
+	for _, test := range []struct {
+		name, method, path, body string
+	}{
+		{name: "inspection invalid score", method: http.MethodPost, path: "/api/v1/inspections", body: `{"branchCode":"SBC-AYA-001","inspectorName":"QA","status":"passed","score":101}`},
+		{name: "inspection invalid result", method: http.MethodPost, path: "/api/v1/inspections", body: `{"branchCode":"SBC-AYA-001","inspectorName":"QA","status":"unknown","score":80}`},
+		{name: "random inspection missing inspector", method: http.MethodPost, path: "/api/v1/inspections/randomize", body: `{"branchSize":"S","excludeDays":30}`},
+		{name: "inspection template missing checklist", method: http.MethodPost, path: "/api/v1/inspection-templates", body: `{"name":"ตรวจสาขา","branchSize":"S","checklist":[]}`},
+		{name: "complete inspection invalid score", method: http.MethodPatch, path: "/api/v1/inspections/1/complete", body: `{"status":"passed","score":101}`},
+		{name: "asset missing name", method: http.MethodPost, path: "/api/v1/assets", body: `{"branchCode":"SBC-AYA-001","assetType":"เครื่องชง"}`},
+		{name: "invoice invalid service", method: http.MethodPost, path: "/api/v1/service-invoices", body: `{"branchCode":"SBC-AYA-001","invoiceNumber":"INV-1","serviceType":"unknown","amount":10}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(test.method, test.path, strings.NewReader(test.body))
+			req.Header.Set("Authorization", "Bearer "+testToken(t, "admin"))
+			req.Header.Set("Content-Type", "application/json")
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", res.Code, http.StatusBadRequest, res.Body.String())
 			}
 		})
 	}

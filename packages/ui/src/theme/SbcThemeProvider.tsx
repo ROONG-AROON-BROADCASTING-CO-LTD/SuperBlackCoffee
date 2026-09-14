@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { BrowserAutofillGuard } from '../components/BrowserAutofillGuard';
 
 export function SbcThemeProvider({
   children,
@@ -74,6 +75,7 @@ export function SbcThemeProvider({
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <BrowserAutofillGuard />
       {children}
     </ThemeProvider>
   );

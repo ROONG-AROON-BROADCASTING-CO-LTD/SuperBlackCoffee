@@ -1,6 +1,7 @@
 export const franchisePagePaths = {
   ภาพรวม: '/',
   คำขอวัตถุดิบ: '/ingredient-requests',
+  'แจ้งซ่อม / งานช่าง': '/maintenance',
   เมนูและสินค้า: '/products',
   สต๊อกอุปกรณ์เครื่องดื่ม: '/stock',
   สต๊อกอุปกรณ์ไปรษณีย์: '/postal-stock',

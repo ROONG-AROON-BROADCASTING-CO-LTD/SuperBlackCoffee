@@ -52,3 +52,41 @@ export async function secured<T>(
     throw new Error(messageFrom(error));
   }
 }
+
+export async function downloadSecuredPDF(path: string, filename: string) {
+  try {
+    const response = await apiClient.get(path, { responseType: 'blob' });
+    if (response.data.type && !response.data.type.includes('pdf')) {
+      const body = await response.data.text();
+      try {
+        const parsed = JSON.parse(body) as ApiEnvelope<unknown>;
+        throw new Error(parsed.message ?? 'ไม่สามารถสร้างไฟล์ PDF ได้');
+      } catch (error) {
+        if (error instanceof Error && error.message !== body) throw error;
+        throw new Error('ไม่สามารถสร้างไฟล์ PDF ได้');
+      }
+    }
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Keep the object URL alive until the browser has started its download.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
+      const body = await error.response.data.text();
+      try {
+        const parsed = JSON.parse(body) as ApiEnvelope<unknown>;
+        throw new Error(parsed.message ?? 'ไม่สามารถสร้างไฟล์ PDF ได้');
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message !== body)
+          throw parseError;
+      }
+    }
+    throw new Error(messageFrom(error));
+  }
+}

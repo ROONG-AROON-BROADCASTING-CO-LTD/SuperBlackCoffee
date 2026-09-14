@@ -211,4 +211,22 @@ describe('attendance API client', () => {
 
     await expect(getLeaveRequestPdf(24)).resolves.toBeInstanceOf(Blob);
   });
+
+  it('keeps the server error message when a protected leave PDF is unavailable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: false,
+          message: 'ไม่พบใบลาของพนักงานคนนี้',
+        }),
+        { status: 404 },
+      ),
+    );
+
+    await expect(getLeaveRequestPdf(99)).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 404,
+      message: 'ไม่พบใบลาของพนักงานคนนี้',
+    });
+  });
 });

@@ -8,6 +8,7 @@ export {
 export { default as superBlackLogo } from './assets/superblack-logo.png';
 export { default as coffeeIngredientsImage } from './assets/ingredients/coffee-ingredients.png';
 export { EmptyState } from './components/EmptyState';
+export { BrowserAutofillGuard } from './components/BrowserAutofillGuard';
 export { LoginScreen } from './components/auth/LoginScreen';
 export { DashboardSidebar } from './components/dashboard/DashboardSidebar';
 export { DashboardMain } from './components/dashboard/DashboardMain';

@@ -21,7 +21,7 @@
     "test:stock": "pnpm --filter @stackbuild/stock test",
     "test:frontend": "vitest run",
     "test:api:integration": "cd apps/api && TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5434/test_app go test -p 1 ./...",
-    "build:api": "cd apps/api && go build ./cmd/api",
+    "build:api": "cd apps/api && go build -o /tmp/superblackcoffee-api-build ./cmd/api",
     "dev:admin": "pnpm --filter @stackbuild/admin dev",
     "dev:franchise": "pnpm --filter @stackbuild/franchise dev",
     "dev:attendance": "pnpm --filter @stackbuild/attendance dev",

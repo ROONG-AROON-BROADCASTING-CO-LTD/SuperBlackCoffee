@@ -2,6 +2,7 @@ import {
   BoxIcon,
   BoxesIcon,
   ClockIcon,
+  FilePenLineIcon,
   LayoutGridIcon,
   ReceiptIcon,
   ReceiptTextIcon,
@@ -12,6 +13,11 @@ export const franchiseBranch = 'อยุธยา' as const;
 export const navigation = [
   { label: 'ภาพรวม', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
   { label: 'คำขอวัตถุดิบ', icon: <ReceiptIcon />, group: 'งานประจำวัน' },
+  {
+    label: 'แจ้งซ่อม / งานช่าง',
+    icon: <FilePenLineIcon />,
+    group: 'งานประจำวัน',
+  },
   { label: 'เมนูและสินค้า', icon: <ReceiptTextIcon />, group: 'สินค้าและคลัง' },
   {
     label: 'สต๊อกอุปกรณ์เครื่องดื่ม',

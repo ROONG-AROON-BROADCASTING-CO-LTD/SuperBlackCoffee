@@ -94,4 +94,14 @@ describe('franchise auth API', () => {
       'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
     );
   });
+
+  it('explains when the franchise session endpoint is missing instead of exposing raw HTML', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('not found', { status: 404 }),
+    );
+
+    await expect(restoreSession()).rejects.toThrow(
+      'ไม่พบระบบที่ต้องการ กรุณาลองใหม่อีกครั้ง',
+    );
+  });
 });

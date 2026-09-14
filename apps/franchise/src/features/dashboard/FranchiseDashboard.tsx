@@ -42,6 +42,11 @@ const FranchiseIngredientRequestsPage = lazy(() =>
     }),
   ),
 );
+const FranchiseMaintenancePage = lazy(() =>
+  import('../../pages/dashboard/FranchiseMaintenancePage').then((module) => ({
+    default: module.FranchiseMaintenancePage,
+  })),
+);
 const FranchiseOverviewPage = lazy(() =>
   import('../../pages/dashboard/FranchiseOverviewPage').then((module) => ({
     default: module.FranchiseOverviewPage,
@@ -132,6 +137,8 @@ export function FranchiseDashboard({
           />
         ) : activePage === 'คำขอวัตถุดิบ' ? (
           <FranchiseIngredientRequestsPage />
+        ) : activePage === 'แจ้งซ่อม / งานช่าง' ? (
+          <FranchiseMaintenancePage />
         ) : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม' ? (
           <StockManagementPage
             activeBranch={franchiseBranch}
