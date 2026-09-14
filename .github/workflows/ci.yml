@@ -48,6 +48,36 @@ jobs:
       - run: pnpm run lint:franchise
       - run: pnpm run build:franchise
 
+  attendance:
+    name: Attendance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint:attendance
+      - run: pnpm run build:attendance
+
+  stock:
+    name: Stock
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint:stock
+      - run: pnpm run build:stock
+
   api:
     name: API
     runs-on: ubuntu-latest
@@ -66,3 +96,16 @@ jobs:
         if: always()
       - run: go build ./cmd/api
         working-directory: apps/api
+
+  docker:
+    name: Production Docker images
+    needs: [website, admin, franchise, attendance, stock, api]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build --file apps/api/Dockerfile apps/api
+      - run: docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api/v1 --build-arg NEXT_PUBLIC_SITE_URL=https://example.com --file apps/website/Dockerfile .
+      - run: docker build --build-arg VITE_API_URL=https://api.example.com/api/v1 --file apps/admin/Dockerfile .
+      - run: docker build --build-arg VITE_API_URL=https://api.example.com/api/v1 --file apps/franchise/Dockerfile .
+      - run: docker build --build-arg VITE_API_URL=https://api.example.com/api/v1 --file apps/attendance/Dockerfile .
+      - run: docker build --build-arg VITE_API_URL=https://api.example.com/api/v1 --file apps/stock/Dockerfile .
