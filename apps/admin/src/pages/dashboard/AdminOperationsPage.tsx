@@ -54,8 +54,6 @@ const columnLabels: Record<string, string> = {
   branchName: 'สาขา',
   priority: 'ความเร่งด่วน',
   status: 'สถานะ',
-  technicianName: 'ช่างผู้รับผิดชอบ',
-  cost: 'ค่าใช้จ่ายรวม',
   dueAt: 'กำหนดวันที่',
   inspectorName: 'ช่างผู้ตรวจ',
   name: 'ชื่ออุปกรณ์/ทรัพย์สิน',
@@ -328,15 +326,7 @@ export function AdminOperationsPage() {
   const columns = useMemo(
     () =>
       tab === 'maintenance'
-        ? [
-            'title',
-            'branchName',
-            'priority',
-            'status',
-            'technicianName',
-            'cost',
-            'dueAt',
-          ]
+        ? ['title', 'branchName', 'priority', 'status', 'dueAt']
         : isInspectionTab
           ? ['branchName', 'inspectorName', 'dueAt', 'status']
           : tab === 'assets'

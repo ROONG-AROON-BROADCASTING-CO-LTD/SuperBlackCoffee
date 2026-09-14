@@ -156,12 +156,12 @@ describe('AdminOperationsPage', () => {
     renderPage();
 
     expect(await screen.findByText('หัวข้องาน')).toBeTruthy();
-    expect(screen.getByText('ช่างผู้รับผิดชอบ')).toBeTruthy();
+    expect(screen.queryByText('ช่างผู้รับผิดชอบ')).toBeNull();
+    expect(screen.queryByText('ค่าใช้จ่ายรวม')).toBeNull();
     expect(
       screen.getByRole('columnheader', { name: 'ความเร่งด่วน' }),
     ).toBeTruthy();
     expect(await screen.findByText('เร่งด่วน')).toBeTruthy();
-    expect(await screen.findByText('1,250.00 บาท')).toBeTruthy();
     expect(screen.queryByText('branchName')).toBeNull();
   });
 
