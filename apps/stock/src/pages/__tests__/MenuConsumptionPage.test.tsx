@@ -40,6 +40,10 @@ describe('MenuConsumptionPage', () => {
       screen.getByRole('button', { name: 'ตัดสต๊อก อเมริกาโน่เย็น' }),
     );
     fireEvent.click(
+      screen.getAllByRole('button', { name: 'เปิดตะกร้าตัดสต๊อก' })[0],
+    );
+    expect(await screen.findByText('ตะกร้าตัดสต๊อก')).toBeTruthy();
+    fireEvent.click(
       screen.getByRole('button', { name: 'ยืนยันตัดวัตถุดิบตามสูตร' }),
     );
     await vi.waitFor(() =>
@@ -57,6 +61,9 @@ describe('MenuConsumptionPage', () => {
       <MenuConsumptionPage loading={false} onConsume={onConsume} menus={[]} />,
     );
 
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'เปิดตะกร้าตัดสต๊อก' })[0],
+    );
     expect(
       (
         screen.getByRole('button', {
@@ -65,6 +72,32 @@ describe('MenuConsumptionPage', () => {
       ).disabled,
     ).toBe(true);
     expect(onConsume).not.toHaveBeenCalled();
+  });
+
+  it('opens the cart when the navigation requests it', async () => {
+    const onConsume = vi.fn().mockResolvedValue(undefined);
+    const onCartRequestHandled = vi.fn();
+    const { rerender } = render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={onConsume}
+        menus={[]}
+        cartRequestId={0}
+      />,
+    );
+
+    rerender(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={onConsume}
+        menus={[]}
+        cartRequestId={1}
+        onCartRequestHandled={onCartRequestHandled}
+      />,
+    );
+
+    expect(await screen.findByText('ตะกร้าตัดสต๊อก')).toBeTruthy();
+    expect(onCartRequestHandled).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the chosen menu when stock consumption fails', async () => {
@@ -88,6 +121,9 @@ describe('MenuConsumptionPage', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'ตัดสต๊อก ลาเต้เย็น' }));
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'เปิดตะกร้าตัดสต๊อก' })[0],
+    );
     fireEvent.click(
       screen.getByRole('button', { name: 'ยืนยันตัดวัตถุดิบตามสูตร' }),
     );

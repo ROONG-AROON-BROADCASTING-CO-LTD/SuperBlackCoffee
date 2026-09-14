@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Card,
   Chip,
+  Drawer,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { coffeeIngredientsImage } from '@stackbuild/ui';
+import { CartIcon, coffeeIngredientsImage } from '@stackbuild/ui';
 import type { MenuItem } from '../api/stock';
 import {
   detectReceiptChannel,
@@ -26,6 +27,9 @@ type MenuConsumptionPageProps = {
     note: string,
     channel: 'storefront' | 'lineman',
   ) => Promise<void>;
+  cartRequestId?: number;
+  onCartRequestHandled?: () => void;
+  onCartItemCountChange?: (count: number) => void;
 };
 
 const receiptChannelLabel = (channel: ReceiptChannel | null) => {
@@ -38,6 +42,9 @@ export function MenuConsumptionPage({
   menus,
   loading,
   onConsume,
+  cartRequestId = 0,
+  onCartRequestHandled,
+  onCartItemCountChange,
 }: MenuConsumptionPageProps) {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<Record<number, number>>({});
@@ -51,6 +58,7 @@ export function MenuConsumptionPage({
   );
   const [readingReceipt, setReadingReceipt] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [channel, setChannel] = useState<'storefront' | 'lineman'>(
     'storefront',
   );
@@ -62,6 +70,19 @@ export function MenuConsumptionPage({
     [menus, query],
   );
   const selected = menus.filter((menu) => cart[menu.id] > 0);
+  const selectedQuantity = selected.reduce(
+    (total, menu) => total + cart[menu.id],
+    0,
+  );
+  useEffect(() => {
+    onCartItemCountChange?.(selectedQuantity);
+  }, [onCartItemCountChange, selectedQuantity]);
+  useEffect(() => {
+    if (cartRequestId === 0) return;
+    setCartOpen(true);
+    onCartRequestHandled?.();
+  }, [cartRequestId, onCartRequestHandled]);
+  useEffect(() => () => onCartItemCountChange?.(0), [onCartItemCountChange]);
   const change = (id: number, amount: number) =>
     setCart((current) => ({
       ...current,
@@ -149,114 +170,130 @@ export function MenuConsumptionPage({
     }
   };
   return (
-    <Stack sx={{ gap: 2.5 }}>
-      <Box>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          สรุปเมนูที่ขาย
-        </Typography>
-        <Typography color="text.secondary">
-          เลือกจำนวนที่ขาย ระบบจะตัดวัตถุดิบตามสูตรอัตโนมัติ
-        </Typography>
-      </Box>
-      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '15px' }}>
-        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-          <Button
-            variant={channel === 'storefront' ? 'contained' : 'outlined'}
-            onClick={() => setChannel('storefront')}
+    <>
+      <Stack sx={{ gap: 2.5 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            สรุปเมนูที่ขาย
+          </Typography>
+          <Typography color="text.secondary">
+            เลือกจำนวนที่ขาย ระบบจะตัดวัตถุดิบตามสูตรอัตโนมัติ
+          </Typography>
+        </Box>
+        <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '15px' }}>
+          <Stack
+            direction="row"
+            sx={{
+              mb: 2,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
-            หน้าร้าน
-          </Button>
-          <Button
-            variant={channel === 'lineman' ? 'contained' : 'outlined'}
-            onClick={() => setChannel('lineman')}
-          >
-            LINE MAN
-          </Button>
-        </Stack>
-        <TextField
-          fullWidth
-          label="ค้นหาเมนู"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </Paper>
-      <Paper
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          borderRadius: '15px',
-          border: '1px dashed',
-          borderColor: '#d7c5b8',
-          bgcolor: '#fffcfa',
-        }}
-      >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          sx={{
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            justifyContent: 'space-between',
-            gap: 1.5,
-          }}
-        >
-          <Box>
-            <Typography sx={{ fontWeight: 700 }}>
-              อ่านออเดอร์เพื่อตัดสต๊อก
-            </Typography>
-            <Typography color="text.secondary" sx={{ fontSize: 13 }}>
-              อัปโหลดภาพ LINE MAN หรือออเดอร์หน้าร้าน ระบบจะอ่านชื่อเมนูและจำนวน
-              แล้วให้ตรวจสอบก่อนตัด
-            </Typography>
-          </Box>
-          <Button
-            component="label"
-            variant="outlined"
-            disabled={readingReceipt}
-            sx={{ flexShrink: 0, borderColor: '#5f4030', color: '#5f4030' }}
-          >
-            {readingReceipt ? 'กำลังอ่านออเดอร์…' : 'อัปโหลดภาพออเดอร์'}
-            <input
-              hidden
-              accept="image/jpeg,image/png,image/webp"
-              type="file"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (file) void readReceipt(file);
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant={channel === 'storefront' ? 'contained' : 'outlined'}
+                onClick={() => setChannel('storefront')}
+              >
+                หน้าร้าน
+              </Button>
+              <Button
+                variant={channel === 'lineman' ? 'contained' : 'outlined'}
+                onClick={() => setChannel('lineman')}
+              >
+                LINE MAN
+              </Button>
+            </Stack>
+            <Button
+              aria-label="เปิดตะกร้าตัดสต๊อก"
+              onClick={() => setCartOpen(true)}
+              variant="outlined"
+              startIcon={<CartIcon size={20} />}
+              sx={{
+                display: { xs: 'none', md: 'inline-flex' },
+                borderColor: '#5f4030',
+                color: '#5f4030',
               }}
-            />
-          </Button>
-        </Stack>
-        {receiptFileName && (
-          <Typography sx={{ mt: 1.25, fontSize: 13, color: '#5f4030' }}>
-            ไฟล์ล่าสุด: {receiptFileName}
-          </Typography>
-        )}
-        {receiptChannel && (
-          <Typography sx={{ mt: 0.75, fontSize: 13, color: '#5f4030' }}>
-            ตรวจพบช่องทาง:{' '}
-            {receiptChannel === 'lineman' ? 'LINE MAN' : 'หน้าร้าน'}
-          </Typography>
-        )}
-        {receiptProgress && (
-          <Typography color="text.secondary" sx={{ mt: 1.25, fontSize: 13 }}>
-            {receiptProgress}
-          </Typography>
-        )}
-        {receiptError && (
-          <Alert severity="warning" sx={{ mt: 1.5 }}>
-            {receiptError}
-          </Alert>
-        )}
-      </Paper>
-      {loading ? (
-        <Typography color="text.secondary">กำลังโหลดเมนู…</Typography>
-      ) : (
-        <Box
+            >
+              ตะกร้า ({selectedQuantity})
+            </Button>
+          </Stack>
+          <TextField
+            fullWidth
+            label="ค้นหาเมนู"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </Paper>
+        <Paper
           sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1fr) 330px' },
-            gap: 2,
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: '15px',
+            border: '1px dashed',
+            borderColor: '#d7c5b8',
+            bgcolor: '#fffcfa',
           }}
         >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            sx={{
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
+              gap: 1.5,
+            }}
+          >
+            <Box>
+              <Typography sx={{ fontWeight: 700 }}>
+                อ่านออเดอร์เพื่อตัดสต๊อก
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                อัปโหลดภาพ LINE MAN หรือออเดอร์หน้าร้าน
+                ระบบจะอ่านชื่อเมนูและจำนวน แล้วให้ตรวจสอบก่อนตัด
+              </Typography>
+            </Box>
+            <Button
+              component="label"
+              variant="outlined"
+              disabled={readingReceipt}
+              sx={{ flexShrink: 0, borderColor: '#5f4030', color: '#5f4030' }}
+            >
+              {readingReceipt ? 'กำลังอ่านออเดอร์…' : 'อัปโหลดภาพออเดอร์'}
+              <input
+                hidden
+                accept="image/jpeg,image/png,image/webp"
+                type="file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (file) void readReceipt(file);
+                }}
+              />
+            </Button>
+          </Stack>
+          {receiptFileName && (
+            <Typography sx={{ mt: 1.25, fontSize: 13, color: '#5f4030' }}>
+              ไฟล์ล่าสุด: {receiptFileName}
+            </Typography>
+          )}
+          {receiptChannel && (
+            <Typography sx={{ mt: 0.75, fontSize: 13, color: '#5f4030' }}>
+              ตรวจพบช่องทาง:{' '}
+              {receiptChannel === 'lineman' ? 'LINE MAN' : 'หน้าร้าน'}
+            </Typography>
+          )}
+          {receiptProgress && (
+            <Typography color="text.secondary" sx={{ mt: 1.25, fontSize: 13 }}>
+              {receiptProgress}
+            </Typography>
+          )}
+          {receiptError && (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              {receiptError}
+            </Alert>
+          )}
+        </Paper>
+        {loading ? (
+          <Typography color="text.secondary">กำลังโหลดเมนู…</Typography>
+        ) : (
           <Box
             sx={{
               display: 'grid',
@@ -430,64 +467,120 @@ export function MenuConsumptionPage({
               );
             })}
           </Box>
-          <Paper
+        )}
+      </Stack>
+      <Drawer
+        anchor="bottom"
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              maxWidth: 720,
+              mx: 'auto',
+              width: '100%',
+              maxHeight: '82dvh',
+              borderRadius: '24px 24px 0 0',
+              p: { xs: 2, sm: 3 },
+            },
+          },
+        }}
+      >
+        <Stack sx={{ gap: 2 }}>
+          <Box
             sx={{
-              p: 2.5,
-              borderRadius: '15px',
-              height: 'fit-content',
-              position: { xl: 'sticky' },
-              top: { xl: 24 },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
-            <Typography sx={{ fontWeight: 700 }}>รายการที่จะตัด</Typography>
-            {selected.length ? (
-              <Stack sx={{ my: 2, gap: 1 }}>
-                {selected.map((menu) => (
+            <Box>
+              <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+                ตะกร้าตัดสต๊อก
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                เลือกแล้ว {selectedQuantity} แก้ว / จาน
+              </Typography>
+            </Box>
+            <Button onClick={() => setCartOpen(false)} color="inherit">
+              ปิด
+            </Button>
+          </Box>
+          {selected.length ? (
+            <Stack sx={{ gap: 1, overflowY: 'auto' }}>
+              {selected.map((menu) => (
+                <Paper
+                  key={menu.id}
+                  variant="outlined"
+                  sx={{ p: 1.5, borderRadius: '12px' }}
+                >
                   <Box
-                    key={menu.id}
                     sx={{
                       display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: 2,
+                      gap: 1,
                     }}
                   >
-                    <Typography sx={{ fontSize: 14 }}>{menu.name}</Typography>
-                    <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      × {cart[menu.id]}
+                    <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
+                      {menu.name}
                     </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{ alignItems: 'center' }}
+                    >
+                      <Button
+                        aria-label={`ลดจำนวนในตะกร้า ${menu.name}`}
+                        size="small"
+                        onClick={() => change(menu.id, -1)}
+                      >
+                        −
+                      </Button>
+                      <Typography
+                        sx={{
+                          minWidth: 24,
+                          textAlign: 'center',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {cart[menu.id]}
+                      </Typography>
+                      <Button
+                        aria-label={`เพิ่มจำนวนในตะกร้า ${menu.name}`}
+                        size="small"
+                        onClick={() => change(menu.id, 1)}
+                      >
+                        +
+                      </Button>
+                    </Stack>
                   </Box>
-                ))}
-              </Stack>
-            ) : (
-              <Typography color="text.secondary" sx={{ my: 2 }}>
-                ยังไม่ได้เลือกเมนู
-              </Typography>
-            )}
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              label="หมายเหตุ"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-            <Button
-              fullWidth
-              variant="contained"
-              disabled={!selected.length || saving}
-              onClick={() => void save()}
-              sx={{ mt: 2, bgcolor: '#3c2d24', py: 1.2 }}
-            >
-              ยืนยันตัดวัตถุดิบตามสูตร
-            </Button>
-            {error && (
-              <Alert severity="error" sx={{ mt: 1.5 }}>
-                {error}
-              </Alert>
-            )}
-          </Paper>
-        </Box>
-      )}
-    </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          ) : (
+            <Typography color="text.secondary">ยังไม่ได้เลือกเมนู</Typography>
+          )}
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            label="หมายเหตุ"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            disabled={!selected.length || saving}
+            onClick={() => void save()}
+            sx={{ bgcolor: '#3c2d24', py: 1.2 }}
+          >
+            ยืนยันตัดวัตถุดิบตามสูตร
+          </Button>
+          {error && <Alert severity="error">{error}</Alert>}
+        </Stack>
+      </Drawer>
+    </>
   );
 }

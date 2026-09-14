@@ -123,6 +123,18 @@ describe('attendance API client', () => {
     );
   });
 
+  it('turns a malformed protected API response into a staff-safe error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('upstream response is not JSON', { status: 502 }),
+    );
+
+    await expect(secured('/attendance/today')).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      message: 'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง',
+      status: 502,
+    });
+  });
+
   it('sends a leave request without attachments as JSON', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

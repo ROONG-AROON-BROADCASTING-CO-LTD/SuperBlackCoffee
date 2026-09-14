@@ -1,1 +1,1 @@
-export type StockPage = 'overview' | 'sales' | 'count' | 'history';
+export type StockPage = 'sales' | 'count' | 'history';

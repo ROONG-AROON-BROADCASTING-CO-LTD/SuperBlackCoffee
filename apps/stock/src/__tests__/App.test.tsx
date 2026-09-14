@@ -21,10 +21,7 @@ vi.mock('@stackbuild/ui', () => ({
   CircleCheckIcon: () => <span aria-hidden="true" />,
 }));
 vi.mock('../components/StockNavigation', () => ({
-  stockNavigation: [
-    { page: 'overview', label: 'ภาพรวม' },
-    { page: 'sales', label: 'บันทึกเมนูที่ขาย' },
-  ],
+  stockNavigation: [{ page: 'sales', label: 'บันทึกเมนูที่ขาย' }],
 }));
 vi.mock('../components/AutoRetrySnackbar', () => ({
   AutoRetrySnackbar: () => null,
@@ -54,19 +51,36 @@ vi.mock('../layouts/StockAppLayout', () => ({
   StockAppLayout: ({
     children,
     onLogout,
+    onOpenCart,
   }: {
     children: React.ReactNode;
     onLogout: () => void;
+    onOpenCart: () => void;
   }) => (
     <>
       <button onClick={onLogout}>stock-logout</button>
+      <button onClick={onOpenCart}>open-stock-cart</button>
       {children}
     </>
   ),
 }));
 vi.mock('../routes/StockPageRouter', () => ({
-  StockPageRouter: ({ page }: { page: string }) => (
-    <div data-testid="stock-page">{page}</div>
+  StockPageRouter: ({
+    page,
+    cartRequestId,
+    onCartRequestHandled,
+  }: {
+    page: string;
+    cartRequestId: number;
+    onCartRequestHandled: () => void;
+  }) => (
+    <div>
+      <div data-testid="stock-page">{page}</div>
+      <output data-testid="cart-request-id">{cartRequestId}</output>
+      {cartRequestId > 0 ? (
+        <button onClick={onCartRequestHandled}>cart-request-handled</button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -105,6 +119,14 @@ describe('Stock App session and loading', () => {
     });
   });
 
+  it('uses sales as the default page when the old overview URL is opened', async () => {
+    window.history.replaceState(null, '', '/');
+
+    render(<App />);
+
+    expect((await screen.findByTestId('stock-page')).textContent).toBe('sales');
+  });
+
   it.each([401, 403])(
     'ends the local session when a protected stock request returns %i',
     async (status) => {
@@ -118,7 +140,7 @@ describe('Stock App session and loading', () => {
     },
   );
 
-  it('logs out locally and resets the browser route to the overview', async () => {
+  it('logs out locally and resets the browser route to sales', async () => {
     window.history.replaceState(null, '', '/history');
     render(<App />);
 
@@ -127,7 +149,7 @@ describe('Stock App session and loading', () => {
 
     await waitFor(() => expect(screen.getByText('stock-login')).toBeTruthy());
     expect(logoutStock).toHaveBeenCalledOnce();
-    expect(window.location.pathname).toBe('/');
+    expect(window.location.pathname).toBe('/sales');
   });
 
   it('shows login when the stock session cannot be restored', async () => {
@@ -138,5 +160,22 @@ describe('Stock App session and loading', () => {
     render(<App />);
 
     expect(await screen.findByText('stock-login')).toBeTruthy();
+  });
+
+  it('consumes a cart-open request so returning to sales cannot reopen a stale cart', async () => {
+    render(<App />);
+    await screen.findByTestId('stock-page');
+
+    fireEvent.click(screen.getByRole('button', { name: 'open-stock-cart' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('cart-request-id').textContent).toBe('1'),
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'cart-request-handled' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('cart-request-id').textContent).toBe('0'),
+    );
   });
 });

@@ -8,7 +8,7 @@ describe('StockMobileNavigation', () => {
     vi.unstubAllGlobals();
   });
 
-  it('uses the same five-action mobile navigation pattern as attendance', () => {
+  it('shows the four stock actions and logout control on mobile', () => {
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -17,9 +17,11 @@ describe('StockMobileNavigation', () => {
     const onLogout = vi.fn();
     render(
       <StockMobileNavigation
-        page="overview"
+        page="sales"
         onPage={onPage}
         onLogout={onLogout}
+        cartItemCount={0}
+        onOpenCart={vi.fn()}
       />,
     );
 
@@ -28,7 +30,25 @@ describe('StockMobileNavigation', () => {
 
     expect(onPage).toHaveBeenCalledWith('sales');
     expect(onLogout).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'ภาพรวม' })).toBeNull();
     expect(screen.getByRole('button', { name: 'ตัดสต๊อก' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ประวัติ' })).toBeTruthy();
+  });
+
+  it('uses the centre navigation slot to open the stock cart', () => {
+    const openCart = vi.fn();
+    render(
+      <StockMobileNavigation
+        page="sales"
+        onPage={vi.fn()}
+        onLogout={vi.fn()}
+        cartItemCount={2}
+        onOpenCart={openCart}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'เปิดตะกร้าตัดสต๊อก' }));
+
+    expect(openCart).toHaveBeenCalledOnce();
   });
 });

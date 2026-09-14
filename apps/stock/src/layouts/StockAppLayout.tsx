@@ -12,6 +12,8 @@ type StockAppLayoutProps = {
   page: StockPage;
   onPage: (page: StockPage) => void;
   onLogout: () => void;
+  cartItemCount: number;
+  onOpenCart: () => void;
   name: string;
   branchName: string;
   title: string;
@@ -22,6 +24,8 @@ export function StockAppLayout({
   page,
   onPage,
   onLogout,
+  cartItemCount,
+  onOpenCart,
   name,
   branchName,
   title,
@@ -94,7 +98,13 @@ export function StockAppLayout({
           {children}
         </Box>
       </Box>
-      <StockMobileNavigation page={page} onPage={onPage} onLogout={onLogout} />
+      <StockMobileNavigation
+        page={page}
+        onPage={onPage}
+        onLogout={onLogout}
+        cartItemCount={cartItemCount}
+        onOpenCart={onOpenCart}
+      />
     </Box>
   );
 }

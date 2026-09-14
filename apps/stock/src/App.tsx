@@ -24,7 +24,6 @@ import type { StockMovement } from './api/stock';
 import type { StockPage } from './types/stock';
 
 const paths: Record<StockPage, string> = {
-  overview: '/',
   sales: '/sales',
   count: '/count',
   history: '/history',
@@ -36,7 +35,7 @@ const pageFromPath = (pathname: string): StockPage =>
       ? 'count'
       : pathname.replace(/\/+$/, '') === '/history'
         ? 'history'
-        : 'overview';
+        : 'sales';
 
 function isInvalidStockSession(error: unknown) {
   return (
@@ -57,6 +56,8 @@ export default function App() {
   const [postalStock, setPostalStock] = useState<InventoryItem[]>([]);
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [cartItemCount, setCartItemCount] = useState(0);
+  const [cartRequestId, setCartRequestId] = useState(0);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [notice, setNotice] = useState('');
@@ -191,11 +192,17 @@ export default function App() {
     setPostalStock([]);
     setMenus([]);
     setMovements([]);
+    setCartItemCount(0);
     setInitialDataLoading(false);
     setConnectionError(false);
-    window.history.replaceState(null, '', paths.overview);
-    setPage('overview');
+    window.history.replaceState(null, '', paths.sales);
+    setPage('sales');
   };
+  const openCart = () => {
+    if (page !== 'sales') navigate('sales');
+    setCartRequestId((current) => current + 1);
+  };
+  const clearCartRequest = () => setCartRequestId(0);
   const handleAdjust = async (
     item: InventoryItem,
     quantity: number,
@@ -242,6 +249,8 @@ export default function App() {
           title={title}
           onPage={navigate}
           onLogout={signOut}
+          cartItemCount={cartItemCount}
+          onOpenCart={openCart}
           name={session.user.name}
           branchName={session.user.branchName}
         >
@@ -255,6 +264,9 @@ export default function App() {
             isInitialLoading={initialDataLoading}
             onAdjust={handleAdjust}
             onConsume={handleConsume}
+            cartRequestId={cartRequestId}
+            onCartRequestHandled={clearCartRequest}
+            onCartItemCountChange={setCartItemCount}
           />
           {notice ? (
             <Snackbar

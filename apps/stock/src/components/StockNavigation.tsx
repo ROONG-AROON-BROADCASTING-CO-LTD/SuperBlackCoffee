@@ -10,8 +10,8 @@ import {
 import { Box, Button } from '@mui/material';
 import {
   BoxesIcon,
+  CartIcon,
   HistoryIcon,
-  LayoutGridIcon,
   LogoutIcon,
   ReceiptTextIcon,
 } from '@stackbuild/ui';
@@ -24,13 +24,6 @@ export const stockNavigation: Array<{
   icon: ReactNode;
   group: string;
 }> = [
-  {
-    page: 'overview',
-    label: 'ภาพรวมสต๊อก',
-    mobileLabel: 'ภาพรวม',
-    icon: <LayoutGridIcon />,
-    group: 'ภาพรวม',
-  },
   {
     page: 'sales',
     label: 'บันทึกเมนูที่ขาย',
@@ -58,12 +51,16 @@ type StockNavigationProps = {
   page: StockPage;
   onPage: (page: StockPage) => void;
   onLogout: () => void;
+  cartItemCount: number;
+  onOpenCart: () => void;
 };
 
 export function StockMobileNavigation({
   page,
   onPage,
   onLogout,
+  cartItemCount,
+  onOpenCart,
 }: StockNavigationProps) {
   const [animatedPage, setAnimatedPage] = useState<StockPage | null>(null);
   const [hasTextInputFocus, setHasTextInputFocus] = useState(false);
@@ -143,11 +140,13 @@ export function StockMobileNavigation({
         boxShadow: '0 -8px 22px rgba(23,20,17,.12)',
       }}
     >
-      {stockNavigation.map(({ page: itemPage, mobileLabel, icon }) => (
+      {stockNavigation.map(({ page: itemPage, mobileLabel, icon }, index) => (
         <Button
           key={itemPage}
           onClick={() => handlePageClick(itemPage)}
           sx={{
+            gridColumn: index < 2 ? index + 1 : index + 2,
+            gridRow: 1,
             minWidth: 0,
             minHeight: '54px !important',
             p: '4px 6px !important',
@@ -189,9 +188,66 @@ export function StockMobileNavigation({
         </Button>
       ))}
       <Button
+        aria-label="เปิดตะกร้าตัดสต๊อก"
+        onClick={onOpenCart}
+        sx={{
+          gridColumn: 3,
+          gridRow: 1,
+          minWidth: 0,
+          minHeight: '54px !important',
+          p: '4px 6px !important',
+          mx: 0.25,
+          borderRadius: '12px',
+          color: '#fffaf6',
+          display: 'grid',
+          gridTemplateRows: '28px 1fr',
+          gap: 0.5,
+          fontSize: 11,
+          fontWeight: 600,
+          lineHeight: 1.1,
+          letterSpacing: 0,
+          transition: 'background-color 160ms ease',
+          bgcolor: '#5f4030',
+          '& svg': { fontSize: 22, color: '#fffaf6' },
+          '&:hover': { bgcolor: '#3c2d24' },
+        }}
+      >
+        <Box
+          sx={{ display: 'grid', placeItems: 'center', position: 'relative' }}
+        >
+          <CartIcon size={22} />
+          {cartItemCount > 0 && (
+            <Box
+              component="span"
+              sx={{
+                position: 'absolute',
+                top: -3,
+                right: 4,
+                minWidth: 18,
+                height: 18,
+                px: 0.5,
+                borderRadius: '999px',
+                bgcolor: '#d92d2d',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: '18px',
+              }}
+            >
+              {cartItemCount}
+            </Box>
+          )}
+        </Box>
+        <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
+          ตะกร้า
+        </Box>
+      </Button>
+      <Button
         aria-label="ออกจากระบบ"
         onClick={onLogout}
         sx={{
+          gridColumn: 5,
+          gridRow: 1,
           minWidth: 0,
           minHeight: '54px !important',
           p: '4px 6px !important',

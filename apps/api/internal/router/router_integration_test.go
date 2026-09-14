@@ -291,6 +291,35 @@ func TestAttendanceSessionSelectsStaffCookieWhenPlatformCookieAlsoExists(t *test
 	}
 }
 
+func TestStockSessionUsesOnlyTheDedicatedStockCookie(t *testing.T) {
+	r := New(nil, nil)
+
+	t.Run("stock role header does not accept the attendance cookie", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stock/session", nil)
+		req.Header.Set("X-SBC-Session-Role", "stock")
+		req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: testToken(t, "cashier")})
+		res := httptest.NewRecorder()
+		r.ServeHTTP(res, req)
+		if res.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+		}
+	})
+
+	t.Run("stock role header reaches the stock session when both staff cookies exist", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stock/session", nil)
+		req.Header.Set("X-SBC-Session-Role", "stock")
+		req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: testToken(t, "cashier")})
+		req.AddCookie(&http.Cookie{Name: "sbc_stock_session", Value: testToken(t, "cashier")})
+		res := httptest.NewRecorder()
+		r.ServeHTTP(res, req)
+		// The handler reaches its database dependency; a 503 proves middleware
+		// selected the dedicated stock cookie rather than the attendance cookie.
+		if res.Code != http.StatusServiceUnavailable {
+			t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+		}
+	})
+}
+
 func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {

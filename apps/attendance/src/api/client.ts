@@ -23,7 +23,15 @@ async function request<T>(path: string, options: RequestInit = {}) {
       credentials: 'include',
       headers,
     });
-    const payload = (await response.json()) as ApiEnvelope<T>;
+    let payload: ApiEnvelope<T>;
+    try {
+      payload = (await response.json()) as ApiEnvelope<T>;
+    } catch {
+      throw new ApiRequestError(
+        'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง',
+        response.status,
+      );
+    }
     if (!response.ok || !payload.success) {
       throw new ApiRequestError(
         payload.message ?? 'ไม่สามารถเชื่อมต่อระบบได้',

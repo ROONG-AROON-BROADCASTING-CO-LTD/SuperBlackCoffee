@@ -151,6 +151,24 @@ func TestNormalizedMenuRecipesKeepsChannelRecipesSeparateAndSupportsLegacyClient
 	}
 }
 
+func TestNormalizeInventoryUnitMakesRecipeUnitsComparable(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+	}{
+		{name: "trims whitespace", input: "  กรัม  ", want: "กรัม"},
+		{name: "normalizes English case", input: " ML ", want: "ml"},
+		{name: "removes trailing period", input: "ml.", want: "ml"},
+		{name: "keeps empty input empty", input: " \t ", want: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := normalizeInventoryUnit(test.input); got != test.want {
+				t.Fatalf("normalizeInventoryUnit(%q) = %q, want %q", test.input, got, test.want)
+			}
+		})
+	}
+}
+
 func TestConsumeStockFromMenusRejectsInvalidInputBeforeAccessingBranchData(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, test := range []struct {

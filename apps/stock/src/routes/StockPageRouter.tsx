@@ -3,11 +3,6 @@ import type { InventoryItem, MenuItem, StockMovement } from '../api/stock';
 import { StockPageSkeleton } from '../components/skeletons/StockPageSkeleton';
 import type { StockPage } from '../types/stock';
 
-const StockOverviewPage = lazy(() =>
-  import('../pages/StockOverviewPage').then(({ StockOverviewPage: Page }) => ({
-    default: Page,
-  })),
-);
 const MenuConsumptionPage = lazy(() =>
   import('../pages/MenuConsumptionPage').then(
     ({ MenuConsumptionPage: Page }) => ({ default: Page }),
@@ -42,6 +37,9 @@ type StockPageRouterProps = {
     note: string,
     channel: 'storefront' | 'lineman',
   ) => Promise<void>;
+  cartRequestId: number;
+  onCartRequestHandled: () => void;
+  onCartItemCountChange: (count: number) => void;
 };
 
 export function StockPageRouter({
@@ -54,6 +52,9 @@ export function StockPageRouter({
   isInitialLoading,
   onAdjust,
   onConsume,
+  cartRequestId,
+  onCartRequestHandled,
+  onCartItemCountChange,
 }: StockPageRouterProps) {
   if (isInitialLoading) return <StockPageSkeleton page={page} />;
 
@@ -65,6 +66,9 @@ export function StockPageRouter({
           menus={menus}
           loading={false}
           onConsume={onConsume}
+          cartRequestId={cartRequestId}
+          onCartRequestHandled={onCartRequestHandled}
+          onCartItemCountChange={onCartItemCountChange}
         />
       );
       break;
@@ -84,10 +88,13 @@ export function StockPageRouter({
       break;
     default:
       content = (
-        <StockOverviewPage
-          ingredients={ingredients}
-          drinkStock={drinkStock}
-          postalStock={postalStock}
+        <MenuConsumptionPage
+          menus={menus}
+          loading={false}
+          onConsume={onConsume}
+          cartRequestId={cartRequestId}
+          onCartRequestHandled={onCartRequestHandled}
+          onCartItemCountChange={onCartItemCountChange}
         />
       );
   }
