@@ -14,7 +14,6 @@ import { DashboardMain } from '@stackbuild/ui';
 import { branchCodeByBranch, branches } from '@stackbuild/management';
 import {
   createAsset,
-  createMaintenanceTicket,
   createServiceInvoice,
   downloadInspectionPDF,
   downloadMaintenancePDF,
@@ -172,45 +171,6 @@ function BranchField() {
   );
 }
 
-function MaintenanceFields() {
-  return (
-    <>
-      <BranchField />
-      <TextField
-        name="title"
-        label="อาการ/งานที่ต้องการ"
-        required
-        sx={inputSx}
-      />
-      <TextField
-        select
-        name="priority"
-        label="ความเร่งด่วน"
-        defaultValue="normal"
-        sx={inputSx}
-      >
-        <MenuItem value="low">ต่ำ</MenuItem>
-        <MenuItem value="normal">ปกติ</MenuItem>
-        <MenuItem value="urgent">เร่งด่วน</MenuItem>
-      </TextField>
-      <TextField name="technicianName" label="ช่าง/ผู้รับผิดชอบ" sx={inputSx} />
-      <TextField
-        name="dueAt"
-        type="date"
-        label="กำหนดเสร็จ"
-        slotProps={{ inputLabel: { shrink: true } }}
-        sx={inputSx}
-      />
-      <TextField
-        name="description"
-        label="รายละเอียด"
-        multiline
-        minRows={2}
-        sx={inputSx}
-      />
-    </>
-  );
-}
 function AssetFields() {
   return (
     <>
@@ -399,28 +359,12 @@ export function AdminOperationsPage() {
     [tab],
   );
   const formTitle =
-    tab === 'maintenance'
-      ? 'แจ้งงานซ่อมบำรุง'
-      : tab === 'assets'
-        ? 'เพิ่มทรัพย์สินสาขา'
-        : 'สร้างใบเรียกเก็บเงิน';
+    tab === 'assets' ? 'เพิ่มทรัพย์สินสาขา' : 'สร้างใบเรียกเก็บเงิน';
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const element = event.currentTarget;
     const form = new FormData(element);
     try {
-      if (tab === 'maintenance')
-        await createMaintenanceTicket({
-          branchCode: String(form.get('branchCode')),
-          title: String(form.get('title')),
-          description: String(form.get('description')),
-          priority: String(form.get('priority')),
-          technicianName: String(form.get('technicianName')),
-          dueAt: String(form.get('dueAt')),
-          laborCost: 0,
-          partsCost: 0,
-          travelCost: 0,
-        });
       if (tab === 'assets')
         await createAsset({
           branchCode: String(form.get('branchCode')),
@@ -615,8 +559,8 @@ export function AdminOperationsPage() {
         </Stack>
         {tab === 'maintenance' ? (
           <Typography sx={sectionDescriptionSx}>
-            รายการนี้รวมแจ้งซ่อมจากทุกแฟรนไชส์และงานที่แอดมินสร้างเอง กด “ใบงาน
-            PDF” เพื่อส่งรายละเอียดให้ช่างดำเนินการ
+            รายการแจ้งซ่อมจากทุกแฟรนไชส์ กด “ใบงาน PDF”
+            เพื่อส่งรายละเอียดให้ช่างดำเนินการ
           </Typography>
         ) : null}
         {notice ? (
@@ -763,7 +707,7 @@ export function AdminOperationsPage() {
             ) : null}
           </>
         ) : null}
-        {!isInspectionTab ? (
+        {!isInspectionTab && tab !== 'maintenance' ? (
           <Card
             component="form"
             variant="outlined"
@@ -774,9 +718,7 @@ export function AdminOperationsPage() {
               {formTitle}
             </Typography>
             <Box sx={formGridSx}>
-              {tab === 'maintenance' ? (
-                <MaintenanceFields />
-              ) : tab === 'assets' ? (
+              {tab === 'assets' ? (
                 <AssetFields />
               ) : (
                 <InvoiceFields

@@ -9,7 +9,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminOperationsPage } from '../AdminOperationsPage';
 import {
-  createMaintenanceTicket,
   downloadMaintenancePDF,
   listAssets,
   listInspections,
@@ -25,7 +24,6 @@ vi.mock('../../../api/operations', () => ({
   listInspections: vi.fn(),
   listMaintenanceTickets: vi.fn(),
   listServiceInvoices: vi.fn(),
-  createMaintenanceTicket: vi.fn(),
   downloadMaintenancePDF: vi.fn(),
   createAsset: vi.fn(),
   createServiceInvoice: vi.fn(),
@@ -51,32 +49,20 @@ describe('AdminOperationsPage', () => {
     cleanup();
     vi.clearAllMocks();
   });
-  it('creates a maintenance ticket for the selected branch', async () => {
+  it('shows repair reports without a create form', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
     vi.mocked(listInspections).mockResolvedValue([]);
     vi.mocked(listAssets).mockResolvedValue([]);
     vi.mocked(listServiceInvoices).mockResolvedValue([]);
-    vi.mocked(createMaintenanceTicket).mockResolvedValue({ id: 4 });
     renderPage();
-    await screen.findByText('แจ้งงานซ่อมบำรุง');
-    fireEvent.mouseDown(screen.getAllByRole('combobox')[0]);
-    fireEvent.click(await screen.findByText('อยุธยา'));
-    fireEvent.change(document.querySelector('input[name="title"]')!, {
-      target: { value: 'เครื่องบดกาแฟไม่ทำงาน' },
-    });
-    fireEvent.change(document.querySelector('textarea[name="description"]')!, {
-      target: { value: 'มีเสียงดัง' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรายการ' }));
-    await waitFor(() =>
-      expect(createMaintenanceTicket).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: 'เครื่องบดกาแฟไม่ทำงาน',
-          description: 'มีเสียงดัง',
-        }),
+
+    expect(
+      await screen.findByText(
+        'รายการแจ้งซ่อมจากทุกแฟรนไชส์ กด “ใบงาน PDF” เพื่อส่งรายละเอียดให้ช่างดำเนินการ',
       ),
-    );
-    expect(screen.getByText('แจ้งงานซ่อมบำรุงแล้ว')).toBeTruthy();
+    ).toBeTruthy();
+    expect(screen.queryByText('แจ้งงานซ่อมบำรุง')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'บันทึกรายการ' })).toBeNull();
   });
   it('shows only scheduled technician reports in random inspection', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
@@ -150,25 +136,6 @@ describe('AdminOperationsPage', () => {
       ),
     );
   });
-  it('shows the API error when a maintenance ticket cannot be created', async () => {
-    vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
-    vi.mocked(listInspections).mockResolvedValue([]);
-    vi.mocked(listAssets).mockResolvedValue([]);
-    vi.mocked(listServiceInvoices).mockResolvedValue([]);
-    vi.mocked(createMaintenanceTicket).mockRejectedValue(
-      new Error('ไม่สามารถบันทึกใบงานได้'),
-    );
-    renderPage();
-    await screen.findByText('แจ้งงานซ่อมบำรุง');
-    fireEvent.mouseDown(screen.getAllByRole('combobox')[0]);
-    fireEvent.click(await screen.findByText('อยุธยา'));
-    fireEvent.change(document.querySelector('input[name="title"]')!, {
-      target: { value: 'เครื่องบดกาแฟไม่ทำงาน' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรายการ' }));
-    expect(await screen.findByText('ไม่สามารถบันทึกใบงานได้')).toBeTruthy();
-  });
-
   it('renders understandable Thai table headings and values', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([
       {
