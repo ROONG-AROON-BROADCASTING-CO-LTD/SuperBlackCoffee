@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1161,6 +1162,10 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
 	}
 	db := openRouterTestDB(t, url)
+	fixtureID := strconv.FormatInt(time.Now().UnixNano(), 36)
+	franchiseEmail := "franchise-" + fixtureID + "@example.com"
+	franchiseUsername := "franchise_" + fixtureID
+	franchiseBranchCode := "FR-" + fixtureID
 	branchID := seedBranch(t, db, "FRANCHISE-ADMIN")
 	templateBranchID := seedBranch(t, db, "SBC-AYA-001")
 	if _, err := db.Exec(`INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost) VALUES
@@ -1179,13 +1184,13 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if res := requestJSONFromIP(r, http.MethodPost, "/api/v1/website/leads", `{"name":"ผู้สนใจทดสอบ","phone":"0812345678"}`, "", "198.51.100.50"); res.Code != http.StatusTooManyRequests {
 		t.Fatalf("lead limit = %d: %s", res.Code, res.Body.String())
 	}
-	franchise := requestJSON(r, http.MethodPost, "/api/v1/franchisees", `{"name":"แฟรนไชส์ทดสอบ","email":"franchise@example.com","plan":"M","branchName":"สาขาแฟรนไชส์","branchCode":"FR-TEST","branchSize":"S","username":"franchise_test","password":"Password123!"}`, testToken(t, "admin"))
+	franchise := requestJSON(r, http.MethodPost, "/api/v1/franchisees", fmt.Sprintf(`{"name":"แฟรนไชส์ทดสอบ","email":%q,"plan":"M","branchName":"สาขาแฟรนไชส์","branchCode":%q,"branchSize":"S","username":%q,"password":"Password123!"}`, franchiseEmail, franchiseBranchCode, franchiseUsername), testToken(t, "admin"))
 	if franchise.Code != http.StatusCreated {
 		t.Fatalf("create franchise = %d: %s", franchise.Code, franchise.Body.String())
 	}
 	var branchStatus, branchSize string
 	var franchiseBranchID int64
-	if err := db.QueryRow(`SELECT id,status,size FROM branches WHERE code='FR-TEST'`).Scan(&franchiseBranchID, &branchStatus, &branchSize); err != nil || branchStatus != "inactive" || branchSize != "S" {
+	if err := db.QueryRow(`SELECT id,status,size FROM branches WHERE code=$1`, franchiseBranchCode).Scan(&franchiseBranchID, &branchStatus, &branchSize); err != nil || branchStatus != "inactive" || branchSize != "S" {
 		t.Fatalf("franchise branch status/size = %q/%q, err = %v", branchStatus, branchSize, err)
 	}
 	var drinkStockCategory, postalStockCategory string
@@ -1195,14 +1200,14 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name='กล่องพัสดุ'`, franchiseBranchID).Scan(&postalStockCategory); err != nil || postalStockCategory != "postal_equipment" {
 		t.Fatalf("franchise postal stock category = %q, err = %v", postalStockCategory, err)
 	}
-	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", `{"username":"franchise_test","password":"Password123!"}`, ""); login.Code != http.StatusForbidden {
+	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", fmt.Sprintf(`{"username":%q,"password":"Password123!"}`, franchiseUsername), ""); login.Code != http.StatusForbidden {
 		t.Fatalf("inactive franchise login = %d: %s", login.Code, login.Body.String())
 	}
 	franchiseID := responseID(t, franchise)
 	if activation := requestJSON(r, http.MethodPatch, "/api/v1/franchisees/"+strconv.FormatInt(franchiseID, 10)+"/status", `{"status":"active"}`, testToken(t, "admin")); activation.Code != http.StatusOK {
 		t.Fatalf("activate franchise = %d: %s", activation.Code, activation.Body.String())
 	}
-	if err := db.QueryRow(`SELECT status FROM branches WHERE code='FR-TEST'`).Scan(&branchStatus); err != nil || branchStatus != "active" {
+	if err := db.QueryRow(`SELECT status FROM branches WHERE code=$1`, franchiseBranchCode).Scan(&branchStatus); err != nil || branchStatus != "active" {
 		t.Fatalf("activated franchise branch status = %q, err = %v", branchStatus, err)
 	}
 	franchiseToken := testTokenWithFranchise(t, "franchise_owner", franchiseBranchID, franchiseID)
@@ -1220,14 +1225,14 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if err := db.QueryRow(`SELECT size FROM branches WHERE id=$1`, franchiseBranchID).Scan(&branchSize); err != nil || branchSize != "M" {
 		t.Fatalf("resized franchise branch = %q, err = %v", branchSize, err)
 	}
-	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", `{"username":"franchise_test","password":"Password123!"}`, ""); login.Code != http.StatusOK {
+	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", fmt.Sprintf(`{"username":%q,"password":"Password123!"}`, franchiseUsername), ""); login.Code != http.StatusOK {
 		t.Fatalf("active franchise login = %d: %s", login.Code, login.Body.String())
 	}
 	companyBranches := requestJSON(r, http.MethodGet, "/api/v1/branches/sales?period=today", "", testToken(t, "admin"))
-	if companyBranches.Code != http.StatusOK || !strings.Contains(companyBranches.Body.String(), "FRANCHISE-ADMIN") || strings.Contains(companyBranches.Body.String(), "FR-TEST") {
+	if companyBranches.Code != http.StatusOK || !strings.Contains(companyBranches.Body.String(), "FRANCHISE-ADMIN") || strings.Contains(companyBranches.Body.String(), franchiseBranchCode) {
 		t.Fatalf("company branch list must exclude franchise branches: %d %s", companyBranches.Code, companyBranches.Body.String())
 	}
-	if res := requestJSON(r, http.MethodPost, "/api/v1/franchisees", `{"name":"แฟรนไชส์ซ้ำ","email":"franchise@example.com","plan":"M","branchName":"สาขาซ้ำ","branchCode":"FR-DUPLICATE"}`, testToken(t, "admin")); res.Code != http.StatusConflict {
+	if res := requestJSON(r, http.MethodPost, "/api/v1/franchisees", fmt.Sprintf(`{"name":"แฟรนไชส์ซ้ำ","email":%q,"plan":"M","branchName":"สาขาซ้ำ","branchCode":"FR-DUPLICATE-"}`, franchiseEmail), testToken(t, "admin")); res.Code != http.StatusConflict {
 		t.Fatalf("duplicate franchise = %d: %s", res.Code, res.Body.String())
 	}
 }
