@@ -608,45 +608,26 @@ export function AdminOperationsPage() {
                   slotProps={{ inputLabel: { shrink: true } }}
                   sx={inputSx}
                 />
-              </Box>
-              <Box component="details" sx={{ mt: 1.5 }}>
-                <Box
-                  component="summary"
-                  sx={{
-                    cursor: 'pointer',
-                    color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 12.5,
-                  }}
+                <TextField
+                  select
+                  name="branchSize"
+                  label="ขนาดสาขา"
+                  defaultValue="all"
+                  sx={inputSx}
                 >
-                  ตัวเลือกการสุ่ม
-                </Box>
-                <Stack
-                  direction={{ xs: 'column', md: 'row' }}
-                  spacing={1.5}
-                  sx={{ mt: 1.5 }}
-                >
-                  <TextField
-                    select
-                    name="branchSize"
-                    label="ขนาดสาขา"
-                    defaultValue="all"
-                    sx={inputSx}
-                  >
-                    <MenuItem value="all">ทุกขนาด</MenuItem>
-                    <MenuItem value="S">S</MenuItem>
-                    <MenuItem value="M">M</MenuItem>
-                    <MenuItem value="L">L</MenuItem>
-                  </TextField>
-                  <TextField
-                    name="excludeDays"
-                    type="number"
-                    label="ไม่สุ่มซ้ำย้อนหลัง (วัน)"
-                    defaultValue="30"
-                    slotProps={{ htmlInput: { min: 0, max: 365 } }}
-                    sx={inputSx}
-                  />
-                </Stack>
+                  <MenuItem value="all">ทุกขนาด</MenuItem>
+                  <MenuItem value="S">S</MenuItem>
+                  <MenuItem value="M">M</MenuItem>
+                  <MenuItem value="L">L</MenuItem>
+                </TextField>
+                <TextField
+                  name="excludeDays"
+                  type="number"
+                  label="ไม่สุ่มซ้ำย้อนหลัง (วัน)"
+                  defaultValue="30"
+                  slotProps={{ htmlInput: { min: 0, max: 365 } }}
+                  sx={inputSx}
+                />
               </Box>
               <Button type="submit" variant="contained" sx={formActionSx}>
                 {isIngredientInspectionTab
