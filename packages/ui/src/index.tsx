@@ -70,6 +70,10 @@ export {
   type CalendarDaysIconHandle,
 } from './components/icons/CalendarDaysIcon';
 export { BoxesIcon } from './components/icons/BoxesIcon';
+export {
+  ChevronDownIcon,
+  type ChevronDownIconHandle,
+} from './components/icons/ChevronDownIcon';
 export { FingerprintIcon } from './components/icons/FingerprintIcon';
 export {
   DeleteIcon,

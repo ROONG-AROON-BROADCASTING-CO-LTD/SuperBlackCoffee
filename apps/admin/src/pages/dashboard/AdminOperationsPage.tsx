@@ -13,6 +13,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDaysIcon,
+  ChevronDownIcon,
   DashboardMain,
   type CalendarDaysIconHandle,
 } from '@stackbuild/ui';
@@ -663,6 +664,7 @@ export function AdminOperationsPage() {
                   name="branchSize"
                   label="ขนาดสาขา"
                   defaultValue="all"
+                  slotProps={{ select: { IconComponent: ChevronDownIcon } }}
                   sx={inputSx}
                 >
                   <MenuItem value="all">ทุกขนาด</MenuItem>
