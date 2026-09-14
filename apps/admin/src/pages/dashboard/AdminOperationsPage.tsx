@@ -214,6 +214,7 @@ function AssetFields() {
         name="warrantyUntil"
         type="date"
         label="หมดประกัน"
+        fullWidth
         slotProps={{ inputLabel: { shrink: true } }}
         sx={inputSx}
       />
@@ -221,6 +222,7 @@ function AssetFields() {
         name="maintenanceDue"
         type="date"
         label="กำหนดบำรุงรักษา"
+        fullWidth
         slotProps={{ inputLabel: { shrink: true } }}
         sx={inputSx}
       />
@@ -295,6 +297,7 @@ function InvoiceFields({
         name="dueAt"
         type="date"
         label="วันครบกำหนด"
+        fullWidth
         slotProps={{ inputLabel: { shrink: true } }}
         sx={inputSx}
       />
@@ -614,6 +617,7 @@ export function AdminOperationsPage() {
                   name="dueAt"
                   type="date"
                   label="กำหนดตรวจ"
+                  fullWidth
                   slotProps={{ inputLabel: { shrink: true } }}
                   sx={inputSx}
                 />
