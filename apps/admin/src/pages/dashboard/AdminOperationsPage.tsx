@@ -114,6 +114,20 @@ const formActionSx = {
   fontSize: 13,
   fontWeight: 600,
 };
+const tableActionSx = {
+  minHeight: 32,
+  px: 1.25,
+  border: '1px solid rgba(23, 20, 17, 0.35)',
+  borderRadius: '8px',
+  fontFamily: 'Kanit, sans-serif',
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
+  '&:hover': {
+    borderColor: '#171411',
+    bgcolor: 'rgba(23, 20, 17, 0.06)',
+  },
+};
 const branchOptions = branches.slice(1).map((label) => ({
   label,
   code: branchCodeByBranch[
@@ -832,6 +846,8 @@ export function AdminOperationsPage() {
                       {isInspectionTab && row.status === 'scheduled' ? (
                         <Button
                           size="small"
+                          variant="outlined"
+                          sx={tableActionSx}
                           onClick={() =>
                             void downloadPDF(
                               row.id,
@@ -849,6 +865,8 @@ export function AdminOperationsPage() {
                           {tab === 'maintenance' ? (
                             <Button
                               size="small"
+                              variant="outlined"
+                              sx={tableActionSx}
                               onClick={() =>
                                 void downloadMaintenanceWorkOrder(row)
                               }
@@ -861,6 +879,8 @@ export function AdminOperationsPage() {
                             <>
                               <Button
                                 size="small"
+                                variant="outlined"
+                                sx={tableActionSx}
                                 onClick={() => void updateRow(row)}
                               >
                                 {tab === 'maintenance'
@@ -877,12 +897,16 @@ export function AdminOperationsPage() {
                                 <>
                                   <Button
                                     size="small"
+                                    variant="outlined"
+                                    sx={tableActionSx}
                                     onClick={() => setAssetToTransfer(row)}
                                   >
                                     โอนสาขา
                                   </Button>
                                   <Button
                                     size="small"
+                                    variant="outlined"
+                                    sx={tableActionSx}
                                     onClick={() => void loadAssetHistory(row)}
                                   >
                                     ประวัติ
