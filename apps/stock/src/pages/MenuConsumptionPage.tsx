@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { coffeeIngredientsImage } from '@stackbuild/ui';
 import type { MenuItem } from '../api/stock';
+import { matchReceiptMenus } from '../utils/receiptOcr';
 
 type MenuConsumptionPageProps = {
   menus: MenuItem[];
@@ -32,6 +33,10 @@ export function MenuConsumptionPage({
   const [cart, setCart] = useState<Record<number, number>>({});
   const [note, setNote] = useState('สรุปยอดสิ้นกะ');
   const [error, setError] = useState('');
+  const [receiptError, setReceiptError] = useState('');
+  const [receiptFileName, setReceiptFileName] = useState('');
+  const [receiptProgress, setReceiptProgress] = useState('');
+  const [readingReceipt, setReadingReceipt] = useState(false);
   const [saving, setSaving] = useState(false);
   const [channel, setChannel] = useState<'storefront' | 'lineman'>(
     'storefront',
@@ -49,6 +54,53 @@ export function MenuConsumptionPage({
       ...current,
       [id]: Math.max(0, (current[id] ?? 0) + amount),
     }));
+  const readReceipt = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setReceiptError('รองรับรูปใบเสร็จ JPG, PNG หรือ WEBP เท่านั้น');
+      return;
+    }
+
+    setReadingReceipt(true);
+    setReceiptError('');
+    setReceiptProgress('กำลังเตรียมอ่านข้อความจากใบเสร็จ…');
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('tha+eng', 1, {
+        logger: (message) => {
+          if (message.status === 'recognizing text') {
+            setReceiptProgress(
+              `กำลังอ่านใบเสร็จ ${Math.round(message.progress * 100)}%`,
+            );
+          }
+        },
+      });
+      const result = await worker.recognize(file);
+      await worker.terminate();
+
+      const matches = matchReceiptMenus(result.data.text, menus);
+      if (!matches.length) {
+        setReceiptError(
+          'ไม่พบชื่อเมนูที่ตรงกับในระบบ กรุณาใช้รูปที่คมชัดหรือเลือกจำนวนเอง',
+        );
+        return;
+      }
+
+      setCart(
+        Object.fromEntries(
+          matches.map((match) => [match.menuItemId, match.quantity]),
+        ),
+      );
+      setNote(`ตัดสต๊อกจากใบเสร็จ ${file.name}`);
+      setReceiptFileName(file.name);
+      setReceiptProgress(
+        `อ่านพบ ${matches.length} เมนู โปรดตรวจจำนวนก่อนยืนยัน`,
+      );
+    } catch {
+      setReceiptError('ไม่สามารถอ่านใบเสร็จได้ กรุณาลองใช้รูปที่คมชัดขึ้น');
+    } finally {
+      setReadingReceipt(false);
+    }
+  };
   const save = async () => {
     const items = selected.map((menu) => ({
       menuItemId: menu.id,
@@ -100,6 +152,66 @@ export function MenuConsumptionPage({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
+      </Paper>
+      <Paper
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: '15px',
+          border: '1px dashed',
+          borderColor: '#d7c5b8',
+          bgcolor: '#fffcfa',
+        }}
+      >
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          sx={{
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            justifyContent: 'space-between',
+            gap: 1.5,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontWeight: 700 }}>
+              อ่านใบเสร็จเพื่อตัดสต๊อก
+            </Typography>
+            <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+              อัปโหลดรูปใบเสร็จ ระบบจะอ่านชื่อเมนูและจำนวน แล้วให้ตรวจสอบก่อนตัด
+            </Typography>
+          </Box>
+          <Button
+            component="label"
+            variant="outlined"
+            disabled={readingReceipt}
+            sx={{ flexShrink: 0, borderColor: '#5f4030', color: '#5f4030' }}
+          >
+            {readingReceipt ? 'กำลังอ่านใบเสร็จ…' : 'อัปโหลดใบเสร็จ'}
+            <input
+              hidden
+              accept="image/jpeg,image/png,image/webp"
+              type="file"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (file) void readReceipt(file);
+              }}
+            />
+          </Button>
+        </Stack>
+        {receiptFileName && (
+          <Typography sx={{ mt: 1.25, fontSize: 13, color: '#5f4030' }}>
+            ไฟล์ล่าสุด: {receiptFileName}
+          </Typography>
+        )}
+        {receiptProgress && (
+          <Typography color="text.secondary" sx={{ mt: 1.25, fontSize: 13 }}>
+            {receiptProgress}
+          </Typography>
+        )}
+        {receiptError && (
+          <Alert severity="warning" sx={{ mt: 1.5 }}>
+            {receiptError}
+          </Alert>
+        )}
       </Paper>
       {loading ? (
         <Typography color="text.secondary">กำลังโหลดเมนู…</Typography>
