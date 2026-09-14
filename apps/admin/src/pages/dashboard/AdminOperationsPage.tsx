@@ -93,6 +93,15 @@ const formGridSx = {
   gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
   gap: 1.5,
 };
+const inspectionFormGridSx = {
+  display: 'grid',
+  gridTemplateColumns: {
+    xs: '1fr',
+    sm: 'repeat(2, minmax(0, 1fr))',
+    lg: 'repeat(4, minmax(0, 1fr))',
+  },
+  gap: 1.5,
+};
 const sectionTitleSx = {
   color: '#3c2d24',
   fontFamily: 'Kanit, sans-serif',
@@ -590,7 +599,7 @@ export function AdminOperationsPage() {
                   ? 'กรอกชื่อผู้ตรวจ แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจวัตถุดิบแยกต่างหาก'
                   : 'กรอกชื่อช่าง แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจพื้นที่ร้าน ระบบ EV และห้องน้ำ'}
               </Typography>
-              <Box sx={formGridSx}>
+              <Box sx={inspectionFormGridSx}>
                 <TextField
                   name="inspectorName"
                   label={
