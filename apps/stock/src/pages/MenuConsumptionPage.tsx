@@ -115,11 +115,11 @@ export function MenuConsumptionPage({
             sx={{
               display: 'grid',
               gridTemplateColumns: {
-                xs: '1fr',
+                xs: 'repeat(2, minmax(0, 1fr))',
                 sm: 'repeat(2, minmax(0, 1fr))',
-                lg: 'repeat(3, minmax(0, 1fr))',
+                lg: 'repeat(2, minmax(0, 1fr))',
               },
-              gap: 2,
+              gap: { xs: 1.25, sm: 2 },
               alignContent: 'start',
             }}
           >
@@ -175,8 +175,8 @@ export function MenuConsumptionPage({
                       color={menu.sellable ? 'success' : 'warning'}
                       sx={{
                         position: 'absolute',
-                        top: 12,
-                        right: 12,
+                        top: { xs: 8, sm: 12 },
+                        right: { xs: 8, sm: 12 },
                         height: 25,
                         borderRadius: '12px',
                         fontSize: 11,
@@ -188,17 +188,21 @@ export function MenuConsumptionPage({
                       display: 'flex',
                       flexDirection: 'column',
                       flex: 1,
-                      p: 2.5,
+                      p: { xs: 1.25, sm: 2.5 },
                     }}
                   >
                     <Typography
-                      sx={{ fontSize: 18, fontWeight: 600, lineHeight: 1.35 }}
+                      sx={{
+                        fontSize: { xs: 14, sm: 18 },
+                        fontWeight: 600,
+                        lineHeight: 1.35,
+                      }}
                     >
                       {menu.name}
                     </Typography>
                     <Typography
                       color="text.secondary"
-                      sx={{ mt: 0.6, fontSize: 13 }}
+                      sx={{ mt: 0.6, fontSize: { xs: 11, sm: 13 } }}
                     >
                       {menu.category || 'เมนู'} ·{' '}
                       {menu.sellable
@@ -207,7 +211,11 @@ export function MenuConsumptionPage({
                     </Typography>
                     {lowestIngredient && (
                       <Typography
-                        sx={{ mt: 1, color: '#5f4030', fontSize: 13 }}
+                        sx={{
+                          mt: 1,
+                          color: '#5f4030',
+                          fontSize: { xs: 11, sm: 13 },
+                        }}
                       >
                         วัตถุดิบ {ingredients.length} รายการ · เหลือน้อยสุด{' '}
                         {lowestIngredient.inventoryQuantity.toLocaleString(
@@ -221,12 +229,20 @@ export function MenuConsumptionPage({
                         mt: 1.5,
                         color: '#5f4030',
                         fontWeight: 700,
-                        fontSize: 14,
+                        fontSize: { xs: 11, sm: 14 },
                       }}
                     >
                       เลือกตัดแล้ว {quantity} แก้ว / จาน
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: { xs: 0.75, sm: 1 },
+                        mt: 'auto',
+                        pt: { xs: 1.25, sm: 2 },
+                      }}
+                    >
                       <Button
                         aria-label={`ลดจำนวน ${menu.name}`}
                         size="small"
@@ -235,10 +251,11 @@ export function MenuConsumptionPage({
                         onClick={() => change(menu.id, -1)}
                         sx={{
                           flex: 1,
-                          minHeight: 36,
+                          minHeight: { xs: 32, sm: 36 },
                           borderRadius: '10px',
                           borderColor: '#d7c5b8',
                           color: '#5f4030',
+                          fontSize: { xs: 11, sm: 14 },
                         }}
                       >
                         ลดจำนวน
@@ -251,11 +268,12 @@ export function MenuConsumptionPage({
                         onClick={() => change(menu.id, 1)}
                         sx={{
                           flex: 1,
-                          minHeight: 36,
+                          minHeight: { xs: 32, sm: 36 },
                           borderRadius: '10px',
                           bgcolor: '#5f4030',
                           boxShadow: 'none',
                           '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+                          fontSize: { xs: 11, sm: 14 },
                         }}
                       >
                         ตัดสต๊อก +1
