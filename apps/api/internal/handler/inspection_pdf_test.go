@@ -11,13 +11,33 @@ import (
 func TestInspectionPDFCreatesThaiChecklistPDF(t *testing.T) {
 	pdf, err := inspectionPDF(inspectionPDFData{
 		ID: 1, BranchCode: "SBC-001", BranchName: "สาขาทดสอบ", InspectorName: "ช่างทดสอบ", Status: "scheduled",
-		Checklist: []string{"ร้านคาเฟ่: ระบบไฟฟ้า", "ตู้ชาร์จรถ EV: หัวชาร์จและสายชาร์จ", "ห้องน้ำ: ระบบน้ำและท่อระบาย"},
+		Checklist: technicianInspectionChecklist,
 	})
 	if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF-")) {
 		t.Fatalf("inspectionPDF() error=%v bytes=%d", err, len(pdf))
 	}
 	if !bytes.Contains(pdf, []byte("/Creator (pdfkit-go)")) {
 		t.Fatal("inspectionPDF() must use the Thai text-shaping renderer")
+	}
+	if outputPath := os.Getenv("SBC_INSPECTION_PDF_PREVIEW"); outputPath != "" {
+		if err := os.WriteFile(outputPath, pdf, 0o600); err != nil {
+			t.Fatalf("write inspection PDF preview: %v", err)
+		}
+	}
+}
+
+func TestIngredientInspectionPDFCreatesSeparateWorkOrder(t *testing.T) {
+	pdf, err := inspectionPDF(inspectionPDFData{
+		ID: 2, BranchCode: "SBC-ING-001", BranchName: "สาขาทดสอบ", InspectorName: "ผู้ตรวจทดสอบ", Status: "scheduled",
+		Checklist: ingredientInspectionChecklist,
+	})
+	if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF-")) {
+		t.Fatalf("ingredient inspectionPDF() error=%v bytes=%d", err, len(pdf))
+	}
+	if outputPath := os.Getenv("SBC_INGREDIENT_INSPECTION_PDF_PREVIEW"); outputPath != "" {
+		if err := os.WriteFile(outputPath, pdf, 0o600); err != nil {
+			t.Fatalf("write ingredient inspection PDF preview: %v", err)
+		}
 	}
 }
 
@@ -110,5 +130,27 @@ func TestGroupInspectionChecklistPlacesLegacyItemsInCafeSection(t *testing.T) {
 	}
 	if len(groups["ตู้ชาร์จรถ EV:"]) != 1 {
 		t.Fatalf("EV item should remain in EV section: %#v", groups["ตู้ชาร์จรถ EV:"])
+	}
+	if got := inspectionTypeFromChecklist(technicianInspectionChecklist); got != "technician" {
+		t.Fatalf("technician checklist type = %q", got)
+	}
+}
+
+func TestIngredientInspectionChecklistIsSeparateAndActionable(t *testing.T) {
+	groups := groupInspectionChecklist(ingredientInspectionChecklist)
+	if len(groups["วัตถุดิบ:"]) < 14 {
+		t.Fatalf("ingredient checklist must contain at least 14 checks, got %d", len(groups["วัตถุดิบ:"]))
+	}
+	items := strings.Join(ingredientInspectionChecklist, "\n")
+	for _, expected := range []string{"FIFO หรือ FEFO", "วัตถุดิบหมดอายุ", "อุณหภูมิตามมาตรฐาน", "สารเคมี"} {
+		if !strings.Contains(items, expected) {
+			t.Fatalf("ingredient checklist must include %q", expected)
+		}
+	}
+	if got := inspectionTypeFromChecklist(ingredientInspectionChecklist); got != "ingredients" {
+		t.Fatalf("ingredient checklist type = %q", got)
+	}
+	if got := inspectionPDFTitle(ingredientInspectionChecklist); got != "ใบงานสุ่มตรวจวัตถุดิบ" {
+		t.Fatalf("ingredient PDF title = %q", got)
 	}
 }

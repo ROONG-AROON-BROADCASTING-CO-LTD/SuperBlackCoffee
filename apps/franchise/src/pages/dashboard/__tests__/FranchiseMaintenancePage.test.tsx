@@ -98,6 +98,22 @@ describe('FranchiseMaintenancePage', () => {
     ).toBeTruthy();
   });
 
+  it('blocks a whitespace-only repair subject before calling the franchise API', async () => {
+    mockedListTickets.mockResolvedValue([]);
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText('เช่น เครื่องชงกาแฟมีน้ำรั่ว'),
+      { target: { value: '   ' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งแจ้งซ่อม' }));
+
+    expect(
+      await screen.findByText('กรุณาระบุหัวข้อปัญหาที่ต้องการแจ้งซ่อม'),
+    ).toBeTruthy();
+    expect(mockedCreateTicket).not.toHaveBeenCalled();
+  });
+
   it('keeps the report form visible and explains when sending a repair ticket fails', async () => {
     mockedListTickets.mockResolvedValue([]);
     mockedCreateTicket.mockRejectedValue(

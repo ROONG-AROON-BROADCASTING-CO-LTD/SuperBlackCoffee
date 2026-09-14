@@ -23,6 +23,7 @@ import {
   listInspections,
   listMaintenanceTickets,
   listServiceInvoices,
+  randomizeIngredientInspection,
   randomizeInspection,
   updateAsset,
   updateMaintenanceStatus,
@@ -49,14 +50,73 @@ const labels: Record<string, string> = {
   repairing: 'กำลังซ่อม',
   retired: 'ปลดระวาง',
 };
+const columnLabels: Record<string, string> = {
+  title: 'หัวข้องาน',
+  branchName: 'สาขา',
+  priority: 'ความเร่งด่วน',
+  status: 'สถานะ',
+  technicianName: 'ช่างผู้รับผิดชอบ',
+  cost: 'ค่าใช้จ่ายรวม',
+  dueAt: 'กำหนดวันที่',
+  inspectorName: 'ช่างผู้ตรวจ',
+  name: 'ชื่ออุปกรณ์/ทรัพย์สิน',
+  assetType: 'ประเภทอุปกรณ์',
+  serialNumber: 'หมายเลขประจำเครื่อง',
+  maintenanceDue: 'กำหนดบำรุงรักษา',
+  invoiceNumber: 'เลขที่ใบเรียกเก็บ',
+  serviceType: 'ประเภทบริการ',
+  amount: 'จำนวนเงิน',
+};
+const valueLabels: Record<string, string> = {
+  ...labels,
+  low: 'ทั่วไป',
+  normal: 'ปกติ',
+  urgent: 'เร่งด่วน',
+  inspection: 'ค่าตรวจมาตรฐาน',
+  maintenance: 'ค่าซ่อมบำรุง',
+  parts: 'ค่าอะไหล่',
+  subscription: 'ค่าบริการรายเดือน',
+};
 const tabs = [
   ['maintenance', 'งานช่าง / แจ้งซ่อม'],
-  ['inspection', 'สุ่มตรวจ'],
+  ['inspection', 'สุ่มตรวจช่าง'],
+  ['ingredientInspection', 'สุ่มตรวจวัตถุดิบ'],
   ['assets', 'ทรัพย์สิน'],
   ['billing', 'เรียกเก็บเงิน'],
 ] as const;
 type Tab = (typeof tabs)[number][0];
 const inputSx = { minWidth: 0 };
+const formCardSx = {
+  p: { xs: 2, sm: 2.5 },
+  borderColor: '#e8ddd5',
+  borderRadius: '15px',
+};
+const formGridSx = {
+  display: 'grid',
+  gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+  gap: 1.5,
+};
+const sectionTitleSx = {
+  color: '#3c2d24',
+  fontFamily: 'Kanit, sans-serif',
+  fontSize: 16,
+  fontWeight: 600,
+  lineHeight: 1.35,
+};
+const sectionDescriptionSx = {
+  color: 'text.secondary',
+  fontFamily: 'Kanit, sans-serif',
+  fontSize: 12.5,
+  lineHeight: 1.6,
+};
+const formActionSx = {
+  mt: 2,
+  minHeight: 40,
+  px: 2.25,
+  fontFamily: 'Kanit, sans-serif',
+  fontSize: 13,
+  fontWeight: 600,
+};
 const branchOptions = branches.slice(1).map((label) => ({
   label,
   code: branchCodeByBranch[
@@ -67,6 +127,28 @@ const optionalID = (value: FormDataEntryValue | null) => {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : undefined;
 };
+
+function formatOperationValue(column: string, value: unknown) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (column === 'status' || column === 'priority' || column === 'serviceType')
+    return valueLabels[String(value)] ?? String(value);
+  if (column === 'amount' || column === 'cost') {
+    const amount = Number(value);
+    return Number.isFinite(amount)
+      ? `${amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`
+      : String(value);
+  }
+  if (column === 'dueAt' || column === 'maintenanceDue') {
+    const date = new Date(String(value));
+    if (!Number.isNaN(date.getTime()))
+      return date.toLocaleDateString('th-TH', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+  }
+  return String(value);
+}
 
 function BranchField() {
   return (
@@ -146,7 +228,7 @@ function AssetFields() {
         placeholder="เช่น เครื่องชงกาแฟ"
         sx={inputSx}
       />
-      <TextField name="serialNumber" label="Serial number" sx={inputSx} />
+      <TextField name="serialNumber" label="หมายเลขประจำเครื่อง" sx={inputSx} />
       <TextField
         name="warrantyUntil"
         type="date"
@@ -251,6 +333,9 @@ export function AdminOperationsPage() {
     name: string;
     events: AssetEvent[];
   } | null>(null);
+  const isInspectionTab =
+    tab === 'inspection' || tab === 'ingredientInspection';
+  const isIngredientInspectionTab = tab === 'ingredientInspection';
   const data = useQuery({
     queryKey: ['operations'],
     queryFn: async () => {
@@ -266,16 +351,20 @@ export function AdminOperationsPage() {
   const key =
     tab === 'maintenance'
       ? 'maintenance'
-      : tab === 'inspection'
+      : isInspectionTab
         ? 'inspections'
         : tab === 'assets'
           ? 'assets'
           : 'invoices';
   const sourceRows: OperationRow[] = data.data?.[key] ?? [];
-  const rows =
-    tab === 'inspection'
-      ? sourceRows.filter((row) => row.status === 'scheduled')
-      : sourceRows;
+  const rows = isInspectionTab
+    ? sourceRows.filter(
+        (row) =>
+          row.status === 'scheduled' &&
+          String(row.inspectionType ?? 'technician') ===
+            (isIngredientInspectionTab ? 'ingredients' : 'technician'),
+      )
+    : sourceRows;
   const columns = useMemo(
     () =>
       tab === 'maintenance'
@@ -288,7 +377,7 @@ export function AdminOperationsPage() {
             'cost',
             'dueAt',
           ]
-        : tab === 'inspection'
+        : isInspectionTab
           ? ['branchName', 'inspectorName', 'dueAt', 'status']
           : tab === 'assets'
             ? [
@@ -365,14 +454,19 @@ export function AdminOperationsPage() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      const nextAssignment = await randomizeInspection({
+      const request = {
         inspectorName: String(form.get('inspectorName')),
         branchSize: String(form.get('branchSize')) as 'all' | 'S' | 'M' | 'L',
         dueAt: String(form.get('dueAt')),
         excludeDays: Number(form.get('excludeDays')) || 30,
-      });
+      };
+      const nextAssignment = await (isIngredientInspectionTab
+        ? randomizeIngredientInspection(request)
+        : randomizeInspection(request));
       setAssignment(nextAssignment);
-      setNotice(`มอบหมายงานสุ่มตรวจให้สาขา ${nextAssignment.branchName} แล้ว`);
+      setNotice(
+        `มอบหมายงาน${isIngredientInspectionTab ? 'สุ่มตรวจวัตถุดิบ' : 'สุ่มตรวจช่าง'}ให้สาขา ${nextAssignment.branchName} แล้ว`,
+      );
       void client.invalidateQueries({ queryKey: ['operations'] });
     } catch (error) {
       setNotice(
@@ -442,9 +536,15 @@ export function AdminOperationsPage() {
     inspectionID: number,
     branchName?: string,
     branchCode?: string,
+    inspectionType: 'technician' | 'ingredients' = 'technician',
   ) => {
     try {
-      await downloadInspectionPDF(inspectionID, branchName, branchCode);
+      await downloadInspectionPDF(
+        inspectionID,
+        branchName,
+        branchCode,
+        inspectionType,
+      );
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : 'ไม่สามารถดาวน์โหลด PDF ได้',
@@ -466,28 +566,55 @@ export function AdminOperationsPage() {
   };
   return (
     <DashboardMain>
-      <Stack spacing={2.25}>
-        <Box>
-          <Typography sx={{ fontSize: 27, fontWeight: 700 }}>
+      <Stack spacing={2.5}>
+        <Box sx={{ display: 'grid', gap: 0.25 }}>
+          <Typography
+            sx={{
+              color: '#3c2d24',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 20,
+              fontWeight: 600,
+              lineHeight: 1.35,
+            }}
+          >
             ตรวจมาตรฐานและบริการสาขา
           </Typography>
-          <Typography color="text.secondary">
+          <Typography sx={sectionDescriptionSx}>
             สุ่มตรวจ งานช่าง/แจ้งซ่อม ทรัพย์สิน และรายได้บริการ
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
           {tabs.map(([id, title]) => (
             <Button
               key={id}
-              variant={tab === id ? 'contained' : 'outlined'}
-              onClick={() => setTab(id)}
+              variant="outlined"
+              onClick={() => {
+                setTab(id);
+                setAssignment(null);
+              }}
+              sx={{
+                minHeight: 42,
+                px: 2,
+                boxSizing: 'border-box',
+                border: '1px solid',
+                borderColor: tab === id ? '#171411' : 'rgba(23, 20, 17, 0.35)',
+                bgcolor: tab === id ? '#171411' : 'transparent',
+                color: tab === id ? '#fff' : '#171411',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+                fontWeight: 600,
+                '&:hover': {
+                  borderColor: '#171411',
+                  bgcolor: tab === id ? '#171411' : 'rgba(23, 20, 17, 0.06)',
+                },
+              }}
             >
               {title}
             </Button>
           ))}
         </Stack>
         {tab === 'maintenance' ? (
-          <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+          <Typography sx={sectionDescriptionSx}>
             รายการนี้รวมแจ้งซ่อมจากทุกแฟรนไชส์และงานที่แอดมินสร้างเอง กด “ใบงาน
             PDF” เพื่อส่งรายละเอียดให้ช่างดำเนินการ
           </Typography>
@@ -497,31 +624,32 @@ export function AdminOperationsPage() {
             {notice}
           </Alert>
         ) : null}
-        {tab === 'inspection' ? (
+        {isInspectionTab ? (
           <>
             <Card
               component="form"
               variant="outlined"
               onSubmit={randomize}
-              sx={{ p: 2 }}
+              sx={formCardSx}
             >
-              <Typography sx={{ fontWeight: 700, mb: 1 }}>
-                สุ่มงานตรวจสาขา
+              <Typography sx={sectionTitleSx}>
+                {isIngredientInspectionTab
+                  ? 'สุ่มงานตรวจวัตถุดิบ'
+                  : 'สุ่มงานตรวจช่าง'}
               </Typography>
-              <Typography color="text.secondary" sx={{ mb: 1.5 }}>
-                กรอกชื่อช่าง แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจครบทั้งคาเฟ่,
-                EV และห้องน้ำ
+              <Typography sx={{ ...sectionDescriptionSx, mt: 0.4, mb: 2 }}>
+                {isIngredientInspectionTab
+                  ? 'กรอกชื่อผู้ตรวจ แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจวัตถุดิบแยกต่างหาก'
+                  : 'กรอกชื่อช่าง แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจพื้นที่ร้าน ระบบ EV และห้องน้ำ'}
               </Typography>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                  gap: 1,
-                }}
-              >
+              <Box sx={formGridSx}>
                 <TextField
                   name="inspectorName"
-                  label="ช่างผู้รับงาน"
+                  label={
+                    isIngredientInspectionTab
+                      ? 'ผู้รับงานตรวจ'
+                      : 'ช่างผู้รับงาน'
+                  }
                   required
                   sx={inputSx}
                 />
@@ -533,17 +661,22 @@ export function AdminOperationsPage() {
                   sx={inputSx}
                 />
               </Box>
-              <Box component="details" sx={{ mt: 1 }}>
+              <Box component="details" sx={{ mt: 1.5 }}>
                 <Box
                   component="summary"
-                  sx={{ cursor: 'pointer', color: 'text.secondary' }}
+                  sx={{
+                    cursor: 'pointer',
+                    color: 'text.secondary',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 12.5,
+                  }}
                 >
                   ตัวเลือกการสุ่ม
                 </Box>
                 <Stack
                   direction={{ xs: 'column', md: 'row' }}
-                  spacing={1}
-                  sx={{ mt: 1 }}
+                  spacing={1.5}
+                  sx={{ mt: 1.5 }}
                 >
                   <TextField
                     select
@@ -567,34 +700,60 @@ export function AdminOperationsPage() {
                   />
                 </Stack>
               </Box>
-              <Button type="submit" sx={{ mt: 1.5 }}>
-                สร้างใบงานให้ช่าง
+              <Button type="submit" variant="contained" sx={formActionSx}>
+                {isIngredientInspectionTab
+                  ? 'สร้างใบงานตรวจวัตถุดิบ'
+                  : 'สร้างใบงานให้ช่าง'}
               </Button>
             </Card>
             {assignment ? (
               <Card
                 variant="outlined"
-                sx={{ p: 2, borderColor: 'primary.main' }}
+                sx={{
+                  ...formCardSx,
+                  borderColor: 'primary.main',
+                  bgcolor: '#fffcfa',
+                }}
               >
-                <Typography sx={{ fontWeight: 700 }}>
-                  ใบงานช่าง: {assignment.branchName}
+                <Typography sx={sectionTitleSx}>
+                  {isIngredientInspectionTab
+                    ? 'ใบงานตรวจวัตถุดิบ'
+                    : 'ใบงานช่าง'}
+                  : {assignment.branchName}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  ขนาด {assignment.branchSize} · พร้อมส่งให้ช่างตรวจ
+                <Typography sx={{ ...sectionDescriptionSx, mt: 0.4, mb: 1.5 }}>
+                  ขนาด {assignment.branchSize} · พร้อมส่งให้
+                  {isIngredientInspectionTab ? 'ผู้ตรวจ' : 'ช่าง'}
                 </Typography>
-                <Box component="ol" sx={{ my: 0, pl: 3 }}>
+                <Box
+                  component="ol"
+                  sx={{
+                    display: 'grid',
+                    gap: 0.5,
+                    my: 0,
+                    pl: 3,
+                    color: '#3c2d24',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                  }}
+                >
                   {assignment.checklist.map((item) => (
                     <li key={item}>{item}</li>
                   ))}
                 </Box>
                 <Button
                   size="small"
-                  sx={{ mt: 1 }}
+                  sx={{ ...formActionSx, mt: 1.75 }}
                   onClick={() =>
                     void downloadPDF(
                       assignment.id,
                       String(assignment.branchName ?? ''),
                       String(assignment.branchCode ?? ''),
+                      assignment.inspectionType ??
+                        (isIngredientInspectionTab
+                          ? 'ingredients'
+                          : 'technician'),
                     )
                   }
                 >
@@ -604,21 +763,17 @@ export function AdminOperationsPage() {
             ) : null}
           </>
         ) : null}
-        {tab !== 'inspection' ? (
+        {!isInspectionTab ? (
           <Card
             component="form"
             variant="outlined"
             onSubmit={submit}
-            sx={{ p: 2 }}
+            sx={formCardSx}
           >
-            <Typography sx={{ fontWeight: 700, mb: 1 }}>{formTitle}</Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                gap: 1,
-              }}
-            >
+            <Typography sx={{ ...sectionTitleSx, mb: 2 }}>
+              {formTitle}
+            </Typography>
+            <Box sx={formGridSx}>
               {tab === 'maintenance' ? (
                 <MaintenanceFields />
               ) : tab === 'assets' ? (
@@ -630,7 +785,7 @@ export function AdminOperationsPage() {
                 />
               )}
             </Box>
-            <Button type="submit" sx={{ mt: 1.5 }}>
+            <Button type="submit" variant="contained" sx={formActionSx}>
               บันทึกรายการ
             </Button>
           </Card>
@@ -640,12 +795,12 @@ export function AdminOperationsPage() {
             component="form"
             variant="outlined"
             onSubmit={transferAsset}
-            sx={{ p: 2 }}
+            sx={formCardSx}
           >
-            <Typography sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography sx={{ ...sectionTitleSx, mb: 1.5 }}>
               โอน {String(assetToTransfer.name ?? 'ทรัพย์สิน')}
             </Typography>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
               <BranchField />
               <TextField name="note" label="หมายเหตุการโอน" fullWidth />
               <Button type="submit">ยืนยันโอน</Button>
@@ -654,12 +809,12 @@ export function AdminOperationsPage() {
           </Card>
         ) : null}
         {tab === 'assets' && assetHistory ? (
-          <Card variant="outlined" sx={{ p: 2 }}>
+          <Card variant="outlined" sx={formCardSx}>
             <Stack
               direction="row"
               sx={{ justifyContent: 'space-between', alignItems: 'center' }}
             >
-              <Typography sx={{ fontWeight: 700 }}>
+              <Typography sx={sectionTitleSx}>
                 ประวัติ: {assetHistory.name}
               </Typography>
               <Button size="small" onClick={() => setAssetHistory(null)}>
@@ -678,24 +833,52 @@ export function AdminOperationsPage() {
             )}
           </Card>
         ) : null}
-        <Card variant="outlined" sx={{ overflowX: 'auto' }}>
+        <Card
+          variant="outlined"
+          sx={{
+            overflowX: 'auto',
+            borderColor: '#e8ddd5',
+            borderRadius: '15px',
+          }}
+        >
           <Box
             component="table"
             sx={{
               width: '100%',
               borderCollapse: 'collapse',
-              '& td,& th': {
-                p: 1.25,
+              '& th': {
+                p: '12px 14px',
+                bgcolor: '#fcf9f6',
                 borderBottom: '1px solid #eee4dd',
                 textAlign: 'left',
                 whiteSpace: 'nowrap',
+                color: '#5a473a',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 12.5,
+                fontWeight: 600,
+              },
+              '& td': {
+                p: '14px',
+                borderBottom: '1px solid #eee4dd',
+                textAlign: 'left',
+                whiteSpace: 'nowrap',
+                color: '#3c2d24',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+                lineHeight: 1.5,
+              },
+              '& tbody tr:last-child td': {
+                borderBottom: 0,
+              },
+              '& tbody tr:hover': {
+                bgcolor: '#fffcfa',
               },
             }}
           >
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column}>{column}</th>
+                  <th key={column}>{columnLabels[column] ?? column}</th>
                 ))}
                 <th>จัดการ</th>
               </tr>
@@ -705,75 +888,80 @@ export function AdminOperationsPage() {
                 <tr key={row.id}>
                   {columns.map((column) => (
                     <td key={column}>
-                      {column === 'status'
-                        ? (labels[String(row[column])] ??
-                          String(row[column] ?? '—'))
-                        : String(row[column] ?? '—')}
+                      {formatOperationValue(column, row[column])}
                     </td>
                   ))}
                   <td>
-                    {tab === 'inspection' && row.status === 'scheduled' ? (
-                      <Button
-                        size="small"
-                        onClick={() =>
-                          void downloadPDF(
-                            row.id,
-                            String(row.branchName ?? ''),
-                            String(row.branchCode ?? ''),
-                          )
-                        }
-                      >
-                        ดาวน์โหลด PDF
-                      </Button>
-                    ) : tab !== 'inspection' ? (
-                      <>
-                        {tab === 'maintenance' ? (
-                          <Button
-                            size="small"
-                            onClick={() =>
-                              void downloadMaintenanceWorkOrder(row)
-                            }
-                          >
-                            ใบงาน PDF
-                          </Button>
-                        ) : null}
-                        {tab === 'maintenance' &&
-                        row.status === 'completed' ? null : (
-                          <>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{ flexWrap: 'wrap', minWidth: 'max-content' }}
+                    >
+                      {isInspectionTab && row.status === 'scheduled' ? (
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            void downloadPDF(
+                              row.id,
+                              String(row.branchName ?? ''),
+                              String(row.branchCode ?? ''),
+                              String(row.inspectionType ?? 'technician') as
+                                'technician' | 'ingredients',
+                            )
+                          }
+                        >
+                          ดาวน์โหลด PDF
+                        </Button>
+                      ) : tab !== 'inspection' ? (
+                        <>
+                          {tab === 'maintenance' ? (
                             <Button
                               size="small"
-                              onClick={() => void updateRow(row)}
+                              onClick={() =>
+                                void downloadMaintenanceWorkOrder(row)
+                              }
                             >
-                              {tab === 'maintenance'
-                                ? 'ปิดงาน'
-                                : tab === 'assets'
-                                  ? row.status === 'active'
-                                    ? 'ส่งซ่อม'
-                                    : 'กลับใช้งาน'
-                                  : row.status === 'paid'
-                                    ? 'แก้เป็นส่งแล้ว'
-                                    : 'บันทึกชำระแล้ว'}
+                              ใบงาน PDF
                             </Button>
-                            {tab === 'assets' ? (
-                              <>
-                                <Button
-                                  size="small"
-                                  onClick={() => setAssetToTransfer(row)}
-                                >
-                                  โอนสาขา
-                                </Button>
-                                <Button
-                                  size="small"
-                                  onClick={() => void loadAssetHistory(row)}
-                                >
-                                  ประวัติ
-                                </Button>
-                              </>
-                            ) : null}
-                          </>
-                        )}
-                      </>
-                    ) : null}
+                          ) : null}
+                          {tab === 'maintenance' &&
+                          row.status === 'completed' ? null : (
+                            <>
+                              <Button
+                                size="small"
+                                onClick={() => void updateRow(row)}
+                              >
+                                {tab === 'maintenance'
+                                  ? 'ปิดงาน'
+                                  : tab === 'assets'
+                                    ? row.status === 'active'
+                                      ? 'ส่งซ่อม'
+                                      : 'กลับใช้งาน'
+                                    : row.status === 'paid'
+                                      ? 'แก้เป็นส่งแล้ว'
+                                      : 'บันทึกชำระแล้ว'}
+                              </Button>
+                              {tab === 'assets' ? (
+                                <>
+                                  <Button
+                                    size="small"
+                                    onClick={() => setAssetToTransfer(row)}
+                                  >
+                                    โอนสาขา
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    onClick={() => void loadAssetHistory(row)}
+                                  >
+                                    ประวัติ
+                                  </Button>
+                                </>
+                              ) : null}
+                            </>
+                          )}
+                        </>
+                      ) : null}
+                    </Stack>
                   </td>
                 </tr>
               ))}

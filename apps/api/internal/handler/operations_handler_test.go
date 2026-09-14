@@ -1,6 +1,21 @@
 package handler
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
+
+func TestSafeJSONValueFallsBackForMalformedLegacyData(t *testing.T) {
+	if got := safeJSONValue([]byte(`[{"item":"ok"}]`)); !reflect.DeepEqual(got, []any{map[string]any{"item": "ok"}}) {
+		t.Fatalf("valid JSON = %#v", got)
+	}
+	if got := safeJSONValue([]byte(`null`)); !reflect.DeepEqual(got, []any{}) {
+		t.Fatalf("null JSON = %#v, want empty array", got)
+	}
+	if got := safeJSONValue([]byte(`nullnull`)); !reflect.DeepEqual(got, []any{}) {
+		t.Fatalf("malformed JSON = %#v, want empty array", got)
+	}
+}
 
 func TestOperationStatusValidatorsAcceptOnlySupportedTransitions(t *testing.T) {
 	tests := []struct {

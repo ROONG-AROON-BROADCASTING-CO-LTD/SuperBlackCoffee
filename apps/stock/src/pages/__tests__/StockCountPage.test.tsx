@@ -82,4 +82,23 @@ describe('StockCountPage', () => {
     expect(screen.getByText('ระบุหมายเหตุของการปรับยอด')).toBeTruthy();
     expect(onAdjust).not.toHaveBeenCalled();
   });
+
+  it('keeps the count form open and reports a failed stock adjustment', async () => {
+    const onAdjust = vi.fn().mockRejectedValue(new Error('บันทึกยอดไม่สำเร็จ'));
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={onAdjust}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+
+    expect(await screen.findByText('บันทึกยอดไม่สำเร็จ')).toBeTruthy();
+    expect(screen.getByLabelText('จำนวนคงเหลือ (กรัม)')).toBeTruthy();
+  });
 });

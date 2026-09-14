@@ -50,6 +50,23 @@ var technicianInspectionChecklist = []string{
 	"ห้องน้ำ: ตรวจจุดเสี่ยงลื่นล้มและเก็บสิ่งกีดขวางทางเข้าออก",
 }
 
+var ingredientInspectionChecklist = []string{
+	"วัตถุดิบ: ตรวจใบส่งของและจำนวนวัตถุดิบที่รับเข้าให้ตรงกับรายการ",
+	"วัตถุดิบ: บรรจุภัณฑ์ไม่ฉีกขาด รั่วซึม บวม หรือมีร่องรอยปนเปื้อน",
+	"วัตถุดิบ: ตรวจความสด สี กลิ่น และสภาพของวัตถุดิบก่อนนำไปใช้",
+	"วัตถุดิบ: ตรวจวันผลิตและวันหมดอายุ ไม่มีวัตถุดิบหมดอายุในพื้นที่ใช้งาน",
+	"วัตถุดิบ: แยกวัตถุดิบใกล้หมดอายุและติดป้ายเพื่อเร่งใช้ก่อน",
+	"วัตถุดิบ: จัดเรียงตามหลัก FIFO หรือ FEFO และมองเห็นป้ายวันหมดอายุชัดเจน",
+	"วัตถุดิบ: ของแห้งเก็บบนชั้นสูงจากพื้น ห่างผนัง และไม่อับชื้น",
+	"วัตถุดิบ: ตู้เย็น ตู้แช่ และช่องเก็บรักษามีอุณหภูมิตามมาตรฐานสาขา",
+	"วัตถุดิบ: ภาชนะที่เปิดใช้แล้วปิดสนิท มีชื่อรายการและวันที่เปิดใช้งาน",
+	"วัตถุดิบ: แยกวัตถุดิบพร้อมใช้จากของดิบหรือของที่รอคัดทิ้งอย่างชัดเจน",
+	"วัตถุดิบ: พื้นที่เก็บสะอาด ไม่มีแมลง สัตว์พาหะ คราบสกปรก หรือกลิ่นผิดปกติ",
+	"วัตถุดิบ: ไม่เก็บสารเคมี อุปกรณ์ทำความสะอาด หรือสิ่งปนเปื้อนร่วมกับวัตถุดิบ",
+	"วัตถุดิบ: ตรวจจำนวนคงเหลือเทียบกับสต๊อก และระบุของขาด เกิน หรือสูญเสีย",
+	"วัตถุดิบ: แยกกักวัตถุดิบเสียหาย หมดอายุ หรือรอทำลายออกจากของพร้อมใช้",
+}
+
 func (h *PlatformHandler) operationsBranchID(c *gin.Context, code string) (int64, bool) {
 	var id int64
 	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT id FROM branches WHERE code=$1`, code).Scan(&id); err != nil {
@@ -243,7 +260,8 @@ func (h *PlatformHandler) listOps(c *gin.Context, query, kind string) {
 			var ticketID, templateID *int64
 			var templateName string
 			if err = rows.Scan(&id, &code, &branch, &branchSize, &inspector, &status, &score, &findings, &due, &owner, &checklist, &evidence, &ticketID, &templateID, &templateName); err == nil {
-				out = append(out, gin.H{"id": id, "branchCode": code, "branchName": branch, "branchSize": branchSize, "inspectorName": inspector, "status": status, "score": score, "findings": findings, "dueAt": due, "actionOwner": owner, "checklistResults": json.RawMessage(checklist), "evidenceURLs": json.RawMessage(evidence), "maintenanceTicketId": ticketID, "templateId": templateID, "templateName": templateName})
+				items := parseInspectionChecklist(checklist)
+				out = append(out, gin.H{"id": id, "branchCode": code, "branchName": branch, "branchSize": branchSize, "inspectorName": inspector, "status": status, "score": score, "findings": findings, "dueAt": due, "actionOwner": owner, "checklistResults": safeJSONValue(checklist), "evidenceURLs": safeJSONValue(evidence), "maintenanceTicketId": ticketID, "templateId": templateID, "templateName": templateName, "inspectionType": inspectionTypeFromChecklist(items)})
 			}
 		case "invoices":
 			var id int64
@@ -256,6 +274,20 @@ func (h *PlatformHandler) listOps(c *gin.Context, query, kind string) {
 		}
 	}
 	c.JSON(200, gin.H{"success": true, "data": out})
+}
+
+// safeJSONValue prevents a malformed legacy JSON column from corrupting the
+// entire operations response. New writes are validated JSONB, but older rows
+// can still contain NULL or driver-specific byte representations.
+func safeJSONValue(raw []byte) any {
+	if len(raw) == 0 || !json.Valid(raw) {
+		return []any{}
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil || value == nil {
+		return []any{}
+	}
+	return value
 }
 
 func (h *PlatformHandler) CreateMaintenanceTicket(c *gin.Context) {
@@ -450,6 +482,16 @@ func (h *PlatformHandler) CreateInspectionTemplate(c *gin.Context) {
 }
 
 func (h *PlatformHandler) RandomizeInspection(c *gin.Context) {
+	h.randomizeInspection(c, technicianInspectionChecklist, "ใบงานตรวจช่างมาตรฐาน", "technician")
+}
+
+// RandomizeIngredientInspection creates a separate material quality and stock
+// work order. The checklist identifies its type, so no schema change is needed.
+func (h *PlatformHandler) RandomizeIngredientInspection(c *gin.Context) {
+	h.randomizeInspection(c, ingredientInspectionChecklist, "ใบงานสุ่มตรวจวัตถุดิบ", "ingredients")
+}
+
+func (h *PlatformHandler) randomizeInspection(c *gin.Context, items []string, templateName, inspectionType string) {
 	var in struct {
 		InspectorName string `json:"inspectorName"`
 		BranchSize    string `json:"branchSize"`
@@ -472,11 +514,7 @@ func (h *PlatformHandler) RandomizeInspection(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	// Random inspection is a technician work order. It deliberately does not
-	// depend on configurable QA templates, which keeps every new assignment
-	// complete and ready to hand to a technician.
-	checklist, _ := json.Marshal(technicianInspectionChecklist)
-	templateName := "ใบงานตรวจช่างมาตรฐาน"
+	checklist, _ := json.Marshal(items)
 	type branchCandidate struct {
 		id               int64
 		code, name, size string
@@ -507,8 +545,8 @@ func (h *PlatformHandler) RandomizeInspection(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างงานสุ่มตรวจได้"})
 		return
 	}
-	h.recordAudit(c, branch.id, "inspection", inspectionID, "scheduled", gin.H{"templateName": templateName})
-	c.JSON(201, gin.H{"success": true, "data": gin.H{"id": inspectionID, "branchCode": branch.code, "branchName": branch.name, "branchSize": branch.size, "inspectorName": in.InspectorName, "templateId": 0, "templateName": templateName, "checklist": json.RawMessage(checklist), "dueAt": strings.TrimSpace(in.DueAt)}})
+	h.recordAudit(c, branch.id, "inspection", inspectionID, "scheduled", gin.H{"templateName": templateName, "inspectionType": inspectionType})
+	c.JSON(201, gin.H{"success": true, "data": gin.H{"id": inspectionID, "branchCode": branch.code, "branchName": branch.name, "branchSize": branch.size, "inspectorName": in.InspectorName, "templateId": 0, "templateName": templateName, "inspectionType": inspectionType, "checklist": json.RawMessage(checklist), "dueAt": strings.TrimSpace(in.DueAt)}})
 }
 
 func (h *PlatformHandler) CreateInspection(c *gin.Context) {

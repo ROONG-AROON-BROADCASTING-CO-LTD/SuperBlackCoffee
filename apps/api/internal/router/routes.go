@@ -83,6 +83,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.PATCH("/inspections/:id/complete", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CompleteInspection)
 	protected.GET("/inspections/:id/pdf", middleware.RequireAuth(deps.secret, "admin"), deps.platform.DownloadInspectionPDF)
 	protected.POST("/inspections/randomize", middleware.RequireAuth(deps.secret, "admin"), deps.platform.RandomizeInspection)
+	protected.POST("/inspections/randomize-ingredients", middleware.RequireAuth(deps.secret, "admin"), deps.platform.RandomizeIngredientInspection)
 	protected.GET("/inspection-templates", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListInspectionTemplates)
 	protected.POST("/inspection-templates", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CreateInspectionTemplate)
 	protected.GET("/service-invoices", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListServiceInvoices)

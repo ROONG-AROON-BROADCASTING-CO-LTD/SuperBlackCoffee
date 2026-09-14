@@ -16,6 +16,7 @@ import {
   listMaintenanceTickets,
   listServiceInvoices,
   updateMaintenanceStatus,
+  randomizeIngredientInspection,
   randomizeInspection,
 } from '../../../api/operations';
 
@@ -32,6 +33,7 @@ vi.mock('../../../api/operations', () => ({
   updateAsset: vi.fn(),
   updateServiceInvoiceStatus: vi.fn(),
   randomizeInspection: vi.fn(),
+  randomizeIngredientInspection: vi.fn(),
 }));
 const renderPage = () =>
   render(
@@ -90,7 +92,9 @@ describe('AdminOperationsPage', () => {
     vi.mocked(listAssets).mockResolvedValue([]);
     vi.mocked(listServiceInvoices).mockResolvedValue([]);
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'สุ่มตรวจ' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'สุ่มตรวจช่าง' }),
+    );
     expect(screen.queryByText('แจ้งงานซ่อมบำรุง')).toBeNull();
     expect(await screen.findByText('ช่างเอก')).toBeTruthy();
     expect(screen.queryByText('บันทึกผลตรวจ')).toBeNull();
@@ -165,6 +169,35 @@ describe('AdminOperationsPage', () => {
     expect(await screen.findByText('ไม่สามารถบันทึกใบงานได้')).toBeTruthy();
   });
 
+  it('renders understandable Thai table headings and values', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([
+      {
+        id: 11,
+        branchCode: 'SBC-AYA-001',
+        title: 'เครื่องชงกาแฟมีน้ำรั่ว',
+        branchName: 'อยุธยา',
+        priority: 'urgent',
+        status: 'assigned',
+        technicianName: 'ช่างเอก',
+        cost: 1250,
+        dueAt: '2026-09-16T00:00:00Z',
+      },
+    ]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    renderPage();
+
+    expect(await screen.findByText('หัวข้องาน')).toBeTruthy();
+    expect(screen.getByText('ช่างผู้รับผิดชอบ')).toBeTruthy();
+    expect(
+      screen.getByRole('columnheader', { name: 'ความเร่งด่วน' }),
+    ).toBeTruthy();
+    expect(await screen.findByText('เร่งด่วน')).toBeTruthy();
+    expect(await screen.findByText('1,250.00 บาท')).toBeTruthy();
+    expect(screen.queryByText('branchName')).toBeNull();
+  });
+
   it('creates a technician report with its checklist and no result form', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
     vi.mocked(listInspections).mockResolvedValue([]);
@@ -183,7 +216,9 @@ describe('AdminOperationsPage', () => {
     });
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'สุ่มตรวจ' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'สุ่มตรวจช่าง' }),
+    );
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'QA Team' },
     });
@@ -199,5 +234,43 @@ describe('AdminOperationsPage', () => {
       'ร้านคาเฟ่: เครื่องชงกาแฟ',
     );
     expect(screen.queryByText('บันทึกผลตรวจ')).toBeNull();
+  });
+
+  it('keeps ingredient random checks separate from technician work orders', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    vi.mocked(randomizeIngredientInspection).mockResolvedValue({
+      id: 14,
+      branchCode: 'SBC-AYA-001',
+      branchName: 'อยุธยา',
+      branchSize: 'S',
+      inspectorName: 'ฝ่ายควบคุมคุณภาพ',
+      templateId: 0,
+      templateName: 'ใบงานสุ่มตรวจวัตถุดิบ',
+      inspectionType: 'ingredients',
+      checklist: ['วัตถุดิบ: ตรวจวันหมดอายุ'],
+      dueAt: '',
+    });
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'สุ่มตรวจวัตถุดิบ' }),
+    );
+    fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
+      target: { value: 'ฝ่ายควบคุมคุณภาพ' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจวัตถุดิบ' }),
+    );
+
+    await waitFor(() =>
+      expect(randomizeIngredientInspection).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectorName: 'ฝ่ายควบคุมคุณภาพ' }),
+      ),
+    );
+    expect(await screen.findByText('ใบงานตรวจวัตถุดิบ: อยุธยา')).toBeTruthy();
+    expect(screen.getByText('วัตถุดิบ: ตรวจวันหมดอายุ')).toBeTruthy();
   });
 });

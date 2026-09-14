@@ -32,6 +32,17 @@ describe('inspection PDF download', () => {
     );
   });
 
+  it('uses the separate material-inspection name for ingredient work orders', async () => {
+    downloadSecuredPDF.mockResolvedValueOnce(undefined);
+
+    await downloadInspectionPDF(19, 'อยุธยา', 'SBC-AYT-001', 'ingredients');
+
+    expect(downloadSecuredPDF).toHaveBeenCalledWith(
+      '/inspections/19/pdf',
+      'ใบงานสุ่มตรวจวัตถุดิบ_งานที่-19_สาขา-อยุธยา_SBC-AYT-001.pdf',
+    );
+  });
+
   it('uses a descriptive file name for a franchise repair work order', async () => {
     downloadSecuredPDF.mockResolvedValueOnce(undefined);
 

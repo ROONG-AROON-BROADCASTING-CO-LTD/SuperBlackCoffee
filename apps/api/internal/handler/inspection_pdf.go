@@ -43,8 +43,17 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		bottom     = 42.0
 	)
 
+	documentTitle := inspectionPDFTitle(data.Checklist)
+	assigneeLabel := "ช่างผู้รับงาน"
+	guidanceTitle := "คำแนะนำสำหรับช่าง"
+	guidanceText := "ทำเครื่องหมายสถานะของแต่ละรายการ และบันทึกอาการหรือรายการซ่อมในระบบหลังตรวจเสร็จ"
+	if inspectionTypeFromChecklist(data.Checklist) == "ingredients" {
+		assigneeLabel = "ผู้รับงานตรวจ"
+		guidanceTitle = "คำแนะนำสำหรับผู้ตรวจ"
+		guidanceText = "ทำเครื่องหมายสถานะของแต่ละรายการ และบันทึกสิ่งที่พบหรือรายการที่ต้องแก้ไขในระบบหลังตรวจเสร็จ"
+	}
 	doc := pdfkit.New(pdfkit.WithPageSize(pdfkit.A4), pdfkit.WithMargins(0), pdfkit.WithInfo(pdfkit.Info{
-		Title: "ใบงานตรวจช่างประจำสาขา", Author: "Super Black Coffee",
+		Title: documentTitle, Author: "Super Black Coffee",
 	}))
 	if err := doc.RegisterFont("THSarabunNew", leaveRequestTHSarabunFont, 0); err != nil {
 		return nil, fmt.Errorf("register THSarabun New: %w", err)
@@ -66,7 +75,7 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		pageNumber++
 		doc.StrokeColor(pdfkit.HexColor("#DCD2C8")).LineWidth(0.5).MoveTo(left, 26).LineTo(right, 26).Stroke()
 		doc.Font("THSarabunNew").FontSize(9).FillColor(muted).Text(
-			fmt.Sprintf("ใบงานตรวจช่างประจำสาขา  |  หน้า %d", pageNumber),
+			fmt.Sprintf("%s  |  หน้า %d", documentTitle, pageNumber),
 			pdfkit.TextOptions{X: 355, Y: 12, Width: 200, Align: pdfkit.AlignRight},
 		)
 		if !first {
@@ -76,10 +85,10 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		// A larger centered mark gives the formal header a clear identity without
 		// crowding the document title and branch details below it.
 		doc.Image("inspection-logo", (pageWidth-54)/2, pageHeight-94, 54, 54)
-		doc.Font("THSarabunNew").FontSize(16).FillColor(ink).Text("ใบงานตรวจช่างประจำสาขา", pdfkit.TextOptions{X: left, Y: pageHeight - 120, Width: right - left, Align: pdfkit.AlignCenter})
+		doc.Font("THSarabunNew").FontSize(16).FillColor(ink).Text(documentTitle, pdfkit.TextOptions{X: left, Y: pageHeight - 120, Width: right - left, Align: pdfkit.AlignCenter})
 		// Keep the three key assignment facts on one scan-friendly line, with
 		// consistent separators rather than a tall stack of short lines.
-		assignment := fmt.Sprintf("เลขที่งาน: #%d  |  สาขา: %s (%s)  |  ช่างผู้รับงาน: %s", data.ID, data.BranchName, data.BranchCode, data.InspectorName)
+		assignment := fmt.Sprintf("เลขที่งาน: #%d  |  สาขา: %s (%s)  |  %s: %s", data.ID, data.BranchName, data.BranchCode, assigneeLabel, data.InspectorName)
 		doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text(assignment, pdfkit.TextOptions{X: left, Y: pageHeight - 147, Width: right - left, Align: pdfkit.AlignCenter})
 		dividerY := pageHeight - 169
 		if data.DueAt != nil {
@@ -103,6 +112,10 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		doc.Font("THSarabunNew").FontSize(13).FillColor(ink).Text(title, pdfkit.TextOptions{X: left + 4, Y: y - 15, Width: right - left - 8})
 		y -= 20
 	}
+	statusNeedsAction, statusUnavailable, noteLabel, noteLineX := "ต้องซ่อม", "ใช้งานไม่ได้", "หมายเหตุ/อาการ:", left+78
+	if inspectionTypeFromChecklist(data.Checklist) == "ingredients" {
+		statusNeedsAction, statusUnavailable, noteLabel, noteLineX = "ต้องแก้ไข", "ห้ามใช้", "หมายเหตุ/สิ่งที่พบ:", left+94
+	}
 	drawCheckbox := func(x, baseline float64, label string) {
 		doc.StrokeColor(border).LineWidth(0.6).Rect(x, baseline-3, 10, 10).Stroke()
 		doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text(label, pdfkit.TextOptions{X: x + 16, Y: baseline - 1})
@@ -117,20 +130,25 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		// Keep each status choice on an equal-width column so the tick boxes
 		// remain visually balanced regardless of the Thai label length.
 		drawCheckbox(left+64, statusY, "ปกติ")
-		drawCheckbox(left+228, statusY, "ต้องซ่อม")
-		drawCheckbox(left+392, statusY, "ใช้งานไม่ได้")
+		drawCheckbox(left+228, statusY, statusNeedsAction)
+		drawCheckbox(left+392, statusY, statusUnavailable)
 		// Leave a clear handwritten gap beneath the status controls before the
 		// note field, so the two parts of the row do not visually run together.
 		noteY := y - 64
-		doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text("หมายเหตุ/อาการ:", pdfkit.TextOptions{X: left + 4, Y: noteY})
+		doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text(noteLabel, pdfkit.TextOptions{X: left + 4, Y: noteY})
 		// Keep the writing line on the same row as its label, with only a
 		// small gap so the field reads as one continuous instruction.
-		doc.StrokeColor(border).LineWidth(0.45).MoveTo(left+78, noteY).LineTo(right, noteY).Stroke()
+		doc.StrokeColor(border).LineWidth(0.45).MoveTo(noteLineX, noteY).LineTo(right, noteY).Stroke()
 		doc.StrokeColor(border).LineWidth(0.45).MoveTo(left, y-78).LineTo(right, y-78).Stroke()
 		y -= 87
 	}
 
-	groups := []struct{ title, prefix string }{{"ร้านคาเฟ่", "ร้านคาเฟ่:"}, {"ตู้ชาร์จรถ EV", "ตู้ชาร์จรถ EV:"}, {"ห้องน้ำ", "ห้องน้ำ:"}}
+	groups := []struct{ title, prefix string }{
+		{"ร้านคาเฟ่", "ร้านคาเฟ่:"},
+		{"ตู้ชาร์จรถ EV", "ตู้ชาร์จรถ EV:"},
+		{"ห้องน้ำ", "ห้องน้ำ:"},
+		{"วัตถุดิบและการจัดเก็บ", "วัตถุดิบ:"},
+	}
 	grouped := groupInspectionChecklist(data.Checklist)
 	for _, group := range groups {
 		items := grouped[group.prefix]
@@ -143,7 +161,10 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 			drawSection(group.title)
 		}
 		for index, item := range items {
-			if ensureSpace(80) {
+			// A checklist row consumes 87pt including the status and note lines.
+			// Reserve a small extra margin so no row title is separated from its
+			// checkboxes when it reaches a page boundary.
+			if ensureSpace(92) {
 				drawSection(group.title + " (ต่อ)")
 			}
 			drawRow(index+1, item, index%2 == 0)
@@ -154,8 +175,8 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		doc.FillColor(headerFill).Rect(left, y-18, right-left, 18).Fill()
 	}
 	doc.FillColor(pdfkit.HexColor("#F8F5F1")).Rect(left, y-18, right-left, 18).Fill()
-	doc.Font("THSarabunNew").FontSize(12).FillColor(ink).Text("คำแนะนำสำหรับช่าง", pdfkit.TextOptions{X: left + 4, Y: y - 14})
-	doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text("ทำเครื่องหมายสถานะของแต่ละรายการ และบันทึกอาการหรือรายการซ่อมในระบบหลังตรวจเสร็จ", pdfkit.TextOptions{X: left + 4, Y: y - 31, Width: right - left - 8})
+	doc.Font("THSarabunNew").FontSize(12).FillColor(ink).Text(guidanceTitle, pdfkit.TextOptions{X: left + 4, Y: y - 14})
+	doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text(guidanceText, pdfkit.TextOptions{X: left + 4, Y: y - 31, Width: right - left - 8})
 	doc.StrokeColor(border).LineWidth(0.6).Rect(left, y-39, right-left, 39).Stroke()
 
 	var output bytes.Buffer
@@ -163,6 +184,13 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		return nil, err
 	}
 	return output.Bytes(), nil
+}
+
+func inspectionPDFTitle(checklist []string) string {
+	if inspectionTypeFromChecklist(checklist) == "ingredients" {
+		return "ใบงานสุ่มตรวจวัตถุดิบ"
+	}
+	return "ใบงานตรวจช่างประจำสาขา"
 }
 
 func legacyInspectionPDF(data inspectionPDFData) ([]byte, error) {
@@ -205,6 +233,7 @@ func legacyInspectionPDF(data inspectionPDFData) ([]byte, error) {
 		{"ร้านคาเฟ่", "ร้านคาเฟ่:"},
 		{"ตู้ชาร์จรถ EV", "ตู้ชาร์จรถ EV:"},
 		{"ห้องน้ำ", "ห้องน้ำ:"},
+		{"วัตถุดิบและการจัดเก็บ", "วัตถุดิบ:"},
 	}
 	grouped := groupInspectionChecklist(data.Checklist)
 	for _, group := range groups {
@@ -315,6 +344,7 @@ func groupInspectionChecklist(checklist []string) map[string][]string {
 		"ร้านคาเฟ่:":     {},
 		"ตู้ชาร์จรถ EV:": {},
 		"ห้องน้ำ:":       {},
+		"วัตถุดิบ:":      {},
 	}
 	for _, item := range checklist {
 		matched := false
@@ -331,6 +361,18 @@ func groupInspectionChecklist(checklist []string) map[string][]string {
 		}
 	}
 	return groups
+}
+
+func inspectionTypeFromChecklist(checklist []string) string {
+	if len(checklist) == 0 {
+		return "technician"
+	}
+	for _, item := range checklist {
+		if !strings.HasPrefix(strings.TrimSpace(item), "วัตถุดิบ:") {
+			return "technician"
+		}
+	}
+	return "ingredients"
 }
 
 func parseInspectionChecklist(value []byte) []string {

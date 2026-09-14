@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MenuConsumptionPage } from '../MenuConsumptionPage';
 
 describe('MenuConsumptionPage', () => {
+  // Keep the order-selection flow isolated between test cases.
+  afterEach(cleanup);
   it('submits selected menu quantities instead of asking staff to edit ingredients', async () => {
     const onConsume = vi.fn().mockResolvedValue(undefined);
     render(
@@ -47,5 +49,50 @@ describe('MenuConsumptionPage', () => {
         'storefront',
       ),
     );
+  });
+
+  it('disables consumption confirmation when no sellable menu has been selected', () => {
+    const onConsume = vi.fn().mockResolvedValue(undefined);
+    render(
+      <MenuConsumptionPage loading={false} onConsume={onConsume} menus={[]} />,
+    );
+
+    expect(
+      (
+        screen.getByRole('button', {
+          name: 'ยืนยันตัดวัตถุดิบตามสูตร',
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(onConsume).not.toHaveBeenCalled();
+  });
+
+  it('keeps the chosen menu when stock consumption fails', async () => {
+    const onConsume = vi.fn().mockRejectedValue(new Error('สต๊อกไม่เพียงพอ'));
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={onConsume}
+        menus={[
+          {
+            id: 8,
+            name: 'ลาเต้เย็น',
+            category: 'เมนูกาแฟเย็น',
+            status: 'available',
+            recipeStatus: 'ready',
+            sellable: true,
+            ingredients: [],
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'ตัดสต๊อก ลาเต้เย็น' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'ยืนยันตัดวัตถุดิบตามสูตร' }),
+    );
+
+    expect(await screen.findByText('สต๊อกไม่เพียงพอ')).toBeTruthy();
+    expect(screen.getByText('เลือกตัดแล้ว 1 แก้ว / จาน')).toBeTruthy();
   });
 });

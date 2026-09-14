@@ -89,6 +89,17 @@ describe('admin API client', () => {
     );
   });
 
+  it('turns malformed JSON responses into a user-friendly message', async () => {
+    mocks.isAxiosError.mockReturnValue(false);
+    mocks.request.mockRejectedValueOnce(
+      new SyntaxError('Unexpected non-whitespace character after JSON'),
+    );
+
+    await expect(secured('/maintenance-tickets')).rejects.toThrow(
+      'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง',
+    );
+  });
+
   it('ends only the admin session by identifying its platform role', async () => {
     mocks.request.mockResolvedValueOnce({ data: { success: true } });
 

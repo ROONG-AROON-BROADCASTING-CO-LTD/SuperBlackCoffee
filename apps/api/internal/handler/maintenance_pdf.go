@@ -76,11 +76,14 @@ func maintenancePDF(data maintenancePDFData) ([]byte, error) {
 			title,
 			pdfkit.TextOptions{X: left + 5, Y: y - 14, Width: right - left - 10},
 		)
-		y -= 25
+		// Keep a clear breathing space below each coloured section bar.  Thai
+		// glyphs can extend above their baseline, so the previous 25pt step made
+		// the next line visually touch the section title.
+		y -= 36
 	}
 	drawInfo := func(label, value string, x, width float64) {
 		doc.Font("THSarabunNew").FontSize(10).FillColor(muted).Text(label, pdfkit.TextOptions{X: x, Y: y})
-		doc.Font("THSarabunNew").FontSize(11).FillColor(ink).Text(value, pdfkit.TextOptions{X: x, Y: y - 13, Width: width})
+		doc.Font("THSarabunNew").FontSize(11).FillColor(ink).Text(value, pdfkit.TextOptions{X: x, Y: y - 15, Width: width})
 	}
 	drawCheckbox := func(x float64, label string) {
 		doc.StrokeColor(border).LineWidth(0.6).Rect(x, y-3, 10, 10).Stroke()
@@ -94,20 +97,20 @@ func maintenancePDF(data maintenancePDFData) ([]byte, error) {
 		dueAt = data.DueAt.Format("02/01/2006")
 	}
 	drawInfo("กำหนดดำเนินการ", dueAt, left+270, 220)
-	y -= 33
+	y -= 38
 	drawInfo("ระดับความเร่งด่วน", maintenancePriorityLabel(data.Priority), left+5, 220)
 	drawInfo("สถานะปัจจุบัน", maintenanceStatusLabel(data.Status), left+270, 220)
-	y -= 36
-	doc.FillColor(rowFill).Rect(left, y-58, right-left, 58).Fill()
-	doc.Font("THSarabunNew").FontSize(10).FillColor(muted).Text("อาการ/งานที่แจ้ง", pdfkit.TextOptions{X: left + 5, Y: y - 13})
-	doc.Font("THSarabunNew").FontSize(12).FillColor(ink).Text(strings.TrimSpace(data.Title), pdfkit.TextOptions{X: left + 5, Y: y - 27, Width: right - left - 10})
+	y -= 42
+	doc.FillColor(rowFill).Rect(left, y-74, right-left, 74).Fill()
+	doc.Font("THSarabunNew").FontSize(10).FillColor(muted).Text("อาการ/งานที่แจ้ง", pdfkit.TextOptions{X: left + 5, Y: y - 16})
+	doc.Font("THSarabunNew").FontSize(11).FillColor(ink).Text(strings.TrimSpace(data.Title), pdfkit.TextOptions{X: left + 5, Y: y - 36, Width: right - left - 10, LineGap: 2})
 	detail := strings.TrimSpace(data.Description)
 	if detail == "" {
 		detail = "-"
 	}
-	doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text(trimMaintenancePDFText(detail, 240), pdfkit.TextOptions{X: left + 5, Y: y - 43, Width: right - left - 10})
-	doc.StrokeColor(border).LineWidth(0.45).Rect(left, y-58, right-left, 58).Stroke()
-	y -= 72
+	doc.Font("THSarabunNew").FontSize(10).FillColor(ink).Text(trimMaintenancePDFText(detail, 240), pdfkit.TextOptions{X: left + 5, Y: y - 55, Width: right - left - 10, LineGap: 2})
+	doc.StrokeColor(border).LineWidth(0.45).Rect(left, y-74, right-left, 74).Stroke()
+	y -= 88
 
 	drawSection("รายการให้ช่างตรวจและดำเนินการ")
 	tasks := []string{

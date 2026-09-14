@@ -12,6 +12,8 @@ export type { ApiEnvelope } from '@stackbuild/types';
 function messageFrom(error: unknown) {
   if (axios.isAxiosError<ApiEnvelope<unknown>>(error))
     return error.response?.data?.message ?? 'ไม่สามารถเชื่อมต่อระบบได้';
+  if (error instanceof SyntaxError && /JSON/i.test(error.message))
+    return 'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง';
   return error instanceof Error ? error.message : 'ไม่สามารถเชื่อมต่อระบบได้';
 }
 
