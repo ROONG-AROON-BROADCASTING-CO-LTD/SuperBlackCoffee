@@ -1,18 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  Chip,
-  InputAdornment,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Card, Chip, TextField, Typography } from '@mui/material';
 import {
   DashboardMain,
-  SearchIcon,
+  SearchField,
   SendIcon,
-  type SearchIconHandle,
   type SendIconHandle,
 } from '@stackbuild/ui';
 import { useRef } from 'react';
@@ -303,7 +294,6 @@ const initialMessages: Record<string, Message[]> = {
 };
 
 export function AdminCustomerChatPage() {
-  const searchRef = useRef<SearchIconHandle>(null);
   const sendRef = useRef<SendIconHandle>(null);
   const [query, setQuery] = useState('');
   const [activeCustomerId, setActiveCustomerId] = useState('pim');
@@ -434,27 +424,14 @@ export function AdminCustomerChatPage() {
               borderBottom: '1px solid #eee6e0',
             }}
           >
-            <TextField
+            <SearchField
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              onFocus={() => searchRef.current?.startAnimation()}
-              onBlur={() => searchRef.current?.stopAnimation()}
               placeholder="ค้นหาลูกค้า"
               size="small"
               name="customer-search"
               autoComplete="off"
               fullWidth
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }}
-              slotProps={{
-                htmlInput: { autoComplete: 'off' },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon ref={searchRef} size={18} />
-                    </InputAdornment>
-                  ),
-                },
-              }}
             />
           </Box>
           <Box

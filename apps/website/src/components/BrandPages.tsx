@@ -19,6 +19,21 @@ const brown = '#171411';
 const gold = '#d09a3f';
 const cream = '#f8f4ef';
 const shell = { maxWidth: 1240, mx: 'auto', px: { xs: 2.5, md: 5 } };
+const searchFieldSx = {
+  '& .MuiOutlinedInput-root': {
+    minHeight: 40,
+    borderRadius: '12px',
+    bgcolor: '#fff',
+    fontFamily: 'Kanit, sans-serif',
+    fontSize: 14,
+    transition: 'border-color 160ms ease, box-shadow 160ms ease',
+    '&.Mui-focused': {
+      boxShadow: '0 0 0 3px rgba(91, 63, 47, 0.14)',
+    },
+  },
+  '& .MuiOutlinedInput-input': { py: 1 },
+  '& .MuiInputAdornment-root': { color: '#7c6a5e' },
+};
 const heading = { fontWeight: 600, letterSpacing: '-.025em', lineHeight: 1.16 };
 const SearchAdornment = () => (
   <svg
@@ -1253,12 +1268,7 @@ export function BranchesContent() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="ค้นหาสาขา"
-          sx={{
-            mb: 3,
-            maxWidth: 540,
-            bgcolor: '#fff',
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
+          sx={[searchFieldSx, { mb: 3, maxWidth: 540 }]}
           slotProps={{
             input: {
               startAdornment: (

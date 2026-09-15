@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Snackbar, useMediaQuery } from '@mui/material';
-import {
-  CircleCheckIcon,
-  SbcThemeProvider,
-  snackbarAnchorOrigin,
-  snackbarBelowTopbarSx,
-  snackbarBottomSx,
-  tabletOrSmallerMediaQuery,
-} from '@stackbuild/ui';
+import { ActionSnackbar, SbcThemeProvider } from '@stackbuild/ui';
 import { attendanceNavigation } from './components/AttendanceNavigation';
 import {
   checkIn,
@@ -81,7 +73,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
-  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
   const clock = useAttendanceClock();
   const title = useMemo(
     () =>
@@ -320,29 +311,11 @@ export default function App() {
             summary={summary}
             isInitialLoading={initialDataLoading}
           />
-          {notice ? (
-            <Snackbar
-              open
-              autoHideDuration={4_000}
-              onClose={(_event, reason) => {
-                if (reason !== 'clickaway') setNotice('');
-              }}
-              anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
-              sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
-            >
-              <Alert
-                severity="success"
-                variant="filled"
-                icon={<CircleCheckIcon animate={Boolean(notice)} />}
-                sx={{
-                  fontFamily: 'Kanit, sans-serif',
-                  fontWeight: 500,
-                }}
-              >
-                {notice}
-              </Alert>
-            </Snackbar>
-          ) : null}
+          <ActionSnackbar
+            notice={notice ? { message: notice } : null}
+            autoHideDuration={4_000}
+            onClose={() => setNotice('')}
+          />
           <AutoRetrySnackbar open={connectionError} />
         </AttendanceAppLayout>
       ) : (

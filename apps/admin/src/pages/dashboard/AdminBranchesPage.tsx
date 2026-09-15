@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -8,7 +8,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  InputAdornment,
   MenuItem,
   TextField,
   Typography,
@@ -16,10 +15,9 @@ import {
 import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
-  SearchIcon,
+  SearchField,
   selectionPillSx,
   type BranchStatus,
-  type SearchIconHandle,
 } from '@stackbuild/ui';
 import {
   createCompanyBranch,
@@ -62,7 +60,6 @@ const statusLabel: Record<string, BranchStatus> = {
 };
 
 export function AdminBranchesPage() {
-  const searchIconRef = useRef<SearchIconHandle>(null);
   const [period, setPeriod] = useState<Period>('วันนี้');
   const [query, setQuery] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -187,36 +184,14 @@ export function AdminBranchesPage() {
           mb: 2,
         }}
       >
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchIconRef.current?.startAnimation()}
-          onBlur={() => searchIconRef.current?.stopAnimation()}
           placeholder="ค้นหาสาขา"
           size="small"
           name="branch-search"
           autoComplete="off"
-          sx={{
-            width: { xs: '100%', sm: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment
-                  position="start"
-                  sx={{
-                    alignSelf: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: 18,
-                  }}
-                >
-                  <SearchIcon ref={searchIconRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', sm: 310 } }}
         />
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {periods.map((item) => (

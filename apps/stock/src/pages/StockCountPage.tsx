@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -7,7 +7,6 @@ import {
   Chip,
   Divider,
   Drawer,
-  InputAdornment,
   Paper,
   Stack,
   TextField,
@@ -16,9 +15,8 @@ import {
 import {
   ActionSnackbar,
   coffeeIngredientsImage,
-  SearchIcon,
+  SearchField,
   selectionPillSx,
-  type SearchIconHandle,
 } from '@stackbuild/ui';
 import type { InventoryItem } from '../api/stock';
 
@@ -65,7 +63,6 @@ export function StockCountPage({
   const [note, setNote] = useState('ตรวจนับสิ้นกะ');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const searchRef = useRef<SearchIconHandle>(null);
   const items =
     group === 'ingredient'
       ? ingredients
@@ -144,26 +141,12 @@ export function StockCountPage({
               </Button>
             ))}
           </Stack>
-          <TextField
+          <SearchField
             size="small"
             fullWidth
             placeholder="ค้นหารายการ"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            onFocus={() => searchRef.current?.startAnimation()}
-            onBlur={() => searchRef.current?.stopAnimation()}
-            sx={{
-              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-            }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon ref={searchRef} size={18} />
-                  </InputAdornment>
-                ),
-              },
-            }}
           />
         </Stack>
       </Paper>

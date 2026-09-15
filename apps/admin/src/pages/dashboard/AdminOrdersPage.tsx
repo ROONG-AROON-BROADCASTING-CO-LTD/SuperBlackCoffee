@@ -1,21 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
   Card,
   Chip,
   Divider,
-  InputAdornment,
   MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
 import {
   DashboardMain,
-  SearchIcon,
+  SearchField,
   formatDate,
   selectionPillSx,
-  type SearchIconHandle,
 } from '@stackbuild/ui';
 import {
   ActionSnackbar,
@@ -86,7 +84,6 @@ export function AdminOrdersPage({
   activeTab?: RequestTab;
   onTabChange?: (tab: RequestTab) => void;
 }) {
-  const searchRef = useRef<SearchIconHandle>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof statuses)[number]>('ทั้งหมด');
   const [activeTab, setActiveTab] = useState<RequestTab>('sbc');
@@ -257,26 +254,12 @@ export function AdminOrdersPage({
             แยกการดำเนินการระหว่างสาขา SBC และแฟรนไชส์ให้ชัดเจน
           </Typography>
         </Box>
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchRef.current?.startAnimation()}
-          onBlur={() => searchRef.current?.stopAnimation()}
           placeholder="ค้นหาเลขคำขอ สาขา หรือรายการ"
           size="small"
-          sx={{
-            width: { xs: '100%', lg: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon ref={searchRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', lg: 310 } }}
         />
       </Box>
       <Box

@@ -15,30 +15,26 @@ import {
   Chip,
   Drawer,
   Divider,
-  InputAdornment,
   MenuItem,
-  Snackbar,
   TextField,
   Typography,
-  useMediaQuery,
 } from '@mui/material';
 import {
+  ActionSnackbar,
   DashboardMain,
-  CircleCheckIcon,
   CartIcon,
+  DateField,
   INGREDIENT_STATUS_BADGES,
+  INVENTORY_UNIT_OPTIONS,
+  inventoryUnitSelectSlotProps,
   PlusIcon,
-  SearchIcon,
+  normalizeInventoryUnit,
+  SearchField,
   selectionPillSx,
-  snackbarAnchorOrigin,
-  snackbarBelowTopbarSx,
-  snackbarBottomSx,
-  tabletOrSmallerMediaQuery,
   XIcon,
   type IngredientStatus,
   type CartIconHandle,
   type PlusIconHandle,
-  type SearchIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
 import {
@@ -130,10 +126,8 @@ export function IngredientsManagementPage({
   branchCodes?: BranchCodeMap;
   ingredientScope?: 'regular' | 'fresh';
 }) {
-  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
   const isFreshIngredientsPage = ingredientScope === 'fresh';
   const plusIconRef = useRef<PlusIconHandle>(null);
-  const searchIconRef = useRef<SearchIconHandle>(null);
   const closeIconRef = useRef<XIconHandle>(null);
   const cartCloseIconRef = useRef<XIconHandle>(null);
   const cartIconRef = useRef<CartIconHandle>(null);
@@ -147,6 +141,7 @@ export function IngredientsManagementPage({
   const [editingBranch, setEditingBranch] = useState<InventoryBranch | null>(
     null,
   );
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [catalogIngredientsByBranch, setCatalogIngredientsByBranch] = useState<
     Record<string, Ingredient[]>
   >({});
@@ -373,6 +368,7 @@ export function IngredientsManagementPage({
       unit: String(formData.get('unit') ?? ''),
       reorderLevel: Number(formData.get('reorderLevel') ?? 0),
       unitCost: Number(formData.get('unitCost') ?? 0),
+      imageUrl: imagePreviewUrl ?? editingIngredient?.imageUrl ?? '',
       expiryDate: expiryDate || null,
     };
     if (!data.name || !data.unit || Number.isNaN(data.quantity)) return;
@@ -386,6 +382,7 @@ export function IngredientsManagementPage({
       setIsAddDrawerOpen(false);
       setEditingIngredient(null);
       setEditingBranch(null);
+      setImagePreviewUrl(null);
       setReloadKey((key) => key + 1);
       setInventoryNotice({
         severity: 'success',
@@ -442,37 +439,14 @@ export function IngredientsManagementPage({
             gap: 1,
           }}
         >
-          <TextField
+          <SearchField
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            onFocus={() => searchIconRef.current?.startAnimation()}
-            onBlur={() => searchIconRef.current?.stopAnimation()}
             placeholder={`ค้นหา${ingredientLabel}`}
             size="small"
             name="ingredient-search"
             autoComplete="off"
-            sx={{
-              flex: { xs: 1, lg: '0 1 auto' },
-              width: { lg: 310 },
-              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-            }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment
-                    position="start"
-                    sx={{
-                      alignSelf: 'center',
-                      display: 'flex',
-                      alignItems: 'center',
-                      height: 18,
-                    }}
-                  >
-                    <SearchIcon ref={searchIconRef} size={18} />
-                  </InputAdornment>
-                ),
-              },
-            }}
+            sx={{ flex: { xs: 1, lg: '0 1 auto' }, width: { lg: 310 } }}
           />
           {allowOrdering ? (
             <Button
@@ -546,6 +520,7 @@ export function IngredientsManagementPage({
             startIcon={<PlusIcon ref={plusIconRef} size={16} />}
             onClick={() => {
               setEditingIngredient(null);
+              setImagePreviewUrl(null);
               setEditingBranch(
                 activeBranch === 'ทุกสาขา'
                   ? availableBranchNames[0]
@@ -920,6 +895,7 @@ export function IngredientsManagementPage({
                                   onClick={() => {
                                     setEditingIngredient(ingredient);
                                     setEditingBranch(branch as InventoryBranch);
+                                    setImagePreviewUrl(null);
                                     setIsAddDrawerOpen(true);
                                   }}
                                   sx={{
@@ -1181,11 +1157,104 @@ export function IngredientsManagementPage({
               onSubmit={(event) => void saveIngredient(event)}
               sx={{
                 display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'minmax(0, 1fr) minmax(0, 2fr)',
+                },
                 gap: 2.5,
                 mt: 0,
                 '& .MuiOutlinedInput-root': { borderRadius: '12px' },
               }}
             >
+              <Box
+                component="label"
+                sx={{
+                  alignItems: 'center',
+                  alignSelf: 'start',
+                  aspectRatio: '1 / 1',
+                  bgcolor: '#f7eee8',
+                  border: '1.5px dashed #c9b6a9',
+                  borderRadius: '16px',
+                  color: '#5f4b3d',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  '&:hover': { bgcolor: '#f1e4da', borderColor: '#805637' },
+                }}
+              >
+                {imagePreviewUrl || editingIngredient?.imageUrl ? (
+                  <Box
+                    component="img"
+                    src={imagePreviewUrl ?? editingIngredient?.imageUrl}
+                    alt={`ตัวอย่างรูป${ingredientLabel}`}
+                    sx={{
+                      height: '100%',
+                      inset: 0,
+                      objectFit: 'cover',
+                      position: 'absolute',
+                      width: '100%',
+                    }}
+                  />
+                ) : null}
+                <Typography
+                  sx={{
+                    bgcolor:
+                      imagePreviewUrl || editingIngredient?.imageUrl
+                        ? 'rgba(32, 25, 20, .58)'
+                        : 'transparent',
+                    borderRadius: 1.5,
+                    color:
+                      imagePreviewUrl || editingIngredient?.imageUrl
+                        ? '#fff'
+                        : 'inherit',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontWeight: 500,
+                    px: 1.25,
+                    py: 0.5,
+                    position: 'relative',
+                  }}
+                >
+                  {imagePreviewUrl || editingIngredient?.imageUrl
+                    ? `เปลี่ยนรูป${ingredientLabel}`
+                    : `เพิ่มรูป${ingredientLabel}`}
+                </Typography>
+                {!imagePreviewUrl && !editingIngredient?.imageUrl ? (
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 12,
+                      mt: 0.25,
+                    }}
+                  >
+                    JPG หรือ PNG ขนาดไม่เกิน 5 MB
+                  </Typography>
+                ) : null}
+                <input
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      setInventoryNotice({
+                        severity: 'error',
+                        message: 'รูปภาพต้องมีขนาดไม่เกิน 5 MB',
+                      });
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.addEventListener('load', () =>
+                      setImagePreviewUrl(String(reader.result)),
+                    );
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </Box>
               <Box
                 sx={{
                   display: 'grid',
@@ -1243,12 +1312,16 @@ export function IngredientsManagementPage({
                   fullWidth
                   name="unit"
                   label="หน่วย"
-                  defaultValue={editingIngredient?.unit ?? 'kg'}
+                  defaultValue={normalizeInventoryUnit(
+                    editingIngredient?.unit ?? 'กิโลกรัม',
+                  )}
+                  slotProps={inventoryUnitSelectSlotProps}
                 >
-                  <MenuItem value="kg">กิโลกรัม</MenuItem>
-                  <MenuItem value="liter">ลิตร</MenuItem>
-                  <MenuItem value="bottle">ขวด</MenuItem>
-                  <MenuItem value="piece">ชิ้น</MenuItem>
+                  {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                    <MenuItem key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </MenuItem>
+                  ))}
                 </TextField>
                 <TextField
                   fullWidth
@@ -1267,15 +1340,13 @@ export function IngredientsManagementPage({
                   defaultValue={editingIngredient?.unitCost ?? 0}
                   slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
                 />
-                <TextField
+                <DateField
                   fullWidth
                   name="expiryDate"
                   label="วันหมดอายุ"
-                  type="date"
                   defaultValue={inputDateValue(
                     editingIngredient?.expiryDate ?? null,
                   )}
-                  slotProps={{ inputLabel: { shrink: true } }}
                   helperText="เว้นว่างได้หากวัตถุดิบไม่มีวันหมดอายุ"
                 />
                 {activeBranch === 'ทุกสาขา' && !editingIngredient ? (
@@ -1732,59 +1803,34 @@ export function IngredientsManagementPage({
           </Box>
         </Box>
       </Drawer>
-      <Snackbar
-        open={Boolean(inventoryNotice)}
-        autoHideDuration={5000}
-        anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
-        sx={
-          isTabletOrSmaller
-            ? snackbarBelowTopbarSx
-            : { ...snackbarBottomSx, mb: isCartSuccessVisible ? 10 : 2 }
-        }
+      <ActionSnackbar
+        notice={inventoryNotice}
+        autoHideDuration={5_000}
+        desktopSx={{ mb: isCartSuccessVisible ? 10 : 2 }}
         onClose={() => setInventoryNotice(null)}
-      >
-        <Alert
-          severity={inventoryNotice?.severity ?? 'success'}
-          variant="filled"
-          sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
-        >
-          {inventoryNotice?.message}
-        </Alert>
-      </Snackbar>
-      <Snackbar
-        open={isCartSuccessVisible}
-        autoHideDuration={5000}
-        anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
-        sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
+      />
+      <ActionSnackbar
+        notice={
+          isCartSuccessVisible ? { message: 'ส่งคำขอวัตถุดิบแล้ว' } : null
+        }
+        autoHideDuration={5_000}
+        action={
+          onRequestCreated ? (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setIsCartSuccessVisible(false);
+                onRequestCreated();
+              }}
+              sx={{ fontFamily: 'Kanit, sans-serif' }}
+            >
+              ดูคำขอ
+            </Button>
+          ) : undefined
+        }
         onClose={() => setIsCartSuccessVisible(false)}
-      >
-        <Alert
-          severity="success"
-          variant="filled"
-          icon={<CircleCheckIcon animate={isCartSuccessVisible} />}
-          action={
-            onRequestCreated ? (
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => {
-                  setIsCartSuccessVisible(false);
-                  onRequestCreated();
-                }}
-                sx={{ fontFamily: 'Kanit, sans-serif' }}
-              >
-                ดูคำขอ
-              </Button>
-            ) : undefined
-          }
-          sx={{
-            fontFamily: 'Kanit, sans-serif',
-            fontWeight: 500,
-          }}
-        >
-          ส่งคำขอวัตถุดิบแล้ว
-        </Alert>
-      </Snackbar>
+      />
     </DashboardMain>
   );
 }

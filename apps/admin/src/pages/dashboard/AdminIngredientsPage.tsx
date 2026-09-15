@@ -5,7 +5,6 @@ import {
   Card,
   Chip,
   Drawer,
-  InputAdornment,
   MenuItem,
   TextField,
   Typography,
@@ -14,13 +13,14 @@ import {
   DashboardMain,
   coffeeIngredientsImage,
   INGREDIENT_STATUS_BADGES,
+  INVENTORY_UNIT_OPTIONS,
+  inventoryUnitSelectSlotProps,
   PlusIcon,
-  SearchIcon,
+  SearchField,
   selectionPillSx,
   XIcon,
   type IngredientStatus,
   type PlusIconHandle,
-  type SearchIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
 import {
@@ -101,7 +101,6 @@ export function AdminIngredientsPage({
   activeBranch: IngredientBranch;
 }) {
   const plusIconRef = useRef<PlusIconHandle>(null);
-  const searchIconRef = useRef<SearchIconHandle>(null);
   const closeIconRef = useRef<XIconHandle>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<IngredientFilter>('ทั้งหมด');
@@ -195,36 +194,14 @@ export function AdminIngredientsPage({
           mb: 2,
         }}
       >
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchIconRef.current?.startAnimation()}
-          onBlur={() => searchIconRef.current?.stopAnimation()}
           placeholder="ค้นหาวัตถุดิบ"
           size="small"
           name="ingredient-search"
           autoComplete="off"
-          sx={{
-            width: { xs: '100%', lg: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment
-                  position="start"
-                  sx={{
-                    alignSelf: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: 18,
-                  }}
-                >
-                  <SearchIcon ref={searchIconRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', lg: 310 } }}
         />
         <Button
           variant="contained"
@@ -790,12 +767,14 @@ export function AdminIngredientsPage({
                 select
                 fullWidth
                 label="หน่วย"
-                defaultValue="kg"
+                defaultValue="กิโลกรัม"
+                slotProps={inventoryUnitSelectSlotProps}
               >
-                <MenuItem value="kg">กิโลกรัม</MenuItem>
-                <MenuItem value="liter">ลิตร</MenuItem>
-                <MenuItem value="bottle">ขวด</MenuItem>
-                <MenuItem value="piece">ชิ้น</MenuItem>
+                {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                  <MenuItem key={unit.value} value={unit.value}>
+                    {unit.label}
+                  </MenuItem>
+                ))}
               </TextField>
               <TextField
                 fullWidth

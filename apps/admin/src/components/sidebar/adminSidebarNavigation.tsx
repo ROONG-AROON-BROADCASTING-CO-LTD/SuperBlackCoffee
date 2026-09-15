@@ -99,6 +99,11 @@ export const adminSidebarNavigation = [
     group: 'ติดตามและตรวจสอบ',
   },
   {
+    label: 'เอกสารส่วนกลาง',
+    icon: <FilePenLineIcon />,
+    group: 'ติดตามและตรวจสอบ',
+  },
+  {
     label: 'ตรวจมาตรฐานและบริการ',
     icon: <FilePenLineIcon />,
     group: 'ติดตามและตรวจสอบ',

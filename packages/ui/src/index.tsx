@@ -9,7 +9,14 @@ export { default as superBlackLogo } from './assets/superblack-logo.png';
 export { default as coffeeIngredientsImage } from './assets/ingredients/coffee-ingredients.png';
 export { EmptyState } from './components/EmptyState';
 export { ActionSnackbar, type ActionNotice } from './components/ActionSnackbar';
+export { ConnectionRetrySnackbar } from './components/ConnectionRetrySnackbar';
+export { DateField, type DateFieldProps } from './components/DateField';
 export { selectionPillSx } from './components/selectionPill';
+export {
+  SearchField,
+  searchFieldSx,
+  type SearchFieldProps,
+} from './components/searchField';
 export {
   snackbarAnchorOrigin,
   snackbarBelowTopbarSx,
@@ -96,6 +103,11 @@ export { SbcThemeProvider } from './theme/SbcThemeProvider';
 export { registerServiceWorker } from './pwa/registerServiceWorker';
 export { DEFAULT_CURRENCY, formatCurrency } from './constants/currency';
 export { DEFAULT_DATE_FORMAT, formatDate } from './constants/date';
+export {
+  INVENTORY_UNIT_OPTIONS,
+  inventoryUnitSelectSlotProps,
+  normalizeInventoryUnit,
+} from './constants/inventoryUnits';
 export {
   BRANCH_STATUS_BADGES,
   type BranchStatus,

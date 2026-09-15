@@ -3,19 +3,13 @@ import {
   Box,
   Button,
   Card,
-  InputAdornment,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  CalendarDaysIcon,
-  ChevronDownIcon,
-  DashboardMain,
-  type CalendarDaysIconHandle,
-} from '@stackbuild/ui';
+import { ChevronDownIcon, DateField, DashboardMain } from '@stackbuild/ui';
 import {
   ActionSnackbar,
   branchCodeByBranch,
@@ -240,22 +234,8 @@ function AssetFields() {
         sx={inputSx}
       />
       <TextField name="serialNumber" label="หมายเลขประจำเครื่อง" sx={inputSx} />
-      <TextField
-        name="warrantyUntil"
-        type="date"
-        label="หมดประกัน"
-        fullWidth
-        slotProps={{ inputLabel: { shrink: true } }}
-        sx={inputSx}
-      />
-      <TextField
-        name="maintenanceDue"
-        type="date"
-        label="กำหนดบำรุงรักษา"
-        fullWidth
-        slotProps={{ inputLabel: { shrink: true } }}
-        sx={inputSx}
-      />
+      <DateField name="warrantyUntil" label="หมดประกัน" sx={inputSx} />
+      <DateField name="maintenanceDue" label="กำหนดบำรุงรักษา" sx={inputSx} />
     </>
   );
 }
@@ -323,22 +303,13 @@ function InvoiceFields({
         slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
         sx={inputSx}
       />
-      <TextField
-        name="dueAt"
-        type="date"
-        label="วันครบกำหนด"
-        fullWidth
-        slotProps={{ inputLabel: { shrink: true } }}
-        sx={inputSx}
-      />
+      <DateField name="dueAt" label="วันครบกำหนด" sx={inputSx} />
     </>
   );
 }
 
 export function AdminOperationsPage() {
   const client = useQueryClient();
-  const inspectionDateInputRef = useRef<HTMLInputElement>(null);
-  const inspectionCalendarIconRef = useRef<CalendarDaysIconHandle>(null);
   const [tab, setTab] = useState<Tab>(() => {
     const savedTab = window.sessionStorage.getItem(operationsTabStorageKey);
     return isOperationsTab(savedTab) ? savedTab : 'maintenance';
@@ -359,14 +330,6 @@ export function AdminOperationsPage() {
   useEffect(() => {
     window.sessionStorage.setItem(operationsTabStorageKey, tab);
   }, [tab]);
-  const openInspectionDatePicker = () => {
-    inspectionCalendarIconRef.current?.startAnimation();
-    window.setTimeout(
-      () => inspectionCalendarIconRef.current?.stopAnimation(),
-      950,
-    );
-    inspectionDateInputRef.current?.showPicker?.();
-  };
   const data = useQuery({
     queryKey: ['operations'],
     queryFn: async () => {
@@ -667,36 +630,11 @@ export function AdminOperationsPage() {
                   required
                   sx={inputSx}
                 />
-                <TextField
+                <DateField
                   name="dueAt"
-                  type="date"
                   label="กำหนดตรวจ"
                   required
-                  inputRef={inspectionDateInputRef}
-                  onClick={openInspectionDatePicker}
-                  fullWidth
-                  slotProps={{
-                    inputLabel: { shrink: true },
-                    input: {
-                      endAdornment: (
-                        <InputAdornment
-                          position="end"
-                          sx={{ pointerEvents: 'none' }}
-                        >
-                          <CalendarDaysIcon
-                            ref={inspectionCalendarIconRef}
-                            size={22}
-                          />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                  sx={{
-                    ...inputSx,
-                    '& input::-webkit-calendar-picker-indicator': {
-                      display: 'none',
-                    },
-                  }}
+                  sx={inputSx}
                 />
                 <TextField
                   select

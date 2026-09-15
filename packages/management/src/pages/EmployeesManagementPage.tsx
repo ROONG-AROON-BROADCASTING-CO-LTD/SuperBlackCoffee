@@ -15,6 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ClockIcon,
+  DateField,
   DashboardMain,
   selectionPillSx,
   XIcon,
@@ -1272,12 +1273,10 @@ export function EmployeesManagementPage({
                 },
               }}
             >
-              <TextField
+              <DateField
                 label="ย้ายไปวันที่"
-                type="date"
                 value={editDate}
                 onChange={(event) => setEditDate(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
               />
               {!franchiseMode && (
                 <FormControl>

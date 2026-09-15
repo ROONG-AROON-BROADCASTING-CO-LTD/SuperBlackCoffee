@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -6,18 +6,11 @@ import {
   Chip,
   Divider,
   Drawer,
-  InputAdornment,
   MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
-import {
-  DashboardMain,
-  PlusIcon,
-  SearchIcon,
-  XIcon,
-  type SearchIconHandle,
-} from '@stackbuild/ui';
+import { DashboardMain, PlusIcon, SearchField, XIcon } from '@stackbuild/ui';
 import {
   createFranchisee,
   listBranches,
@@ -109,7 +102,6 @@ const toCards = (franchisees: Franchisee[], branches: Branch[]) =>
     });
 
 export function AdminFranchiseBranchesPage() {
-  const searchIconRef = useRef<SearchIconHandle>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [form, setForm] = useState({
@@ -226,36 +218,14 @@ export function AdminFranchiseBranchesPage() {
           mb: 2.5,
         }}
       >
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchIconRef.current?.startAnimation()}
-          onBlur={() => searchIconRef.current?.stopAnimation()}
           placeholder="ค้นหาสาขาแฟรนไชส์"
           size="small"
           name="franchise-branch-search"
           autoComplete="off"
-          sx={{
-            width: { xs: '100%', sm: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment
-                  position="start"
-                  sx={{
-                    alignSelf: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: 18,
-                  }}
-                >
-                  <SearchIcon ref={searchIconRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', sm: 310 } }}
         />
         <Button
           variant="contained"

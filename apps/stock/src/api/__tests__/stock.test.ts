@@ -1,0 +1,60 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { adjustInventory, listMenuItems, listMyStockMovements } from '../stock';
+
+describe('stock mutation API contracts', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('records a counted adjustment with its staff-entered reason', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ success: true, data: { id: 9, quantity: 12 } }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(adjustInventory(9, 12, 'ตรวจนับสิ้นกะ')).resolves.toEqual({
+      id: 9,
+      quantity: 12,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/inventory/9/adjust'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ quantity: 12, note: 'ตรวจนับสิ้นกะ' }),
+        credentials: 'include',
+      }),
+    );
+  });
+
+  it('uses the capped movement history and menu endpoints for the signed-in branch', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: true, data: [] }), {
+          status: 200,
+        }),
+      );
+
+    await expect(listMyStockMovements()).resolves.toEqual([]);
+    await expect(listMenuItems()).resolves.toEqual([]);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/stock-movements?limit=100'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/menu-items'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+});

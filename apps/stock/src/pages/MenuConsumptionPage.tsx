@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -6,7 +6,6 @@ import {
   Card,
   Chip,
   Drawer,
-  InputAdornment,
   Paper,
   Stack,
   TextField,
@@ -15,10 +14,9 @@ import {
 import {
   ActionSnackbar,
   CartIcon,
-  SearchIcon,
   coffeeIngredientsImage,
+  SearchField,
   selectionPillSx,
-  type SearchIconHandle,
 } from '@stackbuild/ui';
 import type { MenuItem } from '../api/stock';
 import {
@@ -68,7 +66,6 @@ export function MenuConsumptionPage({
   const [receiptError, setReceiptError] = useState('');
   const [receiptFileNames, setReceiptFileNames] = useState<string[]>([]);
   const [receiptProgress, setReceiptProgress] = useState('');
-  const searchRef = useRef<SearchIconHandle>(null);
   const [importWarning, setImportWarning] = useState<string[]>([]);
   const [receiptChannel, setReceiptChannel] = useState<SalesChannel | null>(
     null,
@@ -242,26 +239,12 @@ export function MenuConsumptionPage({
               ตะกร้า ({selectedQuantity})
             </Button>
           </Stack>
-          <TextField
+          <SearchField
             fullWidth
             size="small"
             placeholder="ค้นหาเมนู"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            onFocus={() => searchRef.current?.startAnimation()}
-            onBlur={() => searchRef.current?.stopAnimation()}
-            sx={{
-              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-            }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon ref={searchRef} size={18} />
-                  </InputAdornment>
-                ),
-              },
-            }}
           />
         </Paper>
         <Paper

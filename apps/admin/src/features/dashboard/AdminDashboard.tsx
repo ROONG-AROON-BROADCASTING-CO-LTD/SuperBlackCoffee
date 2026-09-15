@@ -7,6 +7,7 @@ import {
   IngredientsSkeleton,
   ProductsSkeleton,
   StockSkeleton,
+  CompanyDocumentsPage,
   BranchesSidebar,
   branchCodeByBranch,
   useAutoRetry,
@@ -272,6 +273,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     />
   ) : activePage === 'ประวัติการทำรายการ' ? (
     <AdminAuditPage />
+  ) : activePage === 'เอกสารส่วนกลาง' ? (
+    <CompanyDocumentsPage />
   ) : isStockPage ? (
     <AdminStockPage
       activeBranch={activeBranch}

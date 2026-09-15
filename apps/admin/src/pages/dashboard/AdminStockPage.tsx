@@ -5,7 +5,6 @@ import {
   Card,
   Chip,
   Drawer,
-  InputAdornment,
   MenuItem,
   TextField,
   Typography,
@@ -13,14 +12,15 @@ import {
 import {
   DashboardMain,
   INGREDIENT_STATUS_BADGES,
+  INVENTORY_UNIT_OPTIONS,
+  inventoryUnitSelectSlotProps,
   PlusIcon,
-  SearchIcon,
+  SearchField,
   selectionPillSx,
   XIcon,
   coffeeIngredientsImage,
   type IngredientStatus,
   type PlusIconHandle,
-  type SearchIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
 import {
@@ -95,7 +95,6 @@ export function AdminStockPage({
   activeBranch: IngredientBranch;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
-  const searchRef = useRef<SearchIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StockFilter>('ทั้งหมด');
@@ -150,26 +149,12 @@ export function AdminStockPage({
           mb: 2,
         }}
       >
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchRef.current?.startAnimation()}
-          onBlur={() => searchRef.current?.stopAnimation()}
           placeholder="ค้นหาสต๊อก"
           size="small"
-          sx={{
-            width: { xs: '100%', lg: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon ref={searchRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', lg: 310 } }}
         />
         <Button
           variant="contained"
@@ -682,12 +667,14 @@ export function AdminStockPage({
                 select
                 fullWidth
                 label="หน่วย"
-                defaultValue="piece"
+                defaultValue="ชิ้น"
+                slotProps={inventoryUnitSelectSlotProps}
               >
-                <MenuItem value="piece">ชิ้น</MenuItem>
-                <MenuItem value="cup">ใบ</MenuItem>
-                <MenuItem value="box">กล่อง</MenuItem>
-                <MenuItem value="pack">ห่อ</MenuItem>
+                {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                  <MenuItem key={unit.value} value={unit.value}>
+                    {unit.label}
+                  </MenuItem>
+                ))}
               </TextField>
               <TextField
                 fullWidth

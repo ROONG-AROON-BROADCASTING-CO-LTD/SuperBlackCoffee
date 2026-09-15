@@ -19,6 +19,8 @@ import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+  ActionSnackbar: () => null,
+  ConnectionRetrySnackbar: () => null,
   BadgeAlertIcon: () => <span aria-hidden="true" />,
   CircleCheckIcon: () => <span aria-hidden="true" />,
   tabletOrSmallerMediaQuery: '(max-width:899.95px)',

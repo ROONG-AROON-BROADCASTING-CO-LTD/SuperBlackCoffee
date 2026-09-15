@@ -8,30 +8,25 @@ import {
   Chip,
   Divider,
   Drawer,
-  InputAdornment,
   MenuItem,
-  Snackbar,
   TextField,
   Typography,
-  useMediaQuery,
 } from '@mui/material';
 import {
+  ActionSnackbar,
   CartIcon,
-  CircleCheckIcon,
   DashboardMain,
   INGREDIENT_STATUS_BADGES,
+  INVENTORY_UNIT_OPTIONS,
+  inventoryUnitSelectSlotProps,
   PlusIcon,
-  SearchIcon,
+  normalizeInventoryUnit,
+  SearchField,
   selectionPillSx,
-  snackbarAnchorOrigin,
-  snackbarBelowTopbarSx,
-  snackbarBottomSx,
-  tabletOrSmallerMediaQuery,
   XIcon,
   type IngredientStatus,
   type CartIconHandle,
   type PlusIconHandle,
-  type SearchIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
 import {
@@ -79,9 +74,7 @@ export function StockManagementPage({
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
 }) {
-  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
   const plusRef = useRef<PlusIconHandle>(null);
-  const searchRef = useRef<SearchIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
   const cartCloseRef = useRef<XIconHandle>(null);
   const cartRef = useRef<CartIconHandle>(null);
@@ -261,26 +254,12 @@ export function StockManagementPage({
           mb: 2,
         }}
       >
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchRef.current?.startAnimation()}
-          onBlur={() => searchRef.current?.stopAnimation()}
           placeholder={`ค้นหา${stockLabel}`}
           size="small"
-          sx={{
-            width: { xs: '100%', lg: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon ref={searchRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', lg: 310 } }}
         />
         {canOrder ? (
           <Button
@@ -981,12 +960,16 @@ export function StockManagementPage({
                   select
                   fullWidth
                   label="หน่วย"
-                  defaultValue="piece"
+                  defaultValue={normalizeInventoryUnit(
+                    editingItem?.unit ?? 'ชิ้น',
+                  )}
+                  slotProps={inventoryUnitSelectSlotProps}
                 >
-                  <MenuItem value="piece">ชิ้น</MenuItem>
-                  <MenuItem value="cup">ใบ</MenuItem>
-                  <MenuItem value="box">กล่อง</MenuItem>
-                  <MenuItem value="pack">ห่อ</MenuItem>
+                  {INVENTORY_UNIT_OPTIONS.map((unit) => (
+                    <MenuItem key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </MenuItem>
+                  ))}
                 </TextField>
                 <TextField
                   fullWidth
@@ -1319,37 +1302,30 @@ export function StockManagementPage({
           </Box>
         </Box>
       </Drawer>
-      <Snackbar
-        open={isCartSuccessVisible}
-        autoHideDuration={5000}
-        anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
-        sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
+      <ActionSnackbar
+        notice={
+          isCartSuccessVisible
+            ? { message: 'ส่งคำขออุปกรณ์เครื่องดื่มแล้ว' }
+            : null
+        }
+        autoHideDuration={5_000}
+        action={
+          onRequestCreated ? (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setIsCartSuccessVisible(false);
+                onRequestCreated();
+              }}
+              sx={{ fontFamily: 'Kanit, sans-serif' }}
+            >
+              ดูคำขอ
+            </Button>
+          ) : undefined
+        }
         onClose={() => setIsCartSuccessVisible(false)}
-      >
-        <Alert
-          severity="success"
-          variant="filled"
-          icon={<CircleCheckIcon animate={isCartSuccessVisible} />}
-          action={
-            onRequestCreated ? (
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => {
-                  setIsCartSuccessVisible(false);
-                  onRequestCreated();
-                }}
-                sx={{ fontFamily: 'Kanit, sans-serif' }}
-              >
-                ดูคำขอ
-              </Button>
-            ) : undefined
-          }
-          sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
-        >
-          ส่งคำขออุปกรณ์เครื่องดื่มแล้ว
-        </Alert>
-      </Snackbar>
+      />
     </DashboardMain>
   );
 }

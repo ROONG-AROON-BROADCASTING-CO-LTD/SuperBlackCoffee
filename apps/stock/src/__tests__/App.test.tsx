@@ -18,6 +18,8 @@ import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+  ActionSnackbar: () => null,
+  ConnectionRetrySnackbar: () => null,
   CircleCheckIcon: () => <span aria-hidden="true" />,
   tabletOrSmallerMediaQuery: '(max-width:899.95px)',
   snackbarAnchorOrigin: (isTabletOrSmaller: boolean) => ({

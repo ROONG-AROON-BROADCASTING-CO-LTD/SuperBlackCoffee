@@ -6,7 +6,6 @@ import {
   Chip,
   Divider,
   Drawer,
-  InputAdornment,
   MenuItem,
   TextField,
   Typography,
@@ -14,11 +13,10 @@ import {
 import {
   DashboardMain,
   PlusIcon,
-  SearchIcon,
+  SearchField,
   selectionPillSx,
   XIcon,
   type PlusIconHandle,
-  type SearchIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
 import {
@@ -231,7 +229,6 @@ export function ProductsManagementPage({
   branchCodes?: BranchCodeMap;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
-  const searchRef = useRef<SearchIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
   const branchSectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const menuCacheRef = useRef(new Map<string, ApiMenuItem[]>());
@@ -703,26 +700,12 @@ export function ProductsManagementPage({
           mb: 2,
         }}
       >
-        <TextField
+        <SearchField
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => searchRef.current?.startAnimation()}
-          onBlur={() => searchRef.current?.stopAnimation()}
           placeholder="ค้นหาเมนูและสินค้า"
           size="small"
-          sx={{
-            width: { xs: '100%', lg: 310 },
-            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon ref={searchRef} size={18} />
-                </InputAdornment>
-              ),
-            },
-          }}
+          sx={{ width: { xs: '100%', lg: 310 } }}
         />
         {!readOnly ? (
           <Button

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -6,7 +6,6 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  InputAdornment,
   Paper,
   Stack,
   TextField,
@@ -14,8 +13,7 @@ import {
 } from '@mui/material';
 import {
   AmbulanceIcon,
-  CalendarDaysIcon,
-  type CalendarDaysIconHandle,
+  DateField,
   PlusIcon,
   ReceiptTextIcon,
   SendIcon,
@@ -90,10 +88,6 @@ export function AttendanceLeaveRequestPage({
     null,
   );
   const [previewError, setPreviewError] = useState('');
-  const leaveDateInputRef = useRef<HTMLInputElement>(null);
-  const calendarIconRef = useRef<CalendarDaysIconHandle>(null);
-  const leaveEndDateInputRef = useRef<HTMLInputElement>(null);
-  const leaveEndCalendarIconRef = useRef<CalendarDaysIconHandle>(null);
 
   const refreshRequests = async () => {
     try {
@@ -112,21 +106,6 @@ export function AttendanceLeaveRequestPage({
     },
     [previewUrl],
   );
-
-  const openLeaveDatePicker = () => {
-    calendarIconRef.current?.startAnimation();
-    window.setTimeout(() => calendarIconRef.current?.stopAnimation(), 950);
-    leaveDateInputRef.current?.showPicker?.();
-  };
-
-  const openLeaveEndDatePicker = () => {
-    leaveEndCalendarIconRef.current?.startAnimation();
-    window.setTimeout(
-      () => leaveEndCalendarIconRef.current?.stopAnimation(),
-      950,
-    );
-    leaveEndDateInputRef.current?.showPicker?.();
-  };
 
   const previewPdf = async (id: number, leaveDate: string) => {
     setOpeningPdf(id);
@@ -267,67 +246,20 @@ export function AttendanceLeaveRequestPage({
               gap: 2,
             }}
           >
-            <TextField
+            <DateField
               label="ตั้งแต่วันที่"
-              type="date"
-              inputRef={leaveDateInputRef}
-              onClick={openLeaveDatePicker}
-              slotProps={{
-                inputLabel: { shrink: true },
-                input: {
-                  endAdornment: (
-                    <InputAdornment
-                      position="end"
-                      sx={{ pointerEvents: 'none' }}
-                    >
-                      <CalendarDaysIcon ref={calendarIconRef} size={22} />
-                    </InputAdornment>
-                  ),
-                },
-              }}
               value={leaveDate}
               onChange={(event) => {
                 setLeaveDate(event.target.value);
                 if (event.target.value >= leaveEndDate)
                   setLeaveEndDate(nextCalendarDay(event.target.value));
               }}
-              fullWidth
-              sx={{
-                '& input::-webkit-calendar-picker-indicator': {
-                  display: 'none',
-                },
-              }}
             />
-            <TextField
+            <DateField
               label="ถึงวันที่"
-              type="date"
-              inputRef={leaveEndDateInputRef}
-              onClick={openLeaveEndDatePicker}
-              slotProps={{
-                inputLabel: { shrink: true },
-                htmlInput: { min: nextCalendarDay(leaveDate) },
-                input: {
-                  endAdornment: (
-                    <InputAdornment
-                      position="end"
-                      sx={{ pointerEvents: 'none' }}
-                    >
-                      <CalendarDaysIcon
-                        ref={leaveEndCalendarIconRef}
-                        size={22}
-                      />
-                    </InputAdornment>
-                  ),
-                },
-              }}
+              min={nextCalendarDay(leaveDate)}
               value={leaveEndDate}
               onChange={(event) => setLeaveEndDate(event.target.value)}
-              fullWidth
-              sx={{
-                '& input::-webkit-calendar-picker-indicator': {
-                  display: 'none',
-                },
-              }}
             />
           </Box>
           <TextField

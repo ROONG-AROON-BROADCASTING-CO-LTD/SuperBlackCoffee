@@ -4,6 +4,7 @@ export { ProductsManagementPage } from './pages/ProductsManagementPage';
 export { StockManagementPage } from './pages/StockManagementPage';
 export { AttendanceManagementPage } from './pages/AttendanceManagementPage';
 export { LeaveRequestsManagementPage } from './pages/LeaveRequestsManagementPage';
+export { CompanyDocumentsPage } from './pages/CompanyDocumentsPage';
 export {
   BranchesSidebar,
   branchCodeByBranch,

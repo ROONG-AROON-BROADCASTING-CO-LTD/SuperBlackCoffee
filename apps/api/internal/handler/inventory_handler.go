@@ -102,6 +102,7 @@ func inventoryItemFromInput(input inventoryInput, expiryDate *time.Time) model.I
 		Unit:          input.Unit,
 		ReorderLevel:  input.ReorderLevel,
 		UnitCost:      input.UnitCost,
+		ImageURL:      input.ImageURL,
 		ExpiryDate:    expiryDate,
 	}
 }

@@ -11,6 +11,7 @@ import { ProductsManagementPage } from '@stackbuild/management/pages/products';
 import { StockManagementPage } from '@stackbuild/management/pages/stock';
 import {
   AttendanceSkeleton,
+  CompanyDocumentsPage,
   LeaveRequestsSkeleton,
 } from '@stackbuild/management';
 import {
@@ -164,6 +165,8 @@ export function FranchiseDashboard({
           <AttendanceManagementPage franchiseMode />
         ) : activePage === 'คำขอลาพนักงาน' ? (
           <LeaveRequestsManagementPage franchiseMode />
+        ) : activePage === 'เอกสารส่วนกลาง' ? (
+          <CompanyDocumentsPage readOnly />
         ) : (
           <DashboardMain>
             <FranchiseOverviewPage plan={plan} onNavigate={navigate} />

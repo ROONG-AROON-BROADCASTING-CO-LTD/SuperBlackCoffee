@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DashboardMain, formatDate } from '@stackbuild/ui';
+import { DashboardMain, DateField, formatDate } from '@stackbuild/ui';
 import { ActionSnackbar, type ActionNotice } from '@stackbuild/management';
 import {
   createFranchiseMaintenanceTicket,
@@ -327,12 +327,10 @@ export function FranchiseMaintenancePage() {
                 minRows={4}
                 placeholder="อธิบายอาการ จุดที่พบ และสิ่งที่ได้ตรวจสอบเบื้องต้น"
               />
-              <TextField
+              <DateField
                 label="วันที่ต้องการให้ดำเนินการ"
-                type="date"
                 value={dueAt}
                 onChange={(event) => setDueAt(event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
               />
               <Button
                 type="submit"

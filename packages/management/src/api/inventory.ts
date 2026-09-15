@@ -24,6 +24,7 @@ export type InventoryInput = {
   unit: string;
   reorderLevel: number;
   unitCost: number;
+  imageUrl: string;
   expiryDate: string | null;
 };
 
