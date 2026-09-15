@@ -4,7 +4,11 @@ const secured = vi.hoisted(() => vi.fn());
 
 vi.mock('../client', () => ({ secured }));
 
-import { listBranches, updateBranchSize } from '../branches';
+import {
+  createCompanyBranch,
+  listBranches,
+  updateBranchSize,
+} from '../branches';
 
 describe('admin branches API', () => {
   afterEach(() => vi.clearAllMocks());
@@ -26,6 +30,28 @@ describe('admin branches API', () => {
     expect(secured).toHaveBeenCalledWith('/branches/14/size', {
       method: 'PATCH',
       data: { size: 'M' },
+    });
+  });
+
+  it('creates a company branch through the protected endpoint with its plan size', async () => {
+    const branch = {
+      id: 15,
+      name: 'สาขาใหม่',
+      code: 'NEW-01',
+      size: 'M' as const,
+    };
+    secured.mockResolvedValueOnce(branch);
+
+    await expect(
+      createCompanyBranch({
+        name: 'สาขาใหม่',
+        code: 'NEW-01',
+        size: 'M',
+      }),
+    ).resolves.toEqual(branch);
+    expect(secured).toHaveBeenCalledWith('/branches', {
+      method: 'POST',
+      data: { name: 'สาขาใหม่', code: 'NEW-01', size: 'M' },
     });
   });
 });

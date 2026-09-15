@@ -97,6 +97,25 @@ func TestPlatformHandlerIsAvailableWhenDatabaseExists(t *testing.T) {
 	}
 }
 
+func TestDashboardTrendConfig(t *testing.T) {
+	for _, test := range []struct {
+		period  string
+		unit    string
+		buckets int
+		ok      bool
+	}{
+		{period: "day", unit: "day", buckets: 7, ok: true},
+		{period: "month", unit: "month", buckets: 12, ok: true},
+		{period: "year", unit: "year", buckets: 5, ok: true},
+		{period: "week", ok: false},
+	} {
+		config, ok := dashboardTrendConfig(test.period)
+		if ok != test.ok || (ok && (config.unit != test.unit || config.buckets != test.buckets)) {
+			t.Fatalf("dashboardTrendConfig(%q) = %#v, %t", test.period, config, ok)
+		}
+	}
+}
+
 func TestCanRecordAttendanceOnlyForWorkingShiftStates(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -178,6 +197,10 @@ func TestConsumeStockFromMenusRejectsInvalidInputBeforeAccessingBranchData(t *te
 		{
 			name: "unknown sales channel",
 			body: `{"items":[{"menuItemId":1,"quantity":1}],"note":"ปิดกะ","channel":"unknown"}`,
+		},
+		{
+			name: "unknown item sales channel",
+			body: `{"items":[{"menuItemId":1,"quantity":1,"channel":"unknown"}],"note":"ปิดกะ","channel":"storefront"}`,
 		},
 		{
 			name: "empty consumption list",

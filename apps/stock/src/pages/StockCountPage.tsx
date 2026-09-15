@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Chip,
   Divider,
+  InputAdornment,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import { SearchIcon, type SearchIconHandle } from '@stackbuild/ui';
 import type { InventoryItem } from '../api/stock';
 
 type InventoryGroup = 'ingredient' | 'drink_equipment' | 'postal_equipment';
@@ -43,6 +45,7 @@ export function StockCountPage({
   const [note, setNote] = useState('ตรวจนับสิ้นกะ');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const searchRef = useRef<SearchIconHandle>(null);
   const items =
     group === 'ingredient'
       ? ingredients
@@ -88,15 +91,13 @@ export function StockCountPage({
   };
   return (
     <Stack sx={{ gap: 2.5 }}>
-      <Box>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
-          ตรวจนับจำนวนคงเหลือ
-        </Typography>
-        <Typography color="text.secondary">
-          กรอกยอดจริงที่นับได้ ระบบจะบันทึกส่วนต่างและประวัติผู้บันทึกให้ทันที
-        </Typography>
-      </Box>
-      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '15px' }}>
+      <Paper
+        sx={{
+          p: { xs: 2, sm: 2.5 },
+          borderRadius: '15px',
+          border: '1px solid #e8ddd5',
+        }}
+      >
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           sx={{ gap: 1.25, justifyContent: 'space-between' }}
@@ -118,9 +119,24 @@ export function StockCountPage({
           </Stack>
           <TextField
             size="small"
-            label="ค้นหารายการ"
+            fullWidth
+            placeholder="ค้นหารายการ"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onFocus={() => searchRef.current?.startAnimation()}
+            onBlur={() => searchRef.current?.stopAnimation()}
+            sx={{
+              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+            }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon ref={searchRef} size={18} />
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
         </Stack>
       </Paper>
@@ -195,7 +211,6 @@ export function StockCountPage({
       )}
       {editing && (
         <Paper
-          elevation={8}
           sx={{
             position: 'fixed',
             zIndex: 10,

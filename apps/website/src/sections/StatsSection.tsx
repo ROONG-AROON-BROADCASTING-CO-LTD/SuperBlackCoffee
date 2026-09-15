@@ -17,7 +17,6 @@ export function StatsSection() {
         color: '#201914',
         border: '1px solid #e7d8cd',
         borderRadius: '20px',
-        boxShadow: '0 18px 40px rgba(47,31,21,.12)',
       }}
     >
       {highlights.map(([number, label], index) => (

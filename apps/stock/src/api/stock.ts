@@ -76,7 +76,11 @@ export const listMyStockMovements = () =>
   request<StockMovement[]>('/stock-movements?limit=100');
 export const listMenuItems = () => request<MenuItem[]>('/menu-items');
 export const consumeStockFromMenus = (
-  items: Array<{ menuItemId: number; quantity: number }>,
+  items: Array<{
+    menuItemId: number;
+    quantity: number;
+    channel?: 'storefront' | 'lineman';
+  }>,
   note: string,
   channel: 'storefront' | 'lineman',
 ) =>

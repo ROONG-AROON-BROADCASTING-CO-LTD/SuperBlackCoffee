@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -6,59 +6,73 @@ import {
   Card,
   Chip,
   Drawer,
+  InputAdornment,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { CartIcon, coffeeIngredientsImage } from '@stackbuild/ui';
+import {
+  CartIcon,
+  SearchIcon,
+  coffeeIngredientsImage,
+  type SearchIconHandle,
+} from '@stackbuild/ui';
 import type { MenuItem } from '../api/stock';
 import {
-  detectReceiptChannel,
-  matchReceiptMenus,
-  type ReceiptChannel,
-} from '../utils/receiptOcr';
+  matchWorkbookSales,
+  readSalesWorkbook,
+  type SalesChannel,
+  type WorkbookSale,
+} from '../utils/salesWorkbook';
 
 type MenuConsumptionPageProps = {
   menus: MenuItem[];
+  onRefreshMenus?: () => Promise<MenuItem[]>;
   loading: boolean;
   onConsume: (
-    items: Array<{ menuItemId: number; quantity: number }>,
+    items: Array<{
+      menuItemId: number;
+      quantity: number;
+      channel?: 'storefront' | 'lineman';
+    }>,
     note: string,
     channel: 'storefront' | 'lineman',
   ) => Promise<void>;
-  cartRequestId?: number;
-  onCartRequestHandled?: () => void;
+  cartOpen?: boolean;
+  onCartOpenChange?: (open: boolean) => void;
   onCartItemCountChange?: (count: number) => void;
 };
 
-const receiptChannelLabel = (channel: ReceiptChannel | null) => {
-  if (channel === 'lineman') return 'ออเดอร์ LINE MAN';
-  if (channel === 'storefront') return 'ออเดอร์หน้าร้าน';
-  return 'ภาพออเดอร์';
-};
+const cartKey = (menuItemId: number, channel: SalesChannel) =>
+  `${channel}:${menuItemId}`;
+
+const channelLabel = (channel: SalesChannel) =>
+  channel === 'lineman' ? 'LINE MAN' : 'หน้าร้าน';
 
 export function MenuConsumptionPage({
   menus,
+  onRefreshMenus,
   loading,
   onConsume,
-  cartRequestId = 0,
-  onCartRequestHandled,
+  cartOpen = false,
+  onCartOpenChange,
   onCartItemCountChange,
 }: MenuConsumptionPageProps) {
   const [query, setQuery] = useState('');
-  const [cart, setCart] = useState<Record<number, number>>({});
+  const [cart, setCart] = useState<Record<string, number>>({});
   const [note, setNote] = useState('สรุปยอดสิ้นกะ');
   const [error, setError] = useState('');
   const [receiptError, setReceiptError] = useState('');
-  const [receiptFileName, setReceiptFileName] = useState('');
+  const [receiptFileNames, setReceiptFileNames] = useState<string[]>([]);
   const [receiptProgress, setReceiptProgress] = useState('');
-  const [receiptChannel, setReceiptChannel] = useState<ReceiptChannel | null>(
+  const searchRef = useRef<SearchIconHandle>(null);
+  const [importWarning, setImportWarning] = useState<string[]>([]);
+  const [receiptChannel, setReceiptChannel] = useState<SalesChannel | null>(
     null,
   );
   const [readingReceipt, setReadingReceipt] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [channel, setChannel] = useState<'storefront' | 'lineman'>(
     'storefront',
   );
@@ -69,90 +83,99 @@ export function MenuConsumptionPage({
       ),
     [menus, query],
   );
-  const selected = menus.filter((menu) => cart[menu.id] > 0);
+  const menuById = useMemo(
+    () => new Map(menus.map((menu) => [menu.id, menu])),
+    [menus],
+  );
+  const selected = Object.entries(cart).flatMap(([key, quantity]) => {
+    if (!quantity) return [];
+    const [selectedChannel, menuItemId] = key.split(':') as [
+      SalesChannel,
+      string,
+    ];
+    const menu = menuById.get(Number(menuItemId));
+    return menu ? [{ key, menu, quantity, channel: selectedChannel }] : [];
+  });
   const selectedQuantity = selected.reduce(
-    (total, menu) => total + cart[menu.id],
+    (total, item) => total + item.quantity,
     0,
   );
   useEffect(() => {
     onCartItemCountChange?.(selectedQuantity);
   }, [onCartItemCountChange, selectedQuantity]);
-  useEffect(() => {
-    if (cartRequestId === 0) return;
-    setCartOpen(true);
-    onCartRequestHandled?.();
-  }, [cartRequestId, onCartRequestHandled]);
   useEffect(() => () => onCartItemCountChange?.(0), [onCartItemCountChange]);
-  const change = (id: number, amount: number) =>
+  const setCartVisibility = (open: boolean) => onCartOpenChange?.(open);
+  const change = (id: number, amount: number, itemChannel = channel) =>
     setCart((current) => ({
       ...current,
-      [id]: Math.max(0, (current[id] ?? 0) + amount),
+      [cartKey(id, itemChannel)]: Math.max(
+        0,
+        (current[cartKey(id, itemChannel)] ?? 0) + amount,
+      ),
     }));
-  const readReceipt = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setReceiptError('รองรับรูปใบเสร็จ JPG, PNG หรือ WEBP เท่านั้น');
-      return;
-    }
-
+  const replaceCart = (sales: WorkbookSale[]) =>
+    setCart(
+      Object.fromEntries(
+        sales.map((sale) => [
+          cartKey(sale.menuItemId, sale.channel),
+          sale.quantity,
+        ]),
+      ),
+    );
+  const readWorkbook = async (file: File) => {
     setReadingReceipt(true);
     setReceiptError('');
+    setImportWarning([]);
     setReceiptChannel(null);
-    setReceiptProgress('กำลังเตรียมอ่านข้อความจากใบเสร็จ…');
+    setReceiptProgress('กำลังอ่านไฟล์ Excel…');
     try {
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('tha+eng', 1, {
-        logger: (message) => {
-          if (message.status === 'recognizing text') {
-            setReceiptProgress(
-              `กำลังอ่านใบเสร็จ ${Math.round(message.progress * 100)}%`,
-            );
-          }
-        },
-      });
-      const result = await worker.recognize(file);
-      await worker.terminate();
-
-      const detectedChannel = detectReceiptChannel(result.data.text);
-      if (detectedChannel) setChannel(detectedChannel);
-      setReceiptChannel(detectedChannel);
-      setReceiptFileName(file.name);
-      const matches = matchReceiptMenus(result.data.text, menus);
-      if (!matches.length) {
+      const latestMenus = onRefreshMenus ? await onRefreshMenus() : menus;
+      const result = matchWorkbookSales(
+        await readSalesWorkbook(file),
+        latestMenus,
+      );
+      setReceiptFileNames([file.name]);
+      if (!result.sales.length) {
         setReceiptError(
-          'ตรวจพบ' +
-            receiptChannelLabel(detectedChannel) +
-            ' แต่ไม่พบชื่อเมนูที่ตรงกับในระบบ กรุณาเลือกเมนูและจำนวนเอง',
+          'ไม่พบรายการที่จับคู่กับเมนูและช่องทางขายในระบบได้จากไฟล์นี้',
         );
         return;
       }
-
-      setCart(
-        Object.fromEntries(
-          matches.map((match) => [match.menuItemId, match.quantity]),
+      replaceCart(result.sales);
+      setNote(`ตัดสต๊อกจากไฟล์ Excel ${file.name}`);
+      const channels = new Set(result.sales.map((sale) => sale.channel));
+      if (channels.size === 1) {
+        const [importedChannel] = channels;
+        setChannel(importedChannel);
+        setReceiptChannel(importedChannel);
+      }
+      const skipped = [
+        ...result.unmatchedMenuNames.map((name) => `ชื่อเมนูไม่ตรง: ${name}`),
+        ...result.unsupportedChannelMenuNames.map(
+          (name) => `ไม่พบช่องทางขาย: ${name}`,
         ),
-      );
-      setNote(
-        'ตัดสต๊อกจาก' + receiptChannelLabel(detectedChannel) + ' ' + file.name,
-      );
+      ];
+      if (skipped.length) {
+        setImportWarning(skipped);
+      }
       setReceiptProgress(
-        'อ่านพบ ' +
-          matches.length +
-          ' เมนู' +
-          (detectedChannel
-            ? 'จาก' + receiptChannelLabel(detectedChannel)
-            : '') +
-          ' โปรดตรวจจำนวนก่อนยืนยัน',
+        `นำเข้า ${result.sales.length} เมนูจาก ${result.rowCount} แถว${channels.size > 1 ? ' (แยกสูตรหน้าร้านและ LINE MAN แล้ว)' : ''} โปรดตรวจจำนวนก่อนยืนยัน`,
       );
-    } catch {
-      setReceiptError('ไม่สามารถอ่านใบเสร็จได้ กรุณาลองใช้รูปที่คมชัดขึ้น');
+    } catch (cause) {
+      setReceiptError(
+        cause instanceof Error
+          ? cause.message
+          : 'ไม่สามารถอ่านไฟล์ Excel ได้ กรุณาใช้ไฟล์ .xlsx จากรายงาน Sale by Bill Detail',
+      );
     } finally {
       setReadingReceipt(false);
     }
   };
   const save = async () => {
-    const items = selected.map((menu) => ({
-      menuItemId: menu.id,
-      quantity: cart[menu.id],
+    const items = selected.map((item) => ({
+      menuItemId: item.menu.id,
+      quantity: item.quantity,
+      channel: item.channel,
     }));
     if (!items.length) {
       setError('เลือกเมนูที่ขายอย่างน้อย 1 รายการ');
@@ -172,15 +195,13 @@ export function MenuConsumptionPage({
   return (
     <>
       <Stack sx={{ gap: 2.5 }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            สรุปเมนูที่ขาย
-          </Typography>
-          <Typography color="text.secondary">
-            เลือกจำนวนที่ขาย ระบบจะตัดวัตถุดิบตามสูตรอัตโนมัติ
-          </Typography>
-        </Box>
-        <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: '15px' }}>
+        <Paper
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: '15px',
+            border: '1px solid #e8ddd5',
+          }}
+        >
           <Stack
             direction="row"
             sx={{
@@ -205,7 +226,7 @@ export function MenuConsumptionPage({
             </Stack>
             <Button
               aria-label="เปิดตะกร้าตัดสต๊อก"
-              onClick={() => setCartOpen(true)}
+              onClick={() => setCartVisibility(true)}
               variant="outlined"
               startIcon={<CartIcon size={20} />}
               sx={{
@@ -219,9 +240,24 @@ export function MenuConsumptionPage({
           </Stack>
           <TextField
             fullWidth
-            label="ค้นหาเมนู"
+            size="small"
+            placeholder="ค้นหาเมนู"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onFocus={() => searchRef.current?.startAnimation()}
+            onBlur={() => searchRef.current?.stopAnimation()}
+            sx={{
+              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+            }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon ref={searchRef} size={18} />
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
         </Paper>
         <Paper
@@ -234,44 +270,55 @@ export function MenuConsumptionPage({
           }}
         >
           <Stack
-            direction={{ xs: 'column', sm: 'row' }}
+            direction="row"
             sx={{
-              alignItems: { xs: 'flex-start', sm: 'center' },
+              alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 1.5,
+              gap: { xs: 1.5, sm: 2.5 },
             }}
           >
-            <Box>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>
                 อ่านออเดอร์เพื่อตัดสต๊อก
               </Typography>
               <Typography color="text.secondary" sx={{ fontSize: 13 }}>
-                อัปโหลดภาพ LINE MAN หรือออเดอร์หน้าร้าน
-                ระบบจะอ่านชื่อเมนูและจำนวน แล้วให้ตรวจสอบก่อนตัด
+                นำเข้า Sale by Bill Detail (.xlsx) เพื่อใช้ชื่อเมนู จำนวน
+                และช่องทางขาย
               </Typography>
             </Box>
-            <Button
-              component="label"
-              variant="outlined"
-              disabled={readingReceipt}
-              sx={{ flexShrink: 0, borderColor: '#5f4030', color: '#5f4030' }}
-            >
-              {readingReceipt ? 'กำลังอ่านออเดอร์…' : 'อัปโหลดภาพออเดอร์'}
-              <input
-                hidden
-                accept="image/jpeg,image/png,image/webp"
-                type="file"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  if (file) void readReceipt(file);
+            <Stack direction="row" sx={{ flexShrink: 0 }}>
+              <Button
+                component="label"
+                variant="contained"
+                disabled={readingReceipt}
+                sx={{
+                  minHeight: '56px !important',
+                  px: { xs: 2, sm: 3.5 },
+                  borderRadius: '15px',
+                  whiteSpace: 'nowrap',
+                  fontSize: { xs: 16, sm: 18 },
+                  bgcolor: '#5f4030',
+                  '&:hover': { bgcolor: '#3c2d24' },
                 }}
-              />
-            </Button>
+              >
+                {readingReceipt ? 'กำลังอ่านไฟล์…' : 'นำเข้า Excel'}
+                <input
+                  hidden
+                  aria-label="นำเข้าไฟล์ Excel"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  type="file"
+                  onChange={(event) => {
+                    const [file] = Array.from(event.target.files ?? []);
+                    event.target.value = '';
+                    if (file) void readWorkbook(file);
+                  }}
+                />
+              </Button>
+            </Stack>
           </Stack>
-          {receiptFileName && (
+          {receiptFileNames.length > 0 && (
             <Typography sx={{ mt: 1.25, fontSize: 13, color: '#5f4030' }}>
-              ไฟล์ล่าสุด: {receiptFileName}
+              ไฟล์ล่าสุด: {receiptFileNames.join(', ')}
             </Typography>
           )}
           {receiptChannel && (
@@ -290,6 +337,33 @@ export function MenuConsumptionPage({
               {receiptError}
             </Alert>
           )}
+          {importWarning.length > 0 && (
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              <Box>
+                <Typography component="div" sx={{ fontWeight: 700, mb: 0.5 }}>
+                  ไม่นำเข้า {importWarning.length} รายการเพื่อความปลอดภัย
+                </Typography>
+                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                  {importWarning.map((item) => (
+                    <Box component="li" key={item} sx={{ mb: 0.35 }}>
+                      {(() => {
+                        const separator = item.indexOf(': ');
+                        if (separator < 0) return item;
+                        return (
+                          <>
+                            <Box component="span" sx={{ fontWeight: 700 }}>
+                              {item.slice(0, separator + 1)}
+                            </Box>{' '}
+                            {item.slice(separator + 2)}
+                          </>
+                        );
+                      })()}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Alert>
+          )}
         </Paper>
         {loading ? (
           <Typography color="text.secondary">กำลังโหลดเมนู…</Typography>
@@ -300,29 +374,25 @@ export function MenuConsumptionPage({
               gridTemplateColumns: {
                 xs: 'repeat(2, minmax(0, 1fr))',
                 sm: 'repeat(2, minmax(0, 1fr))',
-                lg: 'repeat(2, minmax(0, 1fr))',
+                lg: 'repeat(5, minmax(0, 1fr))',
               },
               gap: { xs: 1.25, sm: 2 },
               alignContent: 'start',
             }}
           >
             {list.map((menu, index) => {
-              const quantity = cart[menu.id] ?? 0;
+              const channelSellable =
+                channel === 'lineman'
+                  ? (menu.linemanSellable ?? menu.sellable)
+                  : menu.sellable;
+              const channelRecipeStatus =
+                channel === 'lineman'
+                  ? (menu.linemanRecipeStatus ?? menu.recipeStatus)
+                  : menu.recipeStatus;
               const unavailableLabel =
-                menu.recipeStatus === 'missing_recipe'
+                channelRecipeStatus === 'missing_recipe'
                   ? 'ไม่มีสูตร'
                   : 'วัตถุดิบไม่พอ';
-              const ingredients = menu.ingredients ?? [];
-              const lowestIngredient = ingredients.reduce<
-                (typeof ingredients)[number] | undefined
-              >(
-                (lowest, ingredient) =>
-                  !lowest ||
-                  ingredient.inventoryQuantity < lowest.inventoryQuantity
-                    ? ingredient
-                    : lowest,
-                undefined,
-              );
               return (
                 <Card
                   key={menu.id}
@@ -332,9 +402,9 @@ export function MenuConsumptionPage({
                     flexDirection: 'column',
                     overflow: 'hidden',
                     borderRadius: '15px',
-                    borderColor: menu.sellable ? '#e8ddd5' : 'warning.light',
-                    bgcolor: menu.sellable ? '#fff' : '#fffbf7',
-                    opacity: menu.sellable ? 1 : 0.76,
+                    borderColor: channelSellable ? '#e8ddd5' : 'warning.light',
+                    bgcolor: channelSellable ? '#fff' : '#fffbf7',
+                    opacity: channelSellable ? 1 : 0.76,
                   }}
                 >
                   <Box sx={{ position: 'relative' }}>
@@ -346,16 +416,18 @@ export function MenuConsumptionPage({
                       sx={{
                         display: 'block',
                         width: '100%',
-                        aspectRatio: '4 / 3',
+                        aspectRatio: '1 / 1',
                         objectFit: 'cover',
                         objectPosition: `${15 + (index % 4) * 20}% 50%`,
-                        filter: menu.sellable ? 'none' : 'grayscale(.45)',
+                        filter: channelSellable ? 'none' : 'grayscale(.45)',
                       }}
                     />
                     <Chip
-                      label={menu.sellable ? 'พร้อมตัดสต๊อก' : unavailableLabel}
+                      label={
+                        channelSellable ? 'พร้อมตัดสต๊อก' : unavailableLabel
+                      }
                       size="small"
-                      color={menu.sellable ? 'success' : 'warning'}
+                      color={channelSellable ? 'success' : 'warning'}
                       sx={{
                         position: 'absolute',
                         top: { xs: 8, sm: 12 },
@@ -383,40 +455,6 @@ export function MenuConsumptionPage({
                     >
                       {menu.name}
                     </Typography>
-                    <Typography
-                      color="text.secondary"
-                      sx={{ mt: 0.6, fontSize: { xs: 11, sm: 13 } }}
-                    >
-                      {menu.category || 'เมนู'} ·{' '}
-                      {menu.sellable
-                        ? 'ตัดวัตถุดิบตามสูตรอัตโนมัติ'
-                        : 'ยังไม่สามารถตัดสต๊อกได้'}
-                    </Typography>
-                    {lowestIngredient && (
-                      <Typography
-                        sx={{
-                          mt: 1,
-                          color: '#5f4030',
-                          fontSize: { xs: 11, sm: 13 },
-                        }}
-                      >
-                        วัตถุดิบ {ingredients.length} รายการ · เหลือน้อยสุด{' '}
-                        {lowestIngredient.inventoryQuantity.toLocaleString(
-                          'th-TH',
-                        )}{' '}
-                        {lowestIngredient.inventoryUnit}
-                      </Typography>
-                    )}
-                    <Typography
-                      sx={{
-                        mt: 1.5,
-                        color: '#5f4030',
-                        fontWeight: 700,
-                        fontSize: { xs: 11, sm: 14 },
-                      }}
-                    >
-                      เลือกตัดแล้ว {quantity} แก้ว / จาน
-                    </Typography>
                     <Box
                       sx={{
                         display: 'flex',
@@ -427,28 +465,11 @@ export function MenuConsumptionPage({
                       }}
                     >
                       <Button
-                        aria-label={`ลดจำนวน ${menu.name}`}
-                        size="small"
-                        variant="outlined"
-                        disabled={quantity === 0}
-                        onClick={() => change(menu.id, -1)}
-                        sx={{
-                          flex: 1,
-                          minHeight: { xs: 32, sm: 36 },
-                          borderRadius: '10px',
-                          borderColor: '#d7c5b8',
-                          color: '#5f4030',
-                          fontSize: { xs: 11, sm: 14 },
-                        }}
-                      >
-                        ลดจำนวน
-                      </Button>
-                      <Button
                         aria-label={`ตัดสต๊อก ${menu.name}`}
                         size="small"
                         variant="contained"
-                        disabled={!menu.sellable}
-                        onClick={() => change(menu.id, 1)}
+                        disabled={!channelSellable}
+                        onClick={() => change(menu.id, 1, channel)}
                         sx={{
                           flex: 1,
                           minHeight: { xs: 32, sm: 36 },
@@ -472,21 +493,42 @@ export function MenuConsumptionPage({
       <Drawer
         anchor="bottom"
         open={cartOpen}
-        onClose={() => setCartOpen(false)}
+        onClose={() => setCartVisibility(false)}
+        // Match the Admin add-ingredient drawer: its longer slide and matching
+        // backdrop fade feel deliberate instead of snapping into place.
+        transitionDuration={{ enter: 360, exit: 280 }}
         slotProps={{
           paper: {
             sx: {
-              maxWidth: 720,
+              maxWidth: { xs: 720, lg: 'none' },
               mx: 'auto',
-              width: '100%',
-              maxHeight: '82dvh',
-              borderRadius: '24px 24px 0 0',
+              left: { lg: '230px' },
+              width: { xs: '100%', lg: 'calc(100% - 230px)' },
+              // Sit above the mobile navigation; it must never cover it.
+              bottom: {
+                xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+                md: 0,
+                lg: 0,
+              },
+              height: {
+                xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+                md: 'auto',
+                lg: 'calc(100dvh - 72px)',
+              },
+              maxHeight: {
+                xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+                md: '82dvh',
+                lg: 'calc(100dvh - 72px)',
+              },
+              top: { lg: 'auto' },
+              borderRadius: { xs: 0, lg: '24px 24px 0 0' },
               p: { xs: 2, sm: 3 },
+              bgcolor: '#fffaf7',
             },
           },
         }}
       >
-        <Stack sx={{ gap: 2 }}>
+        <Stack sx={{ gap: 2, height: '100%', minHeight: 0 }}>
           <Box
             sx={{
               display: 'flex',
@@ -502,15 +544,28 @@ export function MenuConsumptionPage({
                 เลือกแล้ว {selectedQuantity} แก้ว / จาน
               </Typography>
             </Box>
-            <Button onClick={() => setCartOpen(false)} color="inherit">
+            <Button
+              onClick={() => setCartVisibility(false)}
+              color="inherit"
+              sx={{
+                minWidth: 58,
+                minHeight: 36,
+                px: 1.5,
+                borderRadius: '10px',
+                bgcolor: '#eadfd7',
+                color: '#3c2d24',
+                fontWeight: 700,
+                '&:hover': { bgcolor: '#ddcec3' },
+              }}
+            >
               ปิด
             </Button>
           </Box>
           {selected.length ? (
-            <Stack sx={{ gap: 1, overflowY: 'auto' }}>
-              {selected.map((menu) => (
+            <Stack sx={{ flex: 1, minHeight: 0, gap: 1, overflowY: 'auto' }}>
+              {selected.map((item) => (
                 <Paper
-                  key={menu.id}
+                  key={item.key}
                   variant="outlined"
                   sx={{ p: 1.5, borderRadius: '12px' }}
                 >
@@ -522,18 +577,53 @@ export function MenuConsumptionPage({
                       gap: 1,
                     }}
                   >
-                    <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
-                      {menu.name}
-                    </Typography>
+                    <Box
+                      component="img"
+                      src={coffeeIngredientsImage}
+                      alt=""
+                      aria-hidden="true"
+                      sx={{
+                        width: 64,
+                        height: 64,
+                        aspectRatio: '1 / 1',
+                        flexShrink: 0,
+                        margin: 0,
+                        borderRadius: '8px',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                      }}
+                    />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography sx={{ fontSize: 14, fontWeight: 600 }}>
+                        {item.menu.name}
+                      </Typography>
+                      <Typography
+                        color="text.secondary"
+                        sx={{ mt: 0.5, fontSize: 12 }}
+                      >
+                        สูตร{channelLabel(item.channel)}
+                      </Typography>
+                    </Box>
                     <Stack
                       direction="row"
                       spacing={0.5}
                       sx={{ alignItems: 'center' }}
                     >
                       <Button
-                        aria-label={`ลดจำนวนในตะกร้า ${menu.name}`}
+                        aria-label={`ลดจำนวนในตะกร้า ${item.menu.name}`}
                         size="small"
-                        onClick={() => change(menu.id, -1)}
+                        onClick={() => change(item.menu.id, -1, item.channel)}
+                        sx={{
+                          minWidth: 34,
+                          width: 34,
+                          height: 34,
+                          borderRadius: '9px',
+                          bgcolor: '#eadfd7',
+                          color: '#3c2d24',
+                          fontSize: 18,
+                          lineHeight: 1,
+                          '&:hover': { bgcolor: '#ddcec3' },
+                        }}
                       >
                         −
                       </Button>
@@ -544,12 +634,23 @@ export function MenuConsumptionPage({
                           fontWeight: 700,
                         }}
                       >
-                        {cart[menu.id]}
+                        {item.quantity}
                       </Typography>
                       <Button
-                        aria-label={`เพิ่มจำนวนในตะกร้า ${menu.name}`}
+                        aria-label={`เพิ่มจำนวนในตะกร้า ${item.menu.name}`}
                         size="small"
-                        onClick={() => change(menu.id, 1)}
+                        onClick={() => change(item.menu.id, 1, item.channel)}
+                        sx={{
+                          minWidth: 34,
+                          width: 34,
+                          height: 34,
+                          borderRadius: '9px',
+                          bgcolor: '#eadfd7',
+                          color: '#3c2d24',
+                          fontSize: 18,
+                          lineHeight: 1,
+                          '&:hover': { bgcolor: '#ddcec3' },
+                        }}
                       >
                         +
                       </Button>
@@ -559,8 +660,11 @@ export function MenuConsumptionPage({
               ))}
             </Stack>
           ) : (
-            <Typography color="text.secondary">ยังไม่ได้เลือกเมนู</Typography>
+            <Typography color="text.secondary" sx={{ flex: 1 }}>
+              ยังไม่ได้เลือกเมนู
+            </Typography>
           )}
+          {error && <Alert severity="error">{error}</Alert>}
           <TextField
             fullWidth
             multiline
@@ -572,13 +676,19 @@ export function MenuConsumptionPage({
           <Button
             fullWidth
             variant="contained"
+            size="large"
             disabled={!selected.length || saving}
             onClick={() => void save()}
-            sx={{ bgcolor: '#3c2d24', py: 1.2 }}
+            sx={{
+              width: '100%',
+              height: 56,
+              minHeight: 56,
+              justifyContent: 'center',
+              bgcolor: '#3c2d24',
+            }}
           >
             ยืนยันตัดวัตถุดิบตามสูตร
           </Button>
-          {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </Drawer>
     </>

@@ -21,7 +21,8 @@ describe('StockMobileNavigation', () => {
         onPage={onPage}
         onLogout={onLogout}
         cartItemCount={0}
-        onOpenCart={vi.fn()}
+        cartOpen={false}
+        onToggleCart={vi.fn()}
       />,
     );
 
@@ -36,19 +37,48 @@ describe('StockMobileNavigation', () => {
   });
 
   it('uses the centre navigation slot to open the stock cart', () => {
-    const openCart = vi.fn();
+    const toggleCart = vi.fn();
     render(
       <StockMobileNavigation
         page="sales"
         onPage={vi.fn()}
         onLogout={vi.fn()}
         cartItemCount={2}
-        onOpenCart={openCart}
+        cartOpen={false}
+        onToggleCart={toggleCart}
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'เปิดตะกร้าตัดสต๊อก' }));
 
-    expect(openCart).toHaveBeenCalledOnce();
+    expect(toggleCart).toHaveBeenCalledOnce();
+    const cartButton = screen.getByRole('button', {
+      name: 'เปิดตะกร้าตัดสต๊อก',
+    });
+    expect(cartButton.textContent).toBe('2');
+    expect(cartButton.querySelector('svg')).toBeNull();
+  });
+
+  it('turns the cart control into a close action while the cart is open', () => {
+    const toggleCart = vi.fn();
+    render(
+      <StockMobileNavigation
+        page="sales"
+        onPage={vi.fn()}
+        onLogout={vi.fn()}
+        cartItemCount={2}
+        cartOpen
+        onToggleCart={toggleCart}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'ปิดตะกร้าตัดสต๊อก' }));
+
+    expect(toggleCart).toHaveBeenCalledOnce();
+    const cartButton = screen.getByRole('button', {
+      name: 'ปิดตะกร้าตัดสต๊อก',
+    });
+    expect(cartButton.textContent).toBe('ปิด');
+    expect(cartButton.querySelector('svg')).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ export function DashboardTopbar({
   role,
   sidebarWidth = 230,
   disableSidebarTransition = false,
+  matchContentPadding = false,
 }: {
   title: string;
   initials: string;
@@ -14,6 +15,7 @@ export function DashboardTopbar({
   role: string;
   sidebarWidth?: number;
   disableSidebarTransition?: boolean;
+  matchContentPadding?: boolean;
 }) {
   const titleFont = '"SBC Sans", Arial, sans-serif';
 
@@ -29,7 +31,9 @@ export function DashboardTopbar({
         right: 0,
         zIndex: 1100,
         height: 72,
-        px: { xs: 3, md: '42px' },
+        px: matchContentPadding
+          ? { xs: '16px', md: '40px' }
+          : { xs: 3, md: '42px' },
         bgcolor: '#fff',
         borderBottom: '1px solid',
         borderColor: 'divider',

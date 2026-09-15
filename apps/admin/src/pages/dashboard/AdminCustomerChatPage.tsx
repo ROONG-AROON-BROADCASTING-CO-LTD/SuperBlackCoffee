@@ -775,10 +775,6 @@ export function AdminCustomerChatPage() {
                             : '14px 14px 14px 3px',
                         bgcolor: message.from === 'store' ? '#201914' : '#fff',
                         color: message.from === 'store' ? '#fff' : '#3c2d24',
-                        boxShadow:
-                          message.from === 'store'
-                            ? 'none'
-                            : '0 2px 8px rgba(50,35,25,.06)',
                       }}
                     >
                       <Typography

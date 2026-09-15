@@ -18,6 +18,7 @@ import {
 import { useDashboardSummary } from '../../hooks/useDashboardSummary';
 import { useStockRequests } from '../../hooks/useStockRequests';
 import { AdminOverviewSkeleton } from '../../components/skeletons/AdminOverviewSkeleton';
+import { StockConsumptionTrendCard } from '../../components/dashboard/StockConsumptionTrendCard';
 import type { AdminPage } from '../../routes/adminRoutes';
 import { listBranchSales, listInventory, type BranchSales } from '../../api';
 
@@ -390,6 +391,7 @@ export function AdminOverviewPage({
               accent={hasError ? '#b63b35' : '#c38642'}
             />
           </Box>
+          <StockConsumptionTrendCard branchCode={selectedBranchCode} />
           <Box
             sx={{
               display: 'grid',

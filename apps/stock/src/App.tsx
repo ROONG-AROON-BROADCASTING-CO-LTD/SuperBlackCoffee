@@ -57,7 +57,7 @@ export default function App() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [cartItemCount, setCartItemCount] = useState(0);
-  const [cartRequestId, setCartRequestId] = useState(0);
+  const [cartOpen, setCartOpen] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [notice, setNotice] = useState('');
@@ -160,7 +160,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', listener);
   }, []);
 
+  const closeCart = () => setCartOpen(false);
   const navigate = (next: StockPage) => {
+    if (cartOpen && next !== page) closeCart();
     if (window.location.pathname !== paths[next])
       window.history.pushState(null, '', paths[next]);
     setPage(next);
@@ -198,11 +200,7 @@ export default function App() {
     window.history.replaceState(null, '', paths.sales);
     setPage('sales');
   };
-  const openCart = () => {
-    if (page !== 'sales') navigate('sales');
-    setCartRequestId((current) => current + 1);
-  };
-  const clearCartRequest = () => setCartRequestId(0);
+  const toggleCart = () => setCartOpen((open) => !open);
   const handleAdjust = async (
     item: InventoryItem,
     quantity: number,
@@ -220,7 +218,11 @@ export default function App() {
     );
   };
   const handleConsume = async (
-    items: Array<{ menuItemId: number; quantity: number }>,
+    items: Array<{
+      menuItemId: number;
+      quantity: number;
+      channel?: 'storefront' | 'lineman';
+    }>,
     note: string,
     channel: 'storefront' | 'lineman',
   ) => {
@@ -234,6 +236,11 @@ export default function App() {
     setMovements(nextMovements);
     setMenus(nextMenus);
     setNotice(`ตัดวัตถุดิบจาก ${result.menuCount} เมนูเรียบร้อยแล้ว`);
+  };
+  const refreshMenus = async () => {
+    const nextMenus = await listMenuItems();
+    setMenus(nextMenus);
+    return nextMenus;
   };
   if (checkingSession) return null;
 
@@ -250,7 +257,8 @@ export default function App() {
           onPage={navigate}
           onLogout={signOut}
           cartItemCount={cartItemCount}
-          onOpenCart={openCart}
+          cartOpen={cartOpen}
+          onToggleCart={toggleCart}
           name={session.user.name}
           branchName={session.user.branchName}
         >
@@ -260,12 +268,13 @@ export default function App() {
             drinkStock={drinkStock}
             postalStock={postalStock}
             menus={menus}
+            onRefreshMenus={refreshMenus}
             movements={movements}
             isInitialLoading={initialDataLoading}
             onAdjust={handleAdjust}
             onConsume={handleConsume}
-            cartRequestId={cartRequestId}
-            onCartRequestHandled={clearCartRequest}
+            cartOpen={cartOpen}
+            onCartOpenChange={setCartOpen}
             onCartItemCountChange={setCartItemCount}
           />
           {notice ? (

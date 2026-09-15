@@ -1007,7 +1007,6 @@ export function IngredientsManagementPage({
               overflow: 'hidden',
               borderRadius: '24px 24px 0 0',
               bgcolor: '#fffaf7',
-              boxShadow: '0 -12px 32px rgba(50, 35, 25, .18)',
             },
           },
         }}
@@ -1277,7 +1276,6 @@ export function IngredientsManagementPage({
               overflow: 'hidden',
               bgcolor: '#fffaf7',
               borderRadius: '24px 24px 0 0',
-              boxShadow: '0 -12px 32px rgba(50, 35, 25, .18)',
             },
           },
         }}

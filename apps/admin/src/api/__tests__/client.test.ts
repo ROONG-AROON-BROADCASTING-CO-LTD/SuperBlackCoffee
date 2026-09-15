@@ -3,17 +3,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   request: vi.fn(),
+  get: vi.fn(),
   isAxiosError: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
   default: {
-    create: mocks.create.mockReturnValue({ request: mocks.request }),
+    create: mocks.create.mockReturnValue({
+      request: mocks.request,
+      get: mocks.get,
+    }),
     isAxiosError: mocks.isAxiosError,
   },
 }));
 
-import { publicRequest, secured } from '../client';
+import { downloadSecuredPDF, publicRequest, secured } from '../client';
 import { logout, restoreSession } from '../auth';
 
 describe('admin API client', () => {
@@ -112,5 +116,23 @@ describe('admin API client', () => {
         headers: { 'X-SBC-Session-Role': 'admin' },
       }),
     );
+  });
+
+  it('shows the API message when a PDF endpoint returns an error blob', async () => {
+    mocks.get.mockResolvedValueOnce({
+      data: new Blob(
+        [
+          JSON.stringify({
+            success: false,
+            message: 'ยังไม่มีรายงานสำหรับสาขานี้',
+          }),
+        ],
+        { type: 'application/json' },
+      ),
+    });
+
+    await expect(
+      downloadSecuredPDF('/reports/branch.pdf', 'report.pdf'),
+    ).rejects.toThrow('ยังไม่มีรายงานสำหรับสาขานี้');
   });
 });

@@ -72,6 +72,7 @@ export function AttendanceAppLayout({
           role={`พนักงานสาขา${branchName}`}
           sidebarWidth={0}
           disableSidebarTransition
+          matchContentPadding
         />
       </Box>
       <Box sx={{ display: { xs: 'none', md: 'block' } }}>
@@ -81,6 +82,7 @@ export function AttendanceAppLayout({
           name={username}
           role={`พนักงานสาขา${branchName}`}
           sidebarWidth={sidebarCollapsed ? 96 : 230}
+          matchContentPadding
         />
       </Box>
       <Box

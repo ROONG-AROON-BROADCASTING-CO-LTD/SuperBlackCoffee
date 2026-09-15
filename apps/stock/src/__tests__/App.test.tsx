@@ -51,15 +51,18 @@ vi.mock('../layouts/StockAppLayout', () => ({
   StockAppLayout: ({
     children,
     onLogout,
-    onOpenCart,
+    onToggleCart,
+    onPage,
   }: {
     children: React.ReactNode;
     onLogout: () => void;
-    onOpenCart: () => void;
+    onToggleCart: () => void;
+    onPage: (page: 'history') => void;
   }) => (
     <>
       <button onClick={onLogout}>stock-logout</button>
-      <button onClick={onOpenCart}>open-stock-cart</button>
+      <button onClick={onToggleCart}>toggle-stock-cart</button>
+      <button onClick={() => onPage('history')}>go-history</button>
       {children}
     </>
   ),
@@ -67,19 +70,14 @@ vi.mock('../layouts/StockAppLayout', () => ({
 vi.mock('../routes/StockPageRouter', () => ({
   StockPageRouter: ({
     page,
-    cartRequestId,
-    onCartRequestHandled,
+    cartOpen,
   }: {
     page: string;
-    cartRequestId: number;
-    onCartRequestHandled: () => void;
+    cartOpen: boolean;
   }) => (
     <div>
       <div data-testid="stock-page">{page}</div>
-      <output data-testid="cart-request-id">{cartRequestId}</output>
-      {cartRequestId > 0 ? (
-        <button onClick={onCartRequestHandled}>cart-request-handled</button>
-      ) : null}
+      <output data-testid="cart-open">{String(cartOpen)}</output>
     </div>
   ),
 }));
@@ -162,20 +160,38 @@ describe('Stock App session and loading', () => {
     expect(await screen.findByText('stock-login')).toBeTruthy();
   });
 
-  it('consumes a cart-open request so returning to sales cannot reopen a stale cart', async () => {
+  it('toggles cart visibility directly without an intermediate request state', async () => {
     render(<App />);
     await screen.findByTestId('stock-page');
 
-    fireEvent.click(screen.getByRole('button', { name: 'open-stock-cart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-stock-cart' }));
     await waitFor(() =>
-      expect(screen.getByTestId('cart-request-id').textContent).toBe('1'),
+      expect(screen.getByTestId('cart-open').textContent).toBe('true'),
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'cart-request-handled' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-stock-cart' }));
     await waitFor(() =>
-      expect(screen.getByTestId('cart-request-id').textContent).toBe('0'),
+      expect(screen.getByTestId('cart-open').textContent).toBe('false'),
     );
+  });
+
+  it('opens the cart from another stock page without redirecting to sales', async () => {
+    window.history.replaceState(null, '', '/count');
+    render(<App />);
+
+    expect((await screen.findByTestId('stock-page')).textContent).toBe('count');
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-stock-cart' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('cart-open').textContent).toBe('true'),
+    );
+    expect(screen.getByTestId('stock-page').textContent).toBe('count');
+    expect(window.location.pathname).toBe('/count');
+
+    fireEvent.click(screen.getByRole('button', { name: 'go-history' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('cart-open').textContent).toBe('false'),
+    );
+    expect(screen.getByTestId('stock-page').textContent).toBe('history');
   });
 });

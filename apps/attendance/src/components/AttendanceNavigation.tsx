@@ -137,7 +137,6 @@ export function MobileNavigation({ page, onPage, onLogout }: NavigationProps) {
         p: '12px 12px calc(12px + env(safe-area-inset-bottom))',
         bgcolor: '#171411',
         borderTop: '1px solid #372e29',
-        boxShadow: '0 -8px 22px rgba(23,20,17,.12)',
       }}
     >
       {attendanceNavigation.map(({ page: itemPage, mobileLabel, icon }) => (

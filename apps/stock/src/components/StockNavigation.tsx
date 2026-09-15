@@ -52,7 +52,8 @@ type StockNavigationProps = {
   onPage: (page: StockPage) => void;
   onLogout: () => void;
   cartItemCount: number;
-  onOpenCart: () => void;
+  cartOpen: boolean;
+  onToggleCart: () => void;
 };
 
 export function StockMobileNavigation({
@@ -60,7 +61,8 @@ export function StockMobileNavigation({
   onPage,
   onLogout,
   cartItemCount,
-  onOpenCart,
+  cartOpen,
+  onToggleCart,
 }: StockNavigationProps) {
   const [animatedPage, setAnimatedPage] = useState<StockPage | null>(null);
   const [hasTextInputFocus, setHasTextInputFocus] = useState(false);
@@ -129,7 +131,9 @@ export function StockMobileNavigation({
         gridTemplateColumns: 'repeat(5, 1fr)',
         alignItems: 'center',
         gap: 0.75,
-        zIndex: 5,
+        // Keep the navigation visible above the cart Drawer and its backdrop.
+        // The cart sheet itself stops immediately above this bar.
+        zIndex: (theme) => theme.zIndex.modal + 1,
         left: 0,
         right: 0,
         bottom: 0,
@@ -137,7 +141,6 @@ export function StockMobileNavigation({
         p: '12px 12px calc(12px + env(safe-area-inset-bottom))',
         bgcolor: '#171411',
         borderTop: '1px solid #372e29',
-        boxShadow: '0 -8px 22px rgba(23,20,17,.12)',
       }}
     >
       {stockNavigation.map(({ page: itemPage, mobileLabel, icon }, index) => (
@@ -188,8 +191,8 @@ export function StockMobileNavigation({
         </Button>
       ))}
       <Button
-        aria-label="เปิดตะกร้าตัดสต๊อก"
-        onClick={onOpenCart}
+        aria-label={cartOpen ? 'ปิดตะกร้าตัดสต๊อก' : 'เปิดตะกร้าตัดสต๊อก'}
+        onClick={onToggleCart}
         sx={{
           gridColumn: 3,
           gridRow: 1,
@@ -202,8 +205,11 @@ export function StockMobileNavigation({
           display: 'grid',
           gridTemplateRows: '28px 1fr',
           gap: 0.5,
-          fontSize: 11,
-          fontWeight: 600,
+          // The regular cart label follows the same type scale as the other
+          // inactive navigation labels. The count and close states override
+          // this locally below.
+          fontSize: '14px !important',
+          fontWeight: '400 !important',
           lineHeight: 1.1,
           letterSpacing: 0,
           transition: 'background-color 160ms ease',
@@ -212,35 +218,51 @@ export function StockMobileNavigation({
           '&:hover': { bgcolor: '#3c2d24' },
         }}
       >
-        <Box
-          sx={{ display: 'grid', placeItems: 'center', position: 'relative' }}
-        >
-          <CartIcon size={22} />
-          {cartItemCount > 0 && (
+        {cartOpen || cartItemCount > 0 ? (
+          <>
+            {/* Preserve the exact two-row track size used by every nav item. */}
+            <Box
+              aria-hidden="true"
+              sx={{
+                gridColumn: 1,
+                gridRow: 1,
+                height: 28,
+                visibility: 'hidden',
+              }}
+            />
+            <Box
+              aria-hidden="true"
+              sx={{
+                gridColumn: 1,
+                gridRow: 2,
+                height: '19.6px',
+                visibility: 'hidden',
+              }}
+            />
             <Box
               component="span"
               sx={{
-                position: 'absolute',
-                top: -3,
-                right: 4,
-                minWidth: 18,
-                height: 18,
-                px: 0.5,
-                borderRadius: '999px',
-                bgcolor: '#d92d2d',
-                color: '#fff',
-                fontSize: 10,
-                fontWeight: 700,
-                lineHeight: '18px',
+                gridColumn: 1,
+                gridRow: '1 / -1',
+                alignSelf: 'center',
+                whiteSpace: 'nowrap',
+                fontSize: '26px !important',
+                fontWeight: '700 !important',
               }}
             >
-              {cartItemCount}
+              {cartOpen ? 'ปิด' : cartItemCount}
             </Box>
-          )}
-        </Box>
-        <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
-          ตะกร้า
-        </Box>
+          </>
+        ) : (
+          <>
+            <Box sx={{ display: 'grid', placeItems: 'center' }}>
+              <CartIcon size={22} />
+            </Box>
+            <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
+              ตะกร้า
+            </Box>
+          </>
+        )}
       </Button>
       <Button
         aria-label="ออกจากระบบ"

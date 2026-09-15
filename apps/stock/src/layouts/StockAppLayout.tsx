@@ -13,7 +13,8 @@ type StockAppLayoutProps = {
   onPage: (page: StockPage) => void;
   onLogout: () => void;
   cartItemCount: number;
-  onOpenCart: () => void;
+  cartOpen: boolean;
+  onToggleCart: () => void;
   name: string;
   branchName: string;
   title: string;
@@ -25,7 +26,8 @@ export function StockAppLayout({
   onPage,
   onLogout,
   cartItemCount,
-  onOpenCart,
+  cartOpen,
+  onToggleCart,
   name,
   branchName,
   title,
@@ -65,6 +67,7 @@ export function StockAppLayout({
           role={`พนักงานสาขา${branchName}`}
           sidebarWidth={0}
           disableSidebarTransition
+          matchContentPadding
         />
       </Box>
       <Box sx={{ display: { xs: 'none', md: 'block' } }}>
@@ -74,6 +77,7 @@ export function StockAppLayout({
           name={name}
           role={`พนักงานสาขา${branchName}`}
           sidebarWidth={sidebarCollapsed ? 96 : 230}
+          matchContentPadding
         />
       </Box>
       <Box
@@ -103,7 +107,8 @@ export function StockAppLayout({
         onPage={onPage}
         onLogout={onLogout}
         cartItemCount={cartItemCount}
-        onOpenCart={onOpenCart}
+        cartOpen={cartOpen}
+        onToggleCart={onToggleCart}
       />
     </Box>
   );

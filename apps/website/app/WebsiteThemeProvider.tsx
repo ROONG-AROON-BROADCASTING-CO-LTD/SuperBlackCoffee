@@ -1,7 +1,9 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider, createTheme, type Shadows } from '@mui/material/styles';
+
+const shadowlessTheme = Array.from({ length: 25 }, () => 'none') as Shadows;
 
 const theme = createTheme({
   palette: {
@@ -12,6 +14,7 @@ const theme = createTheme({
     text: { primary: '#171411', secondary: '#70655c' },
   },
   shape: { borderRadius: 14 },
+  shadows: shadowlessTheme,
   typography: {
     fontFamily: 'var(--font-kanit), sans-serif',
     button: { fontWeight: 600, textTransform: 'none', letterSpacing: 0 },

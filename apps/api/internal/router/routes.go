@@ -36,6 +36,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected := r.Group("/api/v1")
 	protected.Use(middleware.RequireAuth(deps.secret))
 	protected.GET("/dashboard", deps.platform.Dashboard)
+	protected.GET("/dashboard/trend", middleware.RequireAuth(deps.secret, "admin"), deps.platform.DashboardTrend)
 	protected.GET("/attendance/management", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListAttendanceManagement)
 	protected.GET("/attendance/leave-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListLeaveRequests)
 	protected.GET("/attendance/leave-requests/:id/attachments/:attachmentId/content", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.DownloadManagedLeaveRequestAttachment)

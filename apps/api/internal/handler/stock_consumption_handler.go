@@ -12,6 +12,9 @@ import (
 type stockConsumptionItem struct {
 	MenuItemID int64   `json:"menuItemId" binding:"required,gt=0"`
 	Quantity   float64 `json:"quantity" binding:"required,gt=0"`
+	// Channel is optional for backwards compatibility. Excel imports send it per
+	// row so storefront and LINE MAN recipes remain separate in one atomic cut.
+	Channel string `json:"channel" binding:"omitempty,oneof=storefront lineman"`
 }
 type stockConsumptionInput struct {
 	Items   []stockConsumptionItem `json:"items" binding:"required,min=1,dive"`
@@ -40,7 +43,13 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	required := map[int64]float64{}
+	channels := map[string]bool{}
 	for _, item := range input.Items {
+		itemChannel := input.Channel
+		if item.Channel != "" {
+			itemChannel = item.Channel
+		}
+		channels[itemChannel] = true
 		var name, status string
 		if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,status FROM menu_items WHERE id=$1 AND branch_id=$2`, item.MenuItemID, branchID).Scan(&name, &status); err == sql.ErrNoRows {
 			c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนูที่เลือก"})
@@ -53,7 +62,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ไม่พร้อมขาย"})
 			return
 		}
-		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel=$2`, item.MenuItemID, input.Channel)
+		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel=$2`, item.MenuItemID, itemChannel)
 		if queryErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 			return
@@ -71,9 +80,30 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			hasRecipe = true
 		}
 		rows.Close()
+		// Legacy menus may only have a storefront recipe. LINE MAN inherits
+		// that recipe until an administrator saves a channel-specific one.
+		if !hasRecipe && itemChannel == "lineman" {
+			fallbackRows, fallbackErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel='storefront'`, item.MenuItemID)
+			if fallbackErr != nil {
+				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
+				return
+			}
+			for fallbackRows.Next() {
+				var inventoryID int64
+				var amount float64
+				if err = fallbackRows.Scan(&inventoryID, &amount); err != nil {
+					fallbackRows.Close()
+					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
+					return
+				}
+				required[inventoryID] += amount * item.Quantity
+				hasRecipe = true
+			}
+			fallbackRows.Close()
+		}
 		if !hasRecipe {
 			channelName := "หน้าร้าน"
-			if input.Channel == "lineman" {
+			if itemChannel == "lineman" {
 				channelName = "LINE MAN"
 			}
 			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ยังไม่มีสูตรวัตถุดิบสำหรับ " + channelName})
@@ -111,7 +141,11 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	for _, item := range input.Items {
 		menuQuantity += item.Quantity
 	}
-	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_consumption", 0, "consumed", gin.H{"itemCount": len(input.Items), "menuQuantity": menuQuantity, "channel": input.Channel, "note": input.Note}); err != nil {
+	auditChannel := input.Channel
+	if len(channels) > 1 {
+		auditChannel = "mixed"
+	}
+	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_consumption", 0, "consumed", gin.H{"itemCount": len(input.Items), "menuQuantity": menuQuantity, "channel": auditChannel, "note": input.Note}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติได้"})
 		return
 	}

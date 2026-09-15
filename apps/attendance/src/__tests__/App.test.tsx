@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   checkIn,
+  checkOut,
   getAttendanceStatus,
   getAttendanceSummary,
   logoutAttendance,
@@ -201,6 +202,43 @@ describe('Attendance App session', () => {
     await waitFor(() => {
       expect(screen.getByTestId('attendance-late-count').textContent).toBe('2');
     });
+  });
+
+  it('checks out an already checked-in staff member and prevents another action', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: true,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkOut).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: '2026-09-08T09:00:00Z',
+      shiftStatus: 'scheduled',
+      canRecordAttendance: false,
+    });
+
+    render(<App />);
+    await screen.findByText('attendance-router');
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => {
+      expect(checkOut).toHaveBeenCalledOnce();
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'true',
+      );
+    });
+    expect(checkIn).not.toHaveBeenCalled();
   });
 
   it('ends the local session when the check-in request reports an expired cookie', async () => {

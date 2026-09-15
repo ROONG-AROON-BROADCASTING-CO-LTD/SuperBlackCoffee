@@ -15,9 +15,20 @@ export type BranchSales = {
   sales: number;
   orders: number;
 };
+export type DashboardTrendPoint = {
+  label: string;
+  quantity: number;
+};
 export const getDashboardSummary = (branchCode?: string) =>
   secured<DashboardSummary>(
     `/dashboard${branchCode ? `?branchCode=${encodeURIComponent(branchCode)}` : ''}`,
   );
 export const listBranchSales = (period: 'today' | 'month' | 'year') =>
   secured<BranchSales[]>(`/branches/sales?period=${period}`);
+export const getDashboardTrend = (
+  period: 'day' | 'month' | 'year',
+  branchCode?: string,
+) =>
+  secured<DashboardTrendPoint[]>(
+    `/dashboard/trend?period=${period}${branchCode ? `&branchCode=${encodeURIComponent(branchCode)}` : ''}`,
+  );

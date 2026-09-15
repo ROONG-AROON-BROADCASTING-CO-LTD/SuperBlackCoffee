@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import type { Shadows } from '@mui/material/styles';
 import { BrowserAutofillGuard } from '../components/BrowserAutofillGuard';
+
+const shadowlessTheme = Array.from({ length: 25 }, () => 'none') as Shadows;
 
 export function SbcThemeProvider({
   children,
@@ -20,6 +23,7 @@ export function SbcThemeProvider({
       background: { default: background },
     },
     shape: { borderRadius },
+    shadows: shadowlessTheme,
     components: {
       MuiButton: {
         styleOverrides: {

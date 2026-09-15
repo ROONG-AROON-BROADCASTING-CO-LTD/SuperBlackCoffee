@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { Box } from '@mui/material';
 import type { InventoryItem, MenuItem, StockMovement } from '../api/stock';
 import { StockPageSkeleton } from '../components/skeletons/StockPageSkeleton';
 import type { StockPage } from '../types/stock';
@@ -25,6 +26,7 @@ type StockPageRouterProps = {
   drinkStock: InventoryItem[];
   postalStock: InventoryItem[];
   menus: MenuItem[];
+  onRefreshMenus: () => Promise<MenuItem[]>;
   movements: StockMovement[];
   isInitialLoading: boolean;
   onAdjust: (
@@ -33,12 +35,16 @@ type StockPageRouterProps = {
     note: string,
   ) => Promise<void>;
   onConsume: (
-    items: Array<{ menuItemId: number; quantity: number }>,
+    items: Array<{
+      menuItemId: number;
+      quantity: number;
+      channel?: 'storefront' | 'lineman';
+    }>,
     note: string,
     channel: 'storefront' | 'lineman',
   ) => Promise<void>;
-  cartRequestId: number;
-  onCartRequestHandled: () => void;
+  cartOpen: boolean;
+  onCartOpenChange: (open: boolean) => void;
   onCartItemCountChange: (count: number) => void;
 };
 
@@ -48,29 +54,34 @@ export function StockPageRouter({
   drinkStock,
   postalStock,
   menus,
+  onRefreshMenus,
   movements,
   isInitialLoading,
   onAdjust,
   onConsume,
-  cartRequestId,
-  onCartRequestHandled,
+  cartOpen,
+  onCartOpenChange,
   onCartItemCountChange,
 }: StockPageRouterProps) {
   if (isInitialLoading) return <StockPageSkeleton page={page} />;
 
-  let content;
+  // Keep the cart mounted while switching pages. Its Drawer is portalled, so
+  // it can open from Count or History without redirecting to the sales page.
+  const menuConsumptionPage = (
+    <MenuConsumptionPage
+      menus={menus}
+      onRefreshMenus={onRefreshMenus}
+      loading={false}
+      onConsume={onConsume}
+      cartOpen={cartOpen}
+      onCartOpenChange={onCartOpenChange}
+      onCartItemCountChange={onCartItemCountChange}
+    />
+  );
+
+  let content = null;
   switch (page) {
     case 'sales':
-      content = (
-        <MenuConsumptionPage
-          menus={menus}
-          loading={false}
-          onConsume={onConsume}
-          cartRequestId={cartRequestId}
-          onCartRequestHandled={onCartRequestHandled}
-          onCartItemCountChange={onCartItemCountChange}
-        />
-      );
       break;
     case 'count':
       content = (
@@ -87,19 +98,15 @@ export function StockPageRouter({
       content = <StockHistoryPage movements={movements} />;
       break;
     default:
-      content = (
-        <MenuConsumptionPage
-          menus={menus}
-          loading={false}
-          onConsume={onConsume}
-          cartRequestId={cartRequestId}
-          onCartRequestHandled={onCartRequestHandled}
-          onCartItemCountChange={onCartItemCountChange}
-        />
-      );
+      break;
   }
 
   return (
-    <Suspense fallback={<StockPageSkeleton page={page} />}>{content}</Suspense>
+    <Suspense fallback={<StockPageSkeleton page={page} />}>
+      <Box sx={{ display: page === 'sales' ? 'block' : 'none' }}>
+        {menuConsumptionPage}
+      </Box>
+      {content}
+    </Suspense>
   );
 }

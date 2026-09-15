@@ -88,12 +88,9 @@ export function MenuSection() {
                 borderRadius: '20px',
                 bgcolor: colors[index],
                 color: light ? '#201914' : '#fff',
-                boxShadow: 'inset 0 -72px 100px rgba(0,0,0,.12)',
-                transition: 'transform .25s ease, box-shadow .25s ease',
+                transition: 'transform .25s ease',
                 '&:hover': {
                   transform: 'translateY(-8px)',
-                  boxShadow:
-                    'inset 0 -72px 100px rgba(0,0,0,.16), 0 20px 34px rgba(49,31,20,.16)',
                 },
               }}
             >

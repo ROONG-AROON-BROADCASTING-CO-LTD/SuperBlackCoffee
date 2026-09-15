@@ -60,4 +60,14 @@ describe('FranchiseIngredientRequestsPage', () => {
     ).toBeTruthy();
     expect(screen.getByText('เมล็ดกาแฟ × 2 ถุง')).toBeTruthy();
   });
+
+  it('shows a safe error state when the franchise request query fails', async () => {
+    mockedListStockRequests.mockRejectedValue(new Error('network unavailable'));
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText('ไม่สามารถโหลดคำขอวัตถุดิบได้')).toBeTruthy(),
+    );
+    expect(screen.getByText('รออนุมัติ 0 รายการ')).toBeTruthy();
+  });
 });

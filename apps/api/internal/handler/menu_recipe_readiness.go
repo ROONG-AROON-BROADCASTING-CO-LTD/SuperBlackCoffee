@@ -66,7 +66,7 @@ func normalizeInventoryUnit(unit string) string {
 
 func (h *PlatformHandler) applyMenuRecipeStatuses(ctx context.Context, branchID int64, items []model.MenuItem) error {
 	rows, err := h.db.QueryContext(ctx, `
-		SELECT m.id,
+		SELECT m.id, COALESCE(mi.channel, 'storefront'),
 			CASE
 				WHEN COUNT(mi.inventory_item_id) = 0 THEN 'missing_recipe'
 				WHEN BOOL_AND(i.id IS NOT NULL AND i.branch_id=m.branch_id AND lower(trim(trailing '.' FROM i.unit)) = lower(trim(trailing '.' FROM mi.unit)) AND i.quantity >= mi.quantity) THEN 'ready'
@@ -76,27 +76,46 @@ func (h *PlatformHandler) applyMenuRecipeStatuses(ctx context.Context, branchID 
 		LEFT JOIN menu_item_ingredients mi ON mi.menu_item_id=m.id
 		LEFT JOIN inventory_items i ON i.id=mi.inventory_item_id
 		WHERE m.branch_id=$1
-		GROUP BY m.id`, branchID)
+		GROUP BY m.id, mi.channel`, branchID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	statuses := make(map[int64]model.MenuRecipeStatus, len(items))
+	type recipeStatuses struct {
+		storefront model.MenuRecipeStatus
+		lineman    model.MenuRecipeStatus
+		hasLineman bool
+	}
+	statuses := make(map[int64]recipeStatuses, len(items))
 	for rows.Next() {
 		var id int64
+		var channel string
 		var status model.MenuRecipeStatus
-		if err := rows.Scan(&id, &status); err != nil {
+		if err := rows.Scan(&id, &channel, &status); err != nil {
 			return err
 		}
-		statuses[id] = status
+		current := statuses[id]
+		if channel == "lineman" {
+			current.lineman = status
+			current.hasLineman = true
+		} else {
+			current.storefront = status
+		}
+		statuses[id] = current
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 	for index := range items {
-		items[index].RecipeStatus = statuses[items[index].ID]
+		current := statuses[items[index].ID]
+		if !current.hasLineman {
+			current.lineman = current.storefront
+		}
+		items[index].RecipeStatus = current.storefront
+		items[index].LinemanRecipeStatus = current.lineman
 		items[index].Sellable = items[index].Status == model.MenuStatusAvailable && items[index].RecipeStatus == model.MenuRecipeReady
+		items[index].LinemanSellable = items[index].Status == model.MenuStatusAvailable && items[index].LinemanRecipeStatus == model.MenuRecipeReady
 	}
 	return nil
 }

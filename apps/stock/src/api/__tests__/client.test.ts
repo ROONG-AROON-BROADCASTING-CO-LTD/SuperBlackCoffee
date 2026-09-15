@@ -57,6 +57,33 @@ describe('stock API client', () => {
     );
   });
 
+  it('preserves each item channel when an imported workbook contains mixed sales', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: { menuCount: 2 } }), {
+        status: 200,
+      }),
+    );
+    const items = [
+      { menuItemId: 7, quantity: 2, channel: 'storefront' as const },
+      { menuItemId: 8, quantity: 1, channel: 'lineman' as const },
+    ];
+
+    await expect(
+      consumeStockFromMenus(items, 'นำเข้ารายงานขาย', 'storefront'),
+    ).resolves.toEqual({ menuCount: 2 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/stock/consume'),
+      expect.objectContaining({
+        body: JSON.stringify({
+          items,
+          note: 'นำเข้ารายงานขาย',
+          channel: 'storefront',
+        }),
+      }),
+    );
+  });
+
   it('returns a useful error instead of a JSON parsing exception for a malformed response', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('upstream route not found', { status: 404 }),

@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Divider,
+  InputAdornment,
   MenuItem,
   Paper,
   Stack,
@@ -19,6 +20,22 @@ const gold = '#d09a3f';
 const cream = '#f8f4ef';
 const shell = { maxWidth: 1240, mx: 'auto', px: { xs: 2.5, md: 5 } };
 const heading = { fontWeight: 600, letterSpacing: '-.025em', lineHeight: 1.16 };
+const SearchAdornment = () => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    height="20"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+    width="20"
+  >
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
 const pill = {
   borderRadius: 999,
   px: 3,
@@ -1232,10 +1249,25 @@ export function BranchesContent() {
       <Box sx={{ ...shell, py: { xs: 7, md: 10 } }}>
         <TextField
           fullWidth
+          size="small"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="ค้นหาสาขา"
-          sx={{ mb: 3, maxWidth: 540, bgcolor: '#fff' }}
+          sx={{
+            mb: 3,
+            maxWidth: 540,
+            bgcolor: '#fff',
+            '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchAdornment />
+                </InputAdornment>
+              ),
+            },
+          }}
         />
         {filteredBranches.map(
           ([name, address, phone, hours, mapUrl, status], i) => (
