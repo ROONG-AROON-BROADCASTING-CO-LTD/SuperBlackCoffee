@@ -270,15 +270,15 @@ export function MenuConsumptionPage({
             bgcolor: '#fffcfa',
           }}
         >
-          <Stack
-            direction="row"
+          <Box
             sx={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)',
               alignItems: 'center',
-              justifyContent: 'space-between',
               gap: { xs: 1.5, sm: 2.5 },
             }}
           >
-            <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700 }}>
                 อ่านออเดอร์เพื่อตัดสต๊อก
               </Typography>
@@ -287,12 +287,13 @@ export function MenuConsumptionPage({
                 และช่องทางขาย
               </Typography>
             </Box>
-            <Stack direction="row" sx={{ flexShrink: 0 }}>
+            <Box sx={{ minWidth: 0 }}>
               <Button
                 component="label"
                 variant="contained"
                 disabled={readingReceipt}
                 sx={{
+                  width: '100%',
                   minHeight: '56px !important',
                   px: { xs: 2, sm: 3.5 },
                   borderRadius: '15px',
@@ -315,8 +316,8 @@ export function MenuConsumptionPage({
                   }}
                 />
               </Button>
-            </Stack>
-          </Stack>
+            </Box>
+          </Box>
           {receiptFileNames.length > 0 && (
             <Typography sx={{ mt: 1.25, fontSize: 13, color: '#5f4030' }}>
               ไฟล์ล่าสุด: {receiptFileNames.join(', ')}
