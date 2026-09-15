@@ -34,7 +34,11 @@ export function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
           }
         }}
       />
-      <ActionSnackbar notice={notice} onClose={() => setNotice(null)} />
+      <ActionSnackbar
+        notice={notice}
+        onClose={() => setNotice(null)}
+        topOnTablet={false}
+      />
     </>
   );
 }

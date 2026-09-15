@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StockCountPage } from '../StockCountPage';
 
@@ -37,6 +43,77 @@ describe('StockCountPage', () => {
     await vi.waitFor(() =>
       expect(onAdjust).toHaveBeenCalledWith(ingredient, 6, 'ตรวจนับสิ้นกะ'),
     );
+  });
+
+  it('presents stock records as accessible cards in a responsive grid', () => {
+    render(
+      <StockCountPage
+        ingredients={[ingredient, { ...ingredient, id: 2, name: 'นมสด' }]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    const grid = screen.getByRole('list', { name: 'รายการตรวจนับสต๊อก' });
+    expect(grid).toBeTruthy();
+    expect(grid.querySelectorAll('[role="listitem"]')).toHaveLength(2);
+    expect(grid.querySelectorAll('img[alt=""]')).toHaveLength(2);
+    expect(
+      screen.getAllByRole('button', { name: 'บันทึกยอดจริง' }),
+    ).toHaveLength(2);
+    expect(screen.getAllByText('หมดอายุ: ไม่ระบุ')).toHaveLength(2);
+  });
+
+  it('formats an inventory expiry date in Thai on its card', () => {
+    render(
+      <StockCountPage
+        ingredients={[{ ...ingredient, expiryDate: '2026-09-30' }]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('หมดอายุ: 30 ก.ย. 2569')).toBeTruthy();
+  });
+
+  it('opens the count form in the stock cart drawer and keeps its content during close', async () => {
+    render(
+      <StockCountPage
+        ingredients={[ingredient, { ...ingredient, id: 2, name: 'นมสด' }]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    const grid = screen.getByRole('list', { name: 'รายการตรวจนับสต๊อก' });
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'บันทึกยอดจริง' })[0],
+    );
+
+    const editor = screen.getByRole('region', {
+      name: 'บันทึกยอดจริง เมล็ดกาแฟ',
+    });
+    const quantityInput = screen.getByLabelText('จำนวนคงเหลือ (กรัม)');
+    expect(grid.contains(editor)).toBe(false);
+    expect(quantityInput).toBeTruthy();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'ปิด' }));
+    expect(
+      screen.getByRole('region', { name: 'บันทึกยอดจริง เมล็ดกาแฟ' }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('region', { name: 'บันทึกยอดจริง เมล็ดกาแฟ' }),
+      ).toBeNull(),
+    );
+    expect(grid.querySelectorAll('[role="listitem"]')).toHaveLength(2);
   });
 
   it('rejects a negative counted quantity before it can adjust stock', async () => {

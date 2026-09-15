@@ -696,6 +696,7 @@ export function MenuConsumptionPage({
           setError('');
           setReceiptError('');
         }}
+        topOnTablet
       />
     </>
   );

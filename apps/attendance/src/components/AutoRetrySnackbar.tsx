@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Snackbar, useMediaQuery } from '@mui/material';
-import { BadgeAlertIcon } from '@stackbuild/ui';
+import {
+  BadgeAlertIcon,
+  snackbarAnchorOrigin,
+  snackbarBelowTopbarSx,
+  snackbarBottomSx,
+  tabletOrSmallerMediaQuery,
+} from '@stackbuild/ui';
 
 const retrySeconds = 10;
 
 export function AutoRetrySnackbar({ open }: { open: boolean }) {
   const [secondsRemaining, setSecondsRemaining] = useState(retrySeconds);
-  const isTabletOrSmaller = useMediaQuery('(max-width:899.95px)');
+  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
 
   useEffect(() => {
     if (!open) return;
@@ -22,15 +28,8 @@ export function AutoRetrySnackbar({ open }: { open: boolean }) {
   return (
     <Snackbar
       open={open}
-      anchorOrigin={{
-        vertical: isTabletOrSmaller ? 'top' : 'bottom',
-        horizontal: 'center',
-      }}
-      sx={
-        isTabletOrSmaller
-          ? { top: 'calc(72px + env(safe-area-inset-top) + 12px)' }
-          : { mb: 2 }
-      }
+      anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
+      sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
     >
       <Alert
         severity="error"

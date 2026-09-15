@@ -13,6 +13,7 @@ import {
   Snackbar,
   TextField,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import {
   CartIcon,
@@ -21,6 +22,10 @@ import {
   INGREDIENT_STATUS_BADGES,
   PlusIcon,
   SearchIcon,
+  snackbarAnchorOrigin,
+  snackbarBelowTopbarSx,
+  snackbarBottomSx,
+  tabletOrSmallerMediaQuery,
   XIcon,
   type IngredientStatus,
   type CartIconHandle,
@@ -73,6 +78,7 @@ export function StockManagementPage({
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
 }) {
+  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
   const plusRef = useRef<PlusIconHandle>(null);
   const searchRef = useRef<SearchIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
@@ -1330,8 +1336,8 @@ export function StockManagementPage({
       <Snackbar
         open={isCartSuccessVisible}
         autoHideDuration={5000}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{ mb: 2 }}
+        anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
+        sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
         onClose={() => setIsCartSuccessVisible(false)}
       >
         <Alert

@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Snackbar, useMediaQuery } from '@mui/material';
-import { CircleCheckIcon, SbcThemeProvider } from '@stackbuild/ui';
+import {
+  CircleCheckIcon,
+  SbcThemeProvider,
+  snackbarAnchorOrigin,
+  snackbarBelowTopbarSx,
+  snackbarBottomSx,
+  tabletOrSmallerMediaQuery,
+} from '@stackbuild/ui';
 import { attendanceNavigation } from './components/AttendanceNavigation';
 import {
   checkIn,
@@ -74,7 +81,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
-  const isTabletOrSmaller = useMediaQuery('(max-width:899.95px)');
+  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
   const clock = useAttendanceClock();
   const title = useMemo(
     () =>
@@ -320,15 +327,8 @@ export default function App() {
               onClose={(_event, reason) => {
                 if (reason !== 'clickaway') setNotice('');
               }}
-              anchorOrigin={{
-                vertical: isTabletOrSmaller ? 'top' : 'bottom',
-                horizontal: 'center',
-              }}
-              sx={
-                isTabletOrSmaller
-                  ? { top: 'calc(72px + env(safe-area-inset-top) + 12px)' }
-                  : { mb: 2 }
-              }
+              anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
+              sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
             >
               <Alert
                 severity="success"

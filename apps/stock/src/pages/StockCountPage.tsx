@@ -3,8 +3,10 @@ import {
   Alert,
   Box,
   Button,
+  Card,
   Chip,
   Divider,
+  Drawer,
   InputAdornment,
   Paper,
   Stack,
@@ -13,6 +15,7 @@ import {
 } from '@mui/material';
 import {
   ActionSnackbar,
+  coffeeIngredientsImage,
   SearchIcon,
   type SearchIconHandle,
 } from '@stackbuild/ui';
@@ -24,6 +27,17 @@ const groups: Array<{ id: InventoryGroup; label: string }> = [
   { id: 'drink_equipment', label: 'อุปกรณ์เครื่องดื่ม' },
   { id: 'postal_equipment', label: 'อุปกรณ์ไปรษณีย์' },
 ];
+
+const formatExpiryDate = (expiryDate?: string | null) => {
+  if (!expiryDate) return 'ไม่ระบุ';
+  const date = new Date(expiryDate);
+  if (Number.isNaN(date.getTime())) return 'ไม่ระบุ';
+  return new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+};
 
 export function StockCountPage({
   ingredients,
@@ -45,6 +59,7 @@ export function StockCountPage({
   const [group, setGroup] = useState<InventoryGroup>('ingredient');
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<InventoryItem | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('ตรวจนับสิ้นกะ');
   const [saving, setSaving] = useState(false);
@@ -63,8 +78,15 @@ export function StockCountPage({
       ),
     [items, query],
   );
+  const closeEditor = () => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setEditorOpen(false);
+  };
   const beginEdit = (item: InventoryItem) => {
     setEditing(item);
+    setEditorOpen(true);
     setQuantity(String(item.quantity));
     setNote('ตรวจนับสิ้นกะ');
     setError('');
@@ -84,7 +106,7 @@ export function StockCountPage({
     setError('');
     try {
       await onAdjust(editing, next, note.trim());
-      setEditing(null);
+      closeEditor();
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : 'ไม่สามารถบันทึกยอดได้',
@@ -113,7 +135,7 @@ export function StockCountPage({
                 variant={group === item.id ? 'contained' : 'outlined'}
                 onClick={() => {
                   setGroup(item.id);
-                  setEditing(null);
+                  closeEditor();
                 }}
                 sx={{ bgcolor: group === item.id ? '#3c2d24' : undefined }}
               >
@@ -149,93 +171,219 @@ export function StockCountPage({
       ) : filtered.length === 0 ? (
         <Alert severity="info">ไม่มีรายการที่เปิดใช้งานสำหรับสาขานี้</Alert>
       ) : (
-        <Stack sx={{ gap: 1.25 }}>
-          {filtered.map((item) => (
-            <Paper
+        <Box
+          aria-label="รายการตรวจนับสต๊อก"
+          role="list"
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(2, minmax(0, 1fr))',
+              sm: 'repeat(2, minmax(0, 1fr))',
+              lg: 'repeat(3, minmax(0, 1fr))',
+            },
+            gap: { xs: 1.25, sm: 2 },
+            alignContent: 'start',
+          }}
+        >
+          {filtered.map((item, index) => (
+            <Card
               key={item.id}
+              role="listitem"
               variant="outlined"
               sx={{
-                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                minWidth: 0,
                 borderRadius: '15px',
                 borderColor:
                   item.status === 'out'
                     ? 'error.light'
                     : item.status === 'low'
                       ? 'warning.light'
-                      : 'divider',
+                      : '#e8ddd5',
+                bgcolor: item.status === 'out' ? '#fff8f7' : '#fff',
               }}
             >
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
+              <Box sx={{ position: 'relative' }}>
+                <Box
+                  component="img"
+                  src={coffeeIngredientsImage}
+                  alt=""
+                  aria-hidden="true"
+                  sx={{
+                    display: 'block',
+                    width: '100%',
+                    aspectRatio: '1 / 1',
+                    objectFit: 'cover',
+                    objectPosition: `${15 + (index % 4) * 20}% 50%`,
+                    filter: item.status === 'out' ? 'grayscale(.45)' : 'none',
+                  }}
+                />
+                <Chip
+                  label={
+                    item.status === 'out'
+                      ? 'หมด'
+                      : item.status === 'low'
+                        ? 'ใกล้หมด'
+                        : 'เพียงพอ'
+                  }
+                  color={
+                    item.status === 'out'
+                      ? 'error'
+                      : item.status === 'low'
+                        ? 'warning'
+                        : 'success'
+                  }
+                  size="small"
+                  sx={{
+                    position: 'absolute',
+                    top: { xs: 8, sm: 12 },
+                    right: { xs: 8, sm: 12 },
+                    height: 25,
+                    borderRadius: '12px',
+                    fontSize: 11,
+                  }}
+                />
+              </Box>
+              <Box
                 sx={{
-                  gap: 1.5,
-                  alignItems: { sm: 'center' },
-                  justifyContent: 'space-between',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  p: { xs: 1.25, sm: 2.5 },
                 }}
               >
-                <Box>
-                  <Typography sx={{ fontWeight: 700 }}>{item.name}</Typography>
-                  <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-                    {item.category}
-                  </Typography>
-                </Box>
-                <Stack direction="row" sx={{ gap: 1.5, alignItems: 'center' }}>
-                  <Chip
-                    label={
-                      item.status === 'out'
-                        ? 'หมด'
-                        : item.status === 'low'
-                          ? 'ใกล้หมด'
-                          : 'เพียงพอ'
-                    }
-                    color={
-                      item.status === 'out'
-                        ? 'error'
-                        : item.status === 'low'
-                          ? 'warning'
-                          : 'success'
-                    }
-                    size="small"
-                  />
-                  <Typography sx={{ fontWeight: 700 }}>
-                    คงเหลือ {item.quantity.toLocaleString('th-TH')} {item.unit}
-                  </Typography>
+                <Typography
+                  sx={{
+                    fontSize: { xs: 14, sm: 18 },
+                    fontWeight: 600,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {item.name}
+                </Typography>
+                <Typography
+                  color="text.secondary"
+                  sx={{ mt: 0.4, fontSize: { xs: 11, sm: 13 } }}
+                >
+                  คงเหลือ {item.quantity.toLocaleString('th-TH')} {item.unit}
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.3,
+                    color: '#5f4030',
+                    fontSize: { xs: 12.5, sm: 14 },
+                    fontWeight: 700,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  หมดอายุ: {formatExpiryDate(item.expiryDate)}
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    mt: 'auto',
+                    pt: { xs: 1.25, sm: 2 },
+                  }}
+                >
                   <Button
+                    fullWidth
                     variant="contained"
                     onClick={() => beginEdit(item)}
-                    sx={{ bgcolor: '#3c2d24' }}
+                    sx={{
+                      flex: 1,
+                      minHeight: { xs: 32, sm: 36 },
+                      borderRadius: '10px',
+                      bgcolor: '#5f4030',
+                      boxShadow: 'none',
+                      '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+                      fontSize: { xs: 11, sm: 14 },
+                    }}
                   >
                     บันทึกยอดจริง
                   </Button>
-                </Stack>
-              </Stack>
-            </Paper>
+                </Box>
+              </Box>
+            </Card>
           ))}
-        </Stack>
+        </Box>
       )}
-      {editing && (
-        <Paper
-          sx={{
-            position: 'fixed',
-            zIndex: 10,
-            inset: { xs: 'auto 12px 12px', sm: 'auto 32px 32px auto' },
-            width: { xs: 'auto', sm: 440 },
-            p: 2.5,
-            borderRadius: '15px',
-          }}
-        >
-          <Stack sx={{ gap: 1.5 }}>
-            <Box>
-              <Typography sx={{ fontWeight: 700 }}>
-                บันทึกคงเหลือจริง
-              </Typography>
-              <Typography color="text.secondary">
-                {editing.name} · ยอดเดิม {editing.quantity} {editing.unit}
-              </Typography>
+      <Drawer
+        anchor="bottom"
+        open={editorOpen}
+        onClose={closeEditor}
+        transitionDuration={{ enter: 360, exit: 280 }}
+        slotProps={{
+          transition: {
+            onExited: () => setEditing(null),
+          },
+          paper: {
+            sx: {
+              maxWidth: { xs: 720, lg: 'none' },
+              mx: 'auto',
+              left: { lg: '230px' },
+              width: { xs: '100%', lg: 'calc(100% - 230px)' },
+              bottom: {
+                xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+                md: 0,
+                lg: 0,
+              },
+              height: { xs: 'auto', md: 'auto', lg: 'auto' },
+              maxHeight: {
+                xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+                md: '82dvh',
+                lg: 'calc(100dvh - 72px)',
+              },
+              top: { lg: 'auto' },
+              borderRadius: { xs: 0, lg: '24px 24px 0 0' },
+              p: { xs: 2, sm: 3 },
+              bgcolor: '#fffaf7',
+            },
+          },
+        }}
+      >
+        {editing ? (
+          <Stack
+            aria-label={`บันทึกยอดจริง ${editing.name}`}
+            component="section"
+            sx={{ gap: 1.5, overflowY: 'auto' }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+              }}
+            >
+              <Box>
+                <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+                  บันทึกคงเหลือจริง
+                </Typography>
+                <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                  {editing.name} · ยอดเดิม {editing.quantity} {editing.unit}
+                </Typography>
+              </Box>
+              <Button
+                onClick={closeEditor}
+                color="inherit"
+                sx={{
+                  minWidth: 58,
+                  minHeight: 36,
+                  px: 1.5,
+                  borderRadius: '10px',
+                  bgcolor: '#eadfd7',
+                  color: '#3c2d24',
+                  fontWeight: 700,
+                  '&:hover': { bgcolor: '#ddcec3' },
+                }}
+              >
+                ปิด
+              </Button>
             </Box>
             <Divider />
             <TextField
-              autoFocus
               label={`จำนวนคงเหลือ (${editing.unit})`}
               type="number"
               value={quantity}
@@ -248,23 +396,29 @@ export function StockCountPage({
               onChange={(event) => setNote(event.target.value)}
               helperText="ตัวอย่าง: ตรวจนับสิ้นกะ, ของเสีย, รับของเข้าร้าน"
             />
-            <Stack direction="row" sx={{ justifyContent: 'flex-end', gap: 1 }}>
-              <Button onClick={() => setEditing(null)}>ยกเลิก</Button>
-              <Button
-                variant="contained"
-                disabled={saving}
-                onClick={() => void save()}
-                sx={{ bgcolor: '#3c2d24' }}
-              >
-                ยืนยันบันทึก
-              </Button>
-            </Stack>
+            <Button
+              fullWidth
+              variant="contained"
+              size="large"
+              disabled={saving}
+              onClick={() => void save()}
+              sx={{
+                width: '100%',
+                height: 56,
+                minHeight: 56,
+                justifyContent: 'center',
+                bgcolor: '#3c2d24',
+              }}
+            >
+              ยืนยันบันทึก
+            </Button>
           </Stack>
-        </Paper>
-      )}
+        ) : null}
+      </Drawer>
       <ActionSnackbar
         notice={error ? { message: error, severity: 'error' } : null}
         onClose={() => setError('')}
+        topOnTablet
       />
     </Stack>
   );

@@ -19,6 +19,13 @@ import App from '../App';
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
   CircleCheckIcon: () => <span aria-hidden="true" />,
+  tabletOrSmallerMediaQuery: '(max-width:899.95px)',
+  snackbarAnchorOrigin: (isTabletOrSmaller: boolean) => ({
+    vertical: isTabletOrSmaller ? 'top' : 'bottom',
+    horizontal: 'center',
+  }),
+  snackbarBelowTopbarSx: {},
+  snackbarBottomSx: {},
 }));
 vi.mock('../components/StockNavigation', () => ({
   stockNavigation: [{ page: 'sales', label: 'บันทึกเมนูที่ขาย' }],

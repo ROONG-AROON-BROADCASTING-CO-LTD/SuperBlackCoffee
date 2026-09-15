@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Alert, type AlertColor, Snackbar } from '@mui/material';
+import { Alert, type AlertColor, Snackbar, useMediaQuery } from '@mui/material';
 import { BadgeAlertIcon } from './icons/BadgeAlertIcon';
 import { CircleCheckIcon } from './icons/CircleCheckIcon';
+import {
+  snackbarAnchorOrigin,
+  snackbarBelowTopbarSx,
+  snackbarBottomSx,
+  tabletOrSmallerMediaQuery,
+} from './responsiveSnackbar';
 
 export type ActionNotice = {
   message: string;
@@ -11,9 +17,11 @@ export type ActionNotice = {
 export function ActionSnackbar({
   notice,
   onClose,
+  topOnTablet = true,
 }: {
   notice: ActionNotice | null;
   onClose: () => void;
+  topOnTablet?: boolean;
 }) {
   const [displayedNotice, setDisplayedNotice] = useState<ActionNotice | null>(
     notice,
@@ -25,15 +33,17 @@ export function ActionSnackbar({
 
   const activeNotice = displayedNotice ?? notice;
   const isSuccess = (activeNotice?.severity ?? 'success') === 'success';
+  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
+  const showBelowTopbar = topOnTablet && isTabletOrSmaller;
 
   return (
     <Snackbar
       key={activeNotice?.message ?? 'action-notice'}
       open={notice !== null}
       autoHideDuration={3_500}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      anchorOrigin={snackbarAnchorOrigin(showBelowTopbar)}
       onClose={onClose}
-      sx={{ mb: 2 }}
+      sx={showBelowTopbar ? snackbarBelowTopbarSx : snackbarBottomSx}
       slotProps={{
         transition: {
           onExited: () => {

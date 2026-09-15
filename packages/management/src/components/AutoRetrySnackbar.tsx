@@ -6,8 +6,14 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { QueryClientContext, type QueryClient } from '@tanstack/react-query';
-import { Alert, Box, Snackbar } from '@mui/material';
-import { BadgeAlertIcon } from '@stackbuild/ui';
+import { Alert, Box, Snackbar, useMediaQuery } from '@mui/material';
+import {
+  BadgeAlertIcon,
+  snackbarAnchorOrigin,
+  snackbarBelowTopbarSx,
+  snackbarBottomSx,
+  tabletOrSmallerMediaQuery,
+} from '@stackbuild/ui';
 import {
   hasAutoRetryErrors,
   subscribeToAutoRetryErrors,
@@ -37,6 +43,7 @@ function useActiveQueryError(queryClient: QueryClient) {
 
 export function AutoRetrySnackbar({ open }: { open: boolean }) {
   const [secondsRemaining, setSecondsRemaining] = useState(retrySeconds);
+  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
 
   useEffect(() => {
     if (!open) return;
@@ -52,8 +59,8 @@ export function AutoRetrySnackbar({ open }: { open: boolean }) {
   return (
     <Snackbar
       open={open}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      sx={{ mb: 2 }}
+      anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
+      sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
     >
       <Alert
         severity="error"

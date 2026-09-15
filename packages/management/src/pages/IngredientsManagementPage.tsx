@@ -20,6 +20,7 @@ import {
   Snackbar,
   TextField,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import {
   DashboardMain,
@@ -28,6 +29,10 @@ import {
   INGREDIENT_STATUS_BADGES,
   PlusIcon,
   SearchIcon,
+  snackbarAnchorOrigin,
+  snackbarBelowTopbarSx,
+  snackbarBottomSx,
+  tabletOrSmallerMediaQuery,
   XIcon,
   type IngredientStatus,
   type CartIconHandle,
@@ -124,6 +129,7 @@ export function IngredientsManagementPage({
   branchCodes?: BranchCodeMap;
   ingredientScope?: 'regular' | 'fresh';
 }) {
+  const isTabletOrSmaller = useMediaQuery(tabletOrSmallerMediaQuery);
   const isFreshIngredientsPage = ingredientScope === 'fresh';
   const plusIconRef = useRef<PlusIconHandle>(null);
   const searchIconRef = useRef<SearchIconHandle>(null);
@@ -1742,8 +1748,12 @@ export function IngredientsManagementPage({
       <Snackbar
         open={Boolean(inventoryNotice)}
         autoHideDuration={5000}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{ mb: isCartSuccessVisible ? 10 : 2 }}
+        anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
+        sx={
+          isTabletOrSmaller
+            ? snackbarBelowTopbarSx
+            : { ...snackbarBottomSx, mb: isCartSuccessVisible ? 10 : 2 }
+        }
         onClose={() => setInventoryNotice(null)}
       >
         <Alert
@@ -1757,8 +1767,8 @@ export function IngredientsManagementPage({
       <Snackbar
         open={isCartSuccessVisible}
         autoHideDuration={5000}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{ mb: 2 }}
+        anchorOrigin={snackbarAnchorOrigin(isTabletOrSmaller)}
+        sx={isTabletOrSmaller ? snackbarBelowTopbarSx : snackbarBottomSx}
         onClose={() => setIsCartSuccessVisible(false)}
       >
         <Alert
