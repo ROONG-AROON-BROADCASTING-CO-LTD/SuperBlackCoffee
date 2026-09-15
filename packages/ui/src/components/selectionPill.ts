@@ -6,7 +6,7 @@
 export const selectionPillSx = (selected: boolean) => ({
   minHeight: 40,
   px: { xs: 1.75, sm: 2.25 },
-  borderRadius: '999px',
+  borderRadius: '14px',
   border: '1px solid',
   borderColor: selected ? '#201914' : '#d8c8bd',
   bgcolor: selected ? '#201914' : '#fff',
