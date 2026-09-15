@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  ActionSnackbar,
   CartIcon,
   SearchIcon,
   coffeeIngredientsImage,
@@ -331,11 +332,6 @@ export function MenuConsumptionPage({
             <Typography color="text.secondary" sx={{ mt: 1.25, fontSize: 13 }}>
               {receiptProgress}
             </Typography>
-          )}
-          {receiptError && (
-            <Alert severity="warning" sx={{ mt: 1.5 }}>
-              {receiptError}
-            </Alert>
           )}
           {importWarning.length > 0 && (
             <Alert severity="warning" sx={{ mt: 1.5 }}>
@@ -664,7 +660,6 @@ export function MenuConsumptionPage({
               ยังไม่ได้เลือกเมนู
             </Typography>
           )}
-          {error && <Alert severity="error">{error}</Alert>}
           <TextField
             fullWidth
             multiline
@@ -691,6 +686,17 @@ export function MenuConsumptionPage({
           </Button>
         </Stack>
       </Drawer>
+      <ActionSnackbar
+        notice={
+          error || receiptError
+            ? { message: error || receiptError, severity: 'error' }
+            : null
+        }
+        onClose={() => {
+          setError('');
+          setReceiptError('');
+        }}
+      />
     </>
   );
 }

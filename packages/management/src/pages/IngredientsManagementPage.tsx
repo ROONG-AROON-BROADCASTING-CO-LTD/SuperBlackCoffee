@@ -113,6 +113,7 @@ export function IngredientsManagementPage({
   onRequestCreated,
   branchOptions = branches,
   branchCodes = branchCodeByBranch,
+  ingredientScope = 'regular',
 }: {
   activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
@@ -121,7 +122,9 @@ export function IngredientsManagementPage({
   onRequestCreated?: () => void;
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
+  ingredientScope?: 'regular' | 'fresh';
 }) {
+  const isFreshIngredientsPage = ingredientScope === 'fresh';
   const plusIconRef = useRef<PlusIconHandle>(null);
   const searchIconRef = useRef<SearchIconHandle>(null);
   const closeIconRef = useRef<XIconHandle>(null);
@@ -182,18 +185,42 @@ export function IngredientsManagementPage({
     () => branchOptions.filter((branch) => branch !== 'ทุกสาขา'),
     [branchOptions],
   );
+  const matchesIngredientFilter = (
+    ingredient: Ingredient,
+    selectedFilter: IngredientFilter,
+  ) =>
+    selectedFilter === 'ทั้งหมด' ||
+    ingredient.status === selectedFilter ||
+    (selectedFilter === 'ใกล้หมดอายุ' &&
+      ingredient.expiryStatus === 'expiring_soon') ||
+    (selectedFilter === 'หมดอายุ' && ingredient.expiryStatus === 'expired');
+  const filterCounts = useMemo(() => {
+    const ingredients = Object.values(catalogIngredientsByBranch).flat();
+    return Object.fromEntries(
+      filters.map((selectedFilter) => [
+        selectedFilter,
+        ingredients.filter(
+          (ingredient) =>
+            (isFreshIngredientsPage
+              ? ingredient.category === 'fresh'
+              : ingredient.category !== 'fresh') &&
+            matchesIngredientFilter(ingredient, selectedFilter),
+        ).length,
+      ]),
+    ) as Record<IngredientFilter, number>;
+  }, [catalogIngredientsByBranch, isFreshIngredientsPage]);
   const filterIngredients = (items: Ingredient[]) =>
     items.filter((ingredient) => {
       const matchesQuery = ingredient.name
         .toLowerCase()
         .includes(deferredQuery.trim().toLowerCase());
-      const matchesFilter =
-        filter === 'ทั้งหมด' ||
-        ingredient.status === filter ||
-        (filter === 'ใกล้หมดอายุ' &&
-          ingredient.expiryStatus === 'expiring_soon') ||
-        (filter === 'หมดอายุ' && ingredient.expiryStatus === 'expired');
-      return matchesQuery && matchesFilter;
+      return (
+        matchesQuery &&
+        (isFreshIngredientsPage
+          ? ingredient.category === 'fresh'
+          : ingredient.category !== 'fresh') &&
+        matchesIngredientFilter(ingredient, filter)
+      );
     });
   useEffect(() => {
     let active = true;
@@ -288,7 +315,10 @@ export function IngredientsManagementPage({
   }, [activeBranch, availableBranchNames]);
   const displayedBranches =
     activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
-  const drawerTitle = editingIngredient ? 'แก้ไขวัตถุดิบ' : 'เพิ่มวัตถุดิบ';
+  const ingredientLabel = isFreshIngredientsPage ? 'วัตถุดิบของสด' : 'วัตถุดิบ';
+  const drawerTitle = editingIngredient
+    ? `แก้ไข${ingredientLabel}`
+    : `เพิ่ม${ingredientLabel}`;
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantityToOrder,
     0,
@@ -328,7 +358,9 @@ export function IngredientsManagementPage({
     const expiryDate = String(formData.get('expiryDate') ?? '').trim();
     const data: InventoryInput = {
       name: String(formData.get('name') ?? '').trim(),
-      category: String(formData.get('category') ?? 'other'),
+      category: isFreshIngredientsPage
+        ? 'fresh'
+        : String(formData.get('category') ?? 'other'),
       kind: 'ingredient',
       quantity: Number(formData.get('quantity') ?? 0),
       unit: String(formData.get('unit') ?? ''),
@@ -408,7 +440,7 @@ export function IngredientsManagementPage({
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => searchIconRef.current?.startAnimation()}
             onBlur={() => searchIconRef.current?.stopAnimation()}
-            placeholder="ค้นหาวัตถุดิบ"
+            placeholder={`ค้นหา${ingredientLabel}`}
             size="small"
             name="ingredient-search"
             autoComplete="off"
@@ -527,7 +559,7 @@ export function IngredientsManagementPage({
               '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
             }}
           >
-            เพิ่มวัตถุดิบ
+            เพิ่ม{ingredientLabel}
           </Button>
         ) : null}
       </Box>
@@ -538,8 +570,11 @@ export function IngredientsManagementPage({
             size="small"
             variant={filter === item ? 'contained' : 'outlined'}
             onClick={() => setFilter(item)}
+            aria-label={`${item} ${filterCounts[item]} รายการ`}
             sx={{
               minHeight: 34,
+              position: 'relative',
+              overflow: 'visible',
               borderRadius: '12px',
               border: '1px solid',
               borderColor: filter === item ? '#201914' : '#d8c8bd',
@@ -557,6 +592,31 @@ export function IngredientsManagementPage({
             }}
           >
             {item}
+            {item === 'ทั้งหมด' && filterCounts[item] > 0 ? (
+              <Box
+                component="span"
+                aria-hidden="true"
+                sx={{
+                  position: 'absolute',
+                  top: -7,
+                  right: -7,
+                  display: 'grid',
+                  placeItems: 'center',
+                  minWidth: 24,
+                  height: 24,
+                  px: 0.5,
+                  borderRadius: '999px',
+                  bgcolor: '#df292d',
+                  color: '#fff',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                }}
+              >
+                {filterCounts[item]}
+              </Box>
+            ) : null}
           </Button>
         ))}
       </Box>
@@ -666,6 +726,22 @@ export function IngredientsManagementPage({
                               overflow: 'hidden',
                             }}
                           >
+                            {ingredient.category === 'fresh' ? (
+                              <Chip
+                                label="ของสด"
+                                size="small"
+                                sx={{
+                                  height: 25,
+                                  borderRadius: '12px',
+                                  bgcolor: '#e5f4e9',
+                                  color: '#257142',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  position: 'relative',
+                                }}
+                              />
+                            ) : null}
                             <Chip
                               label={ingredient.status}
                               size="small"
@@ -1136,19 +1212,29 @@ export function IngredientsManagementPage({
                   defaultValue={editingIngredient?.name}
                   sx={{ gridColumn: { sm: '1 / -1' } }}
                 />
-                <TextField
-                  required
-                  select
-                  fullWidth
-                  name="category"
-                  label="หมวดหมู่"
-                  defaultValue={editingIngredient?.category ?? 'other'}
-                >
-                  <MenuItem value="coffee">เมล็ดกาแฟ</MenuItem>
-                  <MenuItem value="milk">นมและครีม</MenuItem>
-                  <MenuItem value="syrup">ไซรัปและผงชง</MenuItem>
-                  <MenuItem value="other">อื่น ๆ</MenuItem>
-                </TextField>
+                {isFreshIngredientsPage ? (
+                  <TextField
+                    fullWidth
+                    disabled
+                    label="หมวดหมู่"
+                    value="ของสด"
+                    helperText="รายการในหน้านี้จะถูกจัดเป็นของสดอัตโนมัติ"
+                  />
+                ) : (
+                  <TextField
+                    required
+                    select
+                    fullWidth
+                    name="category"
+                    label="หมวดหมู่"
+                    defaultValue={editingIngredient?.category ?? 'other'}
+                  >
+                    <MenuItem value="coffee">เมล็ดกาแฟ</MenuItem>
+                    <MenuItem value="milk">นมและครีม</MenuItem>
+                    <MenuItem value="syrup">ไซรัปและผงชง</MenuItem>
+                    <MenuItem value="other">อื่น ๆ</MenuItem>
+                  </TextField>
+                )}
                 <TextField
                   fullWidth
                   required

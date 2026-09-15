@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DashboardMain, formatDate } from '@stackbuild/ui';
+import { ActionSnackbar, type ActionNotice } from '@stackbuild/management';
 import {
   createFranchiseMaintenanceTicket,
   listFranchiseMaintenanceTickets,
@@ -180,7 +181,7 @@ export function FranchiseMaintenancePage() {
   const [priority, setPriority] =
     useState<FranchiseMaintenanceTicket['priority']>('normal');
   const [dueAt, setDueAt] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<ActionNotice | null>(null);
   const tickets = useQuery({
     queryKey: maintenanceKey,
     queryFn: listFranchiseMaintenanceTickets,
@@ -192,16 +193,28 @@ export function FranchiseMaintenancePage() {
       setDescription('');
       setPriority('normal');
       setDueAt('');
-      setNotice('ส่งแจ้งซ่อมเรียบร้อยแล้ว ทีมช่างจะรับงานตามระดับความเร่งด่วน');
+      setNotice({
+        message: 'ส่งแจ้งซ่อมเรียบร้อยแล้ว ทีมช่างจะรับงานตามระดับความเร่งด่วน',
+      });
       await queryClient.invalidateQueries({ queryKey: maintenanceKey });
+    },
+    onError: (error) => {
+      setNotice({
+        message:
+          error instanceof Error ? error.message : 'ไม่สามารถส่งแจ้งซ่อมได้',
+        severity: 'error',
+      });
     },
   });
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setNotice('');
+    setNotice(null);
     if (!title.trim()) {
-      setNotice('กรุณาระบุหัวข้อปัญหาที่ต้องการแจ้งซ่อม');
+      setNotice({
+        message: 'กรุณาระบุหัวข้อปัญหาที่ต้องการแจ้งซ่อม',
+        severity: 'warning',
+      });
       return;
     }
     createTicket.mutate({
@@ -321,20 +334,6 @@ export function FranchiseMaintenancePage() {
                 onChange={(event) => setDueAt(event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
               />
-              {notice ? (
-                <Alert
-                  severity={notice.startsWith('กรุณา') ? 'warning' : 'success'}
-                >
-                  {notice}
-                </Alert>
-              ) : null}
-              {createTicket.isError ? (
-                <Alert severity="error">
-                  {createTicket.error instanceof Error
-                    ? createTicket.error.message
-                    : 'ไม่สามารถส่งแจ้งซ่อมได้'}
-                </Alert>
-              ) : null}
               <Button
                 type="submit"
                 variant="contained"
@@ -408,6 +407,7 @@ export function FranchiseMaintenancePage() {
           </Stack>
         </Box>
       </Stack>
+      <ActionSnackbar notice={notice} onClose={() => setNotice(null)} />
     </DashboardMain>
   );
 }

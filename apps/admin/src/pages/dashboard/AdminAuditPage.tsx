@@ -7,22 +7,99 @@ import { AdminAuditSkeleton } from '../../components/skeletons/AdminAuditSkeleto
 
 const actionLabels: Record<string, string> = {
   created: 'สร้างรายการ',
+  create: 'สร้างรายการ',
   updated: 'แก้ไขรายการ',
+  update: 'อัปเดตรายการ',
   deleted: 'ลบรายการ',
   approved: 'อนุมัติคำขอ',
   preparing: 'เริ่มจัดเตรียม',
-  completed: 'รับสินค้าเข้าสต็อก',
+  completed: 'ดำเนินการเสร็จสิ้น',
   rejected: 'ปฏิเสธคำขอ',
+  scheduled: 'สร้างงานตรวจ',
+  consumed: 'ตัดสต็อก',
+  received: 'รับสินค้าเข้าสต็อก',
+  adjusted: 'ปรับจำนวนสต็อก',
 };
 
-function eventDescription(event: AuditEvent) {
-  const itemName =
-    typeof event.metadata?.name === 'string' ? event.metadata.name : null;
-  const entity =
-    event.entityType === 'stock_request'
-      ? `คำขอ #${event.entityId ?? '-'}`
-      : (itemName ?? `สต็อก #${event.entityId ?? '-'}`);
-  return `${actionLabels[event.action] ?? event.action} ${entity}`;
+function stringMetadata(event: AuditEvent, key: string) {
+  const value = event.metadata?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function numberMetadata(event: AuditEvent, key: string) {
+  const value = event.metadata?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function eventPresentation(event: AuditEvent) {
+  const itemName = stringMetadata(event, 'name');
+  const title = stringMetadata(event, 'title');
+  const inspectionType = stringMetadata(event, 'inspectionType');
+  const templateName = stringMetadata(event, 'templateName');
+  const invoiceNumber = stringMetadata(event, 'invoiceNumber');
+  const itemCount = numberMetadata(event, 'itemCount');
+  const menuQuantity = numberMetadata(event, 'menuQuantity');
+  const reference = `#${event.entityId ?? '-'}`;
+  const itemReference = itemName ? `“${itemName}”` : reference;
+
+  switch (event.entityType) {
+    case 'inventory_item':
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดตรายการ'} วัตถุดิบ ${itemReference}`,
+        detail: null,
+      };
+    case 'menu_item':
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดตรายการ'} เมนู ${itemReference}`,
+        detail: null,
+      };
+    case 'stock_request':
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดตคำขอ'} คำขอสต็อก ${reference}`,
+        detail: itemCount === null ? null : `จำนวน ${itemCount} รายการ`,
+      };
+    case 'stock_consumption':
+      return {
+        title: 'ตัดสต็อกจากการขายเมนู',
+        detail:
+          itemCount === null
+            ? null
+            : `ตัดวัตถุดิบ ${itemCount} รายการ${menuQuantity === null ? '' : ` · เมนู ${menuQuantity} แก้ว`}`,
+      };
+    case 'maintenance_ticket':
+      return {
+        title: `เปิดใบแจ้งซ่อม${title ? `: ${title}` : ` ${reference}`}`,
+        detail: null,
+      };
+    case 'inspection':
+      return {
+        title:
+          event.action === 'scheduled'
+            ? `สร้างงาน${inspectionType === 'ingredients' ? 'ตรวจวัตถุดิบ' : 'ตรวจช่าง'}`
+            : 'บันทึกผลการตรวจ',
+        detail: templateName ? `แบบตรวจ: ${templateName}` : null,
+      };
+    case 'branch_asset':
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดต'} ทรัพย์สิน ${itemReference}`,
+        detail: null,
+      };
+    case 'service_invoice':
+      return {
+        title: `สร้างใบเรียกเก็บเงิน ${invoiceNumber || reference}`,
+        detail: null,
+      };
+    case 'purchase_order':
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดต'} ใบสั่งซื้อ ${reference}`,
+        detail: itemCount === null ? null : `จำนวน ${itemCount} รายการ`,
+      };
+    default:
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดตรายการ'} ${reference}`,
+        detail: null,
+      };
+  }
 }
 
 export function AdminAuditPage() {
@@ -31,11 +108,12 @@ export function AdminAuditPage() {
     () =>
       events.map((event) => ({
         ...event,
-        description: eventDescription(event),
+        presentation: eventPresentation(event),
+        actionLabel: actionLabels[event.action] ?? 'อัปเดตรายการ',
         color:
           event.action === 'rejected' || event.action === 'deleted'
             ? '#b63b35'
-            : event.action === 'completed'
+            : event.action === 'completed' || event.action === 'received'
               ? '#3c5b47'
               : '#805637',
       })),
@@ -110,22 +188,35 @@ export function AdminAuditPage() {
                     fontWeight: 600,
                   }}
                 >
-                  {event.description}
+                  {event.presentation.title}
                 </Typography>
+                {event.presentation.detail ? (
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      color: '#6b574a',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 12,
+                    }}
+                  >
+                    {event.presentation.detail}
+                  </Typography>
+                ) : null}
                 <Typography
                   sx={{
-                    mt: 0.25,
+                    mt: event.presentation.detail ? 0.55 : 0.35,
                     color: 'text.secondary',
                     fontFamily: 'Kanit, sans-serif',
                     fontSize: 12,
                   }}
                 >
-                  {event.branchName || 'ไม่ระบุสาขา'} · โดย{' '}
-                  {event.actorName || 'ระบบ'} · {formatDate(event.createdAt)}
+                  สาขา: {event.branchName || 'ไม่ระบุ'} · ผู้ดำเนินการ:{' '}
+                  {event.actorName || 'ระบบ'} · วันที่:{' '}
+                  {formatDate(event.createdAt)}
                 </Typography>
               </Box>
               <Chip
-                label={actionLabels[event.action] ?? event.action}
+                label={event.actionLabel}
                 size="small"
                 sx={{
                   flexShrink: 0,

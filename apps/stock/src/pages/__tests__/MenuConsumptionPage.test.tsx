@@ -2,6 +2,34 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MenuConsumptionPage } from '../MenuConsumptionPage';
 
+const workbookMocks = vi.hoisted(() => ({
+  matchWorkbookSales: vi.fn(),
+  readSalesWorkbook: vi.fn(),
+}));
+
+vi.mock('../../utils/salesWorkbook', () => ({
+  ...workbookMocks,
+}));
+
+const storefrontMenu = {
+  id: 7,
+  name: 'อเมริกาโน่เย็น',
+  category: 'เมนูกาแฟเย็น',
+  status: 'available' as const,
+  recipeStatus: 'ready' as const,
+  sellable: true,
+  ingredients: [
+    {
+      inventoryItemId: 1,
+      name: 'กาแฟ',
+      quantity: 20,
+      unit: 'กรัม',
+      inventoryQuantity: 1000,
+      inventoryUnit: 'กรัม',
+    },
+  ],
+};
+
 describe('MenuConsumptionPage', () => {
   // Keep the order-selection flow isolated between test cases.
   afterEach(cleanup);
@@ -202,5 +230,95 @@ describe('MenuConsumptionPage', () => {
 
     expect(await screen.findByText('สต๊อกไม่เพียงพอ')).toBeTruthy();
     expect(screen.getByText('เลือกแล้ว 1 แก้ว / จาน')).toBeTruthy();
+  });
+
+  it('imports a single-channel workbook into the matching cart and preserves its sales channel', async () => {
+    const onConsume = vi.fn().mockResolvedValue(undefined);
+    const onRefreshMenus = vi.fn().mockResolvedValue([storefrontMenu]);
+    workbookMocks.readSalesWorkbook.mockResolvedValue([
+      { 'Menu Name': 'ลาเต้' },
+    ]);
+    workbookMocks.matchWorkbookSales.mockReturnValue({
+      sales: [
+        {
+          menuItemId: 7,
+          menuName: 'อเมริกาโน่เย็น',
+          quantity: 3,
+          channel: 'lineman',
+        },
+      ],
+      unmatchedMenuNames: [],
+      unsupportedChannelMenuNames: [],
+      rowCount: 1,
+    });
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={onConsume}
+        onRefreshMenus={onRefreshMenus}
+        cartOpen
+        menus={[storefrontMenu]}
+      />,
+    );
+
+    const receipt = new File(['workbook'], 'sale-by-bill.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    fireEvent.change(screen.getByLabelText('นำเข้าไฟล์ Excel'), {
+      target: { files: [receipt] },
+    });
+
+    await vi.waitFor(() => {
+      expect(onRefreshMenus).toHaveBeenCalledOnce();
+      expect(workbookMocks.matchWorkbookSales).toHaveBeenCalledWith(
+        [{ 'Menu Name': 'ลาเต้' }],
+        [storefrontMenu],
+      );
+    });
+    expect(screen.getByText('ตรวจพบช่องทาง: LINE MAN')).toBeTruthy();
+    expect(screen.getByText('เลือกแล้ว 3 แก้ว / จาน')).toBeTruthy();
+    expect(screen.getByText('สูตรLINE MAN')).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'ยืนยันตัดวัตถุดิบตามสูตร' }),
+    );
+    await vi.waitFor(() =>
+      expect(onConsume).toHaveBeenCalledWith(
+        [{ menuItemId: 7, quantity: 3, channel: 'lineman' }],
+        'ตัดสต๊อกจากไฟล์ Excel sale-by-bill.xlsx',
+        'lineman',
+      ),
+    );
+  });
+
+  it('does not place unsafe workbook rows into the cart', async () => {
+    workbookMocks.readSalesWorkbook.mockResolvedValue([
+      { 'Menu Name': 'ไม่พบในเมนู' },
+    ]);
+    workbookMocks.matchWorkbookSales.mockReturnValue({
+      sales: [],
+      unmatchedMenuNames: ['ไม่พบในเมนู'],
+      unsupportedChannelMenuNames: [],
+      rowCount: 1,
+    });
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={vi.fn().mockResolvedValue(undefined)}
+        cartOpen
+        menus={[storefrontMenu]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('นำเข้าไฟล์ Excel'), {
+      target: { files: [new File(['workbook'], 'unsafe.xlsx')] },
+    });
+
+    expect(
+      await screen.findByText(
+        'ไม่พบรายการที่จับคู่กับเมนูและช่องทางขายในระบบได้จากไฟล์นี้',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('ยังไม่ได้เลือกเมนู')).toBeTruthy();
   });
 });

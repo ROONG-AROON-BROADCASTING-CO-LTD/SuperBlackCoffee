@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"y/internal/middleware"
@@ -22,6 +23,13 @@ type stockConsumptionInput struct {
 	Channel string                 `json:"channel" binding:"required,oneof=storefront lineman"`
 }
 
+type stockSaleItem struct {
+	menuItemID int64
+	channel    string
+	quantity   float64
+	unitPrice  float64
+}
+
 // ConsumeStockFromMenus calculates recipe consumption server-side and records it atomically.
 func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	if h.unavailable(c) {
@@ -30,6 +38,11 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	var input stockConsumptionInput
 	if c.ShouldBindJSON(&input) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ข้อมูลเมนูที่ขายไม่ถูกต้อง"})
+		return
+	}
+	input.Note = strings.TrimSpace(input.Note)
+	if input.Note == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ต้องระบุหมายเหตุการตัดสต๊อก"})
 		return
 	}
 	branchID, ok := h.branchScope(c)
@@ -44,6 +57,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	defer tx.Rollback()
 	required := map[int64]float64{}
 	channels := map[string]bool{}
+	saleItems := make([]stockSaleItem, 0, len(input.Items))
 	for _, item := range input.Items {
 		itemChannel := input.Channel
 		if item.Channel != "" {
@@ -51,7 +65,9 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 		}
 		channels[itemChannel] = true
 		var name, status string
-		if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,status FROM menu_items WHERE id=$1 AND branch_id=$2`, item.MenuItemID, branchID).Scan(&name, &status); err == sql.ErrNoRows {
+		var storePrice, linemanPrice float64
+		var storeAvailable, linemanAvailable bool
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,status,store_price,store_price_available,lineman_price,lineman_price_available FROM menu_items WHERE id=$1 AND branch_id=$2`, item.MenuItemID, branchID).Scan(&name, &status, &storePrice, &storeAvailable, &linemanPrice, &linemanAvailable); err == sql.ErrNoRows {
 			c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนูที่เลือก"})
 			return
 		} else if err != nil {
@@ -62,6 +78,19 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ไม่พร้อมขาย"})
 			return
 		}
+		unitPrice, priceAvailable := storePrice, storeAvailable
+		if itemChannel == "lineman" {
+			unitPrice, priceAvailable = linemanPrice, linemanAvailable
+		}
+		if !priceAvailable {
+			channelName := "หน้าร้าน"
+			if itemChannel == "lineman" {
+				channelName = "LINE MAN"
+			}
+			c.JSON(400, gin.H{"success": false, "message": "เมนู " + name + " ยังไม่ได้ตั้งราคาสำหรับ " + channelName})
+			return
+		}
+		saleItems = append(saleItems, stockSaleItem{menuItemID: item.MenuItemID, channel: itemChannel, quantity: item.Quantity, unitPrice: unitPrice})
 		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel=$2`, item.MenuItemID, itemChannel)
 		if queryErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
@@ -149,10 +178,26 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติได้"})
 		return
 	}
+	totalSales := 0.0
+	for _, item := range saleItems {
+		totalSales += item.quantity * item.unitPrice
+	}
+	var saleID int64
+	if err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO stock_sales(branch_id,recorded_by,note,total) VALUES($1,$2,$3,$4) RETURNING id`, branchID, claims.UserID, input.Note, totalSales).Scan(&saleID); err != nil {
+		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกยอดขายพร้อมการตัดสต๊อกได้"})
+		return
+	}
+	for _, item := range saleItems {
+		amount := item.quantity * item.unitPrice
+		if _, err = tx.ExecContext(c.Request.Context(), `INSERT INTO stock_sale_items(stock_sale_id,menu_item_id,channel,quantity,unit_price,amount) VALUES($1,$2,$3,$4,$5,$6)`, saleID, item.menuItemID, item.channel, item.quantity, item.unitPrice, amount); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกรายการขายพร้อมการตัดสต๊อกได้"})
+			return
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตัดสต๊อกได้"})
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"menuCount": len(input.Items)}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"menuCount": len(input.Items), "salesTotal": totalSales}})
 }

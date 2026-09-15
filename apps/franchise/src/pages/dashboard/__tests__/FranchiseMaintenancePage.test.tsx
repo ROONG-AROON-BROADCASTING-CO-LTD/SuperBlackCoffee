@@ -134,4 +134,39 @@ describe('FranchiseMaintenancePage', () => {
       screen.getByPlaceholderText('เช่น เครื่องชงกาแฟมีน้ำรั่ว'),
     ).toBeTruthy();
   });
+
+  it('keeps the repair form available when the branch ticket history fails to load', async () => {
+    mockedListTickets.mockRejectedValue(new Error('network unavailable'));
+    renderPage();
+
+    expect(
+      await screen.findByText('ไม่สามารถโหลดรายการแจ้งซ่อมได้'),
+    ).toBeTruthy();
+    expect(
+      screen.getByPlaceholderText('เช่น เครื่องชงกาแฟมีน้ำรั่ว'),
+    ).toBeTruthy();
+  });
+
+  it('submits the requested due date with the franchise repair ticket', async () => {
+    mockedListTickets.mockResolvedValue([]);
+    mockedCreateTicket.mockResolvedValue({ id: 10, status: 'open' });
+    renderPage();
+
+    fireEvent.change(
+      screen.getByPlaceholderText('เช่น เครื่องชงกาแฟมีน้ำรั่ว'),
+      { target: { value: 'เครื่องทำน้ำแข็งไม่ทำงาน' } },
+    );
+    fireEvent.change(screen.getByLabelText('วันที่ต้องการให้ดำเนินการ'), {
+      target: { value: '2026-09-20' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งแจ้งซ่อม' }));
+
+    await waitFor(() => expect(mockedCreateTicket).toHaveBeenCalledOnce());
+    expect(mockedCreateTicket.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        title: 'เครื่องทำน้ำแข็งไม่ทำงาน',
+        dueAt: '2026-09-20',
+      }),
+    );
+  });
 });

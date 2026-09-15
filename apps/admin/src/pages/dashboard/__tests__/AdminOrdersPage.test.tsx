@@ -97,4 +97,13 @@ describe('AdminOrdersPage', () => {
     expect(screen.queryByText('REQ-7')).toBeNull();
     expect(screen.getByText('แฟรนไชส์ · พิษณุโลก')).toBeTruthy();
   });
+
+  it('does not render a visual badge for an empty order tab', async () => {
+    render(<AdminOrdersPage activeBranch="ทุกสาขา" />);
+
+    const franchiseTab = screen.getByRole('tab', {
+      name: 'คำขอวัตถุดิบจากแฟรนไชส์ · 0',
+    });
+    expect(franchiseTab.querySelector('span[aria-hidden="true"]')).toBeNull();
+  });
 });

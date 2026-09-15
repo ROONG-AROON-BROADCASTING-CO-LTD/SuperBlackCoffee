@@ -6,7 +6,7 @@ export type AuditEvent = {
   branchName: string;
   actorId: number | null;
   actorName: string;
-  entityType: 'inventory_item' | 'stock_request';
+  entityType: string;
   entityId: number | null;
   action: string;
   metadata?: Record<string, unknown> | null;

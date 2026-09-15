@@ -6,6 +6,8 @@ import { AdminLoginPage } from '../AdminLoginPage';
 const navigate = vi.fn();
 
 vi.mock('@stackbuild/ui', () => ({
+  ActionSnackbar: ({ notice }: { notice: { message: string } | null }) =>
+    notice ? <div role="alert">{notice.message}</div> : null,
   LoginScreen: ({
     onSubmit,
   }: {
@@ -43,13 +45,14 @@ describe('AdminLoginPage', () => {
     vi.mocked(login).mockResolvedValueOnce({
       user: { id: 2, role: 'franchise_owner' },
     });
-    const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     const onLogin = vi.fn();
     render(<AdminLoginPage onLogin={onLogin} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'login' }));
 
-    await vi.waitFor(() => expect(alert).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(screen.getByText('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ')).toBeTruthy(),
+    );
     expect(onLogin).not.toHaveBeenCalled();
   });
 });

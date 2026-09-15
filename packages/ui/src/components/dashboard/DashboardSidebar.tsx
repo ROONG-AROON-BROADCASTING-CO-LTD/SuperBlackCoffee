@@ -339,6 +339,19 @@ export function DashboardSidebar({
       >
         {navigation.map(({ id, label, icon, badge, group }, index) => (
           <Box key={id ?? label}>
+            {collapsed &&
+              index > 0 &&
+              group !== navigation[index - 1]?.group && (
+                <Box
+                  aria-hidden="true"
+                  data-sbc-sidebar-group-divider="true"
+                  sx={{
+                    borderTop: '1px solid rgba(255,255,255,.2)',
+                    ml: -2,
+                    my: 1,
+                  }}
+                />
+              )}
             {group &&
               group !== navigation[index - 1]?.group &&
               !collapsed &&

@@ -11,7 +11,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { SearchIcon, type SearchIconHandle } from '@stackbuild/ui';
+import {
+  ActionSnackbar,
+  SearchIcon,
+  type SearchIconHandle,
+} from '@stackbuild/ui';
 import type { InventoryItem } from '../api/stock';
 
 type InventoryGroup = 'ingredient' | 'drink_equipment' | 'postal_equipment';
@@ -255,10 +259,13 @@ export function StockCountPage({
                 ยืนยันบันทึก
               </Button>
             </Stack>
-            {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </Paper>
       )}
+      <ActionSnackbar
+        notice={error ? { message: error, severity: 'error' } : null}
+        onClose={() => setError('')}
+      />
     </Stack>
   );
 }

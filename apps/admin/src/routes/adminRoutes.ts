@@ -4,6 +4,7 @@ export const adminPagePaths = {
   ประวัติการทำรายการ: '/audit',
   เมนูและสินค้า: '/products',
   วัตถุดิบ: '/ingredients',
+  วัตถุดิบของสด: '/fresh-ingredients',
   สต๊อกอุปกรณ์เครื่องดื่ม: '/stock',
   สต๊อกอุปกรณ์ไปรษณีย์: '/postal-stock',
   'สาขา SBC': '/branches',

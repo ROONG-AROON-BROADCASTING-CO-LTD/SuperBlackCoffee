@@ -27,4 +27,27 @@ describe('StockHistoryPage', () => {
     expect(screen.getByText('นำเข้ายอดขายจาก Excel')).toBeTruthy();
     expect(screen.queryByText(/sale-by-bill-detail\.xlsx/u)).toBeNull();
   });
+
+  it.each([
+    ['ตัดสต๊อกจากการขายอเมริกาโน่', 'ตัดสต๊อกตามสูตรเมนู'],
+    ['ตรวจนับสิ้นกะ', 'ตรวจนับสิ้นกะ'],
+  ])('shows %s with its concise audit source label', (note, label) => {
+    render(
+      <StockHistoryPage
+        movements={[
+          {
+            id: 2,
+            inventoryItemName: 'เมล็ดกาแฟ',
+            quantityBefore: 10,
+            quantityAfter: 12,
+            quantityDelta: 2,
+            createdAt: '2026-09-15T03:12:41Z',
+            note,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText(label)).toBeTruthy();
+  });
 });

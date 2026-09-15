@@ -6,6 +6,7 @@ export const franchisePagePaths = {
   สต๊อกอุปกรณ์เครื่องดื่ม: '/stock',
   สต๊อกอุปกรณ์ไปรษณีย์: '/postal-stock',
   วัตถุดิบ: '/ingredients',
+  วัตถุดิบของสด: '/fresh-ingredients',
   ตารางพนักงาน: '/employees',
   ลงเวลาพนักงาน: '/attendance',
   คำขอลาพนักงาน: '/leave-requests',

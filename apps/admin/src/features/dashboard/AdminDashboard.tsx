@@ -84,7 +84,7 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <StockSkeleton />
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton />
-    ) : page === 'วัตถุดิบ' ? (
+    ) : page === 'วัตถุดิบ' || page === 'วัตถุดิบของสด' ? (
       <IngredientsSkeleton />
     ) : page === 'ตารางพนักงาน' ? (
       <EmployeesSkeleton showHeader />
@@ -164,6 +164,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       'drink-stock': 'สต๊อกอุปกรณ์เครื่องดื่ม',
       'postal-stock': 'สต๊อกอุปกรณ์ไปรษณีย์',
       ingredients: 'วัตถุดิบ',
+      'fresh-ingredients': 'วัตถุดิบของสด',
     };
     const destinationPage = catalogPageByTarget[nextPage] ?? nextPage;
     const nextBranch = isFranchiseCatalogTarget ? 'แฟรนไชส์ทั้งหมด' : undefined;
@@ -178,7 +179,9 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       search: nextBranch ? `?branch=${encodeURIComponent(nextBranch)}` : '',
     });
   };
-  const isIngredientPage = activePage === 'วัตถุดิบ';
+  const isIngredientPage =
+    activePage === 'วัตถุดิบ' || activePage === 'วัตถุดิบของสด';
+  const isFreshIngredientsPage = activePage === 'วัตถุดิบของสด';
   const isStockPage = activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม';
   const isPostalStockPage = activePage === 'สต๊อกอุปกรณ์ไปรษณีย์';
   const franchiseBranchOptions = useMemo(
@@ -211,9 +214,11 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
           ? 'products'
           : activePage === 'วัตถุดิบ'
             ? 'ingredients'
-            : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
-              ? 'drink-stock'
-              : 'postal-stock'
+            : activePage === 'วัตถุดิบของสด'
+              ? 'fresh-ingredients'
+              : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
+                ? 'drink-stock'
+                : 'postal-stock'
       }`
     : activePage;
   const catalogBranchCodes = useMemo(
@@ -246,6 +251,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       activeBranch={activeBranch}
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
+      ingredientScope={isFreshIngredientsPage ? 'fresh' : 'regular'}
     />
   ) : activePage === 'ภาพรวม' ? (
     <AdminOverviewPage onNavigate={navigate} />
@@ -304,9 +310,9 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const pageTitle = isIngredientPage
     ? activeBranch === 'ทุกสาขา'
       ? selectedBranch === 'แฟรนไชส์ทั้งหมด'
-        ? 'วัตถุดิบ ทุกแฟรนไชส์'
-        : 'วัตถุดิบ ทุกสาขา'
-      : `วัตถุดิบ สาขา${activeBranch}`
+        ? `${isFreshIngredientsPage ? 'วัตถุดิบของสด' : 'วัตถุดิบ'} ทุกแฟรนไชส์`
+        : `${isFreshIngredientsPage ? 'วัตถุดิบของสด' : 'วัตถุดิบ'} ทุกสาขา`
+      : `${isFreshIngredientsPage ? 'วัตถุดิบของสด' : 'วัตถุดิบ'} สาขา${activeBranch}`
     : isStockPage || isPostalStockPage
       ? activeBranch === 'ทุกสาขา'
         ? `${activePage} ${selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกแฟรนไชส์' : 'ทุกสาขา'}`

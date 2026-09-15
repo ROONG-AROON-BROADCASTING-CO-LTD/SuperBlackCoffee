@@ -5,15 +5,37 @@ import { getDashboardTrend, type DashboardTrendPoint } from '../../api';
 
 type TrendPeriod = 'day' | 'month' | 'year';
 
-const periodLabels: Record<TrendPeriod, string> = {
-  day: 'รายวัน',
-  month: 'รายเดือน',
-  year: 'รายปี',
-};
+const periodOptions: Array<{
+  value: TrendPeriod;
+  label: string;
+  range: string;
+}> = [
+  { value: 'day', label: 'รายวัน', range: 'จันทร์–อาทิตย์' },
+  { value: 'month', label: 'รายเดือน', range: '12 เดือนล่าสุด' },
+  { value: 'year', label: 'รายปี', range: '5 ปีล่าสุด' },
+];
+
+const periodOptionByValue = Object.fromEntries(
+  periodOptions.map((option) => [option.value, option]),
+) as Record<TrendPeriod, (typeof periodOptions)[number]>;
 
 const chartWidth = 680;
 const chartHeight = 250;
 const chartPadding = { top: 20, right: 20, bottom: 42, left: 46 };
+const thaiShortMonths = [
+  'ม.ค.',
+  'ก.พ.',
+  'มี.ค.',
+  'เม.ย.',
+  'พ.ค.',
+  'มิ.ย.',
+  'ก.ค.',
+  'ส.ค.',
+  'ก.ย.',
+  'ต.ค.',
+  'พ.ย.',
+  'ธ.ค.',
+] as const;
 
 const buildPath = (points: DashboardTrendPoint[]) => {
   const maxValue = Math.max(...points.map((point) => point.quantity), 1);
@@ -39,27 +61,52 @@ const buildPath = (points: DashboardTrendPoint[]) => {
   };
 };
 
-function TrendChart({ points }: { points: DashboardTrendPoint[] }) {
-  const chart = useMemo(() => buildPath(points), [points]);
+function formatTrendAxisLabel(period: TrendPeriod, bucket: string) {
+  const date = new Date(`${bucket}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return bucket;
+
+  if (period === 'day') {
+    return new Intl.DateTimeFormat('th-TH', { weekday: 'long' }).format(date);
+  }
+  if (period === 'month') {
+    return thaiShortMonths[date.getMonth()];
+  }
+  return new Intl.DateTimeFormat('th-TH', { year: 'numeric' }).format(date);
+}
+
+function TrendChart({
+  points,
+  period,
+  ariaLabel,
+}: {
+  points: DashboardTrendPoint[];
+  period: TrendPeriod;
+  ariaLabel: string;
+}) {
+  const displayPoints = useMemo(() => {
+    if (period !== 'month') return points;
+
+    // Keep the rolling 12-month result in calendar order so January is the
+    // first reference point on the chart instead of the API's current-month
+    // window start.
+    return [...points].sort(
+      (left, right) =>
+        new Date(left.label).getMonth() - new Date(right.label).getMonth(),
+    );
+  }, [period, points]);
+  const chart = useMemo(() => buildPath(displayPoints), [displayPoints]);
   const gridYs = [0, 0.5, 1].map(
     (ratio) =>
       chartPadding.top +
       (chartHeight - chartPadding.top - chartPadding.bottom) * ratio,
   );
-  const labels =
-    points.length > 6
-      ? points.filter(
-          (_, index) => index % 2 === 0 || index === points.length - 1,
-        )
-      : points;
-
   return (
     <Box sx={{ mt: 2.25, width: '100%', overflowX: 'auto' }}>
       <Box
         component="svg"
         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         role="img"
-        aria-label="กราฟเส้นจำนวนเมนูที่ตัดสต๊อก"
+        aria-label={ariaLabel}
         sx={{ display: 'block', minWidth: 510, width: '100%', height: 'auto' }}
       >
         {gridYs.map((y) => (
@@ -103,7 +150,7 @@ function TrendChart({ points }: { points: DashboardTrendPoint[] }) {
         )}
         {chart.coordinates.map((point, index) => (
           <circle
-            key={points[index].label}
+            key={displayPoints[index].label}
             cx={point.x}
             cy={point.y}
             r="4.5"
@@ -112,8 +159,7 @@ function TrendChart({ points }: { points: DashboardTrendPoint[] }) {
             strokeWidth="3"
           />
         ))}
-        {labels.map((point) => {
-          const index = points.indexOf(point);
+        {displayPoints.map((point, index) => {
           return (
             <text
               key={point.label}
@@ -121,9 +167,11 @@ function TrendChart({ points }: { points: DashboardTrendPoint[] }) {
               y={chartHeight - 13}
               textAnchor="middle"
               fill="#796b62"
-              fontSize="12"
+              fontSize={
+                period === 'month' ? '11' : period === 'year' ? '8' : '10'
+              }
             >
-              {point.label}
+              {formatTrendAxisLabel(period, point.label)}
             </text>
           );
         })}
@@ -146,6 +194,7 @@ export function StockConsumptionTrendCard({
     (sum, point) => sum + point.quantity,
     0,
   );
+  const activePeriod = periodOptionByValue[period];
 
   return (
     <Card
@@ -170,35 +219,62 @@ export function StockConsumptionTrendCard({
                 fontWeight: 600,
               }}
             >
-              แนวโน้มการตัดสต๊อก
+              แนวโน้มการตัดสต็อกย้อนหลังแบบ{activePeriod.label}
             </Typography>
             <Typography
               sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
             >
-              จำนวนเมนูที่ตัดตามสูตรจากข้อมูลที่บันทึกจริง
+              จำนวนเมนูที่ตัดตามสูตรในช่วง {activePeriod.range}
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-            {(Object.keys(periodLabels) as TrendPeriod[]).map((option) => (
-              <Button
-                key={option}
-                size="small"
-                variant={period === option ? 'contained' : 'outlined'}
-                onClick={() => setPeriod(option)}
-                sx={{
-                  minHeight: 34,
-                  borderRadius: '10px',
-                  borderColor: period === option ? '#201914' : '#d8c8bd',
-                  bgcolor: period === option ? '#201914' : '#fff',
-                  color: period === option ? '#fff' : '#5f4b3d',
-                  boxShadow: 'none',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 12,
-                }}
-              >
-                {periodLabels[option]}
-              </Button>
-            ))}
+          <Box>
+            <Typography
+              sx={{ color: 'text.secondary', fontSize: 12, textAlign: 'right' }}
+            >
+              เลือกช่วงเวลาที่ต้องการดู
+            </Typography>
+            <Box
+              aria-label="เลือกช่วงเวลาแสดงแนวโน้ม"
+              role="group"
+              sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 0.5 }}
+            >
+              {periodOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  aria-label={`${option.label} (${option.range})`}
+                  variant={period === option.value ? 'contained' : 'outlined'}
+                  onClick={() => setPeriod(option.value)}
+                  sx={{
+                    minWidth: { xs: 92, sm: 106 },
+                    minHeight: 52,
+                    borderRadius: '10px',
+                    borderColor:
+                      period === option.value ? '#201914' : '#d8c8bd',
+                    bgcolor: period === option.value ? '#201914' : '#fff',
+                    color: period === option.value ? '#fff' : '#5f4b3d',
+                    boxShadow: 'none',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 13,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  <Stack spacing={0.25} sx={{ alignItems: 'center' }}>
+                    <Box component="span" sx={{ fontWeight: 700 }}>
+                      {option.label}
+                    </Box>
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: 10.5,
+                        opacity: period === option.value ? 0.78 : 0.66,
+                      }}
+                    >
+                      {option.range}
+                    </Box>
+                  </Stack>
+                </Button>
+              ))}
+            </Box>
           </Box>
         </Stack>
         {trend.isError ? (
@@ -228,7 +304,11 @@ export function StockConsumptionTrendCard({
                 เมนู
               </Box>
             </Typography>
-            <TrendChart points={trend.data ?? []} />
+            <TrendChart
+              points={trend.data ?? []}
+              period={period}
+              ariaLabel={`กราฟแนวโน้มย้อนหลังจำนวนเมนูที่ตัดสต็อกแบบ${activePeriod.label} ${activePeriod.range}`}
+            />
           </>
         )}
       </Box>

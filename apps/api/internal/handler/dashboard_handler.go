@@ -13,16 +13,26 @@ type dashboardTrendPeriod struct {
 	buckets  int
 	step     string
 	format   string
+	start    string
+	end      string
 }
 
 func dashboardTrendConfig(period string) (dashboardTrendPeriod, bool) {
 	switch period {
 	case "day":
-		return dashboardTrendPeriod{unit: "day", interval: "6 days", buckets: 7, step: "1 day", format: "DD Mon"}, true
+		return dashboardTrendPeriod{
+			unit:     "day",
+			interval: "6 days",
+			buckets:  7,
+			step:     "1 day",
+			format:   "YYYY-MM-DD",
+			start:    "date_trunc('week', now())",
+			end:      "date_trunc('week', now()) + interval '6 days'",
+		}, true
 	case "month":
-		return dashboardTrendPeriod{unit: "month", interval: "11 months", buckets: 12, step: "1 month", format: "Mon YY"}, true
+		return dashboardTrendPeriod{unit: "month", interval: "11 months", buckets: 12, step: "1 month", format: "YYYY-MM-DD"}, true
 	case "year":
-		return dashboardTrendPeriod{unit: "year", interval: "4 years", buckets: 5, step: "1 year", format: "YYYY"}, true
+		return dashboardTrendPeriod{unit: "year", interval: "4 years", buckets: 5, step: "1 year", format: "YYYY-MM-DD"}, true
 	default:
 		return dashboardTrendPeriod{}, false
 	}
@@ -33,15 +43,9 @@ func (h *PlatformHandler) Dashboard(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	branchCode := strings.TrimSpace(c.Query("branchCode"))
-	var branchID any
-	if branchCode != "" {
-		var id int64
-		if err := h.db.QueryRowContext(c.Request.Context(), `SELECT id FROM branches WHERE code=$1`, branchCode).Scan(&id); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขาที่เลือก"})
-			return
-		}
-		branchID = id
+	branchID, ok := h.salesBranchID(c)
+	if !ok {
+		return
 	}
 	var menuCount float64
 	var entries int
@@ -50,7 +54,14 @@ func (h *PlatformHandler) Dashboard(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสรุปการตัดสต๊อกวันนี้ได้"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"todaySales": 0, "todayOrders": 0, "todayMenuStockCuts": menuCount, "todayStockEntries": entries}})
+	var todaySales float64
+	var todayOrders int
+	err = h.db.QueryRowContext(c.Request.Context(), `SELECT COALESCE(SUM(total),0),COUNT(*) FROM stock_sales WHERE created_at >= date_trunc('day', now()) AND created_at < date_trunc('day', now()) + interval '1 day' AND ($1::bigint IS NULL OR branch_id=$1)`, branchID).Scan(&todaySales, &todayOrders)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสรุปยอดขายวันนี้ได้"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"todaySales": todaySales, "todayOrders": todayOrders, "todayMenuStockCuts": menuCount, "todayStockEntries": entries}})
 }
 
 // DashboardTrend returns stock-consumption volume grouped into a time series.
@@ -75,10 +86,16 @@ func (h *PlatformHandler) DashboardTrend(c *gin.Context) {
 		}
 		branchID = id
 	}
+	start := fmt.Sprintf("date_trunc('%s', now()) - interval '%s'", config.unit, config.interval)
+	end := fmt.Sprintf("date_trunc('%s', now())", config.unit)
+	if config.start != "" {
+		start = config.start
+		end = config.end
+	}
 	query := fmt.Sprintf(`WITH buckets AS (
 		SELECT generate_series(
-			date_trunc('%[1]s', now()) - interval '%[2]s',
-			date_trunc('%[1]s', now()),
+			%[1]s,
+			%[2]s,
 			interval '%[3]s'
 		) AS bucket
 	)
@@ -91,7 +108,7 @@ func (h *PlatformHandler) DashboardTrend(c *gin.Context) {
 		AND a.created_at < b.bucket + interval '%[3]s'
 		AND ($1::bigint IS NULL OR a.branch_id=$1)
 	GROUP BY b.bucket
-	ORDER BY b.bucket`, config.unit, config.interval, config.step, config.format)
+	ORDER BY b.bucket`, start, end, config.step, config.format)
 	rows, err := h.db.QueryContext(c.Request.Context(), query, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถโหลดแนวโน้มการตัดสต๊อกได้"})

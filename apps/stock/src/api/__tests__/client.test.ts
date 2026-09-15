@@ -31,9 +31,13 @@ describe('stock API client', () => {
 
   it('keeps the selected sales channel in the server-side consumption request', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ success: true, data: { menuCount: 1 } }), {
-        status: 200,
-      }),
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { menuCount: 1, salesTotal: 130 },
+        }),
+        { status: 200 },
+      ),
     );
 
     await expect(
@@ -42,7 +46,7 @@ describe('stock API client', () => {
         'ปิดกะ',
         'lineman',
       ),
-    ).resolves.toEqual({ menuCount: 1 });
+    ).resolves.toEqual({ menuCount: 1, salesTotal: 130 });
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/stock/consume'),

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -449,12 +450,22 @@ func (h *PlatformHandler) UpdateBranchSize(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": branchID, "size": input.Size}})
 }
 
-// BranchSales preserves the Admin branch overview until a future sales provider is connected.
+// BranchSales returns sales recorded together with confirmed Stock app cuts.
 func (h *PlatformHandler) BranchSales(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,code,size,status FROM branches WHERE franchisee_id IS NULL ORDER BY name`)
+	start, end, ok := salesPeriodBounds(strings.TrimSpace(c.DefaultQuery("period", "today")))
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ช่วงเวลาที่เลือกไม่ถูกต้อง"})
+		return
+	}
+	rows, err := h.db.QueryContext(c.Request.Context(), fmt.Sprintf(`SELECT b.id,b.name,b.code,b.size,b.status,COALESCE(SUM(s.total),0),COUNT(s.id)
+		FROM branches b
+		LEFT JOIN stock_sales s ON s.branch_id=b.id AND s.created_at >= %s AND s.created_at < %s
+		WHERE b.franchisee_id IS NULL
+		GROUP BY b.id,b.name,b.code,b.size,b.status
+		ORDER BY b.name`, start, end))
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถโหลดข้อมูลสาขาได้"})
 		return
@@ -464,11 +475,13 @@ func (h *PlatformHandler) BranchSales(c *gin.Context) {
 	for rows.Next() {
 		var id int64
 		var name, code, size, status string
-		if err := rows.Scan(&id, &name, &code, &size, &status); err != nil {
+		var sales float64
+		var orders int
+		if err := rows.Scan(&id, &name, &code, &size, &status, &sales, &orders); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลสาขาได้"})
 			return
 		}
-		result = append(result, gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "sales": 0, "orders": 0})
+		result = append(result, gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "sales": sales, "orders": orders})
 	}
 	c.JSON(200, gin.H{"success": true, "data": result})
 }

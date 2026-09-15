@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TimeCard, TodayCard } from './AttendanceCards';
 
 const staff = {
@@ -8,6 +8,8 @@ const staff = {
   startsAt: '08:00',
   endsAt: '17:00',
 };
+
+afterEach(cleanup);
 
 describe('TodayCard', () => {
   it('shows the completed attendance status in the status card', () => {
@@ -21,6 +23,21 @@ describe('TodayCard', () => {
     );
 
     expect(screen.getByText('วันนี้เช็กอินและเช็กเอาต์ครบแล้ว')).toBeTruthy();
+  });
+
+  it('shows an active check-in without incorrectly marking the shift complete', () => {
+    render(
+      <TodayCard
+        checkedIn
+        checkInAt="2026-09-07T08:05:00+07:00"
+        checkOutAt={null}
+        staff={{ ...staff, role: 'branch_manager' }}
+      />,
+    );
+
+    expect(screen.getByText(/เช็กอินแล้ว เวลา/u)).toBeTruthy();
+    expect(screen.queryByText('วันนี้เช็กอินและเช็กเอาต์ครบแล้ว')).toBeNull();
+    expect(screen.getByText(/ผู้จัดการสาขา/u)).toBeTruthy();
   });
 });
 

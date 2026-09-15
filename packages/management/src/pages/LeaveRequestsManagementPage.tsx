@@ -1,5 +1,4 @@
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -174,9 +173,6 @@ export function LeaveRequestsManagementPage({
               : 'พิจารณาคำขอลาของพนักงานบริษัท Super Black Coffee'}
           </Typography>
         </Box>
-        {updateLeave.error ? (
-          <Alert severity="error">อัปเดตรายการไม่สำเร็จ</Alert>
-        ) : null}
         {leaveRequests.isLoading ? (
           <LeaveRequestsSkeleton />
         ) : leaveRequests.error ? (

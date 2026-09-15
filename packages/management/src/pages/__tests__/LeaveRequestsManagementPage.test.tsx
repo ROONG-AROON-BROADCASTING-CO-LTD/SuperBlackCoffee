@@ -72,13 +72,13 @@ describe('LeaveRequestsManagementPage', () => {
     );
   });
 
-  it('keeps the request pending and shows an error when approval fails', async () => {
+  it('keeps the request pending and shows the server error when approval fails', async () => {
     updateLeave.mockRejectedValueOnce(new Error('forbidden'));
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'อนุมัติ' }));
 
-    expect(await screen.findByText('อัปเดตรายการไม่สำเร็จ')).toBeTruthy();
+    expect(await screen.findByText('forbidden')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'อนุมัติ' })).toBeTruthy();
   });
 

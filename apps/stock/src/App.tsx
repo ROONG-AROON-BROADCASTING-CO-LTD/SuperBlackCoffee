@@ -235,7 +235,9 @@ export default function App() {
     setInventory(nextInventory);
     setMovements(nextMovements);
     setMenus(nextMenus);
-    setNotice(`ตัดวัตถุดิบจาก ${result.menuCount} เมนูเรียบร้อยแล้ว`);
+    setNotice(
+      `ตัดวัตถุดิบและบันทึกยอดขาย ${(result.salesTotal ?? 0).toLocaleString('th-TH')} บาท จาก ${result.menuCount} เมนูแล้ว`,
+    );
   };
   const refreshMenus = async () => {
     const nextMenus = await listMenuItems();

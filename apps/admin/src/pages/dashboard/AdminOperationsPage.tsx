@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -17,7 +16,11 @@ import {
   DashboardMain,
   type CalendarDaysIconHandle,
 } from '@stackbuild/ui';
-import { branchCodeByBranch, branches } from '@stackbuild/management';
+import {
+  ActionSnackbar,
+  branchCodeByBranch,
+  branches,
+} from '@stackbuild/management';
 import {
   createAsset,
   createServiceInvoice,
@@ -88,6 +91,9 @@ const tabs = [
   ['billing', 'เรียกเก็บเงิน'],
 ] as const;
 type Tab = (typeof tabs)[number][0];
+const operationsTabStorageKey = 'admin.operations.active-tab';
+const isOperationsTab = (value: string | null): value is Tab =>
+  tabs.some(([id]) => id === value);
 const inputSx = { minWidth: 0 };
 const formCardSx = {
   p: { xs: 2, sm: 2.5 },
@@ -124,19 +130,37 @@ const sectionDescriptionSx = {
 const formActionSx = {
   mt: 2,
   minHeight: 40,
-  px: 2.25,
+  px: 2,
+  borderRadius: '12px',
+  bgcolor: '#201914',
   fontFamily: 'Kanit, sans-serif',
-  fontSize: 13,
-  fontWeight: 600,
+  fontWeight: 500,
+  boxShadow: 'none',
+  '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+};
+const tableColumnWidths: Record<string, string> = {
+  title: '28%',
+  name: '24%',
+  invoiceNumber: '20%',
+  branchName: '16%',
+  inspectorName: '20%',
+  priority: '14%',
+  serviceType: '16%',
+  assetType: '17%',
+  serialNumber: '16%',
+  status: '14%',
+  amount: '13%',
+  dueAt: '15%',
+  maintenanceDue: '15%',
 };
 const tableActionSx = {
-  minHeight: 32,
-  px: 1.25,
+  minHeight: 40,
+  px: 2,
   border: '1px solid rgba(23, 20, 17, 0.35)',
-  borderRadius: '8px',
+  borderRadius: '12px',
   fontFamily: 'Kanit, sans-serif',
-  fontSize: 12,
-  fontWeight: 600,
+  fontSize: 14,
+  fontWeight: 500,
   whiteSpace: 'nowrap',
   '&:hover': {
     borderColor: '#171411',
@@ -315,7 +339,10 @@ export function AdminOperationsPage() {
   const client = useQueryClient();
   const inspectionDateInputRef = useRef<HTMLInputElement>(null);
   const inspectionCalendarIconRef = useRef<CalendarDaysIconHandle>(null);
-  const [tab, setTab] = useState<Tab>('maintenance');
+  const [tab, setTab] = useState<Tab>(() => {
+    const savedTab = window.sessionStorage.getItem(operationsTabStorageKey);
+    return isOperationsTab(savedTab) ? savedTab : 'maintenance';
+  });
   const [notice, setNotice] = useState('');
   const [branchSizeMenuOpen, setBranchSizeMenuOpen] = useState(false);
   const [assignment, setAssignment] = useState<RandomInspection | null>(null);
@@ -329,6 +356,9 @@ export function AdminOperationsPage() {
   const isInspectionTab =
     tab === 'inspection' || tab === 'ingredientInspection';
   const isIngredientInspectionTab = tab === 'ingredientInspection';
+  useEffect(() => {
+    window.sessionStorage.setItem(operationsTabStorageKey, tab);
+  }, [tab]);
   const openInspectionDatePicker = () => {
     inspectionCalendarIconRef.current?.startAnimation();
     window.setTimeout(
@@ -430,11 +460,16 @@ export function AdminOperationsPage() {
   const randomize = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const dueAt = String(form.get('dueAt') ?? '').trim();
+    if (!dueAt) {
+      setNotice('กรุณาเลือกวันกำหนดตรวจก่อนสร้างใบงาน');
+      return;
+    }
     try {
       const request = {
         inspectorName: String(form.get('inspectorName')),
         branchSize: String(form.get('branchSize')) as 'all' | 'S' | 'M' | 'L',
-        dueAt: String(form.get('dueAt')),
+        dueAt,
         excludeDays: Number(form.get('excludeDays')) || 30,
       };
       const nextAssignment = await (isIngredientInspectionTab
@@ -560,7 +595,14 @@ export function AdminOperationsPage() {
             สุ่มตรวจ งานช่าง/แจ้งซ่อม ทรัพย์สิน และรายได้บริการ
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            flexWrap: 'wrap',
+            rowGap: 1,
+          }}
+        >
           {tabs.map(([id, title]) => (
             <Button
               key={id}
@@ -596,11 +638,6 @@ export function AdminOperationsPage() {
             เพื่อส่งรายละเอียดให้ช่างดำเนินการ
           </Typography>
         ) : null}
-        {notice ? (
-          <Alert severity="info" onClose={() => setNotice('')}>
-            {notice}
-          </Alert>
-        ) : null}
         {isInspectionTab ? (
           <>
             <Card
@@ -634,6 +671,7 @@ export function AdminOperationsPage() {
                   name="dueAt"
                   type="date"
                   label="กำหนดตรวจ"
+                  required
                   inputRef={inspectionDateInputRef}
                   onClick={openInspectionDatePicker}
                   fullWidth
@@ -693,11 +731,13 @@ export function AdminOperationsPage() {
                   sx={inputSx}
                 />
               </Box>
-              <Button type="submit" variant="contained" sx={formActionSx}>
-                {isIngredientInspectionTab
-                  ? 'สร้างใบงานตรวจวัตถุดิบ'
-                  : 'สร้างใบงานให้ช่าง'}
-              </Button>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button type="submit" variant="contained" sx={formActionSx}>
+                  {isIngredientInspectionTab
+                    ? 'สร้างใบงานตรวจวัตถุดิบ'
+                    : 'สร้างใบงานให้ช่าง'}
+                </Button>
+              </Box>
             </Card>
             {assignment ? (
               <Card
@@ -776,9 +816,11 @@ export function AdminOperationsPage() {
                 />
               )}
             </Box>
-            <Button type="submit" variant="contained" sx={formActionSx}>
-              บันทึกรายการ
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button type="submit" variant="contained" sx={formActionSx}>
+                บันทึกรายการ
+              </Button>
+            </Box>
           </Card>
         ) : null}
         {tab === 'assets' && assetToTransfer ? (
@@ -794,8 +836,20 @@ export function AdminOperationsPage() {
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
               <BranchField />
               <TextField name="note" label="หมายเหตุการโอน" fullWidth />
-              <Button type="submit">ยืนยันโอน</Button>
-              <Button onClick={() => setAssetToTransfer(null)}>ยกเลิก</Button>
+              <Button type="submit" variant="contained" sx={formActionSx}>
+                ยืนยันโอน
+              </Button>
+              <Button
+                onClick={() => setAssetToTransfer(null)}
+                sx={{
+                  ...formActionSx,
+                  bgcolor: 'transparent',
+                  color: '#3c2d24',
+                  '&:hover': { bgcolor: '#f3ece7', boxShadow: 'none' },
+                }}
+              >
+                ยกเลิก
+              </Button>
             </Stack>
           </Card>
         ) : null}
@@ -835,7 +889,8 @@ export function AdminOperationsPage() {
           <Box
             component="table"
             sx={{
-              width: '100%',
+              width: { xs: 820, md: '100%' },
+              tableLayout: { xs: 'auto', md: 'fixed' },
               borderCollapse: 'collapse',
               '& th': {
                 p: '12px 14px',
@@ -852,11 +907,16 @@ export function AdminOperationsPage() {
                 p: '14px',
                 borderBottom: '1px solid #eee4dd',
                 textAlign: 'left',
-                whiteSpace: 'nowrap',
+                whiteSpace: 'normal',
+                overflowWrap: 'anywhere',
                 color: '#3c2d24',
                 fontFamily: 'Kanit, sans-serif',
                 fontSize: 13,
                 lineHeight: 1.5,
+              },
+              '& th:last-child, & td:last-child': {
+                width: '15%',
+                whiteSpace: 'nowrap',
               },
               '& tbody tr:last-child td': {
                 borderBottom: 0,
@@ -866,6 +926,15 @@ export function AdminOperationsPage() {
               },
             }}
           >
+            <colgroup>
+              {columns.map((column) => (
+                <col
+                  key={column}
+                  style={{ width: tableColumnWidths[column] }}
+                />
+              ))}
+              <col style={{ width: '15%' }} />
+            </colgroup>
             <thead>
               <tr>
                 {columns.map((column) => (
@@ -975,6 +1044,10 @@ export function AdminOperationsPage() {
           </Box>
         </Card>
       </Stack>
+      <ActionSnackbar
+        notice={notice ? { message: notice, severity: 'info' } : null}
+        onClose={() => setNotice('')}
+      />
     </DashboardMain>
   );
 }

@@ -346,6 +346,27 @@ describe('inventory management pages', () => {
     expect(screen.getByText('31 ธ.ค. 2569')).toBeTruthy();
   });
 
+  it('separates fresh ingredients into their dedicated page', async () => {
+    mockedListInventory.mockResolvedValue([
+      { ...ingredient, category: 'fresh', name: 'นมสด' },
+      { ...ingredient, category: 'coffee', name: 'เมล็ดกาแฟ' },
+    ]);
+    renderPage(
+      <IngredientsManagementPage
+        activeBranch="อยุธยา"
+        ingredientScope="fresh"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText('นมสด')).toBeTruthy());
+    expect(
+      screen.getByRole('button', { name: 'ทั้งหมด 1 รายการ' }),
+    ).toBeTruthy();
+    expect(screen.getByText('นมสด')).toBeTruthy();
+    expect(screen.queryByText('เมล็ดกาแฟ')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'ของสด' })).toBeNull();
+  });
+
   it('keeps stock data visible but hides stock maintenance actions in read-only mode', async () => {
     renderPage(
       <StockManagementPage

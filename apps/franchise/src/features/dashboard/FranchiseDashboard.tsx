@@ -57,7 +57,7 @@ function FranchisePageSkeleton({ page }: { page: string }) {
   const skeleton =
     page === 'ตารางพนักงาน' ? (
       <EmployeesSkeleton franchiseMode showHeader />
-    ) : page === 'วัตถุดิบ' ? (
+    ) : page === 'วัตถุดิบ' || page === 'วัตถุดิบของสด' ? (
       <IngredientsSkeleton readOnly allowOrdering />
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton readOnly />
@@ -127,12 +127,15 @@ export function FranchiseDashboard({
             franchisePlan={plan}
             readOnly
           />
-        ) : activePage === 'วัตถุดิบ' ? (
+        ) : activePage === 'วัตถุดิบ' || activePage === 'วัตถุดิบของสด' ? (
           <IngredientsManagementPage
             activeBranch={franchiseBranch}
             franchisePlan={plan}
             readOnly
             allowOrdering
+            ingredientScope={
+              activePage === 'วัตถุดิบของสด' ? 'fresh' : 'regular'
+            }
             onRequestCreated={() => navigate('คำขอวัตถุดิบ')}
           />
         ) : activePage === 'คำขอวัตถุดิบ' ? (

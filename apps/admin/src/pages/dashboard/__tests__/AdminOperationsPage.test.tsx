@@ -47,6 +47,7 @@ const renderPage = () =>
 describe('AdminOperationsPage', () => {
   afterEach(() => {
     cleanup();
+    window.sessionStorage.removeItem('admin.operations.active-tab');
     vi.clearAllMocks();
   });
   it('shows repair reports without a create form', async () => {
@@ -189,6 +190,9 @@ describe('AdminOperationsPage', () => {
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'QA Team' },
     });
+    fireEvent.change(document.querySelector('input[name="dueAt"]')!, {
+      target: { value: '2026-09-20' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงานให้ช่าง' }));
 
     await waitFor(() =>
@@ -228,6 +232,9 @@ describe('AdminOperationsPage', () => {
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'ฝ่ายควบคุมคุณภาพ' },
     });
+    fireEvent.change(document.querySelector('input[name="dueAt"]')!, {
+      target: { value: '2026-09-20' },
+    });
     fireEvent.click(
       screen.getByRole('button', { name: 'สร้างใบงานตรวจวัตถุดิบ' }),
     );
@@ -239,5 +246,36 @@ describe('AdminOperationsPage', () => {
     );
     expect(await screen.findByText('ใบงานตรวจวัตถุดิบ: อยุธยา')).toBeTruthy();
     expect(screen.getByText('วัตถุดิบ: ตรวจวันหมดอายุ')).toBeTruthy();
+  });
+
+  it('requires a due date before creating either inspection work order', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'สุ่มตรวจช่าง' }),
+    );
+    fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
+      target: { value: 'QA Team' },
+    });
+    const dueDateInput = document.querySelector('input[name="dueAt"]')!;
+    expect(dueDateInput.hasAttribute('required')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงานให้ช่าง' }));
+    expect(randomizeInspection).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'สุ่มตรวจวัตถุดิบ' }));
+    fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
+      target: { value: 'ฝ่ายควบคุมคุณภาพ' },
+    });
+    expect(
+      document.querySelector('input[name="dueAt"]')?.hasAttribute('required'),
+    ).toBe(true);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจวัตถุดิบ' }),
+    );
+    expect(randomizeIngredientInspection).not.toHaveBeenCalled();
   });
 });

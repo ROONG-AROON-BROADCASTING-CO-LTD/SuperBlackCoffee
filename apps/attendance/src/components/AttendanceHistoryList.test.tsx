@@ -36,4 +36,21 @@ describe('AttendanceHistoryList', () => {
 
     expect(screen.getByText('0 ชม. 0 นาที')).toBeTruthy();
   });
+
+  it('keeps an in-progress shift distinct from a zero-hour completed shift', () => {
+    render(
+      <AttendanceHistoryList
+        history={[
+          {
+            date: '2026-09-14',
+            checkInAt: '2026-09-14T08:00:00+07:00',
+            checkOutAt: null,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByText('-')).toHaveLength(2);
+    expect(screen.queryByText('0 ชม. 0 นาที')).toBeNull();
+  });
 });

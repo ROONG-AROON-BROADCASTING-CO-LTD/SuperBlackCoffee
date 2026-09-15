@@ -45,6 +45,12 @@ export const adminSidebarNavigation = [
     group: 'สินค้าและคลังสาขา SBC',
   },
   {
+    id: 'sbc-fresh-ingredients',
+    label: 'วัตถุดิบของสด',
+    icon: <BoxesIcon />,
+    group: 'สินค้าและคลังสาขา SBC',
+  },
+  {
     id: 'franchise-products',
     label: 'เมนูและสินค้า',
     icon: <ReceiptTextIcon />,
@@ -65,6 +71,12 @@ export const adminSidebarNavigation = [
   {
     id: 'franchise-ingredients',
     label: 'วัตถุดิบ',
+    icon: <BoxIcon />,
+    group: 'สินค้าและคลังแฟรนไชส์',
+  },
+  {
+    id: 'franchise-fresh-ingredients',
+    label: 'วัตถุดิบของสด',
     icon: <BoxIcon />,
     group: 'สินค้าและคลังแฟรนไชส์',
   },

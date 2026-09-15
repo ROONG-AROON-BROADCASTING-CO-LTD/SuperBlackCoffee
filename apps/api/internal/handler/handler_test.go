@@ -102,17 +102,47 @@ func TestDashboardTrendConfig(t *testing.T) {
 		period  string
 		unit    string
 		buckets int
+		format  string
 		ok      bool
 	}{
-		{period: "day", unit: "day", buckets: 7, ok: true},
-		{period: "month", unit: "month", buckets: 12, ok: true},
-		{period: "year", unit: "year", buckets: 5, ok: true},
+		{period: "day", unit: "day", buckets: 7, format: "YYYY-MM-DD", ok: true},
+		{period: "month", unit: "month", buckets: 12, format: "YYYY-MM-DD", ok: true},
+		{period: "year", unit: "year", buckets: 5, format: "YYYY-MM-DD", ok: true},
 		{period: "week", ok: false},
 	} {
 		config, ok := dashboardTrendConfig(test.period)
-		if ok != test.ok || (ok && (config.unit != test.unit || config.buckets != test.buckets)) {
+		if ok != test.ok || (ok && (config.unit != test.unit || config.buckets != test.buckets || config.format != test.format)) {
 			t.Fatalf("dashboardTrendConfig(%q) = %#v, %t", test.period, config, ok)
 		}
+	}
+}
+
+func TestFoodStorySalesImportHelpers(t *testing.T) {
+	menus := []salesImportMenu{
+		{id: 1, name: "อเมริกาโน่เย็น", storePrice: 60, storeAvailable: true},
+		{id: 2, name: "ลาเต้เย็น", storePrice: 65, storeAvailable: true},
+	}
+	matched, ok := findSalesImportMenu(menus, "อเมริกาโน่เย็น - หวานน้อย x 1")
+	if !ok || matched.id != 1 {
+		t.Fatalf("menu match = %#v, %t; want อเมริกาโน่เย็น", matched, ok)
+	}
+
+	branches := []salesImportBranch{{id: 7, name: "อยุธยา", code: "aya"}}
+	branch, ok := findSalesImportBranch(branches, "SuperBlackcoffee(สาขาอยุธยา)")
+	if !ok || branch.id != 7 {
+		t.Fatalf("branch match = %#v, %t; want อยุธยา", branch, ok)
+	}
+
+	if channel := importChannel("LINE MAN"); channel != "lineman" {
+		t.Fatalf("line man channel = %q", channel)
+	}
+	if channel := importChannel("หน้าร้าน"); channel != "storefront" {
+		t.Fatalf("storefront channel = %q", channel)
+	}
+
+	soldAt, err := parseWorkbookSaleTime("14/09/2026", "09:35")
+	if err != nil || soldAt.Day() != 14 || soldAt.Month() != 9 || soldAt.Year() != 2026 {
+		t.Fatalf("sale time = %v, %v", soldAt, err)
 	}
 }
 
@@ -213,6 +243,10 @@ func TestConsumeStockFromMenusRejectsInvalidInputBeforeAccessingBranchData(t *te
 		{
 			name: "missing audit note",
 			body: `{"items":[{"menuItemId":1,"quantity":1}],"channel":"storefront"}`,
+		},
+		{
+			name: "whitespace-only audit note",
+			body: `{"items":[{"menuItemId":1,"quantity":1}],"note":" \t ","channel":"storefront"}`,
 		},
 		{
 			name: "malformed JSON",

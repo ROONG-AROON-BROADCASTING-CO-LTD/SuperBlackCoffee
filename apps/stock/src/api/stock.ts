@@ -84,7 +84,7 @@ export const consumeStockFromMenus = (
   note: string,
   channel: 'storefront' | 'lineman',
 ) =>
-  request<{ menuCount: number }>('/stock/consume', {
+  request<{ menuCount: number; salesTotal: number }>('/stock/consume', {
     method: 'POST',
     body: JSON.stringify({ items, note, channel }),
   });

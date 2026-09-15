@@ -1454,9 +1454,11 @@ export function EmployeesManagementPage({
                   defaultEndsAt === '00:00' ||
                   secondShiftIncomplete
                 ) {
-                  window.alert(
-                    'กรุณาระบุเวลาเข้างานและเวลาออกงานของกะที่ 1 ให้ครบ หากเพิ่มกะที่ 2 ให้ระบุเวลาเข้าและออกให้ครบ',
-                  );
+                  setActionNotice({
+                    message:
+                      'กรุณาระบุเวลาเข้างานและเวลาออกงานของกะที่ 1 ให้ครบ หากเพิ่มกะที่ 2 ให้ระบุเวลาเข้าและออกให้ครบ',
+                    severity: 'warning',
+                  });
                   return;
                 }
                 if (editingEmployeeId !== null) {

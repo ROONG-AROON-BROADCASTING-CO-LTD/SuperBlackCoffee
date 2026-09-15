@@ -30,6 +30,7 @@ export const navigation = [
     group: 'สินค้าและคลัง',
   },
   { label: 'วัตถุดิบ', icon: <BoxesIcon />, group: 'สินค้าและคลัง' },
+  { label: 'วัตถุดิบของสด', icon: <BoxesIcon />, group: 'สินค้าและคลัง' },
   { label: 'ตารางพนักงาน', icon: <UsersIcon />, group: 'บุคลากร' },
   { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
   { label: 'คำขอลาพนักงาน', icon: <ReceiptTextIcon />, group: 'บุคลากร' },

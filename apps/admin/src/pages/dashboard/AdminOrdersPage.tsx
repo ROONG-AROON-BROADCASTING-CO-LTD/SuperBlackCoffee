@@ -327,29 +327,31 @@ export function AdminOrdersPage({
               }}
             >
               {label}
-              <Box
-                component="span"
-                aria-hidden="true"
-                sx={{
-                  position: 'absolute',
-                  top: -8,
-                  right: -8,
-                  display: 'grid',
-                  placeItems: 'center',
-                  minWidth: 23,
-                  height: 23,
-                  px: 0.75,
-                  borderRadius: 99,
-                  bgcolor: '#d92d28',
-                  color: '#fff',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  lineHeight: 1,
-                }}
-              >
-                {tabCounts[tab]}
-              </Box>
+              {tabCounts[tab] > 0 ? (
+                <Box
+                  component="span"
+                  aria-hidden="true"
+                  sx={{
+                    position: 'absolute',
+                    top: -7,
+                    right: -7,
+                    display: 'grid',
+                    placeItems: 'center',
+                    minWidth: 24,
+                    height: 24,
+                    px: 0.5,
+                    borderRadius: 99,
+                    bgcolor: '#df292d',
+                    color: '#fff',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                  }}
+                >
+                  {tabCounts[tab]}
+                </Box>
+              ) : null}
             </Button>
           ))}
         </Box>
