@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Card, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardMain } from '@stackbuild/ui';
+import { DashboardMain, selectionPillSx } from '@stackbuild/ui';
 import { listManagedAttendance } from '../api/attendance';
 import { listBranches } from '../api/branches';
 import { listPublicHolidays } from '../api/public-holidays';
@@ -312,6 +312,7 @@ export function AttendanceManagementPage({
               size="small"
               variant={activeBranchId === branch.id ? 'contained' : 'outlined'}
               onClick={() => selectBranch(branch.code)}
+              sx={selectionPillSx(activeBranchId === branch.id)}
             >
               {branch.name}
             </Button>

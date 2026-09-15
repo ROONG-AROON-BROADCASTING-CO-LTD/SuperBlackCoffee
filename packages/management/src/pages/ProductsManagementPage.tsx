@@ -15,6 +15,7 @@ import {
   DashboardMain,
   PlusIcon,
   SearchIcon,
+  selectionPillSx,
   XIcon,
   type PlusIconHandle,
   type SearchIconHandle,
@@ -752,22 +753,7 @@ export function ProductsManagementPage({
             onClick={() => setFilter(item)}
             size="small"
             variant={filter === item ? 'contained' : 'outlined'}
-            sx={{
-              minHeight: 34,
-              borderRadius: '12px',
-              border: '1px solid',
-              borderColor: filter === item ? '#201914' : '#d8c8bd',
-              bgcolor: filter === item ? '#201914' : '#fff',
-              color: filter === item ? '#fff' : '#5f4b3d',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 12,
-              boxShadow: 'none',
-              '&:hover': {
-                borderColor: '#201914',
-                bgcolor: filter === item ? '#3c2d24' : '#f5eee9',
-                boxShadow: 'none',
-              },
-            }}
+            sx={selectionPillSx(filter === item)}
           >
             {item}
           </Button>
@@ -806,22 +792,7 @@ export function ProductsManagementPage({
               size="small"
               variant={selected ? 'contained' : 'outlined'}
               onClick={() => setSalesChannel(channel)}
-              sx={{
-                minHeight: 34,
-                borderRadius: '12px',
-                borderColor: selected ? '#201914' : '#d8c8bd',
-                bgcolor: selected ? '#201914' : '#fff',
-                color: selected ? '#fff' : '#5f4b3d',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 12,
-                fontWeight: 600,
-                boxShadow: 'none',
-                '&:hover': {
-                  borderColor: '#201914',
-                  bgcolor: selected ? '#3c2d24' : '#f5eee9',
-                  boxShadow: 'none',
-                },
-              }}
+              sx={selectionPillSx(selected)}
             >
               {label}
             </Button>

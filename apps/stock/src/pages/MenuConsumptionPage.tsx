@@ -17,6 +17,7 @@ import {
   CartIcon,
   SearchIcon,
   coffeeIngredientsImage,
+  selectionPillSx,
   type SearchIconHandle,
 } from '@stackbuild/ui';
 import type { MenuItem } from '../api/stock';
@@ -215,12 +216,14 @@ export function MenuConsumptionPage({
               <Button
                 variant={channel === 'storefront' ? 'contained' : 'outlined'}
                 onClick={() => setChannel('storefront')}
+                sx={selectionPillSx(channel === 'storefront')}
               >
                 หน้าร้าน
               </Button>
               <Button
                 variant={channel === 'lineman' ? 'contained' : 'outlined'}
                 onClick={() => setChannel('lineman')}
+                sx={selectionPillSx(channel === 'lineman')}
               >
                 LINE MAN
               </Button>

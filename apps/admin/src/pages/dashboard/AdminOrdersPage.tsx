@@ -14,6 +14,7 @@ import {
   DashboardMain,
   SearchIcon,
   formatDate,
+  selectionPillSx,
   type SearchIconHandle,
 } from '@stackbuild/ui';
 import {
@@ -310,20 +311,11 @@ export function AdminOrdersPage({
               }}
               variant={selectedTab === tab ? 'contained' : 'outlined'}
               sx={{
+                ...selectionPillSx(selectedTab === tab),
                 flexShrink: 0,
                 position: 'relative',
                 zIndex: selectedTab === tab ? 2 : 1,
                 overflow: 'visible',
-                minHeight: 40,
-                px: 1.75,
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: selectedTab === tab ? '#201914' : '#d8c8bd',
-                bgcolor: selectedTab === tab ? '#201914' : '#fff',
-                color: selectedTab === tab ? '#fff' : '#5f4b3d',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 13,
-                boxShadow: 'none',
               }}
             >
               {label}

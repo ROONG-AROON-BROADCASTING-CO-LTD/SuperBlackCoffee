@@ -17,6 +17,7 @@ import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
   SearchIcon,
+  selectionPillSx,
   type BranchStatus,
   type SearchIconHandle,
 } from '@stackbuild/ui';
@@ -224,22 +225,7 @@ export function AdminBranchesPage() {
               size="small"
               variant={period === item ? 'contained' : 'outlined'}
               onClick={() => setPeriod(item)}
-              sx={{
-                minHeight: 34,
-                borderRadius: '12px',
-                border: '1px solid',
-                borderColor: period === item ? '#201914' : '#d8c8bd',
-                bgcolor: period === item ? '#201914' : '#fff',
-                color: period === item ? '#fff' : '#5f4b3d',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 12,
-                boxShadow: 'none',
-                '&:hover': {
-                  borderColor: '#201914',
-                  bgcolor: period === item ? '#3c2d24' : '#f5eee9',
-                  boxShadow: 'none',
-                },
-              }}
+              sx={selectionPillSx(period === item)}
             >
               {item}
             </Button>

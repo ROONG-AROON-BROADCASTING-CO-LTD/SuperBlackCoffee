@@ -17,6 +17,7 @@ import {
   ActionSnackbar,
   coffeeIngredientsImage,
   SearchIcon,
+  selectionPillSx,
   type SearchIconHandle,
 } from '@stackbuild/ui';
 import type { InventoryItem } from '../api/stock';
@@ -137,7 +138,7 @@ export function StockCountPage({
                   setGroup(item.id);
                   closeEditor();
                 }}
-                sx={{ bgcolor: group === item.id ? '#3c2d24' : undefined }}
+                sx={selectionPillSx(group === item.id)}
               >
                 {item.label}
               </Button>

@@ -13,7 +13,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClockIcon, DashboardMain, XIcon } from '@stackbuild/ui';
+import {
+  ClockIcon,
+  DashboardMain,
+  selectionPillSx,
+  XIcon,
+} from '@stackbuild/ui';
 import {
   generateStaffSchedules,
   listStaffSchedules,
@@ -1839,7 +1844,11 @@ export function EmployeesManagementPage({
                               : [...current, weekday],
                           )
                         }
-                        sx={{ minWidth: 80, whiteSpace: 'nowrap' }}
+                        sx={{
+                          ...selectionPillSx(selected),
+                          minWidth: 80,
+                          whiteSpace: 'nowrap',
+                        }}
                       >
                         {day}
                       </Button>

@@ -29,6 +29,7 @@ import {
   INGREDIENT_STATUS_BADGES,
   PlusIcon,
   SearchIcon,
+  selectionPillSx,
   snackbarAnchorOrigin,
   snackbarBelowTopbarSx,
   snackbarBottomSx,
@@ -578,23 +579,9 @@ export function IngredientsManagementPage({
             onClick={() => setFilter(item)}
             aria-label={`${item} ${filterCounts[item]} รายการ`}
             sx={{
-              minHeight: 34,
+              ...selectionPillSx(filter === item),
               position: 'relative',
               overflow: 'visible',
-              borderRadius: '12px',
-              border: '1px solid',
-              borderColor: filter === item ? '#201914' : '#d8c8bd',
-              bgcolor: filter === item ? '#201914' : '#fff',
-              color: filter === item ? '#fff' : '#5f4b3d',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 12,
-              fontWeight: 500,
-              boxShadow: 'none',
-              '&:hover': {
-                borderColor: '#201914',
-                bgcolor: filter === item ? '#3c2d24' : '#f5eee9',
-                boxShadow: 'none',
-              },
             }}
           >
             {item}

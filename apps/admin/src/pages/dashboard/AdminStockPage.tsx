@@ -15,6 +15,7 @@ import {
   INGREDIENT_STATUS_BADGES,
   PlusIcon,
   SearchIcon,
+  selectionPillSx,
   XIcon,
   coffeeIngredientsImage,
   type IngredientStatus,
@@ -197,21 +198,7 @@ export function AdminStockPage({
             size="small"
             variant={filter === item ? 'contained' : 'outlined'}
             onClick={() => setFilter(item)}
-            sx={{
-              minHeight: 34,
-              borderRadius: '12px',
-              borderColor: '#d8c8bd',
-              bgcolor: filter === item ? '#201914' : '#fff',
-              color: filter === item ? '#fff' : '#5f4b3d',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 12,
-              boxShadow: 'none',
-              '&:hover': {
-                borderColor: '#201914',
-                bgcolor: filter === item ? '#3c2d24' : '#f5eee9',
-                boxShadow: 'none',
-              },
-            }}
+            sx={selectionPillSx(filter === item)}
           >
             {item}
           </Button>

@@ -9,6 +9,7 @@ export { default as superBlackLogo } from './assets/superblack-logo.png';
 export { default as coffeeIngredientsImage } from './assets/ingredients/coffee-ingredients.png';
 export { EmptyState } from './components/EmptyState';
 export { ActionSnackbar, type ActionNotice } from './components/ActionSnackbar';
+export { selectionPillSx } from './components/selectionPill';
 export {
   snackbarAnchorOrigin,
   snackbarBelowTopbarSx,
