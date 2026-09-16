@@ -133,6 +133,10 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		return
 	}
 	item := inventoryItemFromInput(input, expiryDate)
+	if item.Category == "fresh" && item.Quantity > 0 && item.ExpiryDate == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วัตถุดิบของสดที่มีจำนวนตั้งต้นต้องระบุวันหมดอายุ"})
+		return
+	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
@@ -153,6 +157,17 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 	if item.Quantity != 0 {
 		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "initial", item.Quantity, 0, item.Quantity, "inventory_item", &id, "ยอดตั้งต้นของรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
+			return
+		}
+	}
+	if item.Category == "fresh" && item.Quantity > 0 {
+		var lotID int64
+		if err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO fresh_inventory_lots(branch_id,inventory_item_id,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost) VALUES($1,$2,CURRENT_DATE,$3,$4,$4,$5) RETURNING id`, branchID, id, item.ExpiryDate, item.Quantity, item.UnitCost).Scan(&lotID); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างล็อตตั้งต้นของวัตถุดิบสดได้"})
+			return
+		}
+		if err = recordFreshLotMovementTx(c, tx, branchID, lotID, id, "received", item.Quantity, 0, item.Quantity, "ยอดตั้งต้นของวัตถุดิบสด", middleware.ClaimsFrom(c).UserID); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติลอตตั้งต้นของวัตถุดิบสดได้"})
 			return
 		}
 	}
@@ -211,9 +226,21 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		return
 	}
 	var previousQuantity float64
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity); err != nil {
+	var previousCategory string
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,category FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity, &previousCategory); err != nil {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
+	}
+	if previousCategory == "fresh" {
+		var hasLots bool
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM fresh_inventory_lots WHERE branch_id=$1 AND inventory_item_id=$2)`, branchID, id).Scan(&hasLots); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบล็อตของสดได้"})
+			return
+		}
+		if hasLots && item.Quantity != previousQuantity {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "โปรดใช้การรับล็อตหรือตัดทิ้งล็อตเพื่อปรับยอดวัตถุดิบของสด"})
+			return
+		}
 	}
 	result, err := tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET catalog_item_id=$1,quantity=$2,reorder_level=$3,expiry_date=$4,updated_at=now() WHERE id=$5 AND branch_id=$6`, catalogID, item.Quantity, item.ReorderLevel, item.ExpiryDate, id, branchID)
 	if err != nil || rowsAffected(result) == 0 {

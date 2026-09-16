@@ -48,8 +48,13 @@ import { useAutoRetry } from '../hooks/useAutoRetry';
 import {
   createInventory,
   deleteInventory,
+  adjustInventory,
+  discardFreshInventoryLot,
+  listFreshInventoryLots,
   listInventory,
+  receiveFreshInventoryLot,
   updateInventory,
+  type FreshInventoryLot,
   type InventoryInput,
 } from '../api/inventory';
 import { createStockRequest } from '../api/stock-requests';
@@ -69,6 +74,7 @@ type Ingredient = {
 };
 type IngredientCartItem = Ingredient & { key: string; quantityToOrder: number };
 type InventoryBranch = string;
+type FreshLotTarget = { ingredient: Ingredient; branch: InventoryBranch };
 
 const filters = [
   'ทั้งหมด',
@@ -149,6 +155,15 @@ export function IngredientsManagementPage({
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
+  const [discardTargetKey, setDiscardTargetKey] = useState<string | null>(null);
+  const [freshLotTarget, setFreshLotTarget] = useState<FreshLotTarget | null>(
+    null,
+  );
+  const [freshLots, setFreshLots] = useState<FreshInventoryLot[]>([]);
+  const [isFreshLotsLoading, setIsFreshLotsLoading] = useState(false);
+  const [freshLotDiscardID, setFreshLotDiscardID] = useState<number | null>(
+    null,
+  );
   const [inventoryNotice, setInventoryNotice] = useState<{
     severity: 'success' | 'error';
     message: string;
@@ -354,9 +369,10 @@ export function IngredientsManagementPage({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const branch =
-      activeBranch === 'ทุกสาขา'
+      editingBranch ??
+      (activeBranch === 'ทุกสาขา'
         ? (String(formData.get('branch')) as InventoryBranch)
-        : (editingBranch ?? activeBranch);
+        : activeBranch);
     const expiryDate = String(formData.get('expiryDate') ?? '').trim();
     const data: InventoryInput = {
       name: String(formData.get('name') ?? '').trim(),
@@ -413,6 +429,133 @@ export function IngredientsManagementPage({
       setInventoryNotice({
         severity: 'error',
         message: error instanceof Error ? error.message : 'ลบวัตถุดิบไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingInventory(false);
+    }
+  };
+
+  const discardExpiredIngredient = async (
+    ingredient: Ingredient,
+    branch: InventoryBranch,
+  ) => {
+    setDiscardTargetKey(null);
+    setIsSavingInventory(true);
+    try {
+      await adjustInventory(
+        ingredient.id,
+        0,
+        'ตัดทิ้งวัตถุดิบหมดอายุ',
+        branchCodes[branch],
+      );
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({
+        severity: 'success',
+        message: 'ตัดทิ้งวัตถุดิบหมดอายุและบันทึกประวัติแล้ว',
+      });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error ? error.message : 'ตัดทิ้งวัตถุดิบไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingInventory(false);
+    }
+  };
+
+  const loadFreshLots = async (target: FreshLotTarget) => {
+    setIsFreshLotsLoading(true);
+    try {
+      setFreshLots(
+        await listFreshInventoryLots(
+          target.ingredient.id,
+          branchCodes[target.branch],
+        ),
+      );
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error ? error.message : 'โหลดล็อตของสดไม่สำเร็จ',
+      });
+    } finally {
+      setIsFreshLotsLoading(false);
+    }
+  };
+
+  const openFreshLots = (ingredient: Ingredient, branch: InventoryBranch) => {
+    const target = { ingredient, branch };
+    setFreshLotTarget(target);
+    setFreshLots([]);
+    setFreshLotDiscardID(null);
+    void loadFreshLots(target);
+  };
+
+  const receiveFreshLot = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!freshLotTarget) return;
+    const formData = new FormData(event.currentTarget);
+    const receivedAt = String(formData.get('receivedAt') ?? '');
+    const expiryDate = String(formData.get('expiryDate') ?? '');
+    if (!receivedAt || !expiryDate || expiryDate < receivedAt) {
+      setInventoryNotice({
+        severity: 'error',
+        message: 'กรุณาระบุวันรับเข้าและวันหมดอายุให้ถูกต้อง',
+      });
+      return;
+    }
+    setIsSavingInventory(true);
+    try {
+      await receiveFreshInventoryLot(
+        freshLotTarget.ingredient.id,
+        {
+          lotNumber: String(formData.get('lotNumber') ?? '').trim(),
+          receivedAt,
+          expiryDate,
+          quantity: Number(formData.get('quantity') ?? 0),
+          unitCost: Number(formData.get('unitCost') ?? 0),
+          note: String(formData.get('note') ?? '').trim(),
+        },
+        branchCodes[freshLotTarget.branch],
+      );
+      event.currentTarget.reset();
+      await loadFreshLots(freshLotTarget);
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({ severity: 'success', message: 'รับล็อตของสดแล้ว' });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error ? error.message : 'รับล็อตของสดไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingInventory(false);
+    }
+  };
+
+  const discardFreshLot = async (lot: FreshInventoryLot) => {
+    if (!freshLotTarget) return;
+    setIsSavingInventory(true);
+    try {
+      await discardFreshInventoryLot(
+        lot.id,
+        lot.quantityRemaining,
+        'ตัดทิ้งล็อตของสด',
+        branchCodes[freshLotTarget.branch],
+      );
+      setFreshLotDiscardID(null);
+      await loadFreshLots(freshLotTarget);
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({
+        severity: 'success',
+        message: 'ตัดทิ้งล็อตของสดแล้ว',
+      });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error ? error.message : 'ตัดทิ้งล็อตของสดไม่สำเร็จ',
       });
     } finally {
       setIsSavingInventory(false);
@@ -560,7 +703,7 @@ export function IngredientsManagementPage({
             }}
           >
             {item}
-            {item === 'ทั้งหมด' && filterCounts[item] > 0 ? (
+            {item !== 'ทั้งหมด' && filterCounts[item] > 0 ? (
               <Box
                 component="span"
                 aria-hidden="true"
@@ -694,6 +837,20 @@ export function IngredientsManagementPage({
                               overflow: 'hidden',
                             }}
                           >
+                            {ingredient.imageUrl ? (
+                              <Box
+                                component="img"
+                                src={ingredient.imageUrl}
+                                alt={`รูป${ingredient.name}`}
+                                sx={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            ) : null}
                             {ingredient.category === 'fresh' ? (
                               <Chip
                                 label="ของสด"
@@ -707,23 +864,27 @@ export function IngredientsManagementPage({
                                   fontSize: 11,
                                   fontWeight: 600,
                                   position: 'relative',
+                                  zIndex: 1,
                                 }}
                               />
                             ) : null}
-                            <Chip
-                              label={ingredient.status}
-                              size="small"
-                              sx={{
-                                height: 25,
-                                borderRadius: '12px',
-                                bgcolor: statusBadge.main,
-                                color: statusBadge.contrastText,
-                                fontFamily: 'Kanit, sans-serif',
-                                fontSize: 11,
-                                fontWeight: 500,
-                                position: 'relative',
-                              }}
-                            />
+                            {ingredient.expiryStatus !== 'expired' ? (
+                              <Chip
+                                label={ingredient.status}
+                                size="small"
+                                sx={{
+                                  height: 25,
+                                  borderRadius: '12px',
+                                  bgcolor: statusBadge.main,
+                                  color: statusBadge.contrastText,
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                  position: 'relative',
+                                  zIndex: 1,
+                                }}
+                              />
+                            ) : null}
                             {ingredient.expiryStatus !== 'none' ? (
                               <Chip
                                 label={
@@ -742,6 +903,7 @@ export function IngredientsManagementPage({
                                   fontSize: 11,
                                   fontWeight: 600,
                                   position: 'relative',
+                                  zIndex: 1,
                                 }}
                               />
                             ) : null}
@@ -838,7 +1000,14 @@ export function IngredientsManagementPage({
                                 วันหมดอายุ
                                 <Box
                                   component="span"
-                                  sx={{ fontWeight: 700, lineHeight: 1 }}
+                                  sx={{
+                                    display: 'inline-block',
+                                    minWidth: 108,
+                                    fontSize: 17,
+                                    fontWeight: 700,
+                                    lineHeight: 1.1,
+                                    whiteSpace: 'nowrap',
+                                  }}
                                 >
                                   {formatExpiryDate(ingredient.expiryDate) ??
                                     'ไม่ระบุ'}
@@ -881,64 +1050,201 @@ export function IngredientsManagementPage({
                               </Box>
                             ) : null}
                             {!readOnly ? (
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  gap: 1,
-                                  mt: 'auto',
-                                  pt: 2,
-                                }}
-                              >
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  onClick={() => {
-                                    setEditingIngredient(ingredient);
-                                    setEditingBranch(branch as InventoryBranch);
-                                    setImagePreviewUrl(null);
-                                    setIsAddDrawerOpen(true);
-                                  }}
-                                  sx={{
-                                    flex: 1,
-                                    minHeight: 34,
-                                    borderRadius: '10px',
-                                    bgcolor: '#5f4030',
-                                    color: '#fff',
-                                    fontFamily: 'Kanit, sans-serif',
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    boxShadow: 'none',
-                                    '&:hover': {
-                                      bgcolor: '#3c2d24',
+                              <>
+                                {ingredient.category === 'fresh' ? (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    fullWidth
+                                    onClick={() =>
+                                      openFreshLots(
+                                        ingredient,
+                                        branch as InventoryBranch,
+                                      )
+                                    }
+                                    sx={{
+                                      mt: 'auto',
+                                      pt: 2,
+                                      minHeight: 34,
+                                      borderRadius: '10px',
+                                      borderColor: '#805637',
+                                      color: '#5f4030',
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    จัดการล็อตของสด
+                                  </Button>
+                                ) : ingredient.expiryStatus === 'expired' &&
+                                  ingredient.quantity > 0 ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="error"
+                                    fullWidth
+                                    onClick={() =>
+                                      setDiscardTargetKey(ingredientKey)
+                                    }
+                                    sx={{
+                                      mt: 'auto',
+                                      pt: 2,
+                                      minHeight: 34,
+                                      borderRadius: '10px',
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 12,
+                                      fontWeight: 600,
                                       boxShadow: 'none',
-                                    },
-                                  }}
-                                >
-                                  แก้ไขวัตถุดิบ
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  color="error"
-                                  onClick={() =>
-                                    setDeleteTargetKey(ingredientKey)
-                                  }
+                                      '&:hover': { boxShadow: 'none' },
+                                    }}
+                                  >
+                                    ตัดทิ้งวัตถุดิบหมดอายุ
+                                  </Button>
+                                ) : null}
+                                <Box
                                   sx={{
-                                    flex: 1,
-                                    minHeight: 34,
-                                    borderRadius: '10px',
-                                    fontFamily: 'Kanit, sans-serif',
-                                    fontSize: 12,
-                                    fontWeight: 500,
-                                    boxShadow: 'none',
-                                    '&:hover': { boxShadow: 'none' },
+                                    display: 'flex',
+                                    gap: 1,
+                                    mt:
+                                      ingredient.category === 'fresh' ||
+                                      ingredient.expiryStatus === 'expired'
+                                        ? 1
+                                        : 'auto',
+                                    pt:
+                                      ingredient.category === 'fresh' ||
+                                      ingredient.expiryStatus === 'expired'
+                                        ? 0
+                                        : 2,
                                   }}
                                 >
-                                  ลบวัตถุดิบ
-                                </Button>
-                              </Box>
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => {
+                                      setEditingIngredient(ingredient);
+                                      setEditingBranch(
+                                        branch as InventoryBranch,
+                                      );
+                                      setImagePreviewUrl(null);
+                                      setIsAddDrawerOpen(true);
+                                    }}
+                                    sx={{
+                                      flex: 1,
+                                      minHeight: 34,
+                                      borderRadius: '10px',
+                                      bgcolor: '#5f4030',
+                                      color: '#fff',
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 12,
+                                      fontWeight: 500,
+                                      boxShadow: 'none',
+                                      '&:hover': {
+                                        bgcolor: '#3c2d24',
+                                        boxShadow: 'none',
+                                      },
+                                    }}
+                                  >
+                                    แก้ไขวัตถุดิบ
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    color="error"
+                                    onClick={() =>
+                                      setDeleteTargetKey(ingredientKey)
+                                    }
+                                    sx={{
+                                      flex: 1,
+                                      minHeight: 34,
+                                      borderRadius: '10px',
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 12,
+                                      fontWeight: 500,
+                                      boxShadow: 'none',
+                                      '&:hover': { boxShadow: 'none' },
+                                    }}
+                                  >
+                                    ลบวัตถุดิบ
+                                  </Button>
+                                </Box>
+                              </>
                             ) : null}
                           </Box>
+                          {!readOnly && discardTargetKey === ingredientKey && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                zIndex: 3,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 2,
+                                p: 2.5,
+                                bgcolor: 'rgba(32, 25, 20, .94)',
+                                color: '#fff',
+                                textAlign: 'center',
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 18,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                ตัดทิ้งวัตถุดิบหมดอายุ?
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  color: 'rgba(255,255,255,.75)',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 13,
+                                }}
+                              >
+                                ระบบจะปรับยอดคงเหลือเป็น 0
+                                และบันทึกประวัติการตัดทิ้ง
+                              </Typography>
+                              <Box
+                                sx={{ display: 'flex', width: '100%', gap: 1 }}
+                              >
+                                <Button
+                                  fullWidth
+                                  onClick={() => setDiscardTargetKey(null)}
+                                  sx={{
+                                    minHeight: 38,
+                                    borderRadius: '10px',
+                                    color: '#fff',
+                                    border: '1px solid rgba(255,255,255,.45)',
+                                    fontFamily: 'Kanit, sans-serif',
+                                  }}
+                                >
+                                  ยกเลิก
+                                </Button>
+                                <Button
+                                  fullWidth
+                                  variant="contained"
+                                  color="error"
+                                  disabled={isSavingInventory}
+                                  onClick={() =>
+                                    void discardExpiredIngredient(
+                                      ingredient,
+                                      branch as InventoryBranch,
+                                    )
+                                  }
+                                  sx={{
+                                    minHeight: 38,
+                                    borderRadius: '10px',
+                                    fontFamily: 'Kanit, sans-serif',
+                                    boxShadow: 'none',
+                                  }}
+                                >
+                                  ยืนยันตัดทิ้ง
+                                </Button>
+                              </Box>
+                            </Box>
+                          )}
                           {!readOnly && deleteTargetKey === ingredientKey && (
                             <Box
                               sx={{
@@ -1342,12 +1648,17 @@ export function IngredientsManagementPage({
                 />
                 <DateField
                   fullWidth
+                  required={isFreshIngredientsPage && !editingIngredient}
                   name="expiryDate"
                   label="วันหมดอายุ"
                   defaultValue={inputDateValue(
                     editingIngredient?.expiryDate ?? null,
                   )}
-                  helperText="เว้นว่างได้หากวัตถุดิบไม่มีวันหมดอายุ"
+                  helperText={
+                    isFreshIngredientsPage && !editingIngredient
+                      ? 'ของสดที่มีจำนวนตั้งต้นต้องระบุวันหมดอายุเพื่อสร้างล็อตแรก'
+                      : 'เว้นว่างได้หากวัตถุดิบไม่มีวันหมดอายุ'
+                  }
                 />
                 {activeBranch === 'ทุกสาขา' && !editingIngredient ? (
                   <TextField
@@ -1408,6 +1719,323 @@ export function IngredientsManagementPage({
                 </Box>
               </Box>
             </Box>
+          </Box>
+        </Box>
+      </Drawer>
+      <Drawer
+        anchor="bottom"
+        open={freshLotTarget !== null}
+        onClose={() => setFreshLotTarget(null)}
+        transitionDuration={{ enter: 360, exit: 280 }}
+        sx={{ zIndex: 1301 }}
+        slotProps={{
+          paper: {
+            sx: {
+              left: { md: '280px' },
+              width: { md: 'calc(100% - 304px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
+              overflow: 'hidden',
+              bgcolor: '#fffaf7',
+              borderRadius: '24px 24px 0 0',
+            },
+          },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            px: { xs: 2.5, sm: 4 },
+            pt: 1.5,
+            pb: 3,
+          }}
+        >
+          <Box
+            sx={{
+              width: 44,
+              height: 5,
+              mx: 'auto',
+              mb: 2.5,
+              borderRadius: 99,
+              bgcolor: '#d8c8bd',
+            }}
+          />
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Box>
+              <Typography
+                sx={{
+                  color: '#201914',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 22,
+                  fontWeight: 600,
+                }}
+              >
+                ล็อตของสด
+                {freshLotTarget ? ` · ${freshLotTarget.ingredient.name}` : ''}
+              </Typography>
+              <Typography
+                sx={{
+                  color: 'text.secondary',
+                  fontFamily: 'Kanit, sans-serif',
+                }}
+              >
+                ระบบตัดตามล็อตที่หมดอายุก่อน (FEFO) และไม่ใช้ล็อตหมดอายุ
+              </Typography>
+            </Box>
+            <Button
+              aria-label="ปิดล็อตของสด"
+              onClick={() => setFreshLotTarget(null)}
+              sx={{
+                minWidth: 40,
+                width: 40,
+                height: 40,
+                p: 0,
+                borderRadius: '12px',
+                bgcolor: '#f7eee8',
+                color: '#5f4b3d',
+              }}
+            >
+              <XIcon size={20} />
+            </Button>
+          </Box>
+          <Divider
+            sx={{ mt: 2.25, mx: { xs: -2.5, sm: -4 }, borderColor: '#e8ddd5' }}
+          />
+          <Box
+            sx={{ flex: 1, minHeight: 0, overflowY: 'auto', py: 2.25, pr: 0.5 }}
+          >
+            <Box
+              component="form"
+              onSubmit={(event) => void receiveFreshLot(event)}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'repeat(3, minmax(0, 1fr))',
+                },
+                gap: 1.25,
+                p: 2,
+                border: '1px solid #e8ddd5',
+                borderRadius: '16px',
+                bgcolor: '#fff',
+                '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+              }}
+            >
+              <Typography
+                sx={{
+                  gridColumn: { md: '1 / -1' },
+                  fontFamily: 'Kanit, sans-serif',
+                  fontWeight: 600,
+                }}
+              >
+                รับล็อตใหม่
+              </Typography>
+              <TextField
+                name="lotNumber"
+                label="เลขล็อต (ถ้ามี)"
+                size="small"
+              />
+              <TextField
+                name="receivedAt"
+                label="วันที่รับเข้า"
+                type="date"
+                required
+                size="small"
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                name="expiryDate"
+                label="วันหมดอายุ"
+                type="date"
+                required
+                size="small"
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                name="quantity"
+                label={`จำนวน (${freshLotTarget?.ingredient.unit ?? ''})`}
+                type="number"
+                required
+                size="small"
+                slotProps={{ htmlInput: { min: 0.01, step: '0.01' } }}
+              />
+              <TextField
+                name="unitCost"
+                label="ต้นทุนต่อหน่วย"
+                type="number"
+                required
+                size="small"
+                defaultValue={freshLotTarget?.ingredient.unitCost ?? 0}
+                slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+              />
+              <TextField name="note" label="หมายเหตุ" size="small" />
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gridColumn: { md: '1 / -1' },
+                }}
+              >
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={isSavingInventory}
+                  sx={{
+                    minHeight: 38,
+                    borderRadius: '10px',
+                    bgcolor: '#201914',
+                    fontFamily: 'Kanit, sans-serif',
+                    boxShadow: 'none',
+                    '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+                  }}
+                >
+                  {isSavingInventory ? 'กำลังบันทึก…' : 'รับล็อตเข้าสต๊อก'}
+                </Button>
+              </Box>
+            </Box>
+            <Typography
+              sx={{
+                mt: 2.5,
+                mb: 1,
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 17,
+                fontWeight: 600,
+              }}
+            >
+              รายการล็อต
+            </Typography>
+            {isFreshLotsLoading ? (
+              <Typography
+                sx={{
+                  color: 'text.secondary',
+                  fontFamily: 'Kanit, sans-serif',
+                }}
+              >
+                กำลังโหลดล็อต…
+              </Typography>
+            ) : freshLots.length === 0 ? (
+              <Alert severity="info" sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                ยังไม่มีล็อตของสด ให้รับล็อตแรกเพื่อเริ่มตัดแบบ FEFO
+              </Alert>
+            ) : (
+              <Box sx={{ display: 'grid', gap: 1 }}>
+                {freshLots.map((lot) => {
+                  const canDiscard =
+                    lot.status === 'active' && lot.quantityRemaining > 0;
+                  const lotStatus =
+                    lot.expiryStatus === 'expired'
+                      ? 'หมดอายุ'
+                      : lot.expiryStatus === 'expiring_soon'
+                        ? 'ใกล้หมดอายุ'
+                        : lot.status === 'discarded'
+                          ? 'ตัดทิ้งแล้ว'
+                          : 'พร้อมใช้';
+                  return (
+                    <Box
+                      key={lot.id}
+                      sx={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: 1.25,
+                        p: 1.5,
+                        border: '1px solid #e8ddd5',
+                        borderRadius: '14px',
+                        bgcolor: '#fff',
+                      }}
+                    >
+                      <Box sx={{ flex: '1 1 260px' }}>
+                        <Typography
+                          sx={{
+                            fontFamily: 'Kanit, sans-serif',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {lot.lotNumber || `ล็อต #${lot.id}`}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: 'text.secondary',
+                            fontFamily: 'Kanit, sans-serif',
+                            fontSize: 13,
+                          }}
+                        >
+                          รับเข้า {formatExpiryDate(lot.receivedAt)} · หมดอายุ{' '}
+                          {formatExpiryDate(lot.expiryDate)}
+                        </Typography>
+                      </Box>
+                      <Chip
+                        label={lotStatus}
+                        size="small"
+                        color={
+                          lot.expiryStatus === 'expired'
+                            ? 'error'
+                            : lot.expiryStatus === 'expiring_soon'
+                              ? 'warning'
+                              : 'default'
+                        }
+                        sx={{ fontFamily: 'Kanit, sans-serif' }}
+                      />
+                      <Typography
+                        sx={{
+                          minWidth: 110,
+                          textAlign: { xs: 'left', sm: 'right' },
+                          fontFamily: 'Kanit, sans-serif',
+                          fontWeight: 600,
+                        }}
+                      >
+                        เหลือ {lot.quantityRemaining}{' '}
+                        {freshLotTarget?.ingredient.unit}
+                      </Typography>
+                      {canDiscard ? (
+                        freshLotDiscardID === lot.id ? (
+                          <Box sx={{ display: 'flex', gap: 0.75 }}>
+                            <Button
+                              size="small"
+                              onClick={() => setFreshLotDiscardID(null)}
+                              sx={{ fontFamily: 'Kanit, sans-serif' }}
+                            >
+                              ยกเลิก
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              disabled={isSavingInventory}
+                              onClick={() => void discardFreshLot(lot)}
+                              sx={{
+                                fontFamily: 'Kanit, sans-serif',
+                                boxShadow: 'none',
+                              }}
+                            >
+                              ยืนยันตัดทิ้ง
+                            </Button>
+                          </Box>
+                        ) : (
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() => setFreshLotDiscardID(lot.id)}
+                            sx={{ fontFamily: 'Kanit, sans-serif' }}
+                          >
+                            ตัดทิ้ง
+                          </Button>
+                        )
+                      ) : null}
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
           </Box>
         </Box>
       </Drawer>

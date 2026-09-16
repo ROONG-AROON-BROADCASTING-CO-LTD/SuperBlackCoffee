@@ -255,7 +255,20 @@ export function StockMobileNavigation({
           </>
         ) : (
           <>
-            <Box sx={{ display: 'grid', placeItems: 'center' }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 0,
+                '& > div': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 0,
+                },
+              }}
+            >
               <CartIcon size={22} />
             </Box>
             <Box component="span" sx={{ whiteSpace: 'nowrap' }}>

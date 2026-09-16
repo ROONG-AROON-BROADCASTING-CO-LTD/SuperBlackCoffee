@@ -277,6 +277,23 @@ const spreadsheetRows = (sheet: Document, sharedStrings: string[]) => {
   return rows;
 };
 
+const workbookHeaderAliases = {
+  menuName: ['Menu Name', 'ชื่อเมนู'],
+  category: ['Category', 'หมวดหมู่', 'หมวดสินค้า'],
+  quantity: ['Quantity', 'จำนวน'],
+  channel: ['Channel', 'ช่องทาง'],
+} as const;
+
+const headerAlias = (value: string) => {
+  const normalized = normalizeHeader(value);
+  for (const [field, aliases] of Object.entries(workbookHeaderAliases)) {
+    if (aliases.some((alias) => normalizeHeader(alias) === normalized)) {
+      return field;
+    }
+  }
+  return undefined;
+};
+
 /** Reads the standard FoodStory "Sale by Bill Detail" .xlsx export in-browser. */
 export async function readSalesWorkbook(file: File): Promise<WorkbookRow[]> {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -362,12 +379,31 @@ export async function readSalesWorkbook(file: File): Promise<WorkbookRow[]> {
           .join(''),
       )
     : [];
-  const [headers = [], ...data] = spreadsheetRows(xml(worksheet), strings);
+  const rows = spreadsheetRows(xml(worksheet), strings);
+  // FoodStory's Thai export includes a report title row before the actual
+  // table header, while the English export starts with headers immediately.
+  // Locate the first row containing the required menu/quantity/channel fields.
+  const headerIndex = rows.findIndex((row) => {
+    const fields = new Set(row.map((value) => headerAlias(value)));
+    return (
+      fields.has('menuName') && fields.has('quantity') && fields.has('channel')
+    );
+  });
+  if (headerIndex < 0) throw new Error('ไม่พบหัวตารางยอดขายในไฟล์ Excel');
+  const [headers = [], ...data] = rows.slice(headerIndex);
+  const canonicalHeaders = headers.map((header) => {
+    const field = headerAlias(header);
+    if (field === 'menuName') return 'Menu Name';
+    if (field === 'category') return 'Category';
+    if (field === 'quantity') return 'Quantity';
+    if (field === 'channel') return 'Channel';
+    return header;
+  });
   return data
     .filter((row) => row.some((value) => value))
     .map((row) =>
       Object.fromEntries(
-        headers
+        canonicalHeaders
           .map((header, index) => [header, row[index]] as const)
           .filter(([header]) => Boolean(header)),
       ),

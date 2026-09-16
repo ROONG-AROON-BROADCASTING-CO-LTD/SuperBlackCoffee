@@ -887,6 +887,20 @@ export function ProductsManagementPage({
                             overflow: 'hidden',
                           }}
                         >
+                          {item.imageUrl ? (
+                            <Box
+                              component="img"
+                              src={item.imageUrl}
+                              alt={`รูป${item.name}`}
+                              sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+                          ) : null}
                           <Chip
                             label={item.status}
                             size="small"
@@ -894,6 +908,7 @@ export function ProductsManagementPage({
                               position: 'absolute',
                               top: 12,
                               right: 12,
+                              zIndex: 1,
                               height: 25,
                               borderRadius: '12px',
                               bgcolor: statusChipColor(item.status),
@@ -909,6 +924,7 @@ export function ProductsManagementPage({
                               position: 'absolute',
                               top: 12,
                               left: 12,
+                              zIndex: 1,
                               height: 25,
                               borderRadius: '12px',
                               bgcolor: showingLineman ? '#06C755' : '#805637',

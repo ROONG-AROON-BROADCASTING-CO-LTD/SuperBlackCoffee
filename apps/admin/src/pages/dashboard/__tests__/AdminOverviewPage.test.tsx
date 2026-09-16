@@ -216,4 +216,47 @@ describe('AdminOverviewPage', () => {
       expect(labels.indexOf('ม.ค.')).toBeLessThan(labels.indexOf('ธ.ค.'));
     });
   });
+
+  it('prioritizes soon-to-expire ingredients and excludes expired items from follow-up', async () => {
+    vi.mocked(listInventory).mockImplementation((kind) =>
+      Promise.resolve(
+        kind === 'ingredient'
+          ? [
+              {
+                id: 1,
+                name: 'นมสด',
+                category: 'นม',
+                kind: 'ingredient',
+                quantity: 1,
+                unit: 'กล่อง',
+                reorderLevel: 0,
+                unitCost: 1,
+                status: 'ready',
+                imageUrl: '',
+                expiryStatus: 'expired',
+              },
+              {
+                id: 2,
+                name: 'ไซรัป',
+                category: 'ไซรัป',
+                kind: 'ingredient',
+                quantity: 1,
+                unit: 'ขวด',
+                reorderLevel: 0,
+                unitCost: 1,
+                status: 'ready',
+                imageUrl: '',
+                expiryStatus: 'expiring_soon',
+              },
+            ]
+          : [],
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('วัตถุดิบใกล้หมดอายุ')).toBeTruthy();
+    expect(screen.queryByText('วัตถุดิบหมดอายุ')).toBeNull();
+    expect(screen.queryByText('วัตถุดิบหมด')).toBeNull();
+  });
 });

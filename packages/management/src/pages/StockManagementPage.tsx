@@ -116,14 +116,24 @@ export function StockManagementPage({
       ),
   });
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
+  const matchesStockFilter = (item: StockItem, selectedFilter: StockFilter) =>
+    selectedFilter === 'ทั้งหมด' ||
+    (selectedFilter === 'ใกล้หมด' && item.status === 'วัตถุดิบใกล้หมด') ||
+    (selectedFilter === 'หมด' && item.status === 'วัตถุดิบหมด') ||
+    (selectedFilter === 'ค้างสต๊อก' && item.status === 'วัตถุดิบค้างสต๊อก');
+  const filterCounts = useMemo(() => {
+    const items = Object.values(catalogStockItemsByBranch).flat();
+    return Object.fromEntries(
+      filters.map((selectedFilter) => [
+        selectedFilter,
+        items.filter((item) => matchesStockFilter(item, selectedFilter)).length,
+      ]),
+    ) as Record<StockFilter, number>;
+  }, [catalogStockItemsByBranch]);
   const filterItems = (items: StockItem[]) =>
     items.filter(
       (item) =>
-        item.name.includes(deferredQuery) &&
-        (filter === 'ทั้งหมด' ||
-          (filter === 'ใกล้หมด' && item.status === 'วัตถุดิบใกล้หมด') ||
-          (filter === 'หมด' && item.status === 'วัตถุดิบหมด') ||
-          (filter === 'ค้างสต๊อก' && item.status === 'วัตถุดิบค้างสต๊อก')),
+        item.name.includes(deferredQuery) && matchesStockFilter(item, filter),
     );
   const availableBranchNames = useMemo(
     () => branchOptions.filter((branch) => branch !== 'ทุกสาขา'),
@@ -339,9 +349,39 @@ export function StockManagementPage({
             size="small"
             variant={filter === item ? 'contained' : 'outlined'}
             onClick={() => setFilter(item)}
-            sx={selectionPillSx(filter === item)}
+            aria-label={`${item} ${filterCounts[item]} รายการ`}
+            sx={{
+              ...selectionPillSx(filter === item),
+              position: 'relative',
+              overflow: 'visible',
+            }}
           >
             {item}
+            {item !== 'ทั้งหมด' && filterCounts[item] > 0 ? (
+              <Box
+                component="span"
+                aria-hidden="true"
+                sx={{
+                  position: 'absolute',
+                  top: -7,
+                  right: -7,
+                  display: 'grid',
+                  placeItems: 'center',
+                  minWidth: 24,
+                  height: 24,
+                  px: 0.5,
+                  borderRadius: '999px',
+                  bgcolor: '#df292d',
+                  color: '#fff',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: 1,
+                }}
+              >
+                {filterCounts[item]}
+              </Box>
+            ) : null}
           </Button>
         ))}
       </Box>
@@ -422,6 +462,20 @@ export function StockManagementPage({
                             overflow: 'hidden',
                           }}
                         >
+                          {item.imageUrl ? (
+                            <Box
+                              component="img"
+                              src={item.imageUrl}
+                              alt={`รูป${item.name}`}
+                              sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+                          ) : null}
                           <Chip
                             label={item.status}
                             size="small"
@@ -429,6 +483,7 @@ export function StockManagementPage({
                               position: 'absolute',
                               top: 12,
                               right: 12,
+                              zIndex: 1,
                               height: 25,
                               borderRadius: '12px',
                               bgcolor: badge.main,

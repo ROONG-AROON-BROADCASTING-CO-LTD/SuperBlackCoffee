@@ -28,6 +28,29 @@ export type InventoryInput = {
   expiryDate: string | null;
 };
 
+export type FreshInventoryLot = {
+  id: number;
+  lotNumber: string;
+  receivedAt: string;
+  expiryDate: string;
+  quantityReceived: number;
+  quantityRemaining: number;
+  unitCost: number;
+  status: 'active' | 'discarded';
+  expiryStatus: 'ready' | 'expiring_soon' | 'expired';
+  discardReason: string;
+  createdAt: string;
+};
+
+export type FreshInventoryLotReceipt = {
+  lotNumber: string;
+  receivedAt: string;
+  expiryDate: string;
+  quantity: number;
+  unitCost: number;
+  note: string;
+};
+
 export const listInventory = (
   kind: 'ingredient' | 'stock',
   branchCode = 'SBC-AYA-001',
@@ -62,3 +85,40 @@ export const deleteInventory = (id: number, branchCode: string) =>
   secured<void>(`/inventory/${id}${branchQuery(branchCode)}`, {
     method: 'DELETE',
   });
+
+export const adjustInventory = (
+  id: number,
+  quantity: number,
+  note: string,
+  branchCode: string,
+) =>
+  secured<{ id: number; quantity: number }>(
+    `/inventory/${id}/adjust${branchQuery(branchCode)}`,
+    { method: 'POST', data: { quantity, note } },
+  );
+
+export const listFreshInventoryLots = (id: number, branchCode: string) =>
+  secured<FreshInventoryLot[]>(
+    `/inventory/${id}/fresh-lots${branchQuery(branchCode)}`,
+  );
+
+export const receiveFreshInventoryLot = (
+  inventoryID: number,
+  data: FreshInventoryLotReceipt,
+  branchCode: string,
+) =>
+  secured<{ id: number; quantity: number }>(
+    `/inventory/${inventoryID}/fresh-lots${branchQuery(branchCode)}`,
+    { method: 'POST', data },
+  );
+
+export const discardFreshInventoryLot = (
+  lotID: number,
+  quantity: number,
+  note: string,
+  branchCode: string,
+) =>
+  secured<{ id: number; quantity: number }>(
+    `/fresh-inventory-lots/${lotID}${branchQuery(branchCode)}`,
+    { method: 'POST', data: { quantity, note } },
+  );

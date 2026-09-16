@@ -291,6 +291,68 @@ describe('MenuConsumptionPage', () => {
     );
   });
 
+  it('keeps each sales channel when an imported workbook contains both storefront and LINE MAN orders', async () => {
+    const onConsume = vi.fn().mockResolvedValue(undefined);
+    workbookMocks.readSalesWorkbook.mockResolvedValue([
+      { 'Menu Name': 'อเมริกาโน่เย็น' },
+      { 'Menu Name': 'อเมริกาโน่เย็น' },
+    ]);
+    workbookMocks.matchWorkbookSales.mockReturnValue({
+      sales: [
+        {
+          menuItemId: 7,
+          menuName: 'อเมริกาโน่เย็น',
+          quantity: 1,
+          channel: 'storefront',
+        },
+        {
+          menuItemId: 7,
+          menuName: 'อเมริกาโน่เย็น',
+          quantity: 2,
+          channel: 'lineman',
+        },
+      ],
+      unmatchedMenuNames: [],
+      unsupportedChannelMenuNames: [],
+      rowCount: 2,
+    });
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={onConsume}
+        cartOpen
+        menus={[storefrontMenu]}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('นำเข้าไฟล์ Excel'), {
+      target: { files: [new File(['workbook'], 'mixed-channels.xlsx')] },
+    });
+
+    expect(
+      await screen.findByText(
+        'นำเข้า 2 เมนูจาก 2 แถว (แยกสูตรหน้าร้านและ LINE MAN แล้ว) โปรดตรวจจำนวนก่อนยืนยัน',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('สูตรหน้าร้าน')).toBeTruthy();
+    expect(screen.getByText('สูตรLINE MAN')).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'ยืนยันตัดวัตถุดิบตามสูตร' }),
+    );
+
+    await vi.waitFor(() =>
+      expect(onConsume).toHaveBeenCalledWith(
+        [
+          { menuItemId: 7, quantity: 1, channel: 'storefront' },
+          { menuItemId: 7, quantity: 2, channel: 'lineman' },
+        ],
+        'ตัดสต๊อกจากไฟล์ Excel mixed-channels.xlsx',
+        'storefront',
+      ),
+    );
+  });
+
   it('does not place unsafe workbook rows into the cart', async () => {
     workbookMocks.readSalesWorkbook.mockResolvedValue([
       { 'Menu Name': 'ไม่พบในเมนู' },

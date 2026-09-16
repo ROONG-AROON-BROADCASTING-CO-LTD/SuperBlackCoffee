@@ -45,15 +45,28 @@ func menuRecipeStatusTx(ctx context.Context, tx *sql.Tx, branchID int64, ingredi
 	status := model.MenuRecipeReady
 	for inventoryItemID, ingredient := range requested {
 		var quantity float64
-		var unit string
-		err := tx.QueryRowContext(ctx, `SELECT quantity,unit FROM inventory_items WHERE id=$1 AND branch_id=$2`, inventoryItemID, branchID).Scan(&quantity, &unit)
+		var unit, category string
+		var expired bool
+		err := tx.QueryRowContext(ctx, `SELECT quantity,unit,category,expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE FROM inventory_items WHERE id=$1 AND branch_id=$2`, inventoryItemID, branchID).Scan(&quantity, &unit, &category, &expired)
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("ไม่พบวัตถุดิบในสาขาที่เลือก")
 		}
 		if err != nil {
 			return "", err
 		}
-		if normalizeInventoryUnit(unit) != ingredient.unit || quantity < ingredient.quantity {
+		if category == "fresh" {
+			var hasTrackedLots bool
+			if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM fresh_inventory_lots WHERE branch_id=$1 AND inventory_item_id=$2)`, branchID, inventoryItemID).Scan(&hasTrackedLots); err != nil {
+				return "", err
+			}
+			if hasTrackedLots {
+				if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(quantity_remaining),0) FROM fresh_inventory_lots WHERE branch_id=$1 AND inventory_item_id=$2 AND status='active' AND quantity_remaining>0 AND expiry_date >= CURRENT_DATE`, branchID, inventoryItemID).Scan(&quantity); err != nil {
+					return "", err
+				}
+				expired = false
+			}
+		}
+		if expired || normalizeInventoryUnit(unit) != ingredient.unit || quantity < ingredient.quantity {
 			status = model.MenuRecipeInsufficientStock
 		}
 	}
@@ -69,7 +82,7 @@ func (h *PlatformHandler) applyMenuRecipeStatuses(ctx context.Context, branchID 
 		SELECT m.id, COALESCE(mi.channel, 'storefront'),
 			CASE
 				WHEN COUNT(mi.inventory_item_id) = 0 THEN 'missing_recipe'
-				WHEN BOOL_AND(i.id IS NOT NULL AND i.branch_id=m.branch_id AND lower(trim(trailing '.' FROM i.unit)) = lower(trim(trailing '.' FROM mi.unit)) AND i.quantity >= mi.quantity) THEN 'ready'
+				WHEN BOOL_AND(i.id IS NOT NULL AND i.branch_id=m.branch_id AND lower(trim(trailing '.' FROM i.unit)) = lower(trim(trailing '.' FROM mi.unit)) AND i.quantity >= mi.quantity AND (i.category='fresh' OR i.expiry_date IS NULL OR i.expiry_date >= CURRENT_DATE) AND (i.category <> 'fresh' OR NOT EXISTS (SELECT 1 FROM fresh_inventory_lots legacy_lot WHERE legacy_lot.branch_id=i.branch_id AND legacy_lot.inventory_item_id=i.id) OR COALESCE((SELECT SUM(lot.quantity_remaining) FROM fresh_inventory_lots lot WHERE lot.branch_id=i.branch_id AND lot.inventory_item_id=i.id AND lot.status='active' AND lot.quantity_remaining>0 AND lot.expiry_date>=CURRENT_DATE),0) >= mi.quantity)) THEN 'ready'
 				ELSE 'insufficient_stock'
 			END
 		FROM menu_items m

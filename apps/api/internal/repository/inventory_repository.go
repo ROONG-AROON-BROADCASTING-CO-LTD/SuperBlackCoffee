@@ -22,7 +22,7 @@ func NewPostgresInventoryRepository(db *sql.DB) InventoryRepository {
 }
 
 func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, kind string) ([]model.InventoryItem, error) {
-	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,COALESCE(c.unit_cost,i.unit_cost),COALESCE(c.image_url,i.image_url),i.expiry_date,i.created_at,i.updated_at FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.branch_id=$1`
+	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,COALESCE(c.unit_cost,i.unit_cost),COALESCE(c.image_url,i.image_url),CASE WHEN COALESCE(c.category,i.category)='fresh' AND fresh_lot.has_lots THEN fresh_lot.next_expiry ELSE i.expiry_date END,i.created_at,i.updated_at FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id LEFT JOIN LATERAL (SELECT COUNT(*) > 0 AS has_lots,MIN(expiry_date) FILTER (WHERE status='active' AND quantity_remaining>0 AND expiry_date>=CURRENT_DATE) AS next_expiry FROM fresh_inventory_lots WHERE branch_id=i.branch_id AND inventory_item_id=i.id) fresh_lot ON COALESCE(c.category,i.category)='fresh' WHERE i.branch_id=$1`
 	args := []any{branchID}
 	if kind != "" {
 		query += ` AND COALESCE(c.kind,i.kind)=$2`

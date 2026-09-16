@@ -11,13 +11,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { IngredientsManagementPage } from '../IngredientsManagementPage';
 import { ProductsManagementPage } from '../ProductsManagementPage';
 import { StockManagementPage } from '../StockManagementPage';
-import { listInventory } from '../../api/inventory';
+import {
+  adjustInventory,
+  listFreshInventoryLots,
+  listInventory,
+  updateInventory,
+} from '../../api/inventory';
 import { createMenuItem, listMenuItems, updateMenuItem } from '../../api/menu';
 import { createStockRequest } from '../../api/stock-requests';
 
 vi.mock('../../api/inventory', () => ({
+  adjustInventory: vi.fn(),
   deleteInventory: vi.fn(),
+  discardFreshInventoryLot: vi.fn(),
+  listFreshInventoryLots: vi.fn(),
   listInventory: vi.fn(),
+  receiveFreshInventoryLot: vi.fn(),
   updateInventory: vi.fn(),
 }));
 vi.mock('../../api/menu', () => ({
@@ -28,6 +37,9 @@ vi.mock('../../api/menu', () => ({
 vi.mock('../../api/stock-requests', () => ({ createStockRequest: vi.fn() }));
 
 const mockedListInventory = vi.mocked(listInventory);
+const mockedAdjustInventory = vi.mocked(adjustInventory);
+const mockedListFreshInventoryLots = vi.mocked(listFreshInventoryLots);
+const mockedUpdateInventory = vi.mocked(updateInventory);
 const mockedListMenuItems = vi.mocked(listMenuItems);
 const mockedCreateMenuItem = vi.mocked(createMenuItem);
 const mockedUpdateMenuItem = vi.mocked(updateMenuItem);
@@ -88,13 +100,46 @@ describe('inventory management pages', () => {
       },
     ]);
     mockedCreateStockRequest.mockResolvedValue({ id: 1, status: 'pending' });
+    mockedAdjustInventory.mockResolvedValue({ id: 1, quantity: 0 });
+    mockedListFreshInventoryLots.mockResolvedValue([]);
+    mockedUpdateInventory.mockResolvedValue({ id: 1 });
     mockedCreateMenuItem.mockResolvedValue({ id: 2 });
     mockedUpdateMenuItem.mockResolvedValue({ id: 1 });
+  });
+
+  it('opens lot management for fresh ingredients before allowing stock changes', async () => {
+    mockedListInventory.mockResolvedValueOnce([
+      { ...ingredient, category: 'fresh', name: 'ผักสลัดทดสอบ' },
+    ]);
+
+    renderPage(
+      <IngredientsManagementPage
+        activeBranch="อยุธยา"
+        ingredientScope="fresh"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'จัดการล็อตของสด' }),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'จัดการล็อตของสด' }));
+
+    await waitFor(() =>
+      expect(mockedListFreshInventoryLots).toHaveBeenCalledWith(
+        1,
+        'SBC-AYA-001',
+      ),
+    );
+    expect(screen.getByText('รับล็อตใหม่')).toBeTruthy();
+    expect(screen.getByText(/ตัดตามล็อตที่หมดอายุก่อน/)).toBeTruthy();
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('shows only permitted product controls and categories for a read-only S franchise', async () => {
@@ -147,6 +192,45 @@ describe('inventory management pages', () => {
           ],
           preparationSteps: '1. สกัดกาแฟ\n2. จัดเสิร์ฟ',
         }),
+        'SBC-AYA-001',
+      ),
+    );
+  });
+
+  it('keeps the card branch when saving a product edit from the all-branches view', async () => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(
+          private readonly callback: (
+            entries: Array<{
+              isIntersecting: boolean;
+              target: Element;
+            }>,
+          ) => void,
+        ) {}
+
+        observe(target: Element) {
+          this.callback([{ isIntersecting: true, target }]);
+        }
+
+        disconnect() {}
+      },
+    );
+    renderPage(<ProductsManagementPage activeBranch="ทุกสาขา" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: 'แก้ไขสินค้า' }),
+      ).toHaveLength(2),
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขสินค้า' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+
+    await waitFor(() =>
+      expect(mockedUpdateMenuItem).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ name: 'อเมริกาโน่ทดสอบ' }),
         'SBC-AYA-001',
       ),
     );
@@ -346,6 +430,97 @@ describe('inventory management pages', () => {
     expect(screen.getByText('31 ธ.ค. 2569')).toBeTruthy();
   });
 
+  it('shows ingredient count badges only on the warning filters', async () => {
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    const all = await screen.findByRole('button', {
+      name: 'ทั้งหมด 1 รายการ',
+    });
+    const lowStock = screen.getByRole('button', {
+      name: 'วัตถุดิบใกล้หมด 1 รายการ',
+    });
+    const expiringSoon = screen.getByRole('button', {
+      name: 'ใกล้หมดอายุ 1 รายการ',
+    });
+
+    expect(all.querySelector('[aria-hidden="true"]')).toBeNull();
+    expect(lowStock.querySelector('[aria-hidden="true"]')?.textContent).toBe(
+      '1',
+    );
+    expect(
+      expiringSoon.querySelector('[aria-hidden="true"]')?.textContent,
+    ).toBe('1');
+  });
+
+  it('renders an ingredient image on the grid card when one was uploaded', async () => {
+    mockedListInventory.mockResolvedValueOnce([
+      { ...ingredient, imageUrl: '/ingredient-photo.png' },
+    ]);
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    expect(
+      (await screen.findByAltText(`รูป${ingredient.name}`)).getAttribute('src'),
+    ).toBe('/ingredient-photo.png');
+  });
+
+  it('keeps the card branch when saving an edit from the all-branches view', async () => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(
+          private readonly callback: (
+            entries: Array<{
+              isIntersecting: boolean;
+              target: Element;
+            }>,
+          ) => void,
+        ) {}
+
+        observe(target: Element) {
+          this.callback([{ isIntersecting: true, target }]);
+        }
+
+        disconnect() {}
+      },
+    );
+    renderPage(<IngredientsManagementPage activeBranch="ทุกสาขา" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'แก้ไขวัตถุดิบ' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+
+    await waitFor(() =>
+      expect(mockedUpdateInventory).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ name: ingredient.name }),
+        'SBC-PLK-001',
+      ),
+    );
+  });
+
+  it('lets an admin discard an expired ingredient while preserving an adjustment record', async () => {
+    mockedListInventory.mockResolvedValue([
+      { ...ingredient, quantity: 3, expiryStatus: 'expired' },
+    ]);
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'ตัดทิ้งวัตถุดิบหมดอายุ' }),
+    );
+    expect(screen.getByText('ตัดทิ้งวัตถุดิบหมดอายุ?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันตัดทิ้ง' }));
+
+    await waitFor(() =>
+      expect(mockedAdjustInventory).toHaveBeenCalledWith(
+        ingredient.id,
+        0,
+        'ตัดทิ้งวัตถุดิบหมดอายุ',
+        'SBC-AYA-001',
+      ),
+    );
+  });
+
   it('separates fresh ingredients into their dedicated page', async () => {
     mockedListInventory.mockResolvedValue([
       { ...ingredient, category: 'fresh', name: 'นมสด' },
@@ -395,6 +570,20 @@ describe('inventory management pages', () => {
       'stock',
       'SBC-AYA-001',
       'postal_equipment',
+    );
+  });
+
+  it('shows stock count badges only on the warning filters', async () => {
+    renderPage(<StockManagementPage activeBranch="อยุธยา" />);
+
+    const all = await screen.findByRole('button', {
+      name: 'ทั้งหมด 1 รายการ',
+    });
+    const lowStock = screen.getByRole('button', { name: 'ใกล้หมด 1 รายการ' });
+
+    expect(all.querySelector('[aria-hidden="true"]')).toBeNull();
+    expect(lowStock.querySelector('[aria-hidden="true"]')?.textContent).toBe(
+      '1',
     );
   });
 

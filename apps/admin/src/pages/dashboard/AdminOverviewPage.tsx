@@ -20,7 +20,6 @@ import {
   type Branch,
 } from '@stackbuild/management';
 import { useDashboardSummary } from '../../hooks/useDashboardSummary';
-import { useStockRequests } from '../../hooks/useStockRequests';
 import { AdminOverviewSkeleton } from '../../components/skeletons/AdminOverviewSkeleton';
 import { StockConsumptionTrendCard } from '../../components/dashboard/StockConsumptionTrendCard';
 import type { AdminPage } from '../../routes/adminRoutes';
@@ -74,7 +73,10 @@ const eyebrowSx = {
 const formatCount = (count: number) => count.toLocaleString('th-TH');
 const salesChartWidth = 680;
 const salesChartHeight = 250;
-const salesChartPadding = { top: 20, right: 20, bottom: 42, left: 46 };
+// Reserve enough room for Thai currency labels such as "1,000,000 บาท".
+// SVG clips text outside its viewBox, so the previous narrow Y-axis gutter
+// could cut off the beginning of larger values.
+const salesChartPadding = { top: 20, right: 20, bottom: 42, left: 88 };
 
 type SalesPeriod = 'day' | 'month' | 'year';
 
@@ -197,7 +199,7 @@ function AggregateSalesBarChart({
           y={salesChartPadding.top + 4}
           textAnchor="end"
           fill="#796b62"
-          fontSize="9"
+          fontSize="8"
         >
           {chart.highestSales === 0 ? '0 บาท' : formatCurrency(chart.maxSales)}
         </text>
@@ -221,6 +223,11 @@ function AggregateSalesBarChart({
           />
         ))}
         {chart.points.map((point) => {
+          // The Y-axis already identifies the maximum. Rendering the same
+          // value above its bar would overlap that axis label at the chart top.
+          if (point.sales > 0 && point.sales === chart.highestSales) {
+            return null;
+          }
           const barTop =
             salesChartPadding.top + chart.innerHeight - point.height;
           return (
@@ -230,9 +237,7 @@ function AggregateSalesBarChart({
               y={Math.max(salesChartPadding.top + 12, barTop - 6)}
               textAnchor="middle"
               fill="#805637"
-              fontSize={
-                period === 'year' ? '7' : period === 'month' ? '8' : '8.5'
-              }
+              fontSize="8"
               fontWeight="600"
             >
               {formatCurrency(point.sales)}
@@ -687,7 +692,6 @@ export function AdminOverviewPage({
       ? undefined
       : branchCodeByBranch[selectedBranch];
   const dashboard = useDashboardSummary(selectedBranchCode);
-  const stockRequests = useStockRequests();
   const salesTrend = useQuery({
     queryKey: ['dashboard-sales-trend', salesPeriod],
     queryFn: () => getSalesTrend(salesPeriod),
@@ -715,31 +719,65 @@ export function AdminOverviewPage({
       return entries;
     },
   });
+  const inventoryAttention = useQuery({
+    queryKey: ['overview-inventory-attention'],
+    queryFn: async () =>
+      Promise.all(
+        branches.slice(1).map(async (branch) => ({
+          branch,
+          items: await listInventory(
+            'ingredient',
+            branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>],
+          ),
+        })),
+      ),
+  });
   const sales = dashboard.data?.todaySales ?? 0;
   const stockCuts = dashboard.data?.todayMenuStockCuts ?? 0;
   const stockEntries = dashboard.data?.todayStockEntries ?? 0;
   const isLoading =
     dashboard.isLoading ||
-    stockRequests.isLoading ||
     salesTrend.isLoading ||
     topSellingMenus.isLoading ||
-    branchStock.isLoading;
+    branchStock.isLoading ||
+    inventoryAttention.isLoading;
   const followUps = useMemo(() => {
-    const requests = stockRequests.data ?? [];
-    return {
-      pendingStock: requests.filter((request) => request.status === 'pending')
-        .length,
-      activeStock: requests.filter((request) =>
-        ['approved', 'preparing'].includes(request.status),
-      ).length,
-    };
-  }, [stockRequests.data]);
+    const ingredients = (inventoryAttention.data ?? [])
+      .filter(
+        ({ branch }) =>
+          selectedBranch === 'ทุกสาขา' || branch === selectedBranch,
+      )
+      .flatMap(({ items }) => items);
+    const options = [
+      {
+        title: 'วัตถุดิบใกล้หมดอายุ',
+        detail: 'วางแผนใช้งานก่อนถึงวันหมดอายุ',
+        count: ingredients.filter(
+          (item) => item.expiryStatus === 'expiring_soon',
+        ).length,
+        tone: '#d59a31',
+      },
+      {
+        title: 'วัตถุดิบหมด',
+        detail: 'เติมสต๊อกเพื่อไม่ให้กระทบการขาย',
+        count: ingredients.filter((item) => item.status === 'out').length,
+        tone: '#c73b32',
+      },
+      {
+        title: 'วัตถุดิบใกล้หมด',
+        detail: 'ตรวจสอบและเตรียมเติมสต๊อก',
+        count: ingredients.filter((item) => item.status === 'low').length,
+        tone: '#d59a31',
+      },
+    ];
+    return options.filter((option) => option.count > 0).slice(0, 2);
+  }, [inventoryAttention.data, selectedBranch]);
   const hasError =
     dashboard.isError ||
-    stockRequests.isError ||
     salesTrend.isError ||
     topSellingMenus.isError ||
-    branchStock.isError;
+    branchStock.isError ||
+    inventoryAttention.isError;
   const branchStockRows = (branchStock.data ?? []).filter(
     (branch) =>
       selectedBranch === 'ทุกสาขา' || branch.branch === selectedBranch,
@@ -991,23 +1029,24 @@ export function AdminOverviewPage({
                 <Typography
                   sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
                 >
-                  รายการที่ยังต้องดำเนินการ
+                  จัดลำดับจากความเสี่ยงของวัตถุดิบในสต๊อก
                 </Typography>
                 <Stack spacing={1.25} sx={{ mt: 2.3 }}>
-                  <FollowUpRow
-                    title="คำขอสต๊อกรออนุมัติ"
-                    detail="ตรวจสอบรายการจากสาขา"
-                    count={followUps.pendingStock}
-                    tone="#d59a31"
-                    onClick={() => onNavigate('สต๊อกอุปกรณ์เครื่องดื่ม')}
-                  />
-                  <FollowUpRow
-                    title="คำขอสต๊อกที่กำลังดำเนินการ"
-                    detail="อนุมัติแล้วหรือกำลังจัดเตรียม"
-                    count={followUps.activeStock}
-                    tone="#4c8f70"
-                    onClick={() => onNavigate('สต๊อกอุปกรณ์เครื่องดื่ม')}
-                  />
+                  {followUps.length ? (
+                    followUps.map((followUp) => (
+                      <FollowUpRow
+                        key={followUp.title}
+                        {...followUp}
+                        onClick={() => onNavigate('วัตถุดิบ')}
+                      />
+                    ))
+                  ) : (
+                    <Typography
+                      sx={{ color: 'text.secondary', fontSize: 14, py: 2 }}
+                    >
+                      ไม่มีรายการเร่งด่วนที่ต้องติดตาม
+                    </Typography>
+                  )}
                 </Stack>
               </Box>
             </Card>

@@ -147,9 +147,84 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	claims := middleware.ClaimsFrom(c)
 	for _, inventoryID := range ids {
 		var before float64
-		var name string
-		if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &name); err != nil {
+		var name, category string
+		var expired bool
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name,category,expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &name, &category, &expired); err != nil {
 			c.JSON(400, gin.H{"success": false, "message": "ไม่พบวัตถุดิบในสูตร"})
+			return
+		}
+		if category == "fresh" {
+			var hasTrackedLots bool
+			if err = tx.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM fresh_inventory_lots WHERE branch_id=$1 AND inventory_item_id=$2)`, branchID, inventoryID).Scan(&hasTrackedLots); err != nil {
+				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
+				return
+			}
+			if hasTrackedLots {
+				type freshLotUse struct {
+					id           int64
+					before, used float64
+				}
+				rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT id,quantity_remaining FROM fresh_inventory_lots WHERE branch_id=$1 AND inventory_item_id=$2 AND status='active' AND quantity_remaining>0 AND expiry_date >= CURRENT_DATE ORDER BY expiry_date,received_at,id FOR UPDATE`, branchID, inventoryID)
+				if queryErr != nil {
+					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
+					return
+				}
+				remaining := required[inventoryID]
+				uses := make([]freshLotUse, 0)
+				for rows.Next() && remaining > 0 {
+					var lotID int64
+					var lotBefore float64
+					if err = rows.Scan(&lotID, &lotBefore); err != nil {
+						rows.Close()
+						c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
+						return
+					}
+					used := lotBefore
+					if used > remaining {
+						used = remaining
+					}
+					uses = append(uses, freshLotUse{id: lotID, before: lotBefore, used: used})
+					remaining -= used
+				}
+				if err = rows.Err(); err != nil {
+					rows.Close()
+					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
+					return
+				}
+				rows.Close()
+				if remaining > 0 {
+					c.JSON(400, gin.H{"success": false, "message": "วัตถุดิบของสด " + name + " ที่ยังไม่หมดอายุคงเหลือไม่พอ"})
+					return
+				}
+				after := before - required[inventoryID]
+				if after < 0 {
+					c.JSON(400, gin.H{"success": false, "message": "วัตถุดิบของสด " + name + " คงเหลือไม่พอ"})
+					return
+				}
+				for _, use := range uses {
+					lotAfter := use.before - use.used
+					if _, err = tx.ExecContext(c.Request.Context(), `UPDATE fresh_inventory_lots SET quantity_remaining=$1,updated_at=now() WHERE id=$2`, lotAfter, use.id); err != nil {
+						c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตัดล็อตของสดได้"})
+						return
+					}
+					if err = recordFreshLotMovementTx(c, tx, branchID, use.id, inventoryID, "consumed", -use.used, use.before, lotAfter, input.Note, claims.UserID); err != nil {
+						c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติล็อตของสดได้"})
+						return
+					}
+				}
+				if _, err = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=$1,updated_at=now() WHERE id=$2`, after, inventoryID); err != nil {
+					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตัดสต๊อกได้"})
+					return
+				}
+				if err = recordStockMovementTx(c.Request.Context(), tx, branchID, inventoryID, "menu_consumption", -required[inventoryID], before, after, "stock_menu_consumption", nil, input.Note, claims.UserID); err != nil {
+					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติสต๊อกได้"})
+					return
+				}
+				continue
+			}
+		}
+		if expired {
+			c.JSON(400, gin.H{"success": false, "message": "วัตถุดิบ " + name + " หมดอายุ จึงไม่สามารถใช้ตัดสต๊อกได้"})
 			return
 		}
 		after := before - required[inventoryID]

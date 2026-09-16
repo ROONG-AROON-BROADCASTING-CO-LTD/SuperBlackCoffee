@@ -77,7 +77,11 @@ export function ActionSnackbar({
           )
         }
         action={action}
-        sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
+        sx={{
+          fontFamily: 'Kanit, sans-serif',
+          fontWeight: 500,
+          fontSize: '14px',
+        }}
       >
         {activeNotice?.message}
       </Alert>
