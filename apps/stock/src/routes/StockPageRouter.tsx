@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Box } from '@mui/material';
+import { StockOrderCartDrawer } from '../components/StockOrderCartDrawer';
 import type { InventoryItem, MenuItem, StockMovement } from '../api/stock';
 import { StockPageSkeleton } from '../components/skeletons/StockPageSkeleton';
 import type { StockPage } from '../types/stock';
@@ -16,6 +17,11 @@ const StockCountPage = lazy(() =>
 );
 const StockHistoryPage = lazy(() =>
   import('../pages/StockHistoryPage').then(({ StockHistoryPage: Page }) => ({
+    default: Page,
+  })),
+);
+const StockOrderPage = lazy(() =>
+  import('../pages/StockOrderPage').then(({ StockOrderPage: Page }) => ({
     default: Page,
   })),
 );
@@ -46,6 +52,22 @@ type StockPageRouterProps = {
   cartOpen: boolean;
   onCartOpenChange: (open: boolean) => void;
   onCartItemCountChange: (count: number) => void;
+  cartMode: 'consume' | 'order';
+  onCartModeChange: (mode: 'consume' | 'order') => void;
+  isFranchise: boolean;
+  onCreateStockRequest: (
+    items: Array<{
+      inventoryItemId: number;
+      name: string;
+      quantity: number;
+      unit: string;
+    }>,
+    note: string,
+  ) => Promise<void>;
+  onOpenHistory: () => void;
+  onOrderIngredients: (item: InventoryItem) => void;
+  pendingOrderItem: InventoryItem | null;
+  onPendingOrderItemAdded: () => void;
 };
 
 export function StockPageRouter({
@@ -62,6 +84,14 @@ export function StockPageRouter({
   cartOpen,
   onCartOpenChange,
   onCartItemCountChange,
+  cartMode,
+  onCartModeChange,
+  isFranchise,
+  onCreateStockRequest,
+  onOpenHistory,
+  onOrderIngredients,
+  pendingOrderItem,
+  onPendingOrderItemAdded,
 }: StockPageRouterProps) {
   if (isInitialLoading) return <StockPageSkeleton page={page} />;
 
@@ -74,8 +104,13 @@ export function StockPageRouter({
       loading={false}
       onConsume={onConsume}
       cartOpen={cartOpen}
+      cartMode={cartMode}
       onCartOpenChange={onCartOpenChange}
-      onCartItemCountChange={onCartItemCountChange}
+      onCartItemCountChange={
+        cartMode === 'consume' ? onCartItemCountChange : undefined
+      }
+      onStartStockDeduction={() => onCartModeChange('consume')}
+      onOpenHistory={onOpenHistory}
     />
   );
 
@@ -91,11 +126,25 @@ export function StockPageRouter({
           postalStock={postalStock}
           loading={false}
           onAdjust={onAdjust}
+          onOrderIngredients={onOrderIngredients}
         />
       );
       break;
     case 'history':
       content = <StockHistoryPage movements={movements} />;
+      break;
+    case 'order':
+      content = (
+        <StockOrderPage
+          ingredients={ingredients}
+          drinkStock={drinkStock}
+          postalStock={postalStock}
+          isFranchise={isFranchise}
+          onCreateRequest={onCreateStockRequest}
+          pendingItem={pendingOrderItem}
+          onPendingItemAdded={onPendingOrderItemAdded}
+        />
+      );
       break;
     default:
       break;
@@ -107,6 +156,17 @@ export function StockPageRouter({
         {menuConsumptionPage}
       </Box>
       {content}
+      <StockOrderCartDrawer
+        open={cartOpen && cartMode === 'order'}
+        pendingItem={pendingOrderItem}
+        isFranchise={isFranchise}
+        onOpenChange={onCartOpenChange}
+        onPendingItemAdded={onPendingOrderItemAdded}
+        onItemCountChange={
+          cartMode === 'order' ? onCartItemCountChange : () => undefined
+        }
+        onCreateRequest={onCreateStockRequest}
+      />
     </Suspense>
   );
 }

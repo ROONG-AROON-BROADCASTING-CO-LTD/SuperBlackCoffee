@@ -98,7 +98,7 @@ describe('MenuConsumptionPage', () => {
         ]}
       />,
     );
-    expect(await screen.findByText('ตะกร้าตัดสต๊อก')).toBeTruthy();
+    expect(await screen.findByText('ตัดสต๊อก')).toBeTruthy();
     fireEvent.click(
       screen.getByRole('button', { name: 'ยืนยันตัดวัตถุดิบตามสูตร' }),
     );
@@ -152,7 +152,27 @@ describe('MenuConsumptionPage', () => {
       />,
     );
 
-    expect(await screen.findByText('ตะกร้าตัดสต๊อก')).toBeTruthy();
+    expect(await screen.findByText('ตะกร้า')).toBeTruthy();
+  });
+
+  it('dismisses the note-field keyboard before closing the cart', () => {
+    const onCartOpenChange = vi.fn();
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={vi.fn().mockResolvedValue(undefined)}
+        menus={[]}
+        cartOpen
+        onCartOpenChange={onCartOpenChange}
+      />,
+    );
+
+    const note = screen.getByLabelText('หมายเหตุ');
+    note.focus();
+    fireEvent.click(screen.getByRole('button', { name: 'ปิด' }));
+
+    expect(document.activeElement).not.toBe(note);
+    expect(onCartOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('offers Excel import only and does not render an image-upload control', () => {
@@ -182,6 +202,23 @@ describe('MenuConsumptionPage', () => {
     expect(
       screen.queryByText('เลือกจำนวนที่ขาย ระบบจะตัดวัตถุดิบตามสูตรอัตโนมัติ'),
     ).toBeNull();
+  });
+
+  it('opens the stock history from the control on the right side of the sales panel', () => {
+    const onOpenHistory = vi.fn();
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={vi.fn().mockResolvedValue(undefined)}
+        onOpenHistory={onOpenHistory}
+        menus={[]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'เปิดประวัติที่บันทึก' }),
+    );
+    expect(onOpenHistory).toHaveBeenCalledOnce();
   });
 
   it('keeps the chosen menu when stock consumption fails', async () => {

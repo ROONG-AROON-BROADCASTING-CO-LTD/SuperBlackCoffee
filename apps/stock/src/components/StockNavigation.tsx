@@ -11,9 +11,9 @@ import { Box, Button } from '@mui/material';
 import {
   BoxesIcon,
   CartIcon,
-  HistoryIcon,
   LogoutIcon,
   ReceiptTextIcon,
+  SendIcon,
 } from '@stackbuild/ui';
 import type { StockPage } from '../types/stock';
 
@@ -33,16 +33,16 @@ export const stockNavigation: Array<{
   },
   {
     page: 'count',
-    label: 'ตรวจนับ / ตัดสต๊อก',
-    mobileLabel: 'ตัดสต๊อก',
+    label: 'วัตถุดิบ',
+    mobileLabel: 'วัตถุดิบ',
     icon: <BoxesIcon />,
     group: 'จัดการสต๊อก',
   },
   {
-    page: 'history',
-    label: 'ประวัติที่บันทึก',
-    mobileLabel: 'ประวัติ',
-    icon: <HistoryIcon />,
+    page: 'order',
+    label: 'สั่งซื้อสินค้า',
+    mobileLabel: 'สั่งซื้อ',
+    icon: <SendIcon />,
     group: 'จัดการสต๊อก',
   },
 ];
@@ -101,16 +101,20 @@ export function StockMobileNavigation({
   }, []);
 
   useEffect(() => {
+    // Keep the cart Drawer clearance stable while the keyboard hides this bar.
+    // Changing it to 0px on focus made the Drawer resize twice: once as the
+    // keyboard opened and again while it was closing, which looked like a
+    // visible jump/flicker on mobile.
     document.documentElement.style.setProperty(
       '--stock-mobile-nav-height',
-      hasTextInputFocus ? '0px' : '82px',
+      '82px',
     );
     return () => {
       document.documentElement.style.removeProperty(
         '--stock-mobile-nav-height',
       );
     };
-  }, [hasTextInputFocus]);
+  }, []);
 
   const handlePageClick = (nextPage: StockPage) => {
     setAnimatedPage(null);
@@ -191,7 +195,7 @@ export function StockMobileNavigation({
         </Button>
       ))}
       <Button
-        aria-label={cartOpen ? 'ปิดตะกร้าตัดสต๊อก' : 'เปิดตะกร้าตัดสต๊อก'}
+        aria-label={cartOpen ? 'ปิดตะกร้า' : 'เปิดตะกร้า'}
         onClick={onToggleCart}
         sx={{
           gridColumn: 3,

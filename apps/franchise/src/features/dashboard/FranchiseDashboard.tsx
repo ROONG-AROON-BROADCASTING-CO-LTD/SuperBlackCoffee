@@ -5,6 +5,7 @@ import { EmployeesSkeleton } from '@stackbuild/management/skeletons/employees';
 import { IngredientsSkeleton } from '@stackbuild/management/skeletons/ingredients';
 import { ProductsSkeleton } from '@stackbuild/management/skeletons/products';
 import { StockSkeleton } from '@stackbuild/management/skeletons/stock';
+import { PromotionsSkeleton } from '@stackbuild/management/skeletons/promotions';
 import { EmployeesManagementPage } from '@stackbuild/management/pages/employees';
 import { IngredientsManagementPage } from '@stackbuild/management/pages/ingredients';
 import { ProductsManagementPage } from '@stackbuild/management/pages/products';
@@ -53,6 +54,11 @@ const FranchiseOverviewPage = lazy(() =>
     default: module.FranchiseOverviewPage,
   })),
 );
+const PromotionsManagementPage = lazy(() =>
+  import('@stackbuild/management/pages/promotions').then((module) => ({
+    default: module.PromotionsManagementPage,
+  })),
+);
 
 function FranchisePageSkeleton({ page }: { page: string }) {
   const skeleton =
@@ -62,6 +68,8 @@ function FranchisePageSkeleton({ page }: { page: string }) {
       <IngredientsSkeleton readOnly allowOrdering />
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton readOnly />
+    ) : page === 'โปรโมชั่น' ? (
+      <PromotionsSkeleton readOnly showHeader branchName={franchiseBranch} />
     ) : page === 'สต๊อกอุปกรณ์เครื่องดื่ม' ||
       page === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
       <StockSkeleton readOnly />
@@ -138,6 +146,11 @@ export function FranchiseDashboard({
               activePage === 'วัตถุดิบของสด' ? 'fresh' : 'regular'
             }
             onRequestCreated={() => navigate('คำขอวัตถุดิบ')}
+          />
+        ) : activePage === 'โปรโมชั่น' ? (
+          <PromotionsManagementPage
+            mode="franchise"
+            branchName={franchiseBranch}
           />
         ) : activePage === 'คำขอวัตถุดิบ' ? (
           <FranchiseIngredientRequestsPage />

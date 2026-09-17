@@ -29,6 +29,17 @@ func freshLotDate(value string) (time.Time, error) {
 	return time.Parse("2006-01-02", strings.TrimSpace(value))
 }
 
+func freshLotExpiryStatus(expiryDate, now time.Time) string {
+	today := now.UTC().Truncate(24 * time.Hour)
+	if expiryDate.Before(today) {
+		return "expired"
+	}
+	if !expiryDate.After(today.AddDate(0, 0, 3)) {
+		return "expiring_soon"
+	}
+	return "ready"
+}
+
 func recordFreshLotMovementTx(ctx *gin.Context, tx *sql.Tx, branchID, lotID, inventoryItemID int64, movementType string, delta, before, after float64, note string, actorID int64) error {
 	_, err := tx.ExecContext(ctx.Request.Context(), `INSERT INTO fresh_inventory_lot_movements(branch_id,lot_id,inventory_item_id,movement_type,quantity_delta,quantity_before,quantity_after,note,actor_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, branchID, lotID, inventoryItemID, movementType, delta, before, after, note, actorID)
 	return err
@@ -63,13 +74,7 @@ func (h *PlatformHandler) ListFreshInventoryLots(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
 			return
 		}
-		expiryStatus := "ready"
-		today := time.Now().UTC().Truncate(24 * time.Hour)
-		if expiryDate.Before(today) {
-			expiryStatus = "expired"
-		} else if !expiryDate.After(today.AddDate(0, 0, 3)) {
-			expiryStatus = "expiring_soon"
-		}
+		expiryStatus := freshLotExpiryStatus(expiryDate, time.Now())
 		result = append(result, gin.H{"id": id, "lotNumber": lotNumber, "receivedAt": receivedAt.Format("2006-01-02"), "expiryDate": expiryDate.Format("2006-01-02"), "quantityReceived": quantityReceived, "quantityRemaining": quantityRemaining, "unitCost": unitCost, "status": status, "expiryStatus": expiryStatus, "discardReason": discardReason, "createdAt": createdAt})
 	}
 	if err := rows.Err(); err != nil {

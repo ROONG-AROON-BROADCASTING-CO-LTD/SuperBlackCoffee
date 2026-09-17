@@ -25,6 +25,16 @@ describe('useAttendanceClock', () => {
     expect(result.current).toBe(formatClock(new Date('2026-09-11T08:00:01Z')));
   });
 
+  it('cleans up its interval when the attendance page unmounts', () => {
+    vi.useFakeTimers();
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval');
+    const { unmount } = renderHook(() => useAttendanceClock());
+
+    unmount();
+
+    expect(clearIntervalSpy).toHaveBeenCalledOnce();
+  });
+
   it('formats today with the Thai weekday and date contract', () => {
     vi.useFakeTimers();
     const today = new Date('2026-09-11T08:00:00Z');

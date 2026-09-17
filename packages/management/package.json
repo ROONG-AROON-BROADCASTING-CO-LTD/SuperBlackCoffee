@@ -11,10 +11,12 @@
     "./pages/stock": "./src/pages/StockManagementPage.tsx",
     "./pages/attendance": "./src/pages/AttendanceManagementPage.tsx",
     "./pages/leave-requests": "./src/pages/LeaveRequestsManagementPage.tsx",
+    "./pages/promotions": "./src/pages/PromotionsManagementPage.tsx",
     "./skeletons/employees": "./src/components/skeletons/EmployeesSkeleton.tsx",
     "./skeletons/ingredients": "./src/components/skeletons/IngredientsSkeleton.tsx",
     "./skeletons/products": "./src/components/skeletons/ProductsSkeleton.tsx",
-    "./skeletons/stock": "./src/components/skeletons/StockSkeleton.tsx"
+    "./skeletons/stock": "./src/components/skeletons/StockSkeleton.tsx",
+    "./skeletons/promotions": "./src/components/skeletons/PromotionsSkeleton.tsx"
   },
   "dependencies": {
     "@emotion/react": "latest",

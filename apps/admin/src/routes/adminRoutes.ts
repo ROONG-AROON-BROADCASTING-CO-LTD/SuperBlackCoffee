@@ -1,6 +1,7 @@
 export const adminPagePaths = {
   ภาพรวม: '/',
   คำสั่งซื้อ: '/orders',
+  โปรโมชั่น: '/promotions',
   ประวัติการทำรายการ: '/audit',
   เอกสารส่วนกลาง: '/documents',
   เมนูและสินค้า: '/products',

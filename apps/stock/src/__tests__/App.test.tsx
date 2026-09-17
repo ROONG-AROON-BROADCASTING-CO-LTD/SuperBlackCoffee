@@ -50,6 +50,7 @@ vi.mock('../api/stock', () => ({
       role: 'cashier',
       branchId: 4,
       branchName: 'อยุธยา',
+      isFranchise: false,
     },
   }),
 }));
@@ -80,13 +81,40 @@ vi.mock('../routes/StockPageRouter', () => ({
   StockPageRouter: ({
     page,
     cartOpen,
+    onOrderIngredients,
   }: {
     page: string;
     cartOpen: boolean;
+    onOrderIngredients: (item: {
+      id: number;
+      name: string;
+      category: string;
+      kind: 'ingredient';
+      quantity: number;
+      unit: string;
+      reorderLevel: number;
+      status: 'low';
+    }) => void;
   }) => (
     <div>
       <div data-testid="stock-page">{page}</div>
       <output data-testid="cart-open">{String(cartOpen)}</output>
+      <button
+        onClick={() =>
+          onOrderIngredients({
+            id: 99,
+            name: 'เมล็ดกาแฟ',
+            category: 'coffee',
+            kind: 'ingredient',
+            quantity: 1,
+            unit: 'ถุง',
+            reorderLevel: 3,
+            status: 'low',
+          })
+        }
+      >
+        add-order-ingredient
+      </button>
     </div>
   ),
 }));
@@ -132,6 +160,13 @@ describe('Stock App session and loading', () => {
     render(<App />);
 
     expect((await screen.findByTestId('stock-page')).textContent).toBe('sales');
+  });
+
+  it('opens the product-order page from its dedicated route', async () => {
+    window.history.replaceState(null, '', '/order');
+    render(<App />);
+
+    expect((await screen.findByTestId('stock-page')).textContent).toBe('order');
   });
 
   it.each([401, 403])(
@@ -202,5 +237,18 @@ describe('Stock App session and loading', () => {
       expect(screen.getByTestId('cart-open').textContent).toBe('false'),
     );
     expect(screen.getByTestId('stock-page').textContent).toBe('history');
+  });
+
+  it('adds an ingredient to the order cart without popping the cart open', async () => {
+    window.history.replaceState(null, '', '/count');
+    render(<App />);
+
+    await screen.findByTestId('stock-page');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'add-order-ingredient' }),
+    );
+
+    expect(screen.getByTestId('cart-open').textContent).toBe('false');
+    expect(window.location.pathname).toBe('/count');
   });
 });

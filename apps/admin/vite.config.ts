@@ -20,6 +20,10 @@ export default defineConfig({
         dirname,
         '../../packages/management/src/pages/LeaveRequestsManagementPage.tsx',
       ),
+      '@stackbuild/management/pages/promotions': path.resolve(
+        dirname,
+        '../../packages/management/src/pages/PromotionsManagementPage.tsx',
+      ),
       '@stackbuild/management': path.resolve(
         dirname,
         '../../packages/management/src/index.ts',

@@ -7,6 +7,7 @@ export type StockSession = {
     role: 'cashier' | 'branch_manager';
     branchId: number;
     branchName: string;
+    isFranchise: boolean;
   };
 };
 
@@ -74,6 +75,19 @@ export const adjustInventory = (id: number, quantity: number, note: string) =>
   });
 export const listMyStockMovements = () =>
   request<StockMovement[]>('/stock-movements?limit=100');
+export const createStockRequest = (data: {
+  note: string;
+  items: Array<{
+    inventoryItemId: number;
+    name: string;
+    quantity: number;
+    unit: string;
+  }>;
+}) =>
+  request<{ id: number; status: 'pending' }>('/stock-requests', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 export const listMenuItems = () => request<MenuItem[]>('/menu-items');
 export const consumeStockFromMenus = (
   items: Array<{

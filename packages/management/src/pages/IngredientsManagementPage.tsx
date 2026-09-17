@@ -24,13 +24,13 @@ import {
   DashboardMain,
   CartIcon,
   DateField,
+  FilterPill,
   INGREDIENT_STATUS_BADGES,
   INVENTORY_UNIT_OPTIONS,
   inventoryUnitSelectSlotProps,
   PlusIcon,
   normalizeInventoryUnit,
   SearchField,
-  selectionPillSx,
   XIcon,
   type IngredientStatus,
   type CartIconHandle,
@@ -690,45 +690,15 @@ export function IngredientsManagementPage({
       </Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
         {filters.map((item) => (
-          <Button
+          <FilterPill
             key={item}
-            size="small"
-            variant={filter === item ? 'contained' : 'outlined'}
             onClick={() => setFilter(item)}
+            selected={filter === item}
+            count={item === 'ทั้งหมด' ? undefined : filterCounts[item]}
             aria-label={`${item} ${filterCounts[item]} รายการ`}
-            sx={{
-              ...selectionPillSx(filter === item),
-              position: 'relative',
-              overflow: 'visible',
-            }}
           >
             {item}
-            {item !== 'ทั้งหมด' && filterCounts[item] > 0 ? (
-              <Box
-                component="span"
-                aria-hidden="true"
-                sx={{
-                  position: 'absolute',
-                  top: -7,
-                  right: -7,
-                  display: 'grid',
-                  placeItems: 'center',
-                  minWidth: 24,
-                  height: 24,
-                  px: 0.5,
-                  borderRadius: '999px',
-                  bgcolor: '#df292d',
-                  color: '#fff',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  lineHeight: 1,
-                }}
-              >
-                {filterCounts[item]}
-              </Box>
-            ) : null}
-          </Button>
+          </FilterPill>
         ))}
       </Box>
       {loadError ? <DataLoadNotice /> : null}

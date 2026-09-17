@@ -1,5 +1,6 @@
 export const franchisePagePaths = {
   ภาพรวม: '/',
+  โปรโมชั่น: '/promotions',
   คำขอวัตถุดิบ: '/ingredient-requests',
   'แจ้งซ่อม / งานช่าง': '/maintenance',
   เมนูและสินค้า: '/products',

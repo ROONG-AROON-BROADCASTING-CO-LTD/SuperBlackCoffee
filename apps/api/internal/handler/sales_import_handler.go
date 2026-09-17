@@ -409,6 +409,21 @@ func (h *PlatformHandler) SalesTrend(c *gin.Context) {
 }
 
 func (h *PlatformHandler) salesBranchID(c *gin.Context) (any, bool) {
+	claims := middleware.ClaimsFrom(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบเซสชัน"})
+		return nil, false
+	}
+	// Only platform admins can aggregate or choose a branch for sales reports.
+	// Staff and franchise sessions must always stay within the branch signed
+	// into their session, even when a caller supplies a branchCode query.
+	if claims.Role != "admin" {
+		if claims.BranchID == nil {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีนี้ไม่มีสิทธิ์เข้าถึงสาขา"})
+			return nil, false
+		}
+		return *claims.BranchID, true
+	}
 	branchCode := strings.TrimSpace(c.Query("branchCode"))
 	if branchCode == "" {
 		return nil, true

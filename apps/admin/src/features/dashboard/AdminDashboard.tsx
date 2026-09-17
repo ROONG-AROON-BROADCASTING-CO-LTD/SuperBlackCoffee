@@ -6,6 +6,7 @@ import {
   LeaveRequestsSkeleton,
   IngredientsSkeleton,
   ProductsSkeleton,
+  PromotionsSkeleton,
   StockSkeleton,
   CompanyDocumentsPage,
   BranchesSidebar,
@@ -69,6 +70,11 @@ const AdminOverviewPage = lazy(() =>
     default: module.AdminOverviewPage,
   })),
 );
+const PromotionsManagementPage = lazy(() =>
+  import('@stackbuild/management/pages/promotions').then((module) => ({
+    default: module.PromotionsManagementPage,
+  })),
+);
 
 function DashboardPageSkeleton({ page }: { page: AdminPage }) {
   const skeleton =
@@ -78,6 +84,8 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <AdminBranchesSkeleton />
     ) : page === 'คำสั่งซื้อ' ? (
       <AdminOrdersSkeleton />
+    ) : page === 'โปรโมชั่น' ? (
+      <PromotionsSkeleton showHeader />
     ) : page === 'ประวัติการทำรายการ' ? (
       <AdminAuditSkeleton />
     ) : page === 'สต๊อกอุปกรณ์เครื่องดื่ม' ||
@@ -271,6 +279,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
         );
       }}
     />
+  ) : activePage === 'โปรโมชั่น' ? (
+    <PromotionsManagementPage mode="admin" />
   ) : activePage === 'ประวัติการทำรายการ' ? (
     <AdminAuditPage />
   ) : activePage === 'เอกสารส่วนกลาง' ? (

@@ -3,6 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { StockHistoryPage } from '../StockHistoryPage';
 
 describe('StockHistoryPage', () => {
+  it('shows a clear empty state before any stock movements exist', () => {
+    render(<StockHistoryPage movements={[]} />);
+
+    expect(
+      screen.getByText('ยังไม่มีการตรวจนับหรือปรับยอดจากบัญชีนี้'),
+    ).toBeTruthy();
+  });
+
   it('shows a stock movement as a clear before-and-after summary', () => {
     render(
       <StockHistoryPage

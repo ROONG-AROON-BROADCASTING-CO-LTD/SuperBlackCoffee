@@ -60,6 +60,16 @@ describe('Franchise App session', () => {
     expect(await screen.findByText('franchise-login')).toBeTruthy();
   });
 
+  it('defaults an older franchise cookie without a plan to the starter plan', async () => {
+    vi.mocked(restoreSession).mockResolvedValueOnce({
+      user: { id: 8, role: 'franchise_owner' },
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('franchise-plan-S')).toBeTruthy();
+  });
+
   it('shows login when restoring the franchise session fails', async () => {
     vi.mocked(restoreSession).mockRejectedValueOnce(new Error('เซสชันหมดอายุ'));
 

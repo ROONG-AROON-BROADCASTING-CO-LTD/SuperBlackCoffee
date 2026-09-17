@@ -516,7 +516,7 @@ func TestAdminRouteRejectsNonAdminRole(t *testing.T) {
 	}
 }
 
-func TestStockRequestsRejectCashierRole(t *testing.T) {
+func TestStockRequestListingRejectsCashierRole(t *testing.T) {
 	r := New(nil, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/stock-requests", nil)
 	req.Header.Set("Authorization", "Bearer "+testToken(t, "cashier"))
@@ -524,6 +524,22 @@ func TestStockRequestsRejectCashierRole(t *testing.T) {
 	r.ServeHTTP(res, req)
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusForbidden)
+	}
+}
+
+func TestStockRequestCreationAllowsCashierStockSession(t *testing.T) {
+	r := New(nil, nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/stock-requests", nil)
+	req.Header.Set("X-SBC-Session-Role", "stock")
+	req.AddCookie(&http.Cookie{Name: "sbc_stock_session", Value: testToken(t, "cashier")})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+
+	// A nil database makes the handler unavailable, but reaching this response
+	// proves the stock route accepts the dedicated cashier session instead of
+	// rejecting it at the authorization boundary.
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
 	}
 }
 

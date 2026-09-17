@@ -5,6 +5,7 @@ export { StockManagementPage } from './pages/StockManagementPage';
 export { AttendanceManagementPage } from './pages/AttendanceManagementPage';
 export { LeaveRequestsManagementPage } from './pages/LeaveRequestsManagementPage';
 export { CompanyDocumentsPage } from './pages/CompanyDocumentsPage';
+export { PromotionsManagementPage } from './pages/PromotionsManagementPage';
 export {
   BranchesSidebar,
   branchCodeByBranch,
@@ -15,6 +16,7 @@ export { EmployeesSkeleton } from './components/skeletons/EmployeesSkeleton';
 export { IngredientsSkeleton } from './components/skeletons/IngredientsSkeleton';
 export { ProductsSkeleton } from './components/skeletons/ProductsSkeleton';
 export { StockSkeleton } from './components/skeletons/StockSkeleton';
+export { PromotionsSkeleton } from './components/skeletons/PromotionsSkeleton';
 export { AttendanceSkeleton } from './components/skeletons/AttendanceSkeleton';
 export { LeaveRequestsSkeleton } from './components/skeletons/LeaveRequestsSkeleton';
 export { AutoRetrySnackbar } from './components/AutoRetrySnackbar';

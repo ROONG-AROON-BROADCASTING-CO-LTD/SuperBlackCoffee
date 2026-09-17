@@ -37,6 +37,10 @@ export default defineConfig({
         dirname,
         '../../packages/management/src/pages/LeaveRequestsManagementPage.tsx',
       ),
+      '@stackbuild/management/pages/promotions': path.resolve(
+        dirname,
+        '../../packages/management/src/pages/PromotionsManagementPage.tsx',
+      ),
       '@stackbuild/management/skeletons/employees': path.resolve(
         dirname,
         '../../packages/management/src/components/skeletons/EmployeesSkeleton.tsx',
@@ -52,6 +56,10 @@ export default defineConfig({
       '@stackbuild/management/skeletons/stock': path.resolve(
         dirname,
         '../../packages/management/src/components/skeletons/StockSkeleton.tsx',
+      ),
+      '@stackbuild/management/skeletons/promotions': path.resolve(
+        dirname,
+        '../../packages/management/src/components/skeletons/PromotionsSkeleton.tsx',
       ),
       '@stackbuild/management': path.resolve(
         dirname,

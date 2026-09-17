@@ -37,6 +37,11 @@ vi.mock('../components/AttendanceNavigation', () => ({
 vi.mock('../hooks/useAttendanceClock', () => ({
   useAttendanceClock: () => '08:00',
 }));
+vi.mock('../components/AutoRetrySnackbar', () => ({
+  AutoRetrySnackbar: ({ open }: { open: boolean }) => (
+    <output data-testid="attendance-retry-open">{String(open)}</output>
+  ),
+}));
 vi.mock('../api/attendance', () => ({
   getAttendanceStatus: vi.fn().mockResolvedValue({
     checkedIn: false,
@@ -317,5 +322,38 @@ describe('Attendance App session', () => {
     expect((await screen.findByTestId('attendance-page')).textContent).toBe(
       'history',
     );
+  });
+
+  it('keeps the session and reloads attendance data when the connection returns', async () => {
+    vi.mocked(getAttendanceStatus)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({
+        date: '2026-09-08',
+        checkedIn: false,
+        checkInAt: null,
+        checkOutAt: null,
+        shiftStatus: 'scheduled',
+        canRecordAttendance: true,
+      });
+
+    render(<App />);
+    await screen.findByText('attendance-router');
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-retry-open').textContent).toBe(
+        'true',
+      ),
+    );
+
+    fireEvent(window, new Event('online'));
+
+    await waitFor(() => {
+      expect(getAttendanceStatus).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId('attendance-retry-open').textContent).toBe(
+        'false',
+      );
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      );
+    });
   });
 });

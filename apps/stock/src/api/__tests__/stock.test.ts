@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adjustInventory, listMenuItems, listMyStockMovements } from '../stock';
+import {
+  adjustInventory,
+  createStockRequest,
+  listInventory,
+  listMenuItems,
+  listMyStockMovements,
+} from '../stock';
 
 describe('stock mutation API contracts', () => {
   afterEach(() => vi.restoreAllMocks());
@@ -56,5 +62,71 @@ describe('stock mutation API contracts', () => {
       expect.stringContaining('/menu-items'),
       expect.objectContaining({ credentials: 'include' }),
     );
+  });
+
+  it('loads a stock category without allowing the client to select another branch', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: [] }), {
+        status: 200,
+      }),
+    );
+
+    await expect(listInventory('stock', 'postal_equipment')).resolves.toEqual(
+      [],
+    );
+
+    const [url, options] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain(
+      '/inventory?kind=stock&stockCategory=postal_equipment',
+    );
+    expect(String(url)).not.toContain('branch');
+    expect(new Headers(options?.headers).get('X-SBC-Session-Role')).toBe(
+      'stock',
+    );
+  });
+
+  it('submits an order request without letting stock staff choose another branch or destination', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { id: 15, status: 'pending' },
+        }),
+        { status: 201 },
+      ),
+    );
+
+    await expect(
+      createStockRequest({
+        note: 'ขอเติมสินค้าเข้าสต๊อก',
+        items: [
+          {
+            inventoryItemId: 8,
+            name: 'นมสด',
+            quantity: 2,
+            unit: 'กล่อง',
+          },
+        ],
+      }),
+    ).resolves.toEqual({ id: 15, status: 'pending' });
+
+    const [url, options] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/stock-requests');
+    expect(options?.method).toBe('POST');
+    expect(options?.body).toBe(
+      JSON.stringify({
+        note: 'ขอเติมสินค้าเข้าสต๊อก',
+        items: [
+          {
+            inventoryItemId: 8,
+            name: 'นมสด',
+            quantity: 2,
+            unit: 'กล่อง',
+          },
+        ],
+      }),
+    );
+    expect(String(options?.body)).not.toContain('branchId');
+    expect(String(options?.body)).not.toContain('destination');
   });
 });

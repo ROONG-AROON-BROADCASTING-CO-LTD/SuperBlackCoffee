@@ -75,7 +75,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.POST("/fresh-inventory-lots/:id/discard", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.DiscardFreshInventoryLot)
 	protected.DELETE("/inventory/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.DeleteInventory)
 	protected.GET("/stock-movements", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.ListStockMovements)
-	protected.POST("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.CreateStockRequest)
+	protected.POST("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.CreateStockRequest)
 	protected.GET("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.ListStockRequests)
 	protected.GET("/franchise/maintenance-tickets", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.ListFranchiseMaintenanceTickets)
 	protected.POST("/franchise/maintenance-tickets", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.CreateFranchiseMaintenanceTicket)

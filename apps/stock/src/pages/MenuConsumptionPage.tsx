@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Chip,
+  Divider,
   Drawer,
   Paper,
   Stack,
@@ -14,6 +15,8 @@ import {
 import {
   ActionSnackbar,
   CartIcon,
+  HistoryIcon,
+  XIcon,
   coffeeIngredientsImage,
   SearchField,
   selectionPillSx,
@@ -40,8 +43,11 @@ type MenuConsumptionPageProps = {
     channel: 'storefront' | 'lineman',
   ) => Promise<void>;
   cartOpen?: boolean;
+  cartMode?: 'consume' | 'order';
   onCartOpenChange?: (open: boolean) => void;
   onCartItemCountChange?: (count: number) => void;
+  onStartStockDeduction?: () => void;
+  onOpenHistory?: () => void;
 };
 
 const cartKey = (menuItemId: number, channel: SalesChannel) =>
@@ -50,14 +56,26 @@ const cartKey = (menuItemId: number, channel: SalesChannel) =>
 const channelLabel = (channel: SalesChannel) =>
   channel === 'lineman' ? 'LINE MAN' : 'หน้าร้าน';
 
+function dismissFocusedTextControl() {
+  const activeElement = document.activeElement;
+  if (
+    activeElement instanceof HTMLInputElement ||
+    activeElement instanceof HTMLTextAreaElement
+  )
+    activeElement.blur();
+}
+
 export function MenuConsumptionPage({
   menus,
   onRefreshMenus,
   loading,
   onConsume,
   cartOpen = false,
+  cartMode = 'consume',
   onCartOpenChange,
   onCartItemCountChange,
+  onStartStockDeduction,
+  onOpenHistory,
 }: MenuConsumptionPageProps) {
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -103,8 +121,12 @@ export function MenuConsumptionPage({
     onCartItemCountChange?.(selectedQuantity);
   }, [onCartItemCountChange, selectedQuantity]);
   useEffect(() => () => onCartItemCountChange?.(0), [onCartItemCountChange]);
-  const setCartVisibility = (open: boolean) => onCartOpenChange?.(open);
-  const change = (id: number, amount: number, itemChannel = channel) =>
+  const setCartVisibility = (open: boolean) => {
+    if (!open) dismissFocusedTextControl();
+    onCartOpenChange?.(open);
+  };
+  const change = (id: number, amount: number, itemChannel = channel) => {
+    onStartStockDeduction?.();
     setCart((current) => ({
       ...current,
       [cartKey(id, itemChannel)]: Math.max(
@@ -112,6 +134,7 @@ export function MenuConsumptionPage({
         (current[cartKey(id, itemChannel)] ?? 0) + amount,
       ),
     }));
+  };
   const replaceCart = (sales: WorkbookSale[]) =>
     setCart(
       Object.fromEntries(
@@ -225,19 +248,35 @@ export function MenuConsumptionPage({
                 LINE MAN
               </Button>
             </Stack>
-            <Button
-              aria-label="เปิดตะกร้าตัดสต๊อก"
-              onClick={() => setCartVisibility(true)}
-              variant="outlined"
-              startIcon={<CartIcon size={20} />}
-              sx={{
-                display: { xs: 'none', md: 'inline-flex' },
-                borderColor: '#5f4030',
-                color: '#5f4030',
-              }}
-            >
-              ตะกร้า ({selectedQuantity})
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                aria-label="เปิดประวัติที่บันทึก"
+                onClick={onOpenHistory}
+                variant="outlined"
+                startIcon={<HistoryIcon size={18} />}
+                sx={{
+                  minWidth: 0,
+                  borderColor: '#5f4030',
+                  color: '#5f4030',
+                  px: { xs: 1, sm: 1.5 },
+                }}
+              >
+                ประวัติ
+              </Button>
+              <Button
+                aria-label="เปิดตะกร้าตัดสต๊อก"
+                onClick={() => setCartVisibility(true)}
+                variant="outlined"
+                startIcon={<CartIcon size={20} />}
+                sx={{
+                  display: { xs: 'none', md: 'inline-flex' },
+                  borderColor: '#5f4030',
+                  color: '#5f4030',
+                }}
+              >
+                ตะกร้า ({selectedQuantity})
+              </Button>
+            </Stack>
           </Stack>
           <SearchField
             fullWidth
@@ -475,18 +514,22 @@ export function MenuConsumptionPage({
       </Stack>
       <Drawer
         anchor="bottom"
-        open={cartOpen}
+        open={cartOpen && cartMode === 'consume'}
         onClose={() => setCartVisibility(false)}
+        ModalProps={{
+          disableAutoFocus: true,
+          disableRestoreFocus: true,
+        }}
         // Match the Admin add-ingredient drawer: its longer slide and matching
         // backdrop fade feel deliberate instead of snapping into place.
         transitionDuration={{ enter: 360, exit: 280 }}
         slotProps={{
           paper: {
             sx: {
-              maxWidth: { xs: 720, lg: 'none' },
-              mx: 'auto',
-              left: { lg: '230px' },
-              width: { xs: '100%', lg: 'calc(100% - 230px)' },
+              maxWidth: { xs: 720, md: 'none' },
+              mx: { xs: 'auto', md: 0 },
+              left: { md: '280px' },
+              width: { xs: '100%', md: 'calc(100% - 304px)' },
               // Sit above the mobile navigation; it must never cover it.
               bottom: {
                 xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
@@ -495,22 +538,46 @@ export function MenuConsumptionPage({
               },
               height: {
                 xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                md: 'auto',
-                lg: 'calc(100dvh - 72px)',
+                md: 'calc(100dvh - 72px)',
               },
               maxHeight: {
                 xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                md: '82dvh',
-                lg: 'calc(100dvh - 72px)',
+                md: 'calc(100dvh - 72px)',
               },
-              top: { lg: 'auto' },
-              borderRadius: { xs: 0, lg: '24px 24px 0 0' },
-              p: { xs: 2, sm: 3 },
+              top: { md: 'auto' },
+              overflowY: { md: 'auto' },
+              borderRadius: { xs: 0, md: '22px 22px 0 0' },
+              p: { xs: 2, sm: 3, md: 0 },
+              px: { md: 4 },
+              pt: { md: 1.5 },
+              pb: { md: 3.5 },
               bgcolor: '#fffaf7',
+              // The visual viewport becomes shorter while a phone keyboard is
+              // open. Fill the navigation gap so the sales grid never peeks
+              // through between the sheet and keyboard. Tablet layout is kept
+              // unchanged.
+              '@media (max-width: 599.95px)': {
+                '&:has(textarea:focus)': {
+                  bottom: 0,
+                  height: '100dvh',
+                  maxHeight: '100dvh',
+                },
+              },
             },
           },
         }}
       >
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            width: 44,
+            height: 5,
+            mx: 'auto',
+            mb: 2.5,
+            borderRadius: 99,
+            bgcolor: '#d8c8bd',
+          }}
+        />
         <Stack sx={{ gap: 2, height: '100%', minHeight: 0 }}>
           <Box
             sx={{
@@ -520,30 +587,55 @@ export function MenuConsumptionPage({
             }}
           >
             <Box>
-              <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
-                ตะกร้าตัดสต๊อก
+              <Typography
+                sx={{
+                  fontSize: { xs: 20, md: 22 },
+                  fontWeight: { xs: 700, md: 600 },
+                }}
+              >
+                {selected.length ? 'ตัดสต๊อก' : 'ตะกร้า'}
               </Typography>
               <Typography color="text.secondary" sx={{ fontSize: 13 }}>
                 เลือกแล้ว {selectedQuantity} แก้ว / จาน
               </Typography>
             </Box>
             <Button
+              aria-label="ปิด"
               onClick={() => setCartVisibility(false)}
-              color="inherit"
               sx={{
-                minWidth: 58,
-                minHeight: 36,
-                px: 1.5,
-                borderRadius: '10px',
-                bgcolor: '#eadfd7',
-                color: '#3c2d24',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: { xs: 58, md: 40 },
+                minHeight: { xs: 36, md: 40 },
+                width: { md: 40 },
+                height: { md: 40 },
+                px: { xs: 1.5, md: 0 },
+                borderRadius: { xs: '10px', md: '12px' },
+                bgcolor: { xs: '#eadfd7', md: '#f7eee8' },
+                color: { xs: '#3c2d24', md: '#5f4b3d' },
                 fontWeight: 700,
-                '&:hover': { bgcolor: '#ddcec3' },
+                '&:hover': { bgcolor: { xs: '#ddcec3', md: '#f1e4da' } },
               }}
             >
-              ปิด
+              <Box
+                component="span"
+                sx={{ display: { xs: 'inline', md: 'none' } }}
+              >
+                ปิด
+              </Box>
+              <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
+                <XIcon size={20} />
+              </Box>
             </Button>
           </Box>
+          <Divider
+            sx={{
+              display: { xs: 'none', md: 'block' },
+              mx: { xs: -2.5, sm: -4 },
+              borderColor: '#e8ddd5',
+            }}
+          />
           {selected.length ? (
             <Stack sx={{ flex: 1, minHeight: 0, gap: 1, overflowY: 'auto' }}>
               {selected.map((item) => (

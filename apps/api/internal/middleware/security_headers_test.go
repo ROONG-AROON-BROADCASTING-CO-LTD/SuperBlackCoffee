@@ -56,6 +56,33 @@ func TestCORSRejectsUntrustedPreflight(t *testing.T) {
 	}
 }
 
+func TestCORSAllowsConfiguredProductionPreflightWithCredentials(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("CORS_ORIGINS", "https://admin.superblackcoffee.example, https://franchise.superblackcoffee.example")
+
+	router := gin.New()
+	router.Use(CORS())
+	router.OPTIONS("/protected", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
+	request := httptest.NewRequest(http.MethodOptions, "/protected", nil)
+	request.Header.Set("Origin", "https://franchise.superblackcoffee.example")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+	if got := response.Header().Get("Access-Control-Allow-Origin"); got != "https://franchise.superblackcoffee.example" {
+		t.Fatalf("allow origin = %q", got)
+	}
+	if got := response.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("allow credentials = %q", got)
+	}
+	if got := response.Header().Get("Access-Control-Allow-Methods"); got != "GET,POST,PATCH,DELETE,OPTIONS" {
+		t.Fatalf("allow methods = %q", got)
+	}
+}
+
 func TestSecurityHeadersProtectProductionResponses(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 

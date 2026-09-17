@@ -30,6 +30,9 @@
       "@stackbuild/management/pages/leave-requests": [
         "../../packages/management/src/pages/LeaveRequestsManagementPage.tsx"
       ],
+      "@stackbuild/management/pages/promotions": [
+        "../../packages/management/src/pages/PromotionsManagementPage.tsx"
+      ],
       "@stackbuild/management/skeletons/employees": [
         "../../packages/management/src/components/skeletons/EmployeesSkeleton.tsx"
       ],
@@ -41,6 +44,9 @@
       ],
       "@stackbuild/management/skeletons/stock": [
         "../../packages/management/src/components/skeletons/StockSkeleton.tsx"
+      ],
+      "@stackbuild/management/skeletons/promotions": [
+        "../../packages/management/src/components/skeletons/PromotionsSkeleton.tsx"
       ]
     }
   },

@@ -4,6 +4,7 @@ import { ApiRequestError } from './api/client';
 import {
   adjustInventory,
   consumeStockFromMenus,
+  createStockRequest,
   listInventory,
   listMenuItems,
   listMyStockMovements,
@@ -26,6 +27,7 @@ const paths: Record<StockPage, string> = {
   sales: '/sales',
   count: '/count',
   history: '/history',
+  order: '/order',
 };
 const pageFromPath = (pathname: string): StockPage =>
   pathname.replace(/\/+$/, '') === '/sales'
@@ -34,7 +36,9 @@ const pageFromPath = (pathname: string): StockPage =>
       ? 'count'
       : pathname.replace(/\/+$/, '') === '/history'
         ? 'history'
-        : 'sales';
+        : pathname.replace(/\/+$/, '') === '/order'
+          ? 'order'
+          : 'sales';
 
 function isInvalidStockSession(error: unknown) {
   return (
@@ -57,6 +61,9 @@ export default function App() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [cartItemCount, setCartItemCount] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
+  const [cartMode, setCartMode] = useState<'consume' | 'order'>('consume');
+  const [pendingOrderItem, setPendingOrderItem] =
+    useState<InventoryItem | null>(null);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [notice, setNotice] = useState('');
@@ -64,8 +71,10 @@ export default function App() {
   const [retryTick, setRetryTick] = useState(0);
   const title = useMemo(
     () =>
-      stockNavigation.find((item) => item.page === page)?.label ??
-      stockNavigation[0].label,
+      page === 'history'
+        ? 'ประวัติที่บันทึก'
+        : (stockNavigation.find((item) => item.page === page)?.label ??
+          stockNavigation[0].label),
     [page],
   );
 
@@ -193,6 +202,8 @@ export default function App() {
     setMenus([]);
     setMovements([]);
     setCartItemCount(0);
+    setCartMode('consume');
+    setPendingOrderItem(null);
     setInitialDataLoading(false);
     setConnectionError(false);
     window.history.replaceState(null, '', paths.sales);
@@ -242,6 +253,18 @@ export default function App() {
     setMenus(nextMenus);
     return nextMenus;
   };
+  const handleCreateStockRequest = async (
+    items: Array<{
+      inventoryItemId: number;
+      name: string;
+      quantity: number;
+      unit: string;
+    }>,
+    note: string,
+  ) => {
+    await createStockRequest({ items, note });
+    setNotice('ส่งคำสั่งซื้อสินค้าแล้ว');
+  };
   if (checkingSession) return null;
 
   return (
@@ -276,6 +299,17 @@ export default function App() {
             cartOpen={cartOpen}
             onCartOpenChange={setCartOpen}
             onCartItemCountChange={setCartItemCount}
+            cartMode={cartMode}
+            onCartModeChange={setCartMode}
+            isFranchise={session.user.isFranchise}
+            onCreateStockRequest={handleCreateStockRequest}
+            onOpenHistory={() => navigate('history')}
+            onOrderIngredients={(item) => {
+              setPendingOrderItem(item);
+              setCartMode('order');
+            }}
+            pendingOrderItem={pendingOrderItem}
+            onPendingOrderItemAdded={() => setPendingOrderItem(null)}
           />
           <ActionSnackbar
             notice={notice ? { message: notice } : null}

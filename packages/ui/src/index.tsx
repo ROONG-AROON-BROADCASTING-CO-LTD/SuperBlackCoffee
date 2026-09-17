@@ -11,7 +11,7 @@ export { EmptyState } from './components/EmptyState';
 export { ActionSnackbar, type ActionNotice } from './components/ActionSnackbar';
 export { ConnectionRetrySnackbar } from './components/ConnectionRetrySnackbar';
 export { DateField, type DateFieldProps } from './components/DateField';
-export { selectionPillSx } from './components/selectionPill';
+export { FilterPill, selectionPillSx } from './components/selectionPill';
 export {
   SearchField,
   searchFieldSx,

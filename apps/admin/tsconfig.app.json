@@ -22,6 +22,9 @@
       "@stackbuild/management/pages/leave-requests": [
         "../../packages/management/src/pages/LeaveRequestsManagementPage.tsx"
       ],
+      "@stackbuild/management/pages/promotions": [
+        "../../packages/management/src/pages/PromotionsManagementPage.tsx"
+      ],
       "@stackbuild/types": ["../../packages/types/src/index.ts"]
     }
   },

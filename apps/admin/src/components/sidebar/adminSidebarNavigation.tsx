@@ -1,6 +1,7 @@
 import {
   BoxIcon,
   BoxesIcon,
+  BadgeIcon,
   CartIcon,
   CoffeeIcon,
   CupSodaIcon,
@@ -20,6 +21,7 @@ import {
 export const adminSidebarNavigation = [
   { label: 'ภาพรวม', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
   { label: 'คำสั่งซื้อ', icon: <ReceiptIcon />, group: 'การขายและคำสั่งซื้อ' },
+  { label: 'โปรโมชั่น', icon: <BadgeIcon />, group: 'การขายและคำสั่งซื้อ' },
   {
     id: 'sbc-products',
     label: 'เมนูและสินค้า',

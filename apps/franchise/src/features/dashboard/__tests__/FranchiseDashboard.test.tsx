@@ -28,6 +28,9 @@ vi.mock('@stackbuild/management/skeletons/products', () => ({
 vi.mock('@stackbuild/management/skeletons/stock', () => ({
   StockSkeleton: () => <div />,
 }));
+vi.mock('@stackbuild/management/skeletons/promotions', () => ({
+  PromotionsSkeleton: () => <div />,
+}));
 vi.mock('@stackbuild/management/pages/employees', () => ({
   EmployeesManagementPage: () => <div />,
 }));
@@ -39,6 +42,17 @@ vi.mock('@stackbuild/management/pages/products', () => ({
 }));
 vi.mock('@stackbuild/management/pages/stock', () => ({
   StockManagementPage: () => <div />,
+}));
+vi.mock('@stackbuild/management/pages/promotions', () => ({
+  PromotionsManagementPage: ({
+    mode,
+    branchName,
+  }: {
+    mode: string;
+    branchName: string;
+  }) => (
+    <output data-testid="promotions-page">{`${mode}:${branchName}`}</output>
+  ),
 }));
 vi.mock('../../../layouts/FranchiseDashboardLayout', () => ({
   FranchiseDashboardLayout: ({
@@ -95,6 +109,18 @@ describe('FranchiseDashboard plan restrictions', () => {
     );
     expect(screen.getByTestId('current-path').textContent).toBe(
       '/postal-stock',
+    );
+  });
+
+  it('loads the promotion page with the franchise branch scope', async () => {
+    render(
+      <MemoryRouter initialEntries={['/promotions']}>
+        <FranchiseDashboard logout={vi.fn()} plan="S" />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findByTestId('promotions-page')).textContent).toBe(
+      'franchise:อยุธยา',
     );
   });
 });

@@ -42,6 +42,19 @@ describe('FranchiseLoginPage', () => {
     expect(navigate).toHaveBeenCalledWith('/', { replace: true });
   });
 
+  it('uses the safe starter plan when an older franchise session has no plan', async () => {
+    vi.mocked(login).mockResolvedValueOnce({
+      user: { id: 3, role: 'franchise_owner' },
+    });
+    const onLogin = vi.fn();
+    render(<FranchiseLoginPage onLogin={onLogin} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'login' }));
+
+    await vi.waitFor(() => expect(onLogin).toHaveBeenCalledWith('S'));
+    expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+  });
+
   it('does not start a franchise session for another role', async () => {
     vi.mocked(login).mockResolvedValueOnce({
       user: { id: 2, role: 'admin' },

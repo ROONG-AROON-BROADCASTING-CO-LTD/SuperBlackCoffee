@@ -44,6 +44,7 @@ export function StockCountPage({
   postalStock,
   loading,
   onAdjust,
+  onOrderIngredients,
 }: {
   ingredients: InventoryItem[];
   drinkStock: InventoryItem[];
@@ -54,6 +55,7 @@ export function StockCountPage({
     quantity: number,
     note: string,
   ) => Promise<void>;
+  onOrderIngredients?: (item: InventoryItem) => void;
 }) {
   const [group, setGroup] = useState<InventoryGroup>('ingredient');
   const [query, setQuery] = useState('');
@@ -266,7 +268,8 @@ export function StockCountPage({
                 </Typography>
                 <Box
                   sx={{
-                    display: 'flex',
+                    display: 'grid',
+                    gap: { xs: 0.75, sm: 1 },
                     mt: 'auto',
                     pt: { xs: 1.25, sm: 2 },
                   }}
@@ -287,6 +290,22 @@ export function StockCountPage({
                   >
                     บันทึกยอดจริง
                   </Button>
+                  {group === 'ingredient' ? (
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={() => onOrderIngredients?.(item)}
+                      sx={{
+                        minHeight: { xs: 32, sm: 36 },
+                        borderRadius: '10px',
+                        borderColor: '#5f4030',
+                        color: '#5f4030',
+                        fontSize: { xs: 11, sm: 14 },
+                      }}
+                    >
+                      สั่งซื้อวัตถุดิบ
+                    </Button>
+                  ) : null}
                 </Box>
               </Box>
             </Card>

@@ -46,6 +46,7 @@ describe('StockCountPage', () => {
   });
 
   it('presents stock records as accessible cards in a responsive grid', () => {
+    const onOrderIngredients = vi.fn();
     render(
       <StockCountPage
         ingredients={[ingredient, { ...ingredient, id: 2, name: 'นมสด' }]}
@@ -53,6 +54,7 @@ describe('StockCountPage', () => {
         postalStock={[]}
         loading={false}
         onAdjust={vi.fn()}
+        onOrderIngredients={onOrderIngredients}
       />,
     );
 
@@ -64,6 +66,13 @@ describe('StockCountPage', () => {
       screen.getAllByRole('button', { name: 'บันทึกยอดจริง' }),
     ).toHaveLength(2);
     expect(screen.getAllByText('หมดอายุ: ไม่ระบุ')).toHaveLength(2);
+    expect(
+      screen.getAllByRole('button', { name: 'สั่งซื้อวัตถุดิบ' }),
+    ).toHaveLength(2);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'สั่งซื้อวัตถุดิบ' })[0],
+    );
+    expect(onOrderIngredients).toHaveBeenCalledWith(ingredient);
   });
 
   it('formats an inventory expiry date in Thai on its card', () => {

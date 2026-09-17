@@ -11,15 +11,19 @@ import (
 
 func TestRequestBranchScopePreventsNonAdminFromSelectingAnotherBranch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	claimedBranch := int64(12)
-	requestedBranch := int64(99)
-	res := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(res)
-	ctx.Set("claims", &middleware.Claims{Role: "branch_manager", BranchID: &claimedBranch})
+	for _, role := range []string{"branch_manager", "cashier"} {
+		t.Run(role, func(t *testing.T) {
+			claimedBranch := int64(12)
+			requestedBranch := int64(99)
+			res := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(res)
+			ctx.Set("claims", &middleware.Claims{Role: role, BranchID: &claimedBranch})
 
-	got, ok := (&PlatformHandler{}).requestBranchScope(ctx, &requestedBranch)
-	if !ok || got != claimedBranch {
-		t.Fatalf("branch = %d, ok = %t; want claimed branch %d", got, ok, claimedBranch)
+			got, ok := (&PlatformHandler{}).requestBranchScope(ctx, &requestedBranch)
+			if !ok || got != claimedBranch {
+				t.Fatalf("branch = %d, ok = %t; want claimed branch %d", got, ok, claimedBranch)
+			}
+		})
 	}
 }
 
@@ -50,6 +54,37 @@ func TestRequestBranchScopeRequiresAnExplicitValidBranchForAdmin(t *testing.T) {
 				t.Fatalf("status = %d, want %d", res.Code, http.StatusBadRequest)
 			}
 		})
+	}
+}
+
+func TestSalesBranchIDUsesTheSignedInBranchForNonAdmins(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	branchID := int64(12)
+	for _, role := range []string{"cashier", "branch_manager", "franchise_owner"} {
+		t.Run(role, func(t *testing.T) {
+			res := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(res)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/dashboard?branchCode=OTHER-BRANCH", nil)
+			ctx.Set("claims", &middleware.Claims{Role: role, BranchID: &branchID})
+
+			got, ok := (&PlatformHandler{}).salesBranchID(ctx)
+			if !ok || got != branchID {
+				t.Fatalf("branch = %#v, ok = %t; want signed-in branch %d", got, ok, branchID)
+			}
+		})
+	}
+}
+
+func TestSalesBranchIDRejectsAnUnscopedNonAdmin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	res := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(res)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	ctx.Set("claims", &middleware.Claims{Role: "franchise_owner"})
+
+	_, ok := (&PlatformHandler{}).salesBranchID(ctx)
+	if ok || res.Code != http.StatusForbidden {
+		t.Fatalf("ok = %t, status = %d; want forbidden", ok, res.Code)
 	}
 }
 

@@ -6,8 +6,14 @@ import {
   checkOut,
   createLeaveRequest,
   getAttendanceStatus,
+  getAttendanceHistory,
+  getAttendanceSummary,
   getLeaveRequestPdf,
+  listMyLeaveRequests,
   loginAttendance,
+  logoutAttendance,
+  restoreAttendanceSession,
+  setupAttendancePIN,
 } from '../attendance';
 
 describe('attendance API client', () => {
@@ -96,6 +102,52 @@ describe('attendance API client', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       expect.stringContaining('/attendance/check-out'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+  });
+
+  it('keeps PIN setup and session data on their intended public or protected endpoints', async () => {
+    const successResponse = () =>
+      new Response(JSON.stringify({ success: true, data: {} }), {
+        status: 200,
+      });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse());
+
+    await setupAttendancePIN('staff', '123456');
+    await restoreAttendanceSession();
+    await getAttendanceSummary();
+    await getAttendanceHistory();
+    await listMyLeaveRequests();
+    await logoutAttendance();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/attendance/setup-pin'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+    for (const callIndex of [2, 3, 4, 5]) {
+      expect(fetchMock.mock.calls[callIndex - 1][0]).toContain(
+        [
+          '/attendance/session',
+          '/attendance/summary',
+          '/attendance/history',
+          '/attendance/leave-requests/mine',
+        ][callIndex - 2],
+      );
+      expect(fetchMock.mock.calls[callIndex - 1][1]).toMatchObject({
+        credentials: 'include',
+      });
+    }
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      expect.stringContaining('/attendance/logout'),
       expect.objectContaining({ method: 'POST', credentials: 'include' }),
     );
   });
