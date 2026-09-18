@@ -13,8 +13,8 @@ import (
 func ensureInventoryCatalogTx(ctx context.Context, tx *sql.Tx, item model.InventoryItem) (int64, error) {
 	var id int64
 	err := tx.QueryRowContext(ctx, `
-		INSERT INTO inventory_catalog_items(name,category,stock_category,kind,unit,unit_cost,image_url)
-		VALUES($1,$2,NULLIF($3,''),$4,$5,$6,$7)
+		INSERT INTO inventory_catalog_items(name,category,stock_category,kind,unit,unit_cost,image_url,track_stock)
+		VALUES($1,$2,NULLIF($3,''),$4,$5,$6,$7,$8)
 		ON CONFLICT (name) DO UPDATE
 		SET category=EXCLUDED.category,
 			stock_category=EXCLUDED.stock_category,
@@ -22,7 +22,8 @@ func ensureInventoryCatalogTx(ctx context.Context, tx *sql.Tx, item model.Invent
 			unit=EXCLUDED.unit,
 			unit_cost=EXCLUDED.unit_cost,
 			image_url=EXCLUDED.image_url,
+			track_stock=EXCLUDED.track_stock,
 			updated_at=now()
-		RETURNING id`, item.Name, item.Category, item.StockCategory, item.Kind, item.Unit, item.UnitCost, item.ImageURL).Scan(&id)
+		RETURNING id`, item.Name, item.Category, item.StockCategory, item.Kind, item.Unit, item.UnitCost, item.ImageURL, item.IsStockTracked()).Scan(&id)
 	return id, err
 }

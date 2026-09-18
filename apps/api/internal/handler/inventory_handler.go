@@ -112,6 +112,7 @@ func inventoryItemFromInput(input inventoryInput, expiryDate *time.Time) model.I
 		Unit:          input.Unit,
 		ReorderLevel:  input.ReorderLevel,
 		UnitCost:      input.UnitCost,
+		TrackStock:    input.TrackStock,
 		ImageURL:      input.ImageURL,
 		ExpiryDate:    expiryDate,
 	}
@@ -143,6 +144,11 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		return
 	}
 	item := inventoryItemFromInput(input, expiryDate)
+	if !item.IsStockTracked() {
+		item.Quantity = 0
+		item.ReorderLevel = 0
+		item.ExpiryDate = nil
+	}
 	if item.Category == "fresh" && item.Quantity > 0 && item.ExpiryDate == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วัตถุดิบของสดที่มีจำนวนตั้งต้นต้องระบุวันหมดอายุ"})
 		return
@@ -164,7 +170,7 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
 	}
-	if item.Quantity != 0 {
+	if item.IsStockTracked() && item.Quantity != 0 {
 		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "initial", item.Quantity, 0, item.Quantity, "inventory_item", &id, "ยอดตั้งต้นของรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
 			return
@@ -257,7 +263,7 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการสต็อกได้"})
 		return
 	}
-	if item.Quantity != previousQuantity {
+	if item.IsStockTracked() && item.Quantity != previousQuantity {
 		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", item.Quantity-previousQuantity, previousQuantity, item.Quantity, "inventory_item", &id, "ปรับยอดผ่านการแก้ไขรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
 			return

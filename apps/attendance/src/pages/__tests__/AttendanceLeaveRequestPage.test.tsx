@@ -12,6 +12,8 @@ import { AttendanceLeaveRequestPage } from '../AttendanceLeaveRequestPage';
 vi.mock('../../api/attendance', () => ({
   cancelLeaveRequest: vi.fn(),
   getLeaveRequestPdf: vi.fn().mockResolvedValue(new Blob(['pdf'])),
+  leaveRequestPdfUrl: (id: number) =>
+    `http://localhost:8080/api/v1/attendance/leave-requests/${id}/pdf`,
   listMyLeaveRequests: vi.fn().mockResolvedValue([]),
 }));
 
@@ -46,7 +48,30 @@ describe('AttendanceLeaveRequestPage', () => {
         attachments: [],
       }),
     );
-    expect(screen.getByText(`ใบลาหยุดงาน · ${leaveDate}`)).toBeTruthy();
+  });
+
+  it('opens a leave PDF through the authenticated API link, not a blocked blob preview', async () => {
+    vi.mocked(listMyLeaveRequests).mockResolvedValueOnce([
+      {
+        id: 55,
+        leaveDate: '2026-09-21',
+        leaveEndDate: '2026-09-22',
+        leaveType: 'personal',
+        reason: 'ธุระส่วนตัว',
+        contactPhone: '',
+        additionalDetails: '',
+        attachments: [],
+        status: 'approved',
+        createdAt: '2026-09-01T00:00:00Z',
+      },
+    ]);
+    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+
+    const link = await screen.findByRole('link', { name: 'ดูใบลา PDF' });
+    expect(link.getAttribute('href')).toBe(
+      'http://localhost:8080/api/v1/attendance/leave-requests/55/pdf',
+    );
+    expect(link.getAttribute('target')).toBe('_blank');
   });
 
   it('does not allow an empty leave reason', () => {

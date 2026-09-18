@@ -55,6 +55,34 @@ func TestRequireAuth(t *testing.T) {
 	}
 }
 
+func TestRequireAuthRejectsAnUnsignedToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	claims := Claims{
+		UserID: 7,
+		Role:   "admin",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+	}
+	unsigned, err := jwt.NewWithClaims(jwt.SigningMethodNone, claims).SignedString(jwt.UnsafeAllowNoneSignatureType)
+	if err != nil {
+		t.Fatalf("create unsigned token: %v", err)
+	}
+
+	router := gin.New()
+	router.GET("/protected", RequireAuth("test-secret", "admin"), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+unsigned)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+	}
+}
+
 func TestRequireAuthSelectsMatchingRoleWhenMultipleSessionCookiesExist(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	secret := "test-secret"

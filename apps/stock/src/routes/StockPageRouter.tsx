@@ -20,9 +20,9 @@ const StockHistoryPage = lazy(() =>
     default: Page,
   })),
 );
-const StockOrderPage = lazy(() =>
-  import('../pages/StockOrderPage').then(({ StockOrderPage: Page }) => ({
-    default: Page,
+const PromotionsManagementPage = lazy(() =>
+  import('@stackbuild/management/pages/promotions').then((module) => ({
+    default: module.PromotionsManagementPage,
   })),
 );
 
@@ -55,6 +55,7 @@ type StockPageRouterProps = {
   cartMode: 'consume' | 'order';
   onCartModeChange: (mode: 'consume' | 'order') => void;
   isFranchise: boolean;
+  branchName: string;
   onCreateStockRequest: (
     items: Array<{
       inventoryItemId: number;
@@ -87,6 +88,7 @@ export function StockPageRouter({
   cartMode,
   onCartModeChange,
   isFranchise,
+  branchName,
   onCreateStockRequest,
   onOpenHistory,
   onOrderIngredients,
@@ -133,16 +135,12 @@ export function StockPageRouter({
     case 'history':
       content = <StockHistoryPage movements={movements} />;
       break;
-    case 'order':
+    case 'promotions':
       content = (
-        <StockOrderPage
-          ingredients={ingredients}
-          drinkStock={drinkStock}
-          postalStock={postalStock}
-          isFranchise={isFranchise}
-          onCreateRequest={onCreateStockRequest}
-          pendingItem={pendingOrderItem}
-          onPendingItemAdded={onPendingOrderItemAdded}
+        <PromotionsManagementPage
+          mode="franchise"
+          branchName={branchName}
+          embedded
         />
       );
       break;

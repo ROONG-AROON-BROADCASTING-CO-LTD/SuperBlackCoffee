@@ -195,17 +195,23 @@ const blankPromotion = {
   menuId: menuTemplates[0].id,
 };
 
-function StatusChip({ status }: { status: PromotionStatus }) {
+function StatusChip({
+  status,
+  compact = false,
+}: {
+  status: PromotionStatus;
+  compact?: boolean;
+}) {
   return (
     <Chip
       size="small"
       label={statusLabel[status]}
       sx={{
-        height: 25,
+        height: compact ? { xs: 21, sm: 25 } : 25,
         bgcolor: statusTone[status].background,
         color: statusTone[status].color,
         fontFamily: 'Kanit, sans-serif',
-        fontSize: 11,
+        fontSize: compact ? { xs: 9, sm: 11 } : 11,
         fontWeight: 700,
       }}
     />
@@ -216,10 +222,12 @@ function PromotionCard({
   promotion,
   mode,
   onSelect,
+  compact = false,
 }: {
   promotion: Promotion;
   mode: 'admin' | 'franchise';
   onSelect: (promotion: Promotion) => void;
+  compact?: boolean;
 }) {
   const leadMenu = promotion.menuItems[0];
   const ingredients = leadMenu.ingredients;
@@ -238,7 +246,7 @@ function PromotionCard({
       <Box
         sx={{
           position: 'relative',
-          aspectRatio: '1 / .72',
+          aspectRatio: compact ? { xs: '1 / 1', sm: '1 / .72' } : '1 / .72',
           overflow: 'hidden',
           bgcolor: '#f1e8de',
         }}
@@ -254,27 +262,40 @@ function PromotionCard({
           size="small"
           sx={{
             position: 'absolute',
-            top: 12,
-            left: 12,
-            height: 25,
+            top: compact ? { xs: 8, sm: 12 } : 12,
+            left: compact ? { xs: 8, sm: 12 } : 12,
+            height: compact ? { xs: 21, sm: 25 } : 25,
             bgcolor: '#805637',
             color: '#fff',
             fontFamily: 'Kanit, sans-serif',
-            fontSize: 11,
+            fontSize: compact ? { xs: 9, sm: 11 } : 11,
             fontWeight: 700,
           }}
         />
-        <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
-          <StatusChip status={promotion.status} />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: compact ? { xs: 8, sm: 12 } : 12,
+            right: compact ? { xs: 8, sm: 12 } : 12,
+          }}
+        >
+          <StatusChip status={promotion.status} compact={compact} />
         </Box>
       </Box>
-      <Box sx={{ display: 'flex', flex: 1, flexDirection: 'column', p: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flex: 1,
+          flexDirection: 'column',
+          p: compact ? { xs: 1.25, sm: 2 } : 2,
+        }}
+      >
         <Typography
           noWrap
           sx={{
             color: '#2a211c',
             fontFamily: 'Kanit, sans-serif',
-            fontSize: 17,
+            fontSize: compact ? { xs: 14, sm: 17 } : 17,
             fontWeight: 600,
           }}
         >
@@ -282,10 +303,10 @@ function PromotionCard({
         </Typography>
         <Typography
           sx={{
-            mt: 0.2,
+            mt: compact ? { xs: 0, sm: 0.2 } : 0.2,
             color: '#71675f',
             fontFamily: 'Kanit, sans-serif',
-            fontSize: 12,
+            fontSize: compact ? { xs: 10.5, sm: 12 } : 12,
           }}
         >
           {leadMenu.name}
@@ -295,22 +316,29 @@ function PromotionCard({
         </Typography>
         <Typography
           sx={{
-            mt: 0.9,
+            mt: compact ? { xs: 0.5, sm: 0.9 } : 0.9,
             color: '#805637',
             fontFamily: 'Kanit, sans-serif',
-            fontSize: 18,
+            fontSize: compact ? { xs: 13, sm: 18 } : 18,
             fontWeight: 700,
             lineHeight: 1.25,
           }}
         >
           {promotion.benefit}
         </Typography>
-        <Box sx={{ mt: 1.15, p: 1, borderRadius: '9px', bgcolor: '#f8f4f1' }}>
+        <Box
+          sx={{
+            mt: compact ? { xs: 0.75, sm: 1.15 } : 1.15,
+            p: compact ? { xs: 0.75, sm: 1 } : 1,
+            borderRadius: '9px',
+            bgcolor: '#f8f4f1',
+          }}
+        >
           <Typography
             sx={{
               color: '#5f4b3d',
               fontFamily: 'Kanit, sans-serif',
-              fontSize: 11,
+              fontSize: compact ? { xs: 9.5, sm: 11 } : 11,
               fontWeight: 700,
             }}
           >
@@ -319,10 +347,10 @@ function PromotionCard({
           <Typography
             noWrap
             sx={{
-              mt: 0.35,
+              mt: compact ? { xs: 0.2, sm: 0.35 } : 0.35,
               color: '#7b7068',
               fontFamily: 'Kanit, sans-serif',
-              fontSize: 11,
+              fontSize: compact ? { xs: 9.5, sm: 11 } : 11,
             }}
           >
             {ingredients.map((ingredient) => ingredient.name).join(' · ')}
@@ -330,10 +358,10 @@ function PromotionCard({
         </Box>
         <Typography
           sx={{
-            mt: 1,
+            mt: compact ? { xs: 0.75, sm: 1 } : 1,
             color: '#71675f',
             fontFamily: 'Kanit, sans-serif',
-            fontSize: 11,
+            fontSize: compact ? { xs: 9.5, sm: 11 } : 11,
             lineHeight: 1.4,
           }}
         >
@@ -357,13 +385,13 @@ function PromotionCard({
           onClick={() => onSelect(promotion)}
           sx={{
             mt: 'auto',
-            pt: 1,
-            minHeight: 35,
+            pt: compact ? { xs: 0.5, sm: 1 } : 1,
+            minHeight: compact ? { xs: 32, sm: 35 } : 35,
             borderRadius: '10px',
             borderColor: '#d8c8bd',
             color: '#5f4030',
             fontFamily: 'Kanit, sans-serif',
-            fontSize: 12,
+            fontSize: compact ? { xs: 10, sm: 12 } : 12,
             fontWeight: 600,
             '&:hover': { borderColor: '#805637', bgcolor: '#f7eee8' },
           }}
@@ -378,9 +406,12 @@ function PromotionCard({
 export function PromotionsManagementPage({
   mode,
   branchName = 'อยุธยา',
+  embedded = false,
 }: {
   mode: 'admin' | 'franchise';
   branchName?: string;
+  /** Render inside another app's content shell without a second topbar offset. */
+  embedded?: boolean;
 }) {
   const detailsCloseRef = useRef<XIconHandle>(null);
   const createCloseRef = useRef<XIconHandle>(null);
@@ -462,8 +493,8 @@ export function PromotionsManagementPage({
   const selectedMenuDraft =
     menuTemplates.find((menu) => menu.id === draft.menuId) ?? menuTemplates[0];
 
-  return (
-    <DashboardMain>
+  const content = (
+    <>
       <Box sx={{ pb: 3 }}>
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
@@ -581,12 +612,18 @@ export function PromotionsManagementPage({
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                md: 'repeat(4, minmax(0, 1fr))',
-              },
-              gap: '16px',
+              gridTemplateColumns: embedded
+                ? {
+                    xs: 'repeat(2, minmax(0, 1fr))',
+                    sm: 'repeat(2, minmax(0, 1fr))',
+                    lg: 'repeat(3, minmax(0, 1fr))',
+                  }
+                : {
+                    xs: '1fr',
+                    sm: 'repeat(2, minmax(0, 1fr))',
+                    md: 'repeat(4, minmax(0, 1fr))',
+                  },
+              gap: embedded ? { xs: 1.25, sm: 2 } : '16px',
             }}
           >
             {visiblePromotions.map((promotion) => (
@@ -595,6 +632,7 @@ export function PromotionsManagementPage({
                 promotion={promotion}
                 mode={mode}
                 onSelect={setSelected}
+                compact={embedded}
               />
             ))}
           </Box>
@@ -623,9 +661,22 @@ export function PromotionsManagementPage({
         slotProps={{
           paper: {
             sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
+              left: embedded ? { lg: '230px' } : { md: '280px' },
+              width: embedded
+                ? { lg: 'calc(100% - 230px)' }
+                : { md: 'calc(100% - 304px)' },
+              bottom: embedded
+                ? {
+                    xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+                    md: 0,
+                  }
+                : undefined,
+              height: embedded
+                ? {
+                    xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+                    md: 'calc(100dvh - 72px)',
+                  }
+                : { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflowY: 'auto',
               borderRadius: '22px 22px 0 0',
               bgcolor: '#fffaf7',
@@ -1253,6 +1304,8 @@ export function PromotionsManagementPage({
           </Box>
         </Box>
       </Drawer>
-    </DashboardMain>
+    </>
   );
+
+  return embedded ? content : <DashboardMain>{content}</DashboardMain>;
 }

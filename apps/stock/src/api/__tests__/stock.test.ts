@@ -5,6 +5,9 @@ import {
   listInventory,
   listMenuItems,
   listMyStockMovements,
+  loginStock,
+  logoutStock,
+  restoreStockSession,
 } from '../stock';
 
 describe('stock mutation API contracts', () => {
@@ -128,5 +131,46 @@ describe('stock mutation API contracts', () => {
     );
     expect(String(options?.body)).not.toContain('branchId');
     expect(String(options?.body)).not.toContain('destination');
+  });
+
+  it('keeps stock login, session restoration, and logout on the dedicated cookie scope', async () => {
+    const successResponse = () =>
+      new Response(JSON.stringify({ success: true, data: {} }), {
+        status: 200,
+      });
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse())
+      .mockResolvedValueOnce(successResponse());
+
+    await loginStock('cashier.aya', '123456');
+    await restoreStockSession();
+    await logoutStock();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/stock/login'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ username: 'cashier.aya', pin: '123456' }),
+        credentials: 'include',
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/stock/session'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('/stock/logout'),
+      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+    );
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(new Headers(options?.headers).get('X-SBC-Session-Role')).toBe(
+        'stock',
+      );
+    }
   });
 });

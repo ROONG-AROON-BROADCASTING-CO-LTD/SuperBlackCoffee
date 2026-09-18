@@ -27,7 +27,7 @@ const paths: Record<StockPage, string> = {
   sales: '/sales',
   count: '/count',
   history: '/history',
-  order: '/order',
+  promotions: '/promotions',
 };
 const pageFromPath = (pathname: string): StockPage =>
   pathname.replace(/\/+$/, '') === '/sales'
@@ -36,8 +36,8 @@ const pageFromPath = (pathname: string): StockPage =>
       ? 'count'
       : pathname.replace(/\/+$/, '') === '/history'
         ? 'history'
-        : pathname.replace(/\/+$/, '') === '/order'
-          ? 'order'
+        : ['/promotions', '/order'].includes(pathname.replace(/\/+$/, ''))
+          ? 'promotions'
           : 'sales';
 
 function isInvalidStockSession(error: unknown) {
@@ -302,6 +302,7 @@ export default function App() {
             cartMode={cartMode}
             onCartModeChange={setCartMode}
             isFranchise={session.user.isFranchise}
+            branchName={session.user.branchName}
             onCreateStockRequest={handleCreateStockRequest}
             onOpenHistory={() => navigate('history')}
             onOrderIngredients={(item) => {

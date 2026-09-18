@@ -94,10 +94,21 @@ const matchWorkbookMenu = (
     return { menuItemId: exact.id, menuName: exact.name, quantity: 1 };
   }
 
-  // FoodStory exports the display/base name and puts options after ` - `;
-  // the app stores the recipe name with temperature and roast suffixes.
-  const baseName = menuName.split(/\s+-\s+/u, 1)[0].replace(/\([^)]*\)/gu, '');
-  const base = normalizeMenuText(baseName);
+  // FoodStory appends option text to the display name. Match against the
+  // canonical database name after removing those option segments.
+  const optionStart = /\s+(?:เมล็ดกาแฟ|ระดับความหวาน|แยกน้ำ|ท็อปปิ้ง)\s*:/u;
+  const displayName = menuName.split(optionStart, 1)[0];
+  const baseName = displayName
+    .split(/\s+-\s+/u, 1)[0]
+    .replace(/\([^)]*\)/gu, '')
+    .trim();
+  const englishName = displayName.match(/\(([^)]*)\)/u)?.[1] ?? '';
+  const normalizedBase = normalizeMenuText(baseName);
+  const base = normalizeMenuText(
+    /\bice\b/iu.test(englishName) && !normalizedBase.includes('เย็น')
+      ? `${baseName}เย็น`
+      : baseName,
+  );
   if (base.length < 2) return undefined;
   // Prefer the exported base name when it exactly matches a menu. Without
   // this, "มัทฉะลาเต้" is ambiguous with variants such as

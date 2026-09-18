@@ -73,8 +73,10 @@ export function StockCountPage({
         : postalStock;
   const filtered = useMemo(
     () =>
-      items.filter((item) =>
-        item.name.toLowerCase().includes(query.trim().toLowerCase()),
+      items.filter(
+        (item) =>
+          item.trackStock !== false &&
+          item.name.toLowerCase().includes(query.trim().toLowerCase()),
       ),
     [items, query],
   );

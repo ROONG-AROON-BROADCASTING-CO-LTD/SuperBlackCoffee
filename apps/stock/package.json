@@ -13,6 +13,7 @@
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
     "@mui/material": "latest",
+    "@stackbuild/management": "workspace:*",
     "@stackbuild/ui": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8"

@@ -91,7 +91,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			return
 		}
 		saleItems = append(saleItems, stockSaleItem{menuItemID: item.MenuItemID, channel: itemChannel, quantity: item.Quantity, unitPrice: unitPrice})
-		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel=$2`, item.MenuItemID, itemChannel)
+		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel=$2`, item.MenuItemID, itemChannel)
 		if queryErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 			return
@@ -100,19 +100,22 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 		for rows.Next() {
 			var inventoryID int64
 			var amount float64
-			if err = rows.Scan(&inventoryID, &amount); err != nil {
+			var trackStock bool
+			if err = rows.Scan(&inventoryID, &amount, &trackStock); err != nil {
 				rows.Close()
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 				return
 			}
-			required[inventoryID] += amount * item.Quantity
+			if trackStock {
+				required[inventoryID] += amount * item.Quantity
+			}
 			hasRecipe = true
 		}
 		rows.Close()
 		// Legacy menus may only have a storefront recipe. LINE MAN inherits
 		// that recipe until an administrator saves a channel-specific one.
 		if !hasRecipe && itemChannel == "lineman" {
-			fallbackRows, fallbackErr := tx.QueryContext(c.Request.Context(), `SELECT inventory_item_id,quantity FROM menu_item_ingredients WHERE menu_item_id=$1 AND channel='storefront'`, item.MenuItemID)
+			fallbackRows, fallbackErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel='storefront'`, item.MenuItemID)
 			if fallbackErr != nil {
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 				return
@@ -120,12 +123,15 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			for fallbackRows.Next() {
 				var inventoryID int64
 				var amount float64
-				if err = fallbackRows.Scan(&inventoryID, &amount); err != nil {
+				var trackStock bool
+				if err = fallbackRows.Scan(&inventoryID, &amount, &trackStock); err != nil {
 					fallbackRows.Close()
 					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 					return
 				}
-				required[inventoryID] += amount * item.Quantity
+				if trackStock {
+					required[inventoryID] += amount * item.Quantity
+				}
 				hasRecipe = true
 			}
 			fallbackRows.Close()

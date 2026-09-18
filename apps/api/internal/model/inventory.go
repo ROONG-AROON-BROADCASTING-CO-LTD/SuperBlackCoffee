@@ -20,12 +20,20 @@ type InventoryItem struct {
 	Unit          string        `json:"unit"`
 	ReorderLevel  float64       `json:"reorderLevel"`
 	UnitCost      float64       `json:"unitCost"`
+	TrackStock    *bool         `json:"trackStock"`
 	ImageURL      string        `json:"imageUrl"`
 	Status        string        `json:"status,omitempty"`
 	ExpiryDate    *time.Time    `json:"expiryDate,omitempty"`
 	ExpiryStatus  string        `json:"expiryStatus,omitempty"`
 	CreatedAt     time.Time     `json:"createdAt,omitempty"`
 	UpdatedAt     time.Time     `json:"updatedAt"`
+}
+
+// IsStockTracked keeps existing inventory records stock-tracked unless an
+// explicit catalogue setting opts them out. A nil value preserves backwards
+// compatibility for older callers and test fixtures.
+func (i InventoryItem) IsStockTracked() bool {
+	return i.TrackStock == nil || *i.TrackStock
 }
 
 type MenuIngredient struct {

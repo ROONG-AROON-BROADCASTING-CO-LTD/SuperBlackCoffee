@@ -10,10 +10,10 @@ import {
 import { Box, Button } from '@mui/material';
 import {
   BoxesIcon,
+  BadgeIcon,
   CartIcon,
   LogoutIcon,
   ReceiptTextIcon,
-  SendIcon,
 } from '@stackbuild/ui';
 import type { StockPage } from '../types/stock';
 
@@ -39,10 +39,10 @@ export const stockNavigation: Array<{
     group: 'จัดการสต๊อก',
   },
   {
-    page: 'order',
-    label: 'สั่งซื้อสินค้า',
-    mobileLabel: 'สั่งซื้อ',
-    icon: <SendIcon />,
+    page: 'promotions',
+    label: 'โปรโมชั่น',
+    mobileLabel: 'โปรโมชั่น',
+    icon: <BadgeIcon />,
     group: 'จัดการสต๊อก',
   },
 ];

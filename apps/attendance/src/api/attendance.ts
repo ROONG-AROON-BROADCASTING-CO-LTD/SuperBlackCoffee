@@ -1,4 +1,4 @@
-import { publicRequest, secured, securedBlob } from './client';
+import { API_URL, publicRequest, secured, securedBlob } from './client';
 
 export type AttendanceSession = {
   user: {
@@ -140,3 +140,8 @@ export const cancelLeaveRequest = (id: number) =>
 
 export const getLeaveRequestPdf = (id: number) =>
   securedBlob(`/attendance/leave-requests/${id}/pdf`);
+
+// A real document URL is preferable to a blob preview: Chrome can render it
+// in its native PDF viewer when a staff member opens the link in a new tab.
+export const leaveRequestPdfUrl = (id: number) =>
+  `${API_URL}/attendance/leave-requests/${id}/pdf`;

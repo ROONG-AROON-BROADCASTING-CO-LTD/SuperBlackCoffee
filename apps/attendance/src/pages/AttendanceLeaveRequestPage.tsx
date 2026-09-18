@@ -3,9 +3,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   Paper,
   Stack,
   TextField,
@@ -21,7 +18,7 @@ import {
 } from '@stackbuild/ui';
 import {
   cancelLeaveRequest,
-  getLeaveRequestPdf,
+  leaveRequestPdfUrl,
   listMyLeaveRequests,
   type MyLeaveRequest,
 } from '../api/attendance';
@@ -81,9 +78,6 @@ export function AttendanceLeaveRequestPage({
   );
   const [attachments, setAttachments] = useState<File[]>([]);
   const [requests, setRequests] = useState<MyLeaveRequest[]>([]);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [previewTitle, setPreviewTitle] = useState('');
-  const [openingPdf, setOpeningPdf] = useState<number | null>(null);
   const [cancellingRequest, setCancellingRequest] = useState<number | null>(
     null,
   );
@@ -100,34 +94,9 @@ export function AttendanceLeaveRequestPage({
   useEffect(() => {
     void refreshRequests();
   }, []);
-  useEffect(
-    () => () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    },
-    [previewUrl],
-  );
-
-  const previewPdf = async (id: number, leaveDate: string) => {
-    setOpeningPdf(id);
-    try {
-      const blob = await getLeaveRequestPdf(id);
-      const nextUrl = URL.createObjectURL(blob);
-      setPreviewUrl((currentUrl) => {
-        if (currentUrl) URL.revokeObjectURL(currentUrl);
-        return nextUrl;
-      });
-      setPreviewTitle(`ใบลาหยุดงาน · ${leaveDate}`);
-      setPreviewError('');
-    } catch {
-      setPreviewError('ไม่สามารถเปิดเอกสารใบลาได้ กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setOpeningPdf(null);
-    }
-  };
-
   const submit = async () => {
     try {
-      const created = await onSuccess({
+      await onSuccess({
         leaveDate,
         leaveEndDate,
         leaveType: leaveTypeApi[leaveType],
@@ -141,7 +110,6 @@ export function AttendanceLeaveRequestPage({
       setContactPhone('');
       setAttachments([]);
       await refreshRequests();
-      await previewPdf(created.id, leaveDate);
     } catch {
       setPreviewError(
         'ไม่สามารถส่งคำขอลาได้ กรุณาตรวจสอบวันที่ลาแล้วลองใหม่อีกครั้ง',
@@ -178,7 +146,7 @@ export function AttendanceLeaveRequestPage({
   };
 
   return (
-    <Stack spacing={{ xs: 0, md: 2.5 }}>
+    <Stack spacing={{ xs: 1.5, md: 2.5 }}>
       <Typography
         sx={{
           display: { xs: 'none', md: 'block' },
@@ -306,6 +274,7 @@ export function AttendanceLeaveRequestPage({
                 component="label"
                 variant="outlined"
                 disabled={attachments.length >= 5}
+                sx={{ ml: 'auto' }}
               >
                 เลือกไฟล์
                 <input
@@ -384,7 +353,7 @@ export function AttendanceLeaveRequestPage({
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
                   border: '1px solid #eee3dc',
-                  borderRadius: 2,
+                  borderRadius: '10px',
                   p: 1.5,
                 }}
               >
@@ -408,15 +377,15 @@ export function AttendanceLeaveRequestPage({
                 <Stack
                   direction="row"
                   spacing={1}
-                  sx={{ alignItems: 'center' }}
+                  sx={{ alignItems: 'center', ml: 'auto' }}
                 >
                   <Button
+                    component="a"
+                    href={leaveRequestPdfUrl(request.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     variant="outlined"
                     size="small"
-                    disabled={openingPdf === request.id}
-                    onClick={() =>
-                      void previewPdf(request.id, request.leaveDate)
-                    }
                     startIcon={<ReceiptTextIcon size={18} />}
                   >
                     ดูใบลา PDF
@@ -437,23 +406,6 @@ export function AttendanceLeaveRequestPage({
           )}
         </Stack>
       </Paper>
-      <Dialog
-        open={Boolean(previewUrl)}
-        onClose={() => setPreviewUrl('')}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>{previewTitle}</DialogTitle>
-        <DialogContent sx={{ height: '75vh', p: 0 }}>
-          {previewUrl ? (
-            <iframe
-              title={previewTitle}
-              src={previewUrl}
-              style={{ width: '100%', height: '100%', border: 0 }}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </Stack>
   );
 }

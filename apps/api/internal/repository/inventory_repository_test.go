@@ -33,20 +33,22 @@ func TestInventoryStatusUsesThirtyDayMovementWindow(t *testing.T) {
 	now := time.Date(2026, time.September, 18, 10, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name           string
+		trackStock     bool
 		quantity       float64
 		reorderLevel   float64
 		lastMovementAt time.Time
 		want           string
 	}{
-		{name: "empty stock is out", quantity: 0, reorderLevel: 2, lastMovementAt: now, want: "out"},
-		{name: "reorder level takes priority", quantity: 2, reorderLevel: 2, lastMovementAt: now.AddDate(0, 0, -45), want: "low"},
-		{name: "movement exactly thirty days ago is stale", quantity: 8, reorderLevel: 2, lastMovementAt: now.AddDate(0, 0, -30), want: "stale"},
-		{name: "recent movement remains ready", quantity: 8, reorderLevel: 2, lastMovementAt: now.AddDate(0, 0, -29), want: "ready"},
+		{name: "cost-only item ignores its balance", trackStock: false, quantity: 0, reorderLevel: 2, lastMovementAt: now, want: "cost_only"},
+		{name: "empty stock is out", trackStock: true, quantity: 0, reorderLevel: 2, lastMovementAt: now, want: "out"},
+		{name: "reorder level takes priority", trackStock: true, quantity: 2, reorderLevel: 2, lastMovementAt: now.AddDate(0, 0, -45), want: "low"},
+		{name: "movement exactly thirty days ago is stale", trackStock: true, quantity: 8, reorderLevel: 2, lastMovementAt: now.AddDate(0, 0, -30), want: "stale"},
+		{name: "recent movement remains ready", trackStock: true, quantity: 8, reorderLevel: 2, lastMovementAt: now.AddDate(0, 0, -29), want: "ready"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := inventoryStatus(test.quantity, test.reorderLevel, test.lastMovementAt, now); got != test.want {
+			if got := inventoryStatus(test.trackStock, test.quantity, test.reorderLevel, test.lastMovementAt, now); got != test.want {
 				t.Fatalf("inventoryStatus() = %q, want %q", got, test.want)
 			}
 		})

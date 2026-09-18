@@ -205,6 +205,9 @@ importers:
       '@mui/material':
         specifier: latest
         version: 9.4.0(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.2.8))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.3.0)(react@19.2.8))(@types/react@19.3.0)(react@19.2.8))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@stackbuild/management':
+        specifier: workspace:*
+        version: link:../../packages/management
       '@stackbuild/ui':
         specifier: workspace:*
         version: link:../../packages/ui

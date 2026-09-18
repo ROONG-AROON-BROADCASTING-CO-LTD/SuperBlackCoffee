@@ -75,6 +75,30 @@ describe('StockCountPage', () => {
     expect(onOrderIngredients).toHaveBeenCalledWith(ingredient);
   });
 
+  it('excludes cost-only recipe inputs from stock counting and ordering', () => {
+    render(
+      <StockCountPage
+        ingredients={[
+          ingredient,
+          {
+            ...ingredient,
+            id: 2,
+            name: 'น้ำสกัดกาแฟ',
+            trackStock: false,
+            status: 'cost_only',
+          },
+        ]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
+    expect(screen.queryByText('น้ำสกัดกาแฟ')).toBeNull();
+  });
+
   it('formats an inventory expiry date in Thai on its card', () => {
     render(
       <StockCountPage

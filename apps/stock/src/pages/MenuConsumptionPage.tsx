@@ -56,6 +56,12 @@ const cartKey = (menuItemId: number, channel: SalesChannel) =>
 const channelLabel = (channel: SalesChannel) =>
   channel === 'lineman' ? 'LINE MAN' : 'หน้าร้าน';
 
+const formatSalePrice = (price: number) =>
+  new Intl.NumberFormat('th-TH', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(price) ? 0 : 2,
+  }).format(price);
+
 function dismissFocusedTextControl() {
   const activeElement = document.activeElement;
   if (
@@ -411,6 +417,12 @@ export function MenuConsumptionPage({
                 channel === 'lineman'
                   ? (menu.linemanRecipeStatus ?? menu.recipeStatus)
                   : menu.recipeStatus;
+              const channelPrice =
+                channel === 'lineman' ? menu.linemanPrice : menu.storePrice;
+              const channelPriceAvailable =
+                channel === 'lineman'
+                  ? menu.linemanPriceAvailable
+                  : menu.storePriceAvailable;
               const unavailableLabel =
                 channelRecipeStatus === 'missing_recipe'
                   ? 'ไม่มีสูตร'
@@ -476,6 +488,19 @@ export function MenuConsumptionPage({
                       }}
                     >
                       {menu.name}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: { xs: 0.35, sm: 0.6 },
+                        color: channelPriceAvailable ? '#805637' : '#8a7d74',
+                        fontSize: { xs: 11, sm: 14 },
+                        fontWeight: 700,
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {channelPriceAvailable && channelPrice !== undefined
+                        ? `ราคา${channelLabel(channel)} ฿${formatSalePrice(channelPrice)}`
+                        : `ยังไม่กำหนดราคา${channelLabel(channel)}`}
                     </Typography>
                     <Box
                       sx={{

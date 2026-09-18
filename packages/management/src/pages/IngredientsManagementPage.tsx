@@ -67,6 +67,7 @@ type Ingredient = {
   unit: string;
   reorderLevel: number;
   unitCost: number;
+  trackStock: boolean;
   status: IngredientStatus;
   imageUrl: string;
   expiryDate: string | null;
@@ -205,12 +206,16 @@ export function IngredientsManagementPage({
   const matchesIngredientFilter = (
     ingredient: Ingredient,
     selectedFilter: IngredientFilter,
-  ) =>
-    selectedFilter === 'ทั้งหมด' ||
-    ingredient.status === selectedFilter ||
-    (selectedFilter === 'ใกล้หมดอายุ' &&
-      ingredient.expiryStatus === 'expiring_soon') ||
-    (selectedFilter === 'หมดอายุ' && ingredient.expiryStatus === 'expired');
+  ) => {
+    if (!ingredient.trackStock) return selectedFilter === 'ทั้งหมด';
+    return (
+      selectedFilter === 'ทั้งหมด' ||
+      ingredient.status === selectedFilter ||
+      (selectedFilter === 'ใกล้หมดอายุ' &&
+        ingredient.expiryStatus === 'expiring_soon') ||
+      (selectedFilter === 'หมดอายุ' && ingredient.expiryStatus === 'expired')
+    );
+  };
   const filterCounts = useMemo(() => {
     const ingredients = Object.values(catalogIngredientsByBranch).flat();
     return Object.fromEntries(
@@ -258,13 +263,16 @@ export function IngredientsManagementPage({
             unit: item.unit,
             reorderLevel: item.reorderLevel,
             unitCost: item.unitCost,
-            status: (item.status === 'out'
-              ? 'วัตถุดิบหมด'
-              : item.status === 'low'
-                ? 'วัตถุดิบใกล้หมด'
-                : item.status === 'stale'
-                  ? 'วัตถุดิบค้างสต๊อก'
-                  : 'พร้อมใช้') as IngredientStatus,
+            trackStock: item.trackStock !== false,
+            status: (item.trackStock === false || item.status === 'cost_only'
+              ? 'คิดต้นทุนเท่านั้น'
+              : item.status === 'out'
+                ? 'วัตถุดิบหมด'
+                : item.status === 'low'
+                  ? 'วัตถุดิบใกล้หมด'
+                  : item.status === 'stale'
+                    ? 'วัตถุดิบค้างสต๊อก'
+                    : 'พร้อมใช้') as IngredientStatus,
             imageUrl: item.imageUrl,
             expiryDate: item.expiryDate ?? null,
             expiryStatus: item.expiryStatus ?? 'none',
@@ -386,6 +394,7 @@ export function IngredientsManagementPage({
       unit: String(formData.get('unit') ?? ''),
       reorderLevel: Number(formData.get('reorderLevel') ?? 0),
       unitCost: Number(formData.get('unitCost') ?? 0),
+      trackStock: editingIngredient?.trackStock,
       imageUrl: imagePreviewUrl ?? editingIngredient?.imageUrl ?? '',
       expiryDate: expiryDate || null,
     };
@@ -777,6 +786,7 @@ export function IngredientsManagementPage({
                         INGREDIENT_STATUS_BADGES[ingredient.status];
                       const ingredientKey = `${branch}-${ingredient.name}`;
                       const hasAvailabilityExpiryWarning =
+                        ingredient.trackStock &&
                         ingredient.status === 'พร้อมใช้' &&
                         ingredient.expiryStatus === 'expiring_soon';
                       return (
@@ -911,31 +921,46 @@ export function IngredientsManagementPage({
                               {ingredient.name}
                             </Typography>
                             <Box sx={{ display: 'grid', gap: 0.35, mt: 0.8 }}>
-                              <Typography
-                                sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  px: 1,
-                                  py: 0.45,
-                                  color: '#5f4b3d',
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                คงเหลือ
-                                <Box
-                                  component="span"
+                              {ingredient.trackStock ? (
+                                <Typography
                                   sx={{
-                                    fontSize: 18,
-                                    fontWeight: 700,
-                                    lineHeight: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    px: 1,
+                                    py: 0.45,
+                                    color: '#5f4b3d',
+                                    fontFamily: 'Kanit, sans-serif',
+                                    fontSize: 12,
+                                    fontWeight: 600,
                                   }}
                                 >
-                                  {ingredient.quantity} {ingredient.unit}
-                                </Box>
-                              </Typography>
+                                  คงเหลือ
+                                  <Box
+                                    component="span"
+                                    sx={{
+                                      fontSize: 18,
+                                      fontWeight: 700,
+                                      lineHeight: 1,
+                                    }}
+                                  >
+                                    {ingredient.quantity} {ingredient.unit}
+                                  </Box>
+                                </Typography>
+                              ) : (
+                                <Typography
+                                  sx={{
+                                    px: 1,
+                                    py: 0.45,
+                                    color: '#5f4b3d',
+                                    fontFamily: 'Kanit, sans-serif',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  ใช้คิดต้นทุนตามสูตร · ไม่ต้องเติมหรือตรวจนับ
+                                </Typography>
+                              )}
                               <Typography
                                 sx={{
                                   display: 'flex',
@@ -962,43 +987,45 @@ export function IngredientsManagementPage({
                                   {ingredient.unit}
                                 </Box>
                               </Typography>
-                              <Typography
-                                sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  px: 1,
-                                  py: 0.45,
-                                  color:
-                                    ingredient.expiryStatus === 'expired'
-                                      ? '#b42318'
-                                      : ingredient.expiryStatus ===
-                                          'expiring_soon'
-                                        ? '#9a5a10'
-                                        : '#5f4b3d',
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                วันหมดอายุ
-                                <Box
-                                  component="span"
+                              {ingredient.trackStock ? (
+                                <Typography
                                   sx={{
-                                    display: 'inline-block',
-                                    minWidth: 108,
-                                    fontSize: 17,
-                                    fontWeight: 700,
-                                    lineHeight: 1.1,
-                                    whiteSpace: 'nowrap',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    px: 1,
+                                    py: 0.45,
+                                    color:
+                                      ingredient.expiryStatus === 'expired'
+                                        ? '#b42318'
+                                        : ingredient.expiryStatus ===
+                                            'expiring_soon'
+                                          ? '#9a5a10'
+                                          : '#5f4b3d',
+                                    fontFamily: 'Kanit, sans-serif',
+                                    fontSize: 12,
+                                    fontWeight: 600,
                                   }}
                                 >
-                                  {formatExpiryDate(ingredient.expiryDate) ??
-                                    'ไม่ระบุ'}
-                                </Box>
-                              </Typography>
+                                  วันหมดอายุ
+                                  <Box
+                                    component="span"
+                                    sx={{
+                                      display: 'inline-block',
+                                      minWidth: 108,
+                                      fontSize: 17,
+                                      fontWeight: 700,
+                                      lineHeight: 1.1,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {formatExpiryDate(ingredient.expiryDate) ??
+                                      'ไม่ระบุ'}
+                                  </Box>
+                                </Typography>
+                              ) : null}
                             </Box>
-                            {allowOrdering ? (
+                            {allowOrdering && ingredient.trackStock ? (
                               <Box
                                 sx={{
                                   display: 'flex',

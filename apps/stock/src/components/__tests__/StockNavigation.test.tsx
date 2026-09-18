@@ -14,7 +14,7 @@ describe('StockMobileNavigation', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows stock actions, product ordering, and logout control on mobile', () => {
+  it('shows stock actions, promotions, and logout control on mobile', () => {
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -39,7 +39,7 @@ describe('StockMobileNavigation', () => {
     expect(onLogout).toHaveBeenCalledOnce();
     expect(screen.queryByRole('button', { name: 'ภาพรวม' })).toBeNull();
     expect(screen.getByRole('button', { name: 'วัตถุดิบ' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'สั่งซื้อ' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'โปรโมชั่น' })).toBeTruthy();
   });
 
   it('uses the centre navigation slot to open the stock cart', () => {

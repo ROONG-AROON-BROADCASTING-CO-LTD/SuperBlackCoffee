@@ -162,11 +162,22 @@ describe('Stock App session and loading', () => {
     expect((await screen.findByTestId('stock-page')).textContent).toBe('sales');
   });
 
-  it('opens the product-order page from its dedicated route', async () => {
+  it('opens the read-only promotions page from its dedicated route', async () => {
+    window.history.replaceState(null, '', '/promotions');
+    render(<App />);
+
+    expect((await screen.findByTestId('stock-page')).textContent).toBe(
+      'promotions',
+    );
+  });
+
+  it('keeps the previous order URL pointing to promotions', async () => {
     window.history.replaceState(null, '', '/order');
     render(<App />);
 
-    expect((await screen.findByTestId('stock-page')).textContent).toBe('order');
+    expect((await screen.findByTestId('stock-page')).textContent).toBe(
+      'promotions',
+    );
   });
 
   it.each([401, 403])(

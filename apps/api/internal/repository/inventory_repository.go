@@ -22,7 +22,7 @@ func NewPostgresInventoryRepository(db *sql.DB) InventoryRepository {
 }
 
 func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, kind string) ([]model.InventoryItem, error) {
-	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,COALESCE(c.unit_cost,i.unit_cost),COALESCE(c.image_url,i.image_url),CASE WHEN COALESCE(c.category,i.category)='fresh' AND fresh_lot.has_lots THEN fresh_lot.next_expiry ELSE i.expiry_date END,i.created_at,i.updated_at,COALESCE(last_movement.created_at,i.created_at) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id LEFT JOIN LATERAL (SELECT COUNT(*) > 0 AS has_lots,MIN(expiry_date) FILTER (WHERE status='active' AND quantity_remaining>0 AND expiry_date>=CURRENT_DATE) AS next_expiry FROM fresh_inventory_lots WHERE branch_id=i.branch_id AND inventory_item_id=i.id) fresh_lot ON COALESCE(c.category,i.category)='fresh' LEFT JOIN LATERAL (SELECT MAX(created_at) AS created_at FROM stock_movements WHERE branch_id=i.branch_id AND inventory_item_id=i.id) last_movement ON TRUE WHERE i.branch_id=$1`
+	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,COALESCE(c.unit_cost,i.unit_cost),COALESCE(c.image_url,i.image_url),COALESCE(c.track_stock,true),CASE WHEN COALESCE(c.category,i.category)='fresh' AND fresh_lot.has_lots THEN fresh_lot.next_expiry ELSE i.expiry_date END,i.created_at,i.updated_at,COALESCE(last_movement.created_at,i.created_at) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id LEFT JOIN LATERAL (SELECT COUNT(*) > 0 AS has_lots,MIN(expiry_date) FILTER (WHERE status='active' AND quantity_remaining>0 AND expiry_date>=CURRENT_DATE) AS next_expiry FROM fresh_inventory_lots WHERE branch_id=i.branch_id AND inventory_item_id=i.id) fresh_lot ON COALESCE(c.category,i.category)='fresh' LEFT JOIN LATERAL (SELECT MAX(created_at) AS created_at FROM stock_movements WHERE branch_id=i.branch_id AND inventory_item_id=i.id) last_movement ON TRUE WHERE i.branch_id=$1`
 	args := []any{branchID}
 	if kind != "" {
 		query += ` AND COALESCE(c.kind,i.kind)=$2`
@@ -37,12 +37,14 @@ func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, 
 	items := make([]model.InventoryItem, 0)
 	for rows.Next() {
 		var item model.InventoryItem
+		var trackStock bool
 		var lastMovementAt time.Time
-		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.StockCategory, &item.Kind, &item.Quantity, &item.Unit, &item.ReorderLevel, &item.UnitCost, &item.ImageURL, &item.ExpiryDate, &item.CreatedAt, &item.UpdatedAt, &lastMovementAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.StockCategory, &item.Kind, &item.Quantity, &item.Unit, &item.ReorderLevel, &item.UnitCost, &item.ImageURL, &trackStock, &item.ExpiryDate, &item.CreatedAt, &item.UpdatedAt, &lastMovementAt); err != nil {
 			return nil, err
 		}
+		item.TrackStock = &trackStock
 		now := time.Now().UTC()
-		item.Status = inventoryStatus(item.Quantity, item.ReorderLevel, lastMovementAt, now)
+		item.Status = inventoryStatus(trackStock, item.Quantity, item.ReorderLevel, lastMovementAt, now)
 		item.ExpiryStatus = inventoryExpiryStatus(item.ExpiryDate, now)
 		items = append(items, item)
 	}
@@ -51,7 +53,10 @@ func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, 
 
 const staleInventoryAfterDays = 30
 
-func inventoryStatus(quantity, reorderLevel float64, lastMovementAt, now time.Time) string {
+func inventoryStatus(trackStock bool, quantity, reorderLevel float64, lastMovementAt, now time.Time) string {
+	if !trackStock {
+		return "cost_only"
+	}
 	if quantity <= 0 {
 		return "out"
 	}

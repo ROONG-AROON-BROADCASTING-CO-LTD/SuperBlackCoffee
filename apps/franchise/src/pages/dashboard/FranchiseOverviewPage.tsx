@@ -161,7 +161,7 @@ export function FranchiseOverviewPage({
       (item) => item.status === 'soldout',
     ).length;
     const ingredientAlert = ingredientItems.filter(
-      (item) => item.status !== 'ready',
+      (item) => item.trackStock !== false && item.status !== 'ready',
     ).length;
     const stockAlert = stockItems.filter(
       (item) => item.status !== 'ready',
@@ -175,8 +175,11 @@ export function FranchiseOverviewPage({
       },
       {
         label: 'วัตถุดิบ',
-        total: ingredientItems.length,
-        ready: ingredientItems.length - ingredientAlert,
+        total: ingredientItems.filter((item) => item.trackStock !== false)
+          .length,
+        ready:
+          ingredientItems.filter((item) => item.trackStock !== false).length -
+          ingredientAlert,
         color: '#b98d69',
       },
       {

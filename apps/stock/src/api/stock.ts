@@ -20,7 +20,8 @@ export type InventoryItem = {
   quantity: number;
   unit: string;
   reorderLevel: number;
-  status: 'ready' | 'low' | 'out' | 'stale';
+  status: 'ready' | 'low' | 'out' | 'stale' | 'cost_only';
+  trackStock?: boolean;
   expiryDate?: string | null;
   expiryStatus?: 'none' | 'expiring_soon' | 'expired';
 };
@@ -38,6 +39,10 @@ export type MenuItem = {
   name: string;
   category: string;
   status: 'available' | 'soldout';
+  storePrice?: number;
+  storePriceAvailable?: boolean;
+  linemanPrice?: number;
+  linemanPriceAvailable?: boolean;
   recipeStatus: 'ready' | 'missing_recipe' | 'insufficient_stock';
   sellable: boolean;
   linemanRecipeStatus?: 'ready' | 'missing_recipe' | 'insufficient_stock';

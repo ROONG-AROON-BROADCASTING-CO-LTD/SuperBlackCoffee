@@ -9,6 +9,7 @@ type InventoryRequest struct {
 	Unit          string  `json:"unit" binding:"required"`
 	ReorderLevel  float64 `json:"reorderLevel"`
 	UnitCost      float64 `json:"unitCost" binding:"gte=0"`
+	TrackStock    *bool   `json:"trackStock"`
 	ImageURL      string  `json:"imageUrl"`
 	ExpiryDate    *string `json:"expiryDate"`
 }

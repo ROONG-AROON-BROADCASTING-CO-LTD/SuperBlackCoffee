@@ -317,8 +317,13 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	var before float64
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&before); err != nil {
+	var trackStock bool
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 FOR UPDATE`, id, branchID).Scan(&before, &trackStock); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต๊อก"})
+		return
+	}
+	if !trackStock {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รายการนี้คิดต้นทุนอย่างเดียว จึงไม่ต้องปรับยอดคงเหลือ"})
 		return
 	}
 	if before == input.Quantity {

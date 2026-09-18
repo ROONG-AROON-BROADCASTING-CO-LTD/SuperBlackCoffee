@@ -115,6 +115,36 @@ const workbookFile = () => {
 };
 
 describe('sales workbook import', () => {
+  it('maps FoodStory display names with inline options to canonical database names', () => {
+    expect(
+      matchWorkbookSales(
+        [
+          {
+            'Menu Name':
+              'อเมริกาโน่ (Ice Americano) เมล็ดกาแฟ : Special Bean Medium Roast x 1 ระดับความหวาน : ไม่หวาน 0%',
+            Category: 'กาแฟเย็น',
+            Quantity: 2,
+            Channel: 'หน้าร้าน (Storefront)',
+          },
+        ],
+        [
+          {
+            id: 31,
+            name: 'อเมริกาโน่เย็น คั่วเข้ม และ คั่วกลาง',
+            category: 'เมนูกาแฟเย็น',
+          },
+        ],
+      ).sales,
+    ).toEqual([
+      {
+        menuItemId: 31,
+        menuName: 'อเมริกาโน่เย็น คั่วเข้ม และ คั่วกลาง',
+        quantity: 2,
+        channel: 'storefront',
+      },
+    ]);
+  });
+
   it('maps FoodStory columns, totals duplicate menu rows, and retains each channel', () => {
     const result = matchWorkbookSales(
       [

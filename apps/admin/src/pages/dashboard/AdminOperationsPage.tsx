@@ -81,10 +81,8 @@ const tabs = [
   ['maintenance', 'งานช่าง / แจ้งซ่อม'],
   ['inspection', 'สุ่มตรวจช่าง'],
   ['ingredientInspection', 'สุ่มตรวจวัตถุดิบ'],
-  ['assets', 'ทรัพย์สิน'],
-  ['billing', 'เรียกเก็บเงิน'],
 ] as const;
-type Tab = (typeof tabs)[number][0];
+type Tab = (typeof tabs)[number][0] | 'assets' | 'billing';
 const operationsTabStorageKey = 'admin.operations.active-tab';
 const isOperationsTab = (value: string | null): value is Tab =>
   tabs.some(([id]) => id === value);

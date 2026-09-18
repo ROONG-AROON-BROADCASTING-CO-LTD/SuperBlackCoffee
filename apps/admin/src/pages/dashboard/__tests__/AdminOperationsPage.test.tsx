@@ -65,6 +65,17 @@ describe('AdminOperationsPage', () => {
     expect(screen.queryByText('แจ้งงานซ่อมบำรุง')).toBeNull();
     expect(screen.queryByRole('button', { name: 'บันทึกรายการ' })).toBeNull();
   });
+  it('hides asset and billing tabs while those pages are paused', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    renderPage();
+
+    await screen.findByRole('button', { name: 'งานช่าง / แจ้งซ่อม' });
+    expect(screen.queryByRole('button', { name: 'ทรัพย์สิน' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'เรียกเก็บเงิน' })).toBeNull();
+  });
   it('shows only scheduled technician reports in random inspection', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
     vi.mocked(listInspections).mockResolvedValue([

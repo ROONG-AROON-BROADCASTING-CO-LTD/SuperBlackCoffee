@@ -33,6 +33,28 @@ const storefrontMenu = {
 describe('MenuConsumptionPage', () => {
   // Keep the order-selection flow isolated between test cases.
   afterEach(cleanup);
+  it('shows the selling price for the selected sales channel', () => {
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={vi.fn().mockResolvedValue(undefined)}
+        menus={[
+          {
+            ...storefrontMenu,
+            storePrice: 65,
+            storePriceAvailable: true,
+            linemanPrice: 75,
+            linemanPriceAvailable: true,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('ราคาหน้าร้าน ฿65')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'LINE MAN' }));
+    expect(screen.getByText('ราคาLINE MAN ฿75')).toBeTruthy();
+  });
+
   it('submits selected menu quantities instead of asking staff to edit ingredients', async () => {
     const onConsume = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(

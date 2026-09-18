@@ -753,26 +753,33 @@ export function AdminOverviewPage({
         title: 'วัตถุดิบใกล้หมดอายุ',
         detail: 'วางแผนใช้งานก่อนถึงวันหมดอายุ',
         count: ingredients.filter(
-          (item) => item.expiryStatus === 'expiring_soon',
+          (item) =>
+            item.trackStock !== false && item.expiryStatus === 'expiring_soon',
         ).length,
         tone: '#d59a31',
       },
       {
         title: 'วัตถุดิบหมด',
         detail: 'เติมสต๊อกเพื่อไม่ให้กระทบการขาย',
-        count: ingredients.filter((item) => item.status === 'out').length,
+        count: ingredients.filter(
+          (item) => item.trackStock !== false && item.status === 'out',
+        ).length,
         tone: '#c73b32',
       },
       {
         title: 'วัตถุดิบใกล้หมด',
         detail: 'ตรวจสอบและเตรียมเติมสต๊อก',
-        count: ingredients.filter((item) => item.status === 'low').length,
+        count: ingredients.filter(
+          (item) => item.trackStock !== false && item.status === 'low',
+        ).length,
         tone: '#d59a31',
       },
       {
         title: 'วัตถุดิบค้างสต๊อก',
         detail: 'มีของเหลือ แต่ไม่มีการเคลื่อนไหวเกิน 30 วัน',
-        count: ingredients.filter((item) => item.status === 'stale').length,
+        count: ingredients.filter(
+          (item) => item.trackStock !== false && item.status === 'stale',
+        ).length,
         tone: '#8a6d3b',
       },
     ];

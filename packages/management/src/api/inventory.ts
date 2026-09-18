@@ -10,7 +10,8 @@ export type InventoryItem = {
   unit: string;
   reorderLevel: number;
   unitCost: number;
-  status: 'ready' | 'low' | 'out' | 'stale';
+  trackStock?: boolean;
+  status: 'ready' | 'low' | 'out' | 'stale' | 'cost_only';
   imageUrl: string;
   expiryDate?: string | null;
   expiryStatus?: 'none' | 'expiring_soon' | 'expired';
@@ -24,6 +25,7 @@ export type InventoryInput = {
   unit: string;
   reorderLevel: number;
   unitCost: number;
+  trackStock?: boolean;
   imageUrl: string;
   expiryDate: string | null;
 };
