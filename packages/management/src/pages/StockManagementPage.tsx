@@ -177,7 +177,9 @@ export function StockManagementPage({
               ? 'วัตถุดิบหมด'
               : item.status === 'low'
                 ? 'วัตถุดิบใกล้หมด'
-                : 'พร้อมใช้') as IngredientStatus,
+                : item.status === 'stale'
+                  ? 'วัตถุดิบค้างสต๊อก'
+                  : 'พร้อมใช้') as IngredientStatus,
             position: `${12 + ((index * 21) % 76)}% ${24 + ((index * 17) % 64)}%`,
             imageUrl: item.imageUrl,
           })),

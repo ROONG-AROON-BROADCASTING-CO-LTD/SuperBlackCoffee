@@ -79,4 +79,26 @@ describe('FranchiseOverviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ดูวัตถุดิบ' }));
     expect(onNavigate).toHaveBeenCalledWith('วัตถุดิบ');
   });
+
+  it('counts stale branch inventory as needing follow-up rather than ready stock', async () => {
+    api.listInventory.mockImplementation((kind: string) =>
+      Promise.resolve(
+        kind === 'ingredient'
+          ? [
+              { id: 1, status: 'ready' },
+              { id: 2, status: 'stale' },
+            ]
+          : [{ id: 3, status: 'ready' }],
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findAllByText('1/2 พร้อมใช้งาน')).toHaveLength(2);
+    expect(
+      screen.getByRole('button', {
+        name: /วัตถุดิบใกล้หมด\/หมด\s*1 รายการ/u,
+      }),
+    ).toBeTruthy();
+  });
 });

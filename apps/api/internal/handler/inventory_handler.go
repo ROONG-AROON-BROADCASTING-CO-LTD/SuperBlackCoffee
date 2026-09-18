@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"y/internal/dto"
 	"y/internal/middleware"
 	"y/internal/model"
@@ -75,6 +77,14 @@ func (h *PlatformHandler) ListInventory(c *gin.Context) {
 }
 
 type inventoryInput = dto.InventoryRequest
+
+func inventoryDeleteError(err error) (int, string) {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return http.StatusConflict, "ลบไม่ได้ เพราะวัตถุดิบนี้ถูกใช้งานอยู่ในสูตรหรือประวัติสต๊อก"
+	}
+	return http.StatusInternalServerError, "ไม่สามารถลบรายการสต๊อกได้"
+}
 
 func expiryDateFromInput(input inventoryInput) (*time.Time, error) {
 	if input.ExpiryDate == nil || strings.TrimSpace(*input.ExpiryDate) == "" {
@@ -292,7 +302,12 @@ func (h *PlatformHandler) DeleteInventory(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	result, err := tx.ExecContext(c.Request.Context(), `DELETE FROM inventory_items WHERE id=$1 AND branch_id=$2`, id, branchID)
-	if err != nil || rowsAffected(result) == 0 {
+	if err != nil {
+		status, message := inventoryDeleteError(err)
+		c.JSON(status, gin.H{"success": false, "message": message})
+		return
+	}
+	if rowsAffected(result) == 0 {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
 	}

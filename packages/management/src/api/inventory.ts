@@ -10,7 +10,7 @@ export type InventoryItem = {
   unit: string;
   reorderLevel: number;
   unitCost: number;
-  status: 'ready' | 'low' | 'out';
+  status: 'ready' | 'low' | 'out' | 'stale';
   imageUrl: string;
   expiryDate?: string | null;
   expiryStatus?: 'none' | 'expiring_soon' | 'expired';

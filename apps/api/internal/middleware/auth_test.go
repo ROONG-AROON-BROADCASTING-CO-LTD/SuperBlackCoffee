@@ -25,6 +25,7 @@ func TestRequireAuth(t *testing.T) {
 	}{
 		{name: "missing token", wantStatus: http.StatusUnauthorized},
 		{name: "expired token", authorize: "Bearer " + expiredToken, wantStatus: http.StatusUnauthorized},
+		{name: "token signed with another secret", authorize: "Bearer " + signedToken(t, "other-secret", "admin", time.Now().Add(time.Hour)), roles: []string{"admin"}, wantStatus: http.StatusUnauthorized},
 		{name: "role is denied", authorize: "Bearer " + validToken, roles: []string{"cashier"}, wantStatus: http.StatusForbidden},
 		{name: "valid token", authorize: "Bearer " + validToken, roles: []string{"admin"}, wantStatus: http.StatusNoContent},
 		{name: "admin session cookie", cookieName: "sbc_admin_session", cookie: validToken, roles: []string{"admin"}, wantStatus: http.StatusNoContent},

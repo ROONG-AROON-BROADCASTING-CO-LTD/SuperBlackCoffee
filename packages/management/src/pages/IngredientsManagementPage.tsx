@@ -262,7 +262,9 @@ export function IngredientsManagementPage({
               ? 'วัตถุดิบหมด'
               : item.status === 'low'
                 ? 'วัตถุดิบใกล้หมด'
-                : 'พร้อมใช้') as IngredientStatus,
+                : item.status === 'stale'
+                  ? 'วัตถุดิบค้างสต๊อก'
+                  : 'พร้อมใช้') as IngredientStatus,
             imageUrl: item.imageUrl,
             expiryDate: item.expiryDate ?? null,
             expiryStatus: item.expiryStatus ?? 'none',
@@ -774,6 +776,9 @@ export function IngredientsManagementPage({
                       const statusBadge =
                         INGREDIENT_STATUS_BADGES[ingredient.status];
                       const ingredientKey = `${branch}-${ingredient.name}`;
+                      const hasAvailabilityExpiryWarning =
+                        ingredient.status === 'พร้อมใช้' &&
+                        ingredient.expiryStatus === 'expiring_soon';
                       return (
                         <Card
                           key={ingredientKey}
@@ -840,13 +845,21 @@ export function IngredientsManagementPage({
                             ) : null}
                             {ingredient.expiryStatus !== 'expired' ? (
                               <Chip
-                                label={ingredient.status}
+                                label={
+                                  hasAvailabilityExpiryWarning
+                                    ? 'มีของ แต่ใกล้หมดอายุ'
+                                    : ingredient.status
+                                }
                                 size="small"
                                 sx={{
                                   height: 25,
                                   borderRadius: '12px',
-                                  bgcolor: statusBadge.main,
-                                  color: statusBadge.contrastText,
+                                  bgcolor: hasAvailabilityExpiryWarning
+                                    ? expiryBadge.expiring_soon.background
+                                    : statusBadge.main,
+                                  color: hasAvailabilityExpiryWarning
+                                    ? expiryBadge.expiring_soon.color
+                                    : statusBadge.contrastText,
                                   fontFamily: 'Kanit, sans-serif',
                                   fontSize: 11,
                                   fontWeight: 500,
@@ -855,7 +868,8 @@ export function IngredientsManagementPage({
                                 }}
                               />
                             ) : null}
-                            {ingredient.expiryStatus !== 'none' ? (
+                            {ingredient.expiryStatus !== 'none' &&
+                            !hasAvailabilityExpiryWarning ? (
                               <Chip
                                 label={
                                   expiryBadge[ingredient.expiryStatus].label

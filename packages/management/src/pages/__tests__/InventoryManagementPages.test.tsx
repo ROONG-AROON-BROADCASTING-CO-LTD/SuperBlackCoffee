@@ -13,6 +13,7 @@ import { ProductsManagementPage } from '../ProductsManagementPage';
 import { StockManagementPage } from '../StockManagementPage';
 import {
   adjustInventory,
+  deleteInventory,
   listFreshInventoryLots,
   listInventory,
   updateInventory,
@@ -38,6 +39,7 @@ vi.mock('../../api/stock-requests', () => ({ createStockRequest: vi.fn() }));
 
 const mockedListInventory = vi.mocked(listInventory);
 const mockedAdjustInventory = vi.mocked(adjustInventory);
+const mockedDeleteInventory = vi.mocked(deleteInventory);
 const mockedListFreshInventoryLots = vi.mocked(listFreshInventoryLots);
 const mockedUpdateInventory = vi.mocked(updateInventory);
 const mockedListMenuItems = vi.mocked(listMenuItems);
@@ -101,6 +103,7 @@ describe('inventory management pages', () => {
     ]);
     mockedCreateStockRequest.mockResolvedValue({ id: 1, status: 'pending' });
     mockedAdjustInventory.mockResolvedValue({ id: 1, quantity: 0 });
+    mockedDeleteInventory.mockResolvedValue(undefined);
     mockedListFreshInventoryLots.mockResolvedValue([]);
     mockedUpdateInventory.mockResolvedValue({ id: 1 });
     mockedCreateMenuItem.mockResolvedValue({ id: 2 });
@@ -423,11 +426,45 @@ describe('inventory management pages', () => {
   });
 
   it('shows the expiry date and warning status on an ingredient card', async () => {
+    mockedListInventory.mockResolvedValueOnce([
+      { ...ingredient, status: 'ready' },
+    ]);
     renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
 
     await waitFor(() => expect(screen.getByText('ใกล้หมดอายุ')).toBeTruthy());
+    expect(screen.getByText('มีของ แต่ใกล้หมดอายุ')).toBeTruthy();
+    expect(screen.queryByText('พร้อมใช้')).toBeNull();
     expect(screen.getByText('วันหมดอายุ')).toBeTruthy();
     expect(screen.getByText('31 ธ.ค. 2569')).toBeTruthy();
+  });
+
+  it('shows the stale-stock status when an ingredient has not moved recently', async () => {
+    mockedListInventory.mockResolvedValueOnce([
+      { ...ingredient, status: 'stale', expiryStatus: 'none' },
+    ]);
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    expect(await screen.findByText('วัตถุดิบค้างสต๊อก')).toBeTruthy();
+    expect(screen.queryByText('พร้อมใช้')).toBeNull();
+  });
+
+  it('explains why an ingredient referenced by recipes or stock history cannot be deleted', async () => {
+    mockedDeleteInventory.mockRejectedValueOnce(
+      new Error('ลบไม่ได้ เพราะวัตถุดิบนี้ถูกใช้งานอยู่ในสูตรหรือประวัติสต๊อก'),
+    );
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'ลบวัตถุดิบ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันลบ' }));
+
+    await waitFor(() =>
+      expect(mockedDeleteInventory).toHaveBeenCalledWith(1, 'SBC-AYA-001'),
+    );
+    expect(
+      await screen.findByText(
+        'ลบไม่ได้ เพราะวัตถุดิบนี้ถูกใช้งานอยู่ในสูตรหรือประวัติสต๊อก',
+      ),
+    ).toBeTruthy();
   });
 
   it('shows ingredient count badges only on the warning filters', async () => {

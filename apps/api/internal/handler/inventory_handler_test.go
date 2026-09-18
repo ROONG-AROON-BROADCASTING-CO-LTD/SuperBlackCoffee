@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"errors"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"y/internal/dto"
 	"y/internal/model"
 )
@@ -30,6 +33,21 @@ func TestInventoryInputPreservesSharedCatalogMetadata(t *testing.T) {
 	}
 	if item.ExpiryDate == nil || !item.ExpiryDate.Equal(expiryDate) {
 		t.Fatalf("expiry date = %v, want %v", item.ExpiryDate, expiryDate)
+	}
+}
+
+func TestInventoryDeleteErrorExplainsReferencedItems(t *testing.T) {
+	status, message := inventoryDeleteError(&pgconn.PgError{Code: "23503"})
+	if status != http.StatusConflict {
+		t.Fatalf("status = %d, want %d", status, http.StatusConflict)
+	}
+	if message != "ลบไม่ได้ เพราะวัตถุดิบนี้ถูกใช้งานอยู่ในสูตรหรือประวัติสต๊อก" {
+		t.Fatalf("message = %q", message)
+	}
+
+	status, message = inventoryDeleteError(errors.New("connection failed"))
+	if status != http.StatusInternalServerError || message != "ไม่สามารถลบรายการสต๊อกได้" {
+		t.Fatalf("unexpected generic error result: %d, %q", status, message)
 	}
 }
 

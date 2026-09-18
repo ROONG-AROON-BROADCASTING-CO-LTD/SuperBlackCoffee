@@ -212,14 +212,22 @@ export function StockCountPage({
                       ? 'หมด'
                       : item.status === 'low'
                         ? 'ใกล้หมด'
-                        : 'เพียงพอ'
+                        : item.status === 'stale'
+                          ? 'ค้างสต๊อก'
+                          : item.expiryStatus === 'expiring_soon'
+                            ? 'มีของ แต่ใกล้หมดอายุ'
+                            : 'เพียงพอ'
                   }
                   color={
                     item.status === 'out'
                       ? 'error'
                       : item.status === 'low'
                         ? 'warning'
-                        : 'success'
+                        : item.status === 'stale'
+                          ? 'default'
+                          : item.expiryStatus === 'expiring_soon'
+                            ? 'warning'
+                            : 'success'
                   }
                   size="small"
                   sx={{

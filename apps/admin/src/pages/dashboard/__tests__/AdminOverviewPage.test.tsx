@@ -259,4 +259,35 @@ describe('AdminOverviewPage', () => {
     expect(screen.queryByText('วัตถุดิบหมดอายุ')).toBeNull();
     expect(screen.queryByText('วัตถุดิบหมด')).toBeNull();
   });
+
+  it('surfaces stale ingredients as an actionable follow-up', async () => {
+    vi.mocked(listInventory).mockImplementation((kind) =>
+      Promise.resolve(
+        kind === 'ingredient'
+          ? [
+              {
+                id: 3,
+                name: 'ผงโกโก้',
+                category: 'ผง',
+                kind: 'ingredient',
+                quantity: 10,
+                unit: 'ถุง',
+                reorderLevel: 2,
+                unitCost: 1,
+                status: 'stale',
+                imageUrl: '',
+                expiryStatus: 'none',
+              },
+            ]
+          : [],
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('วัตถุดิบค้างสต๊อก')).toBeTruthy();
+    expect(
+      screen.getByText('มีของเหลือ แต่ไม่มีการเคลื่อนไหวเกิน 30 วัน'),
+    ).toBeTruthy();
+  });
 });

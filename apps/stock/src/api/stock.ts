@@ -20,8 +20,9 @@ export type InventoryItem = {
   quantity: number;
   unit: string;
   reorderLevel: number;
-  status: 'ready' | 'low' | 'out';
+  status: 'ready' | 'low' | 'out' | 'stale';
   expiryDate?: string | null;
+  expiryStatus?: 'none' | 'expiring_soon' | 'expired';
 };
 export type StockMovement = {
   id: number;

@@ -769,6 +769,12 @@ export function AdminOverviewPage({
         count: ingredients.filter((item) => item.status === 'low').length,
         tone: '#d59a31',
       },
+      {
+        title: 'วัตถุดิบค้างสต๊อก',
+        detail: 'มีของเหลือ แต่ไม่มีการเคลื่อนไหวเกิน 30 วัน',
+        count: ingredients.filter((item) => item.status === 'stale').length,
+        tone: '#8a6d3b',
+      },
     ];
     return options.filter((option) => option.count > 0).slice(0, 2);
   }, [inventoryAttention.data, selectedBranch]);

@@ -314,6 +314,36 @@ describe('Attendance App session', () => {
     expect(logoutAttendance).toHaveBeenCalledOnce();
   });
 
+  it('keeps the staff session and attendance action available when check-in has a recoverable error', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: null,
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkIn).mockRejectedValueOnce(new Error('network unavailable'));
+
+    render(<App />);
+    expect(await screen.findByText('attendance-router')).toBeTruthy();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => expect(checkIn).toHaveBeenCalledOnce());
+    expect(screen.getByText('attendance-router')).toBeTruthy();
+    expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+      'false',
+    );
+    expect(logoutAttendance).not.toHaveBeenCalled();
+  });
+
   it('restores the current page from the URL after a refresh', async () => {
     window.history.replaceState(null, '', '/history');
 

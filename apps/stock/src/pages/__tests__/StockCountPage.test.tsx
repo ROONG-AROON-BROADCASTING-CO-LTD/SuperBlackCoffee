@@ -89,6 +89,36 @@ describe('StockCountPage', () => {
     expect(screen.getByText('หมดอายุ: 30 ก.ย. 2569')).toBeTruthy();
   });
 
+  it('labels a well-stocked ingredient as expiring soon when its expiry warning is active', () => {
+    render(
+      <StockCountPage
+        ingredients={[{ ...ingredient, expiryStatus: 'expiring_soon' }]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('มีของ แต่ใกล้หมดอายุ')).toBeTruthy();
+    expect(screen.queryByText('เพียงพอ')).toBeNull();
+  });
+
+  it('labels an ingredient as stale when it has not moved recently', () => {
+    render(
+      <StockCountPage
+        ingredients={[{ ...ingredient, status: 'stale' }]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('ค้างสต๊อก')).toBeTruthy();
+    expect(screen.queryByText('เพียงพอ')).toBeNull();
+  });
+
   it('opens the count form in the stock cart drawer and keeps its content during close', async () => {
     render(
       <StockCountPage
