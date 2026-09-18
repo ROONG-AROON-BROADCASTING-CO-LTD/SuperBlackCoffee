@@ -10,7 +10,6 @@ import {
   UsersIcon,
 } from '@stackbuild/ui';
 
-export const franchiseBranch = 'อยุธยา' as const;
 export const navigation = [
   { label: 'ภาพรวม', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
   { label: 'โปรโมชั่น', icon: <BadgeIcon />, group: 'ภาพรวม' },

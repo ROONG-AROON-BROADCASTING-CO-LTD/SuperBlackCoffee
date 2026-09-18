@@ -10,7 +10,13 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { DashboardMain, PlusIcon, SearchField, XIcon } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  PageIntro,
+  PlusIcon,
+  SearchField,
+  XIcon,
+} from '@stackbuild/ui';
 import {
   createFranchisee,
   listBranches,
@@ -208,6 +214,10 @@ export function AdminFranchiseBranchesPage() {
 
   return (
     <DashboardMain>
+      <PageIntro
+        title="สาขาแฟรนไชส์"
+        description="จัดการบัญชีแฟรนไชส์และตรวจสอบสถานะสาขาที่เปิดให้บริการ"
+      />
       <Box
         sx={{
           display: 'flex',
@@ -243,36 +253,6 @@ export function AdminFranchiseBranchesPage() {
         >
           เพิ่มบัญชีแฟรนไชส์
         </Button>
-      </Box>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          mt: 1.5,
-          mb: 1.25,
-        }}
-      >
-        <Typography
-          sx={{
-            color: '#3c2d24',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: 18,
-            fontWeight: 600,
-          }}
-        >
-          บัญชีแฟรนไชส์
-        </Typography>
-        <Typography
-          sx={{
-            color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: 13,
-          }}
-        >
-          แสดงเฉพาะข้อมูลสำหรับเข้าใช้ระบบ
-        </Typography>
       </Box>
       <Box
         sx={{

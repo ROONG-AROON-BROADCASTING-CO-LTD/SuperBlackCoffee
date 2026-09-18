@@ -27,6 +27,7 @@ import {
   ingredientBranches,
   type IngredientBranch,
 } from '../../components/sidebar/IngredientBranchesSidebar';
+import { AdminPageIntro } from '../../components/AdminPageIntro';
 
 type StockItem = {
   name: string;
@@ -139,6 +140,10 @@ export function AdminStockPage({
 
   return (
     <DashboardMain>
+      <AdminPageIntro
+        title="สต๊อกอุปกรณ์"
+        description="ตรวจสอบและจัดการจำนวนอุปกรณ์ของแต่ละสาขา"
+      />
       <Box
         sx={{
           display: 'flex',

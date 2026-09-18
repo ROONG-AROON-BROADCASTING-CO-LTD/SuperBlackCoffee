@@ -16,42 +16,23 @@ import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
   SearchField,
-  selectionPillSx,
   type BranchStatus,
 } from '@stackbuild/ui';
-import {
-  createCompanyBranch,
-  listBranchSales,
-  updateBranchSize,
-} from '../../api';
+import { createCompanyBranch, listBranches, updateBranchSize } from '../../api';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
+import { AdminPageIntro } from '../../components/AdminPageIntro';
 import {
   ActionSnackbar,
   type ActionNotice,
   useAutoRetry,
 } from '@stackbuild/management';
 
-const periods = ['วันนี้', 'เดือนนี้', 'ปีนี้'] as const;
-type Period = (typeof periods)[number];
 type Branch = {
   id: number;
   name: string;
   code: string;
   size: 'S' | 'M' | 'L';
   status: BranchStatus;
-  sales: number;
-  orders: number;
-};
-
-const apiPeriod: Record<Period, 'today' | 'month' | 'year'> = {
-  วันนี้: 'today',
-  เดือนนี้: 'month',
-  ปีนี้: 'year',
-};
-const periodLabel: Record<Period, string> = {
-  วันนี้: 'ยอดขายวันนี้',
-  เดือนนี้: 'ยอดขายเดือนนี้',
-  ปีนี้: 'ยอดขายปีนี้',
 };
 const statusLabel: Record<string, BranchStatus> = {
   active: 'เปิดให้บริการ',
@@ -60,7 +41,6 @@ const statusLabel: Record<string, BranchStatus> = {
 };
 
 export function AdminBranchesPage() {
-  const [period, setPeriod] = useState<Period>('วันนี้');
   const [query, setQuery] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,14 +62,17 @@ export function AdminBranchesPage() {
     let cancelled = false;
     setIsLoading(true);
     setLoadError(false);
-    void listBranchSales(apiPeriod[period])
+    void listBranches()
       .then((items) => {
         if (!cancelled)
           setBranches(
-            items.map((item) => ({
-              ...item,
-              status: statusLabel[item.status] ?? 'ปิดทำการ',
-            })),
+            items
+              .filter((item) => item.franchiseeId === undefined)
+              .map((item) => ({
+                ...item,
+                size: item.size ?? 'S',
+                status: statusLabel[item.status ?? 'inactive'] ?? 'ปิดทำการ',
+              })),
           );
       })
       .catch(() => {
@@ -104,7 +87,7 @@ export function AdminBranchesPage() {
     return () => {
       cancelled = true;
     };
-  }, [period, reloadKey]);
+  }, [reloadKey]);
 
   const visibleBranches = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('th-TH');
@@ -115,14 +98,6 @@ export function AdminBranchesPage() {
         .includes(normalizedQuery),
     );
   }, [branches, query]);
-  const totalSales = branches.reduce(
-    (total, branch) => total + branch.sales,
-    0,
-  );
-  const totalOrders = branches.reduce(
-    (total, branch) => total + branch.orders,
-    0,
-  );
   const changeBranchSize = async (branchId: number, size: Branch['size']) => {
     setUpdatingBranchId(branchId);
     try {
@@ -174,6 +149,10 @@ export function AdminBranchesPage() {
 
   return (
     <DashboardMain>
+      <AdminPageIntro
+        title="สาขา Super Black Coffee"
+        description="จัดการข้อมูลสาขา SBC และกำหนดขนาดบริการของแต่ละสาขา"
+      />
       <Box
         sx={{
           display: 'flex',
@@ -194,17 +173,6 @@ export function AdminBranchesPage() {
           sx={{ width: { xs: '100%', sm: 310 } }}
         />
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {periods.map((item) => (
-            <Button
-              key={item}
-              size="small"
-              variant={period === item ? 'contained' : 'outlined'}
-              onClick={() => setPeriod(item)}
-              sx={selectionPillSx(period === item)}
-            >
-              {item}
-            </Button>
-          ))}
           <Button
             variant="contained"
             onClick={() => {
@@ -226,73 +194,13 @@ export function AdminBranchesPage() {
         </Box>
       </Box>
 
-      <Card
-        variant="outlined"
-        sx={{
-          mb: 3,
-          p: { xs: 2.25, md: 2.5 },
-          borderRadius: '15px',
-          borderColor: '#e8ddd5',
-        }}
-      >
-        {loadError ? (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1,
-            }}
-          >
-            <Typography
-              sx={{
-                color: '#a22e2a',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 14,
-              }}
-            >
-              ไม่สามารถโหลดข้อมูลสาขาได้
-            </Typography>
-            <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
-              กำลังลองเชื่อมต่อใหม่อัตโนมัติ
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <Typography
-              sx={{
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 14,
-              }}
-            >
-              {periodLabel[period]}
-            </Typography>
-            <Typography
-              sx={{
-                mt: 0.25,
-                color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: { xs: 28, md: 32 },
-                fontWeight: 700,
-              }}
-            >
-              {totalSales.toLocaleString('th-TH')} บาท
-            </Typography>
-            <Typography
-              sx={{
-                mt: 0.25,
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 13,
-              }}
-            >
-              จาก {totalOrders.toLocaleString('th-TH')}{' '}
-              ออเดอร์ที่ชำระเงินแล้วของทุกสาขา
-            </Typography>
-          </>
-        )}
-      </Card>
+      {loadError ? (
+        <Typography
+          sx={{ mb: 3, color: '#a22e2a', fontFamily: 'Kanit, sans-serif' }}
+        >
+          ไม่สามารถโหลดข้อมูลสาขาได้ กำลังลองเชื่อมต่อใหม่อัตโนมัติ
+        </Typography>
+      ) : null}
       {isLoading ? <AdminBranchesSkeleton /> : null}
 
       <Box
@@ -361,37 +269,6 @@ export function AdminBranchesPage() {
                   />
                 </Box>
                 <Box sx={{ mt: 2, pt: 1.75, borderTop: '1px solid #eee6e0' }}>
-                  <Typography
-                    sx={{
-                      color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
-                      fontSize: 12,
-                    }}
-                  >
-                    {periodLabel[period]}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 0.2,
-                      color: branch.sales > 0 ? '#805637' : 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
-                      fontSize: 22,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {branch.sales.toLocaleString('th-TH')} บาท
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 0.35,
-                      color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
-                      fontSize: 12,
-                    }}
-                  >
-                    {branch.orders.toLocaleString('th-TH')}{' '}
-                    ออเดอร์ที่ชำระเงินแล้ว
-                  </Typography>
                   <TextField
                     select
                     size="small"

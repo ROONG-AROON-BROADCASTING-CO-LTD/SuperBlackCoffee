@@ -120,7 +120,7 @@ func (h *PlatformHandler) ensureInventoryWriteAllowed(c *gin.Context, plan strin
 		return true
 	}
 	var kind model.InventoryKind
-	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT kind FROM inventory_items WHERE id=$1 AND branch_id=$2`, inventoryID, branchID).Scan(&kind); err != nil {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT kind FROM inventory_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, inventoryID, branchID).Scan(&kind); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return false
 	}
@@ -132,7 +132,7 @@ func (h *PlatformHandler) ensureMenuDeleteAllowed(c *gin.Context, plan string, b
 		return true
 	}
 	var category string
-	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT category FROM menu_items WHERE id=$1 AND branch_id=$2`, menuID, branchID).Scan(&category); err != nil {
+	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT category FROM menu_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, menuID, branchID).Scan(&category); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบเมนู"})
 		return false
 	}

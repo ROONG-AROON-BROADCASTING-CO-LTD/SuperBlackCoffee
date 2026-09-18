@@ -17,6 +17,7 @@ import {
   ClockIcon,
   DateField,
   DashboardMain,
+  PageIntro,
   selectionPillSx,
   XIcon,
 } from '@stackbuild/ui';
@@ -406,27 +407,10 @@ export function EmployeesManagementPage({
           mb: 2.5,
         }}
       >
-        <Box>
-          <Typography
-            sx={{
-              color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 24,
-              fontWeight: 700,
-            }}
-          >
-            ตารางงานพนักงาน
-          </Typography>
-          <Typography
-            sx={{
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 14,
-            }}
-          >
-            ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน
-          </Typography>
-        </Box>
+        <PageIntro
+          title="ตารางงานพนักงาน"
+          description="ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน"
+        />
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"

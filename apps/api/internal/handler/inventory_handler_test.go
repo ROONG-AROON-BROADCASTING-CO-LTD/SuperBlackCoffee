@@ -69,3 +69,50 @@ func TestInventoryInputDefaultsAndValidatesExpiryDate(t *testing.T) {
 		t.Fatal("invalid expiry date was accepted")
 	}
 }
+
+func TestInventoryInputPreservesExplicitCostOnlyTracking(t *testing.T) {
+	trackStock := false
+	expiryDate := time.Date(2026, time.December, 31, 0, 0, 0, 0, time.UTC)
+	item := inventoryItemFromInput(dto.InventoryRequest{
+		Name:       "น้ำสกัดกาแฟ",
+		Unit:       "ml",
+		TrackStock: &trackStock,
+	}, &expiryDate)
+
+	if item.IsStockTracked() {
+		t.Fatal("explicit cost-only input must not be treated as stock-tracked")
+	}
+	if item.TrackStock == nil || *item.TrackStock {
+		t.Fatalf("trackStock = %#v, want false", item.TrackStock)
+	}
+}
+
+func TestApplyCatalogTrackingClearsBranchStockStateForCostOnlyItems(t *testing.T) {
+	expiryDate := time.Date(2026, time.December, 31, 0, 0, 0, 0, time.UTC)
+	item := model.InventoryItem{
+		Quantity:     2400,
+		ReorderLevel: 500,
+		ExpiryDate:   &expiryDate,
+	}
+
+	applyCatalogTracking(&item, false)
+
+	if item.Quantity != 0 || item.ReorderLevel != 0 || item.ExpiryDate != nil {
+		t.Fatalf("cost-only item kept stock state: %#v", item)
+	}
+}
+
+func TestApplyCatalogTrackingKeepsTrackedBranchStockState(t *testing.T) {
+	expiryDate := time.Date(2026, time.December, 31, 0, 0, 0, 0, time.UTC)
+	item := model.InventoryItem{
+		Quantity:     2400,
+		ReorderLevel: 500,
+		ExpiryDate:   &expiryDate,
+	}
+
+	applyCatalogTracking(&item, true)
+
+	if item.Quantity != 2400 || item.ReorderLevel != 500 || item.ExpiryDate == nil {
+		t.Fatalf("tracked item lost stock state: %#v", item)
+	}
+}

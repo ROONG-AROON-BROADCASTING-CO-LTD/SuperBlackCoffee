@@ -9,6 +9,7 @@ import {
 import { useRef } from 'react';
 import { useWebsiteLeads } from '../../hooks/useWebsiteLeads';
 import { AdminCustomerChatSkeleton } from '../../components/skeletons/AdminCustomerChatSkeleton';
+import { AdminPageIntro } from '../../components/AdminPageIntro';
 import { updateWebsiteLeadStatus } from '../../api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ActionSnackbar, type ActionNotice } from '@stackbuild/management';
@@ -393,6 +394,10 @@ export function AdminCustomerChatPage() {
 
   return (
     <DashboardMain>
+      <AdminPageIntro
+        title="ข้อความลูกค้า"
+        description="ติดตามและตอบกลับข้อความจากลูกค้า"
+      />
       {isLeadsLoading ? <AdminCustomerChatSkeleton /> : null}
       <Card
         variant="outlined"

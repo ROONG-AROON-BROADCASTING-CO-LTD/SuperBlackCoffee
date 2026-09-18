@@ -67,7 +67,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 		var name, status string
 		var storePrice, linemanPrice float64
 		var storeAvailable, linemanAvailable bool
-		if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,status,store_price,store_price_available,lineman_price,lineman_price_available FROM menu_items WHERE id=$1 AND branch_id=$2`, item.MenuItemID, branchID).Scan(&name, &status, &storePrice, &storeAvailable, &linemanPrice, &linemanAvailable); err == sql.ErrNoRows {
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,status,store_price,store_price_available,lineman_price,lineman_price_available FROM menu_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, item.MenuItemID, branchID).Scan(&name, &status, &storePrice, &storeAvailable, &linemanPrice, &linemanAvailable); err == sql.ErrNoRows {
 			c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนูที่เลือก"})
 			return
 		} else if err != nil {
@@ -91,7 +91,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			return
 		}
 		saleItems = append(saleItems, stockSaleItem{menuItemID: item.MenuItemID, channel: itemChannel, quantity: item.Quantity, unitPrice: unitPrice})
-		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel=$2`, item.MenuItemID, itemChannel)
+		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel=$2 AND i.template_enabled`, item.MenuItemID, itemChannel)
 		if queryErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 			return
@@ -115,7 +115,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 		// Legacy menus may only have a storefront recipe. LINE MAN inherits
 		// that recipe until an administrator saves a channel-specific one.
 		if !hasRecipe && itemChannel == "lineman" {
-			fallbackRows, fallbackErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel='storefront'`, item.MenuItemID)
+			fallbackRows, fallbackErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel='storefront' AND i.template_enabled`, item.MenuItemID)
 			if fallbackErr != nil {
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
 				return

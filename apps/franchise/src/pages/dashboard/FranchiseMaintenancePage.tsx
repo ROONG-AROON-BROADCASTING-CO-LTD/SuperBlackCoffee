@@ -11,7 +11,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DashboardMain, DateField, formatDate } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  DateField,
+  formatDate,
+  PageIntro,
+} from '@stackbuild/ui';
 import { ActionSnackbar, type ActionNotice } from '@stackbuild/management';
 import {
   createFranchiseMaintenanceTicket,
@@ -228,28 +233,10 @@ export function FranchiseMaintenancePage() {
   return (
     <DashboardMain>
       <Stack sx={{ gap: 2.25 }}>
-        <Box>
-          <Typography
-            sx={{
-              color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 24,
-              fontWeight: 700,
-            }}
-          >
-            แจ้งซ่อม / งานช่าง
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.25,
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 13,
-            }}
-          >
-            แจ้งปัญหาอุปกรณ์และพื้นที่สาขาให้ทีมช่างติดตามและดำเนินการ
-          </Typography>
-        </Box>
+        <PageIntro
+          title="แจ้งซ่อม / งานช่าง"
+          description="แจ้งปัญหาอุปกรณ์และพื้นที่สาขาให้ทีมช่างติดตามและดำเนินการ"
+        />
 
         <Box
           sx={{

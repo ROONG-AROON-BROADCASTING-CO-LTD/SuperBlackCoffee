@@ -48,7 +48,7 @@ func menuRecipeStatusTx(ctx context.Context, tx *sql.Tx, branchID int64, ingredi
 		var unit, category string
 		var trackStock bool
 		var expired bool
-		err := tx.QueryRowContext(ctx, `SELECT i.quantity,i.unit,i.category,COALESCE(c.track_stock,true),i.expiry_date IS NOT NULL AND i.expiry_date < CURRENT_DATE FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2`, inventoryItemID, branchID).Scan(&quantity, &unit, &category, &trackStock, &expired)
+		err := tx.QueryRowContext(ctx, `SELECT i.quantity,i.unit,i.category,COALESCE(c.track_stock,true),i.expiry_date IS NOT NULL AND i.expiry_date < CURRENT_DATE FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled`, inventoryItemID, branchID).Scan(&quantity, &unit, &category, &trackStock, &expired)
 		if err == sql.ErrNoRows {
 			return "", fmt.Errorf("ไม่พบวัตถุดิบในสาขาที่เลือก")
 		}
@@ -93,7 +93,7 @@ func (h *PlatformHandler) applyMenuRecipeStatuses(ctx context.Context, branchID 
 		LEFT JOIN menu_item_ingredients mi ON mi.menu_item_id=m.id
 		LEFT JOIN inventory_items i ON i.id=mi.inventory_item_id
 		LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id
-		WHERE m.branch_id=$1
+		WHERE m.branch_id=$1 AND m.template_enabled
 		GROUP BY m.id, mi.channel`, branchID)
 	if err != nil {
 		return err

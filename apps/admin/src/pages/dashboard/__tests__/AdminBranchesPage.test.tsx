@@ -9,31 +9,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminBranchesPage } from '../AdminBranchesPage';
 import {
   createCompanyBranch,
-  listBranchSales,
+  listBranches,
   updateBranchSize,
 } from '../../../api';
 
 vi.mock('../../../api', () => ({
   createCompanyBranch: vi.fn(),
-  listBranchSales: vi.fn(),
+  listBranches: vi.fn(),
   updateBranchSize: vi.fn(),
 }));
 
 const mockedCreateCompanyBranch = vi.mocked(createCompanyBranch);
-const mockedListBranchSales = vi.mocked(listBranchSales);
+const mockedListBranches = vi.mocked(listBranches);
 const mockedUpdateBranchSize = vi.mocked(updateBranchSize);
 
 describe('AdminBranchesPage', () => {
   beforeEach(() => {
-    mockedListBranchSales.mockResolvedValue([
+    mockedListBranches.mockResolvedValue([
       {
         id: 1,
         name: 'สาขาเดิม',
         code: 'SBC-OLD-001',
         size: 'L',
         status: 'active',
-        sales: 0,
-        orders: 0,
       },
     ]);
     mockedCreateCompanyBranch.mockResolvedValue({
@@ -73,6 +71,30 @@ describe('AdminBranchesPage', () => {
     );
     expect(screen.getByText('สาขาเชียงใหม่')).toBeTruthy();
     expect(screen.getByText('SBC-CNX-001')).toBeTruthy();
+  });
+
+  it('shows only company branches on the SBC branches page', async () => {
+    mockedListBranches.mockResolvedValueOnce([
+      {
+        id: 1,
+        name: 'สาขา SBC',
+        code: 'SBC-AYA-001',
+        size: 'S',
+        status: 'active',
+      },
+      {
+        id: 2,
+        name: 'สาขาแฟรนไชส์',
+        code: 'FR-SUP-001',
+        size: 'M',
+        status: 'active',
+        franchiseeId: 12,
+      },
+    ]);
+    render(<AdminBranchesPage />);
+
+    expect(await screen.findByText('สาขา SBC')).toBeTruthy();
+    expect(screen.queryByText('สาขาแฟรนไชส์')).toBeNull();
   });
 
   it('sends the size selected for a new SBC branch instead of always using the default plan', async () => {

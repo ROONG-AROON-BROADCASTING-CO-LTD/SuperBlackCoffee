@@ -75,7 +75,7 @@ describe('StockCountPage', () => {
     expect(onOrderIngredients).toHaveBeenCalledWith(ingredient);
   });
 
-  it('excludes cost-only recipe inputs from stock counting and ordering', () => {
+  it('excludes cost-only recipe inputs even when a legacy payload omits trackStock', () => {
     render(
       <StockCountPage
         ingredients={[
@@ -84,8 +84,14 @@ describe('StockCountPage', () => {
             ...ingredient,
             id: 2,
             name: 'น้ำสกัดกาแฟ',
-            trackStock: false,
             status: 'cost_only',
+          },
+          {
+            ...ingredient,
+            id: 3,
+            name: 'น้ำร้อน',
+            trackStock: false,
+            status: 'ready',
           },
         ]}
         drinkStock={[]}
@@ -97,6 +103,7 @@ describe('StockCountPage', () => {
 
     expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
     expect(screen.queryByText('น้ำสกัดกาแฟ')).toBeNull();
+    expect(screen.queryByText('น้ำร้อน')).toBeNull();
   });
 
   it('formats an inventory expiry date in Thai on its card', () => {

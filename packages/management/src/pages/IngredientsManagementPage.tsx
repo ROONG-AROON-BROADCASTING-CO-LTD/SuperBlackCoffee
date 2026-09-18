@@ -30,6 +30,7 @@ import {
   inventoryUnitSelectSlotProps,
   PlusIcon,
   normalizeInventoryUnit,
+  PageIntro,
   SearchField,
   XIcon,
   type IngredientStatus,
@@ -384,6 +385,7 @@ export function IngredientsManagementPage({
         ? (String(formData.get('branch')) as InventoryBranch)
         : activeBranch);
     const expiryDate = String(formData.get('expiryDate') ?? '').trim();
+    const trackStockValue = String(formData.get('trackStock') ?? '');
     const data: InventoryInput = {
       name: String(formData.get('name') ?? '').trim(),
       category: isFreshIngredientsPage
@@ -394,7 +396,11 @@ export function IngredientsManagementPage({
       unit: String(formData.get('unit') ?? ''),
       reorderLevel: Number(formData.get('reorderLevel') ?? 0),
       unitCost: Number(formData.get('unitCost') ?? 0),
-      trackStock: editingIngredient?.trackStock,
+      trackStock: isFreshIngredientsPage
+        ? true
+        : trackStockValue === ''
+          ? undefined
+          : trackStockValue === 'true',
       imageUrl: imagePreviewUrl ?? editingIngredient?.imageUrl ?? '',
       expiryDate: expiryDate || null,
     };
@@ -575,6 +581,14 @@ export function IngredientsManagementPage({
 
   return (
     <DashboardMain>
+      <PageIntro
+        title={ingredientLabel}
+        description={
+          franchisePlan
+            ? `ตรวจสอบและจัดการ${ingredientLabel}ของสาขาแฟรนไชส์`
+            : `ตรวจสอบและจัดการ${ingredientLabel}ของสาขา SBC`
+        }
+      />
       <Box
         sx={{
           display: 'flex',
@@ -1614,6 +1628,30 @@ export function IngredientsManagementPage({
                     <MenuItem value="other">อื่น ๆ</MenuItem>
                   </TextField>
                 )}
+                {!isFreshIngredientsPage ? (
+                  <TextField
+                    select
+                    fullWidth
+                    name="trackStock"
+                    label="การจัดการสต๊อก"
+                    defaultValue={
+                      editingIngredient
+                        ? String(editingIngredient.trackStock)
+                        : ''
+                    }
+                    helperText={
+                      editingIngredient
+                        ? 'การเปลี่ยนค่านี้จะมีผลกับรายการชื่อเดียวกันทุกสาขา'
+                        : 'หากเพิ่มชื่อที่มีอยู่แล้ว ระบบจะใช้การตั้งค่ากลางเดิม'
+                    }
+                  >
+                    {!editingIngredient ? (
+                      <MenuItem value="">ใช้การตั้งค่ากลางเดิม</MenuItem>
+                    ) : null}
+                    <MenuItem value="true">ติดตามสต๊อกและแจ้งเตือน</MenuItem>
+                    <MenuItem value="false">คิดต้นทุนเท่านั้น</MenuItem>
+                  </TextField>
+                ) : null}
                 <TextField
                   fullWidth
                   required

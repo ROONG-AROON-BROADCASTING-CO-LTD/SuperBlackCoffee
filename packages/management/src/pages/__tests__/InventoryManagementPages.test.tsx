@@ -13,6 +13,7 @@ import { ProductsManagementPage } from '../ProductsManagementPage';
 import { StockManagementPage } from '../StockManagementPage';
 import {
   adjustInventory,
+  createInventory,
   deleteInventory,
   listFreshInventoryLots,
   listInventory,
@@ -23,6 +24,7 @@ import { createStockRequest } from '../../api/stock-requests';
 
 vi.mock('../../api/inventory', () => ({
   adjustInventory: vi.fn(),
+  createInventory: vi.fn(),
   deleteInventory: vi.fn(),
   discardFreshInventoryLot: vi.fn(),
   listFreshInventoryLots: vi.fn(),
@@ -39,6 +41,7 @@ vi.mock('../../api/stock-requests', () => ({ createStockRequest: vi.fn() }));
 
 const mockedListInventory = vi.mocked(listInventory);
 const mockedAdjustInventory = vi.mocked(adjustInventory);
+const mockedCreateInventory = vi.mocked(createInventory);
 const mockedDeleteInventory = vi.mocked(deleteInventory);
 const mockedListFreshInventoryLots = vi.mocked(listFreshInventoryLots);
 const mockedUpdateInventory = vi.mocked(updateInventory);
@@ -103,6 +106,7 @@ describe('inventory management pages', () => {
     ]);
     mockedCreateStockRequest.mockResolvedValue({ id: 1, status: 'pending' });
     mockedAdjustInventory.mockResolvedValue({ id: 1, quantity: 0 });
+    mockedCreateInventory.mockResolvedValue({ id: 2 });
     mockedDeleteInventory.mockResolvedValue(undefined);
     mockedListFreshInventoryLots.mockResolvedValue([]);
     mockedUpdateInventory.mockResolvedValue({ id: 1 });
@@ -436,6 +440,35 @@ describe('inventory management pages', () => {
     expect(screen.queryByText('พร้อมใช้')).toBeNull();
     expect(screen.getByText('วันหมดอายุ')).toBeTruthy();
     expect(screen.getByText('31 ธ.ค. 2569')).toBeTruthy();
+  });
+
+  it('lets an admin explicitly set an ingredient to cost-only tracking', async () => {
+    renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'เพิ่มวัตถุดิบ' }),
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อวัตถุดิบ' }), {
+      target: { value: 'น้ำสกัดทดสอบ' },
+    });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'จำนวนคงเหลือ' }), {
+      target: { value: '0' },
+    });
+    fireEvent.mouseDown(
+      screen.getByRole('combobox', { name: 'การจัดการสต๊อก' }),
+    );
+    fireEvent.click(screen.getByRole('option', { name: 'คิดต้นทุนเท่านั้น' }));
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกวัตถุดิบ' }));
+
+    await waitFor(() =>
+      expect(mockedCreateInventory).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'น้ำสกัดทดสอบ',
+          trackStock: false,
+        }),
+        'SBC-AYA-001',
+      ),
+    );
   });
 
   it('shows the stale-stock status when an ingredient has not moved recently', async () => {

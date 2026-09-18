@@ -22,6 +22,18 @@ vi.mock('@stackbuild/ui', () => ({
   DashboardMain: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
+  PageIntro: ({
+    title,
+    description,
+  }: {
+    title: string;
+    description: string;
+  }) => (
+    <header>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </header>
+  ),
   formatCurrency: (value: number) => `${value.toLocaleString('th-TH')} บาท`,
 }));
 vi.mock('@stackbuild/management', () => ({

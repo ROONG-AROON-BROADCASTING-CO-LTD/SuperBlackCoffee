@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  PageIntro,
   PlusIcon,
   SearchField,
   selectionPillSx,
@@ -690,6 +691,14 @@ export function ProductsManagementPage({
 
   return (
     <DashboardMain>
+      <PageIntro
+        title="เมนูและสินค้า"
+        description={
+          franchisePlan
+            ? 'จัดการเมนู ราคา และสูตรของสาขาแฟรนไชส์'
+            : 'จัดการเมนู ราคา และสูตรของสาขา SBC'
+        }
+      />
       <Box
         sx={{
           display: 'flex',

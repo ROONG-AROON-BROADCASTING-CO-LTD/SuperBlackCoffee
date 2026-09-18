@@ -119,6 +119,20 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 }
 
 func registerAdminRoutes(protected *gin.RouterGroup, deps routeDependencies) {
+	protected.GET("/catalog-templates", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListCatalogTemplates)
+	protected.GET("/catalog-templates/:id", middleware.RequireAuth(deps.secret, "admin"), deps.platform.GetCatalogTemplate)
+	protected.GET("/catalog-templates/:id/impact", middleware.RequireAuth(deps.secret, "admin"), deps.platform.GetCatalogTemplateImpact)
+	protected.POST("/catalog-templates/:id/sync", middleware.RequireAuth(deps.secret, "admin"), deps.platform.SyncCatalogTemplate)
+	protected.POST("/catalog-templates/:id/inventory", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CreateCatalogTemplateInventory)
+	protected.PATCH("/catalog-templates/:id/inventory/:catalogItemId", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateCatalogTemplateInventory)
+	protected.DELETE("/catalog-templates/:id/inventory/:catalogItemId", middleware.RequireAuth(deps.secret, "admin"), deps.platform.RetireCatalogTemplateInventory)
+	protected.PATCH("/catalog-templates/:id/menu-items/:menuId", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateCatalogTemplateMenu)
+	protected.POST("/catalog-templates/:id/menu-items", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CreateCatalogTemplateMenu)
+	protected.PUT("/catalog-templates/:id/menu-items/:menuId/recipes", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ReplaceCatalogTemplateMenuRecipes)
+	protected.DELETE("/catalog-templates/:id/menu-items/:menuId", middleware.RequireAuth(deps.secret, "admin"), deps.platform.RetireCatalogTemplateMenu)
+	protected.PUT("/branches/:branchId/catalog-template-exceptions", middleware.RequireAuth(deps.secret, "admin"), deps.platform.SetCatalogTemplateException)
+	protected.GET("/branches/:branchId/catalog-template-exceptions", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListCatalogTemplateExceptions)
+	protected.DELETE("/branches/:branchId/catalog-template-exceptions/:entityType/:sourceKey", middleware.RequireAuth(deps.secret, "admin"), deps.platform.DeleteCatalogTemplateException)
 	protected.GET("/suppliers", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListSuppliers)
 	protected.POST("/suppliers", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CreateSupplier)
 	protected.PATCH("/suppliers/:id", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateSupplier)

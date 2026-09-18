@@ -520,11 +520,11 @@ export function PromotionsManagementPage({
             )}
             <Typography
               sx={{
-                color: '#201914',
+                color: '#3c2d24',
                 fontFamily: 'Kanit, sans-serif',
-                fontSize: { xs: 18, md: 21 },
-                fontWeight: 700,
-                lineHeight: 1,
+                fontSize: 20,
+                fontWeight: 600,
+                lineHeight: 1.35,
               }}
             >
               โปรโมชั่น

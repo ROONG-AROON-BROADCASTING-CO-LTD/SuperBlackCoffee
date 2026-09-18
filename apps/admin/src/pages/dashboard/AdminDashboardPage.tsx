@@ -1,5 +1,6 @@
 import { Card, CardContent, Stack, Typography } from '@mui/material';
 import { DashboardMain } from '@stackbuild/ui';
+import { AdminPageIntro } from '../../components/AdminPageIntro';
 
 const content: Record<string, [string, string][]> = {
   คำสั่งซื้อ: [
@@ -16,6 +17,7 @@ export function AdminDashboardPage({ title }: { title: string }) {
   return (
     <DashboardMain>
       <Stack spacing={2}>
+        <AdminPageIntro title={title} description={`ภาพรวมข้อมูล${title}`} />
         {(content[title] ?? []).map(([heading, detail]) => (
           <Card key={heading}>
             <CardContent>

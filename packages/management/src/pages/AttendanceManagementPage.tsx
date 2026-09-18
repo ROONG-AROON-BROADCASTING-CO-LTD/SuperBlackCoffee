@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Card, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardMain, selectionPillSx } from '@stackbuild/ui';
+import { DashboardMain, PageIntro, selectionPillSx } from '@stackbuild/ui';
 import { listManagedAttendance } from '../api/attendance';
 import { listBranches } from '../api/branches';
 import { listPublicHolidays } from '../api/public-holidays';
@@ -249,26 +249,14 @@ export function AttendanceManagementPage({
           mb: 2.5,
         }}
       >
-        <Box>
-          <Typography
-            sx={{
-              color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 24,
-              fontWeight: 700,
-            }}
-          >
-            ลงเวลาพนักงาน
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
-          >
-            {franchiseMode
+        <PageIntro
+          title="ลงเวลาพนักงาน"
+          description={
+            franchiseMode
               ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
-              : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'}
-          </Typography>
-        </Box>
+              : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'
+          }
+        />
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"

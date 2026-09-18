@@ -7,22 +7,17 @@ import (
 	"y/internal/model"
 )
 
-// ensureInventoryCatalogTx makes item metadata global while stock state remains
-// scoped to one branch. Updating a catalogue item therefore updates what every
-// branch sees without changing any branch's quantity or expiry date.
-func ensureInventoryCatalogTx(ctx context.Context, tx *sql.Tx, item model.InventoryItem) (int64, error) {
+// ensureInventoryCatalogTx resolves the stable global identity for a branch
+// item. Existing canonical metadata is never changed from a branch CRUD flow;
+// shared defaults are edited only through the central-template endpoints.
+func ensureInventoryCatalogTx(ctx context.Context, tx *sql.Tx, item model.InventoryItem) (int64, bool, error) {
 	var id int64
+	var trackStock bool
 	err := tx.QueryRowContext(ctx, `
-		INSERT INTO inventory_catalog_items(name,category,stock_category,kind,unit,unit_cost,image_url)
-		VALUES($1,$2,NULLIF($3,''),$4,$5,$6,$7)
+		INSERT INTO inventory_catalog_items(name,category,stock_category,kind,unit,unit_cost,image_url,track_stock)
+		VALUES($1,$2,NULLIF($3,''),$4,$5,$6,$7,COALESCE($8,true))
 		ON CONFLICT (name) DO UPDATE
-		SET category=EXCLUDED.category,
-			stock_category=EXCLUDED.stock_category,
-			kind=EXCLUDED.kind,
-			unit=EXCLUDED.unit,
-			unit_cost=EXCLUDED.unit_cost,
-			image_url=EXCLUDED.image_url,
-			updated_at=now()
-		RETURNING id`, item.Name, item.Category, item.StockCategory, item.Kind, item.Unit, item.UnitCost, item.ImageURL).Scan(&id)
-	return id, err
+		SET name=EXCLUDED.name
+		RETURNING id,track_stock`, item.Name, item.Category, item.StockCategory, item.Kind, item.Unit, item.UnitCost, item.ImageURL, item.TrackStock).Scan(&id, &trackStock)
+	return id, trackStock, err
 }

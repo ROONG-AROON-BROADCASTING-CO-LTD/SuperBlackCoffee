@@ -18,15 +18,22 @@ const api = vi.hoisted(() => ({
 
 vi.mock('@stackbuild/management', () => ({
   ...api,
-  branchCodeByBranch: { อยุธยา: 'SBC-AYA-001' },
 }));
 vi.mock('@stackbuild/ui', () => ({
   formatCurrency: (value: number) => `${value} บาท`,
+  PageIntro: ({
+    title,
+    description,
+  }: {
+    title: string;
+    description: string;
+  }) => (
+    <div>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </div>
+  ),
 }));
-vi.mock('../../../components/sidebar/franchiseSidebarNavigation', () => ({
-  franchiseBranch: 'อยุธยา',
-}));
-
 const renderPage = (onNavigate = vi.fn()) =>
   render(
     <QueryClientProvider
@@ -34,7 +41,12 @@ const renderPage = (onNavigate = vi.fn()) =>
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <FranchiseOverviewPage plan="M" onNavigate={onNavigate} />
+      <FranchiseOverviewPage
+        plan="M"
+        branchName="สุพรรณบุรี M"
+        branchCode="FR-SUP-001-M"
+        onNavigate={onNavigate}
+      />
     </QueryClientProvider>,
   );
 
@@ -73,8 +85,12 @@ describe('FranchiseOverviewPage', () => {
     await waitFor(() => expect(screen.getByText('750 บาท')).toBeTruthy());
     expect(screen.getByText('3 รายการ')).toBeTruthy();
     expect(screen.getAllByText('1/2 พร้อมใช้งาน')).toHaveLength(2);
-    expect(api.listMenuItems).toHaveBeenCalledWith('SBC-AYA-001');
-    expect(api.listInventory).toHaveBeenCalledWith('ingredient', 'SBC-AYA-001');
+    expect(api.listMenuItems).toHaveBeenCalledWith('FR-SUP-001-M');
+    expect(api.listInventory).toHaveBeenCalledWith(
+      'ingredient',
+      'FR-SUP-001-M',
+    );
+    expect(screen.getByText(/สุพรรณบุรี M/u)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'ดูวัตถุดิบ' }));
     expect(onNavigate).toHaveBeenCalledWith('วัตถุดิบ');

@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import { XIcon } from '@stackbuild/ui';
-import type { InventoryItem } from '../api/stock';
+import { isCountableStockItem, type InventoryItem } from '../api/stock';
 
 type OrderItem = InventoryItem & { quantityToOrder: number };
 
@@ -67,6 +67,10 @@ export function StockOrderCartDrawer({
   useEffect(() => onItemCountChange(quantity), [onItemCountChange, quantity]);
   useEffect(() => {
     if (!pendingItem) return;
+    if (!isCountableStockItem(pendingItem)) {
+      onPendingItemAdded();
+      return;
+    }
     setItems((current) => {
       const currentItem = current[pendingItem.id];
       return {

@@ -167,7 +167,7 @@ func (h *PlatformHandler) salesImportBranches(c *gin.Context) ([]salesImportBran
 }
 
 func (h *PlatformHandler) salesImportMenus(c *gin.Context, branchID int64) ([]salesImportMenu, error) {
-	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,store_price,store_price_available,lineman_price,lineman_price_available FROM menu_items WHERE branch_id=$1`, branchID)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,store_price,store_price_available,lineman_price,lineman_price_available FROM menu_items WHERE branch_id=$1 AND template_enabled`, branchID)
 	if err != nil {
 		return nil, err
 	}

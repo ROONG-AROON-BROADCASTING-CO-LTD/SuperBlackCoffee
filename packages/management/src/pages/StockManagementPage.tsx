@@ -22,6 +22,7 @@ import {
   inventoryUnitSelectSlotProps,
   PlusIcon,
   normalizeInventoryUnit,
+  PageIntro,
   SearchField,
   XIcon,
   type IngredientStatus,
@@ -256,6 +257,14 @@ export function StockManagementPage({
 
   return (
     <DashboardMain>
+      <PageIntro
+        title={stockLabel}
+        description={
+          readOnly
+            ? 'ตรวจสอบจำนวนคงเหลือของอุปกรณ์สาขาแฟรนไชส์'
+            : 'ตรวจสอบจำนวนคงเหลือและจัดการอุปกรณ์ของสาขา SBC'
+        }
+      />
       <Box
         sx={{
           display: 'flex',

@@ -110,7 +110,7 @@ func (h *PlatformHandler) CreatePurchaseOrder(c *gin.Context) {
 	}
 	for _, item := range input.Items {
 		var name, unit string
-		err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2`, item.InventoryItemID, branchID).Scan(&name, &unit)
+		err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, item.InventoryItemID, branchID).Scan(&name, &unit)
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "มีรายการสต๊อกที่ไม่อยู่ในสาขาที่เลือก"})
 			return
@@ -248,7 +248,7 @@ func (h *PlatformHandler) ReceivePurchaseOrder(c *gin.Context) {
 			return
 		}
 		var before, previousCost float64
-		if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,unit_cost FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &previousCost); err != nil {
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,unit_cost FROM inventory_items WHERE id=$1 AND branch_id=$2 AND template_enabled FOR UPDATE`, inventoryID, branchID).Scan(&before, &previousCost); err != nil {
 			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่พบรายการสต๊อกสำหรับรับสินค้า"})
 			return
 		}
@@ -318,7 +318,7 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 	defer tx.Rollback()
 	var before float64
 	var trackStock bool
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 FOR UPDATE`, id, branchID).Scan(&before, &trackStock); err != nil {
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE`, id, branchID).Scan(&before, &trackStock); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต๊อก"})
 		return
 	}

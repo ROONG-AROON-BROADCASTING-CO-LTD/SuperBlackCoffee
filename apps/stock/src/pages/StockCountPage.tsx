@@ -18,7 +18,7 @@ import {
   SearchField,
   selectionPillSx,
 } from '@stackbuild/ui';
-import type { InventoryItem } from '../api/stock';
+import { isCountableStockItem, type InventoryItem } from '../api/stock';
 
 type InventoryGroup = 'ingredient' | 'drink_equipment' | 'postal_equipment';
 const groups: Array<{ id: InventoryGroup; label: string }> = [
@@ -75,7 +75,7 @@ export function StockCountPage({
     () =>
       items.filter(
         (item) =>
-          item.trackStock !== false &&
+          isCountableStockItem(item) &&
           item.name.toLowerCase().includes(query.trim().toLowerCase()),
       ),
     [items, query],

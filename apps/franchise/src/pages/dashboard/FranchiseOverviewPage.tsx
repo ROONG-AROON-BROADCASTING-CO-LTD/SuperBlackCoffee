@@ -10,17 +10,13 @@ import {
   Typography,
 } from '@mui/material';
 import {
-  branchCodeByBranch,
   getDashboardSummary,
   listEmployees,
   listInventory,
   listMenuItems,
 } from '@stackbuild/management';
-import { formatCurrency } from '@stackbuild/ui';
-import {
-  franchiseBranch,
-  type FranchisePlan,
-} from '../../components/sidebar/franchiseSidebarNavigation';
+import { formatCurrency, PageIntro } from '@stackbuild/ui';
+import { type FranchisePlan } from '../../components/sidebar/franchiseSidebarNavigation';
 
 const cardSx = {
   borderRadius: '16px',
@@ -126,12 +122,15 @@ function FranchiseOverviewLoading() {
 
 export function FranchiseOverviewPage({
   plan,
+  branchName,
+  branchCode,
   onNavigate,
 }: {
   plan: FranchisePlan;
+  branchName: string;
+  branchCode: string;
   onNavigate: (page: Page) => void;
 }) {
-  const branchCode = branchCodeByBranch[franchiseBranch];
   const dashboard = useQuery({
     queryKey: ['franchise-dashboard-summary'],
     queryFn: getDashboardSummary,
@@ -214,20 +213,10 @@ export function FranchiseOverviewPage({
           gap: 1.25,
         }}
       >
-        <Box>
-          <Typography
-            sx={{
-              color: '#201914',
-              fontSize: { xs: 23, md: 27 },
-              fontWeight: 700,
-            }}
-          >
-            ภาพรวมแฟรนไชส์
-          </Typography>
-          <Typography sx={{ mt: 0.25, color: 'text.secondary', fontSize: 13 }}>
-            สรุปการดำเนินงานของสาขา{franchiseBranch}จากข้อมูลในระบบ
-          </Typography>
-        </Box>
+        <PageIntro
+          title="ภาพรวมแฟรนไชส์"
+          description={`สรุปการดำเนินงานของสาขา ${branchName} จากข้อมูลในระบบ`}
+        />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Chip
             label={`ขนาดสาขา ${plan}`}

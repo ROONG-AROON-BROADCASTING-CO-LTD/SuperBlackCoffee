@@ -1,11 +1,12 @@
 import { LoginScreen } from '@stackbuild/ui';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../../api/auth';
+import type { FranchiseUser } from '../../api/auth';
 
 export function FranchiseLoginPage({
   onLogin,
 }: {
-  onLogin: (plan: 'S' | 'M' | 'L') => void;
+  onLogin: (user: FranchiseUser) => void;
 }) {
   const navigate = useNavigate();
   return (
@@ -18,7 +19,7 @@ export function FranchiseLoginPage({
         if (session.user.role !== 'franchise_owner')
           throw new Error('บัญชีนี้ไม่มีสิทธิ์แฟรนไชส์');
         navigate('/', { replace: true });
-        onLogin(session.user.plan ?? 'S');
+        onLogin(session.user);
       }}
     />
   );

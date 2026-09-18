@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Card, Chip, Typography } from '@mui/material';
-import { DashboardMain, formatDate } from '@stackbuild/ui';
+import { DashboardMain, formatDate, PageIntro } from '@stackbuild/ui';
 import {
   listStockRequests,
   type StockRequestStatus,
@@ -46,28 +46,10 @@ export function FranchiseIngredientRequestsPage() {
             gap: 1,
           }}
         >
-          <Box>
-            <Typography
-              sx={{
-                color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 24,
-                fontWeight: 700,
-              }}
-            >
-              คำขอวัตถุดิบ
-            </Typography>
-            <Typography
-              sx={{
-                mt: 0.25,
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 13,
-              }}
-            >
-              ตรวจสอบสถานะคำขอที่ส่งให้ Admin ดำเนินการ
-            </Typography>
-          </Box>
+          <PageIntro
+            title="คำขอวัตถุดิบ"
+            description="ตรวจสอบสถานะคำขอที่ส่งให้ Admin ดำเนินการ"
+          />
           <Chip
             label={`รออนุมัติ ${pendingCount} รายการ`}
             sx={{

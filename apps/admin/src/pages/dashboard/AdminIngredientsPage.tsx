@@ -28,6 +28,7 @@ import {
   type IngredientBranch,
 } from '../../components/sidebar/IngredientBranchesSidebar';
 import { IngredientCardsSkeleton } from '../../components/skeletons/IngredientCardsSkeleton';
+import { AdminPageIntro } from '../../components/AdminPageIntro';
 
 type Ingredient = {
   name: string;
@@ -184,6 +185,10 @@ export function AdminIngredientsPage({
 
   return (
     <DashboardMain>
+      <AdminPageIntro
+        title="วัตถุดิบ"
+        description="ตรวจสอบและจัดการวัตถุดิบของแต่ละสาขา"
+      />
       <Box
         sx={{
           display: 'flex',

@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DashboardMain, ReceiptTextIcon } from '@stackbuild/ui';
+import { DashboardMain, PageIntro, ReceiptTextIcon } from '@stackbuild/ui';
 import {
   listManagedLeaveRequests,
   getManagedLeaveRequestAttachment,
@@ -153,26 +153,14 @@ export function LeaveRequestsManagementPage({
   return (
     <DashboardMain>
       <Stack spacing={3} sx={{ maxWidth: 1240, mx: 'auto' }}>
-        <Box>
-          <Typography
-            sx={{
-              color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 24,
-              fontWeight: 700,
-            }}
-          >
-            คำขอลาพนักงาน
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
-          >
-            {franchiseMode
+        <PageIntro
+          title="คำขอลาพนักงาน"
+          description={
+            franchiseMode
               ? 'พิจารณาคำขอลาของพนักงานในแฟรนไชส์ของคุณ'
-              : 'พิจารณาคำขอลาของพนักงานบริษัท Super Black Coffee'}
-          </Typography>
-        </Box>
+              : 'พิจารณาคำขอลาของพนักงานบริษัท Super Black Coffee'
+          }
+        />
         {leaveRequests.isLoading ? (
           <LeaveRequestsSkeleton />
         ) : leaveRequests.error ? (

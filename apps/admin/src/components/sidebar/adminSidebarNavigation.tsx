@@ -23,6 +23,12 @@ export const adminSidebarNavigation = [
   { label: 'คำสั่งซื้อ', icon: <ReceiptIcon />, group: 'การขายและคำสั่งซื้อ' },
   { label: 'โปรโมชั่น', icon: <BadgeIcon />, group: 'การขายและคำสั่งซื้อ' },
   {
+    id: 'central-catalog',
+    label: 'สินค้าและคลังกลาง',
+    icon: <BoxesIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
     id: 'sbc-products',
     label: 'เมนูและสินค้า',
     icon: <CartIcon />,

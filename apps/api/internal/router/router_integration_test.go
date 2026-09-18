@@ -62,6 +62,142 @@ func TestOperationsRoutesRequireAnOperationsRole(t *testing.T) {
 	}
 }
 
+func TestCentralCatalogTemplateRoutesAreAdminOnly(t *testing.T) {
+	r := New(nil, nil)
+	for _, test := range []struct {
+		name, method, path, role string
+		want                     int
+	}{
+		{name: "requires authentication", method: http.MethodGet, path: "/api/v1/catalog-templates?scope=sbc&size=S", want: http.StatusUnauthorized},
+		{name: "franchise owner cannot list", method: http.MethodGet, path: "/api/v1/catalog-templates?scope=sbc&size=S", role: "franchise_owner", want: http.StatusForbidden},
+		{name: "cashier cannot inspect impact", method: http.MethodGet, path: "/api/v1/catalog-templates/1/impact", role: "cashier", want: http.StatusForbidden},
+		{name: "admin reaches the unavailable handler", method: http.MethodGet, path: "/api/v1/catalog-templates?scope=sbc&size=S", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "admin sync reaches the unavailable handler", method: http.MethodPost, path: "/api/v1/catalog-templates/1/sync", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "cashier cannot create central inventory", method: http.MethodPost, path: "/api/v1/catalog-templates/1/inventory", role: "cashier", want: http.StatusForbidden},
+		{name: "admin create menu reaches unavailable handler", method: http.MethodPost, path: "/api/v1/catalog-templates/1/menu-items", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "franchise owner cannot retire a central item", method: http.MethodDelete, path: "/api/v1/catalog-templates/1/inventory/2", role: "franchise_owner", want: http.StatusForbidden},
+		{name: "admin retire reaches the unavailable handler", method: http.MethodDelete, path: "/api/v1/catalog-templates/1/menu-items/2", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "cashier cannot replace a central recipe", method: http.MethodPut, path: "/api/v1/catalog-templates/1/menu-items/2/recipes", role: "cashier", want: http.StatusForbidden},
+		{name: "admin recipe replace reaches the unavailable handler", method: http.MethodPut, path: "/api/v1/catalog-templates/1/menu-items/2/recipes", role: "admin", want: http.StatusServiceUnavailable},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(test.method, test.path, nil)
+			if test.role != "" {
+				req.Header.Set("Authorization", "Bearer "+testToken(t, test.role))
+			}
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != test.want {
+				t.Fatalf("status = %d, want %d: %s", res.Code, test.want, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestCentralTemplateProvisioningAndSyncPreserveBranchPhysicalStock(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	seedBranchID := seedBranch(t, db, "CENTRAL-TEMPLATE-ADMIN")
+	seedUser(t, db, 7, "central-template-admin", "admin", seedBranchID, nil)
+
+	var templateID int64
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='sbc' AND branch_size='S'`).Scan(&templateID); err != nil {
+		t.Fatalf("read SBC S template: %v", err)
+	}
+	templateInventoryName := fmt.Sprintf("วัตถุดิบแม่แบบทดสอบ-%d", time.Now().UnixNano())
+	var catalogItemID int64
+	if err := db.QueryRow(`
+		INSERT INTO inventory_catalog_items(name,category,kind,unit,unit_cost,track_stock)
+		VALUES($1,'test','ingredient','กรัม',2,true)
+		RETURNING id`, templateInventoryName).Scan(&catalogItemID); err != nil {
+		t.Fatalf("create central inventory identity: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,kind,unit,unit_cost,reorder_level,track_stock)
+		VALUES($1,$2,'test','ingredient','กรัม',2,3,true)`, templateID, catalogItemID); err != nil {
+		t.Fatalf("add central template inventory: %v", err)
+	}
+	templateMenuName := fmt.Sprintf("เมนูแม่แบบทดสอบ-%d", time.Now().UnixNano())
+	var templateMenuID int64
+	if err := db.QueryRow(`
+		INSERT INTO catalog_template_menu_items(template_id,name,category,store_price,lineman_price,status)
+		VALUES($1,$2,'test',50,60,'available')
+		RETURNING id`, templateID, templateMenuName).Scan(&templateMenuID); err != nil {
+		t.Fatalf("add central template menu: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO catalog_template_menu_ingredients(template_menu_item_id,catalog_item_id,channel,quantity,unit,cost_amount)
+		VALUES($1,$2,'storefront',2,'กรัม',4)`, templateMenuID, catalogItemID); err != nil {
+		t.Fatalf("add central template recipe: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM catalog_template_menu_items WHERE id=$1`, templateMenuID)
+		_, _ = db.Exec(`DELETE FROM catalog_template_inventory_items WHERE catalog_item_id=$1`, catalogItemID)
+		_, _ = db.Exec(`DELETE FROM inventory_catalog_items WHERE id=$1`, catalogItemID)
+	})
+
+	r := New(db, nil)
+	token := testToken(t, "admin")
+	created := requestJSON(r, http.MethodPost, "/api/v1/branches", `{"name":"สาขาแม่แบบทดสอบ","code":"CENTRAL-TEMPLATE-S","size":"S"}`, token)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create branch from template = %d: %s", created.Code, created.Body.String())
+	}
+	branchID := responseID(t, created)
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+	var inventoryID int64
+	var quantity, reorderLevel float64
+	var expiryDate sql.NullTime
+	if err := db.QueryRow(`SELECT id,quantity,reorder_level,expiry_date FROM inventory_items WHERE branch_id=$1 AND catalog_item_id=$2`, branchID, catalogItemID).Scan(&inventoryID, &quantity, &reorderLevel, &expiryDate); err != nil {
+		t.Fatalf("read provisioned branch inventory: %v", err)
+	}
+	if quantity != 0 || reorderLevel != 3 || expiryDate.Valid {
+		t.Fatalf("new branch must start with no physical stock: quantity=%v reorder=%v expiry=%v", quantity, reorderLevel, expiryDate)
+	}
+	var branchRecipeQuantity float64
+	if err := db.QueryRow(`
+		SELECT recipe.quantity
+		FROM menu_item_ingredients recipe
+		JOIN menu_items menu ON menu.id=recipe.menu_item_id
+		WHERE menu.branch_id=$1 AND menu.catalog_template_menu_item_id=$2 AND recipe.inventory_item_id=$3 AND recipe.channel='storefront'`, branchID, templateMenuID, inventoryID).Scan(&branchRecipeQuantity); err != nil {
+		t.Fatalf("read provisioned central recipe: %v", err)
+	}
+	if branchRecipeQuantity != 2 {
+		t.Fatalf("provisioned recipe quantity = %v, want 2", branchRecipeQuantity)
+	}
+	var initialMovements int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM stock_movements WHERE inventory_item_id=$1`, inventoryID).Scan(&initialMovements); err != nil || initialMovements != 0 {
+		t.Fatalf("template provisioning must not create stock movements: count=%d err=%v", initialMovements, err)
+	}
+
+	physicalExpiry := "2031-02-03"
+	if _, err := db.Exec(`UPDATE inventory_items SET quantity=17,expiry_date=$1 WHERE id=$2`, physicalExpiry, inventoryID); err != nil {
+		t.Fatalf("set branch physical state: %v", err)
+	}
+	updated := requestJSON(r, http.MethodPatch, "/api/v1/catalog-templates/"+strconv.FormatInt(templateID, 10)+"/inventory/"+strconv.FormatInt(catalogItemID, 10), `{"unitCost":4,"reorderLevel":9}`, token)
+	if updated.Code != http.StatusOK {
+		t.Fatalf("edit central inventory default = %d: %s", updated.Code, updated.Body.String())
+	}
+	synced := requestJSON(r, http.MethodPost, "/api/v1/catalog-templates/"+strconv.FormatInt(templateID, 10)+"/sync", fmt.Sprintf(`{"branchIds":[%d]}`, branchID), token)
+	if synced.Code != http.StatusOK || !strings.Contains(synced.Body.String(), `"syncedBranches"`) {
+		t.Fatalf("sync central template = %d: %s", synced.Code, synced.Body.String())
+	}
+	if err := db.QueryRow(`SELECT quantity,reorder_level,expiry_date FROM inventory_items WHERE id=$1`, inventoryID).Scan(&quantity, &reorderLevel, &expiryDate); err != nil {
+		t.Fatalf("read branch state after sync: %v", err)
+	}
+	if quantity != 17 || reorderLevel != 9 || !expiryDate.Valid || expiryDate.Time.Format("2006-01-02") != physicalExpiry {
+		t.Fatalf("sync overwrote physical stock or skipped default: quantity=%v reorder=%v expiry=%v", quantity, reorderLevel, expiryDate)
+	}
+	var syncEvents int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_template_sync_events WHERE template_id=$1 AND branch_id=$2`, templateID, branchID).Scan(&syncEvents); err != nil || syncEvents != 1 {
+		t.Fatalf("manual sync event = %d, err=%v", syncEvents, err)
+	}
+}
+
 func TestMaintenanceTicketRoutesRejectInvalidInputBeforeDatabaseAccess(t *testing.T) {
 	r := New(nil, nil)
 	for _, test := range []struct {
@@ -1212,12 +1348,34 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	franchiseUsername := "franchise_" + fixtureID
 	franchiseBranchCode := "FR-" + fixtureID
 	branchID := seedBranch(t, db, "FRANCHISE-ADMIN")
-	templateBranchID := seedBranch(t, db, "SBC-AYA-001")
-	if _, err := db.Exec(`INSERT INTO inventory_items(branch_id,name,category,stock_category,kind,quantity,unit,reorder_level,unit_cost) VALUES
-		($1,'แก้วเครื่องดื่ม','cup','drink_equipment','stock',3,'ใบ',1,2),
-		($1,'กล่องพัสดุ','box','postal_equipment','stock',4,'ใบ',1,5)`, templateBranchID); err != nil {
-		t.Fatalf("seed franchise stock template: %v", err)
+	var franchiseTemplateID int64
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='franchise' AND branch_size='S'`).Scan(&franchiseTemplateID); err != nil {
+		t.Fatalf("read franchise S template: %v", err)
 	}
+	fixtureCatalogNames := []string{"แก้วเครื่องดื่ม-" + fixtureID, "กล่องพัสดุ-" + fixtureID}
+	fixtureCatalogIDs := make([]int64, 0, len(fixtureCatalogNames))
+	for index, name := range fixtureCatalogNames {
+		stockCategory := "drink_equipment"
+		category := "cup"
+		if index == 1 {
+			stockCategory = "postal_equipment"
+			category = "box"
+		}
+		var catalogID int64
+		if err := db.QueryRow(`INSERT INTO inventory_catalog_items(name,category,stock_category,kind,unit,unit_cost) VALUES($1,$2,$3,'stock','ใบ',$4) RETURNING id`, name, category, stockCategory, index*3+2).Scan(&catalogID); err != nil {
+			t.Fatalf("seed franchise catalog identity: %v", err)
+		}
+		fixtureCatalogIDs = append(fixtureCatalogIDs, catalogID)
+		if _, err := db.Exec(`INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,stock_category,kind,unit,unit_cost,reorder_level,track_stock) VALUES($1,$2,$3,$4,'stock','ใบ',$5,1,true)`, franchiseTemplateID, catalogID, category, stockCategory, index*3+2); err != nil {
+			t.Fatalf("seed franchise central template: %v", err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, catalogID := range fixtureCatalogIDs {
+			_, _ = db.Exec(`DELETE FROM catalog_template_inventory_items WHERE catalog_item_id=$1`, catalogID)
+			_, _ = db.Exec(`DELETE FROM inventory_catalog_items WHERE id=$1`, catalogID)
+		}
+	})
 	seedUser(t, db, 7, "admin-franchise", "admin", branchID, nil)
 	r := New(db, nil)
 	for i := 0; i < 5; i++ {
@@ -1239,10 +1397,15 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 		t.Fatalf("franchise branch status/size = %q/%q, err = %v", branchStatus, branchSize, err)
 	}
 	var drinkStockCategory, postalStockCategory string
-	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name='แก้วเครื่องดื่ม'`, franchiseBranchID).Scan(&drinkStockCategory); err != nil || drinkStockCategory != "drink_equipment" {
+	var startingQuantity float64
+	var startingExpiry sql.NullTime
+	if err := db.QueryRow(`SELECT stock_category,quantity,expiry_date FROM inventory_items WHERE branch_id=$1 AND name=$2`, franchiseBranchID, fixtureCatalogNames[0]).Scan(&drinkStockCategory, &startingQuantity, &startingExpiry); err != nil || drinkStockCategory != "drink_equipment" {
 		t.Fatalf("franchise drink stock category = %q, err = %v", drinkStockCategory, err)
 	}
-	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name='กล่องพัสดุ'`, franchiseBranchID).Scan(&postalStockCategory); err != nil || postalStockCategory != "postal_equipment" {
+	if startingQuantity != 0 || startingExpiry.Valid {
+		t.Fatalf("franchise template copied physical stock: quantity=%v expiry=%v", startingQuantity, startingExpiry)
+	}
+	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name=$2`, franchiseBranchID, fixtureCatalogNames[1]).Scan(&postalStockCategory); err != nil || postalStockCategory != "postal_equipment" {
 		t.Fatalf("franchise postal stock category = %q, err = %v", postalStockCategory, err)
 	}
 	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", fmt.Sprintf(`{"username":%q,"password":"Password123!"}`, franchiseUsername), ""); login.Code != http.StatusForbidden {
@@ -1257,11 +1420,11 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	}
 	franchiseToken := testTokenWithFranchise(t, "franchise_owner", franchiseBranchID, franchiseID)
 	drinkStock := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=drink_equipment", "", franchiseToken)
-	if drinkStock.Code != http.StatusOK || !strings.Contains(drinkStock.Body.String(), "แก้วเครื่องดื่ม") {
+	if drinkStock.Code != http.StatusOK || !strings.Contains(drinkStock.Body.String(), fixtureCatalogNames[0]) {
 		t.Fatalf("franchise drink stock = %d: %s", drinkStock.Code, drinkStock.Body.String())
 	}
 	postalStock := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=postal_equipment", "", franchiseToken)
-	if postalStock.Code != http.StatusOK || !strings.Contains(postalStock.Body.String(), "กล่องพัสดุ") {
+	if postalStock.Code != http.StatusOK || !strings.Contains(postalStock.Body.String(), fixtureCatalogNames[1]) {
 		t.Fatalf("franchise postal stock = %d: %s", postalStock.Code, postalStock.Body.String())
 	}
 	if resized := requestJSON(r, http.MethodPatch, "/api/v1/branches/"+strconv.FormatInt(franchiseBranchID, 10)+"/size", `{"size":"M"}`, testToken(t, "admin")); resized.Code != http.StatusOK {

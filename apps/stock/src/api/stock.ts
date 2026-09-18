@@ -25,6 +25,15 @@ export type InventoryItem = {
   expiryDate?: string | null;
   expiryStatus?: 'none' | 'expiring_soon' | 'expired';
 };
+
+// Count and ordering screens are branch operations.  A cost-only input can
+// still belong in a recipe, but it must never be presented as stock to count
+// or replenish—even while older responses are being rolled out without the
+// explicit `trackStock` flag.
+export const isCountableStockItem = (
+  item: Pick<InventoryItem, 'status' | 'trackStock'>,
+) => item.trackStock !== false && item.status !== 'cost_only';
+
 export type StockMovement = {
   id: number;
   inventoryItemName: string;

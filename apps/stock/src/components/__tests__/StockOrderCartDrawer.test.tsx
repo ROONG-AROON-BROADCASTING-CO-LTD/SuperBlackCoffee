@@ -32,4 +32,26 @@ describe('StockOrderCartDrawer', () => {
     expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
     expect(onPendingItemAdded).toHaveBeenCalledOnce();
   });
+
+  it('drops a cost-only pending item instead of adding it to a branch order', () => {
+    const onPendingItemAdded = vi.fn();
+    render(
+      <StockOrderCartDrawer
+        open
+        pendingItem={{
+          ...ingredient,
+          name: 'น้ำสกัดกาแฟ',
+          status: 'cost_only',
+        }}
+        isFranchise={false}
+        onOpenChange={vi.fn()}
+        onPendingItemAdded={onPendingItemAdded}
+        onItemCountChange={vi.fn()}
+        onCreateRequest={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('น้ำสกัดกาแฟ')).toBeNull();
+    expect(onPendingItemAdded).toHaveBeenCalledOnce();
+  });
 });

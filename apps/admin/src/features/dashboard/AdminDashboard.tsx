@@ -75,6 +75,11 @@ const PromotionsManagementPage = lazy(() =>
     default: module.PromotionsManagementPage,
   })),
 );
+const AdminCentralCatalogPage = lazy(() =>
+  import('../../pages/dashboard/AdminCentralCatalogPage').then((module) => ({
+    default: module.AdminCentralCatalogPage,
+  })),
+);
 
 function DashboardPageSkeleton({ page }: { page: AdminPage }) {
   const skeleton =
@@ -103,6 +108,8 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <LeaveRequestsSkeleton />
     ) : page === 'สาขาแฟรนไชส์' ? (
       <AdminFranchiseBranchesSkeleton />
+    ) : page === 'สินค้าและคลังกลาง' ? (
+      <AdminBranchesSkeleton />
     ) : (
       <AdminBranchesSkeleton />
     );
@@ -162,6 +169,11 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     };
   }, []);
   const navigate = (navigationTarget: string) => {
+    if (navigationTarget === 'central-catalog') {
+      if (activePage === 'สินค้าและคลังกลาง') return;
+      routerNavigate(adminPagePaths['สินค้าและคลังกลาง']);
+      return;
+    }
     const isFranchiseCatalogTarget = navigationTarget.startsWith('franchise-');
     const nextPage = (
       isFranchiseCatalogTarget
@@ -217,19 +229,22 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     isCatalogPage &&
     (selectedBranch === 'แฟรนไชส์ทั้งหมด' ||
       franchiseBranchOptions.includes(selectedBranch));
-  const activeNavigationKey = isCatalogPage
-    ? `${isFranchiseCatalogSelection ? 'franchise' : 'sbc'}-${
-        activePage === 'เมนูและสินค้า'
-          ? 'products'
-          : activePage === 'วัตถุดิบ'
-            ? 'ingredients'
-            : activePage === 'วัตถุดิบของสด'
-              ? 'fresh-ingredients'
-              : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
-                ? 'drink-stock'
-                : 'postal-stock'
-      }`
-    : activePage;
+  const activeNavigationKey =
+    activePage === 'สินค้าและคลังกลาง'
+      ? 'central-catalog'
+      : isCatalogPage
+        ? `${isFranchiseCatalogSelection ? 'franchise' : 'sbc'}-${
+            activePage === 'เมนูและสินค้า'
+              ? 'products'
+              : activePage === 'วัตถุดิบ'
+                ? 'ingredients'
+                : activePage === 'วัตถุดิบของสด'
+                  ? 'fresh-ingredients'
+                  : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
+                    ? 'drink-stock'
+                    : 'postal-stock'
+          }`
+        : activePage;
   const catalogBranchCodes = useMemo(
     () => ({
       ...branchCodeByBranch,
@@ -285,6 +300,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     <AdminAuditPage />
   ) : activePage === 'เอกสารส่วนกลาง' ? (
     <CompanyDocumentsPage />
+  ) : activePage === 'สินค้าและคลังกลาง' ? (
+    <AdminCentralCatalogPage />
   ) : isStockPage ? (
     <AdminStockPage
       activeBranch={activeBranch}

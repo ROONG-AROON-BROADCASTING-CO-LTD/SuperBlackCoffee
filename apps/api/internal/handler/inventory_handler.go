@@ -118,6 +118,18 @@ func inventoryItemFromInput(input inventoryInput, expiryDate *time.Time) model.I
 	}
 }
 
+// applyCatalogTracking keeps branch-only stock fields aligned with the
+// effective catalog setting. The catalog is authoritative because another
+// branch can create the same named item without sending trackStock.
+func applyCatalogTracking(item *model.InventoryItem, trackStock bool) {
+	if trackStock {
+		return
+	}
+	item.Quantity = 0
+	item.ReorderLevel = 0
+	item.ExpiryDate = nil
+}
+
 func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 	if h.unavailable(c) {
 		return
@@ -144,24 +156,20 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		return
 	}
 	item := inventoryItemFromInput(input, expiryDate)
-	if !item.IsStockTracked() {
-		item.Quantity = 0
-		item.ReorderLevel = 0
-		item.ExpiryDate = nil
-	}
-	if item.Category == "fresh" && item.Quantity > 0 && item.ExpiryDate == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วัตถุดิบของสดที่มีจำนวนตั้งต้นต้องระบุวันหมดอายุ"})
-		return
-	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
 	}
 	defer tx.Rollback()
-	catalogID, err := ensureInventoryCatalogTx(c.Request.Context(), tx, item)
+	catalogID, trackStock, err := ensureInventoryCatalogTx(c.Request.Context(), tx, item)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลกลางของรายการสต็อกได้"})
+		return
+	}
+	applyCatalogTracking(&item, trackStock)
+	if item.Category == "fresh" && item.Quantity > 0 && item.ExpiryDate == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วัตถุดิบของสดที่มีจำนวนตั้งต้นต้องระบุวันหมดอายุ"})
 		return
 	}
 	var id int64
@@ -170,7 +178,7 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างรายการสต็อกได้"})
 		return
 	}
-	if item.IsStockTracked() && item.Quantity != 0 {
+	if trackStock && item.Quantity != 0 {
 		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "initial", item.Quantity, 0, item.Quantity, "inventory_item", &id, "ยอดตั้งต้นของรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
 			return
@@ -236,11 +244,12 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	catalogID, err := ensureInventoryCatalogTx(c.Request.Context(), tx, item)
+	catalogID, trackStock, err := ensureInventoryCatalogTx(c.Request.Context(), tx, item)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลกลางของรายการสต็อกได้"})
 		return
 	}
+	applyCatalogTracking(&item, trackStock)
 	var previousQuantity float64
 	var previousCategory string
 	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,category FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity, &previousCategory); err != nil {
@@ -263,7 +272,7 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการสต็อกได้"})
 		return
 	}
-	if item.IsStockTracked() && item.Quantity != previousQuantity {
+	if trackStock && item.Quantity != previousQuantity {
 		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", item.Quantity-previousQuantity, previousQuantity, item.Quantity, "inventory_item", &id, "ปรับยอดผ่านการแก้ไขรายการสต๊อก", middleware.ClaimsFrom(c).UserID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต๊อกได้"})
 			return

@@ -19,21 +19,32 @@ vi.mock('../features/dashboard/FranchiseDashboard', () => ({
   FranchiseDashboard: ({
     logout,
     plan,
+    branchName,
+    branchCode,
   }: {
     logout: () => void;
     plan: string;
+    branchName: string;
+    branchCode: string;
   }) => (
     <>
       <span>franchise-plan-{plan}</span>
+      <span>{`franchise-branch-${branchName}:${branchCode}`}</span>
       <button onClick={logout}>franchise-logout</button>
     </>
   ),
 }));
 vi.mock('../api/auth', () => ({
   logout: vi.fn().mockResolvedValue(undefined),
-  restoreSession: vi
-    .fn()
-    .mockResolvedValue({ user: { role: 'franchise_owner', plan: 'M' } }),
+  restoreSession: vi.fn().mockResolvedValue({
+    user: {
+      id: 1,
+      role: 'franchise_owner',
+      plan: 'M',
+      branchName: 'สุพรรณบุรี M',
+      branchCode: 'FR-SUP-001-M',
+    },
+  }),
 }));
 
 describe('Franchise App session', () => {
@@ -45,6 +56,9 @@ describe('Franchise App session', () => {
   it('restores the franchise session from its secure cookie and logs out', async () => {
     render(<App />);
     expect(await screen.findByText('franchise-plan-M')).toBeTruthy();
+    expect(
+      screen.getByText('franchise-branch-สุพรรณบุรี M:FR-SUP-001-M'),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'franchise-logout' }));
     expect(screen.getByText('franchise-login')).toBeTruthy();
     expect(logout).toHaveBeenCalledOnce();

@@ -61,12 +61,14 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 	claims.FranchiseeID = user.FranchiseeID
 	claims.BranchID = user.BranchID
 	plan := ""
+	branchName := ""
+	branchCode := ""
 	if user.FranchiseeID != nil {
 		if user.BranchID == nil {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ยังไม่ได้เปิดใช้งาน"})
 			return
 		}
-		err = h.db.QueryRowContext(c.Request.Context(), `SELECT b.size FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *user.FranchiseeID, *user.BranchID).Scan(&plan)
+		err = h.db.QueryRowContext(c.Request.Context(), `SELECT b.size,b.name,b.code FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *user.FranchiseeID, *user.BranchID).Scan(&plan, &branchName, &branchCode)
 		if err != nil {
 			c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีแฟรนไชส์ยังไม่ได้เปิดใช้งาน"})
 			return
@@ -80,7 +82,7 @@ func (h *PlatformHandler) Login(c *gin.Context) {
 	if cookieName := platformSessionCookieName(user.Role); cookieName != "" {
 		h.setPlatformSessionCookie(c, cookieName, token, int(platformSessionTTL.Seconds()))
 	}
-	c.JSON(200, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": user.ID, "name": user.Name, "role": user.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "plan": plan}}})
+	c.JSON(200, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": user.ID, "name": user.Name, "role": user.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "branchName": branchName, "branchCode": branchCode, "plan": plan}}})
 }
 
 func (h *PlatformHandler) Session(c *gin.Context) {
@@ -90,13 +92,15 @@ func (h *PlatformHandler) Session(c *gin.Context) {
 		return
 	}
 	plan := ""
+	branchName := ""
+	branchCode := ""
 	if claims.FranchiseeID != nil && claims.BranchID != nil {
-		if h.db == nil || h.db.QueryRowContext(c.Request.Context(), `SELECT b.size FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan) != nil {
+		if h.db == nil || h.db.QueryRowContext(c.Request.Context(), `SELECT b.size,b.name,b.code FROM franchisees f JOIN branches b ON b.franchisee_id=f.id WHERE f.id=$1 AND b.id=$2 AND f.status='active' AND b.status='active'`, *claims.FranchiseeID, *claims.BranchID).Scan(&plan, &branchName, &branchCode) != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันแฟรนไชส์ไม่พร้อมใช้งาน"})
 			return
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "role": claims.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "plan": plan}}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "role": claims.Role, "franchiseeId": claims.FranchiseeID, "branchId": claims.BranchID, "branchName": branchName, "branchCode": branchCode, "plan": plan}}})
 }
 
 func (h *PlatformHandler) Logout(c *gin.Context) {

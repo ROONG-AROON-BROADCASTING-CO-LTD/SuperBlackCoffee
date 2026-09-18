@@ -51,7 +51,7 @@ func (h *PlatformHandler) CreateStockRequest(c *gin.Context) {
 		}
 		itemName, itemUnit := item.Name, item.Unit
 		if item.InventoryItemID != nil {
-			err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2`, *item.InventoryItemID, branchID).Scan(&itemName, &itemUnit)
+			err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, *item.InventoryItemID, branchID).Scan(&itemName, &itemUnit)
 			if errors.Is(err, sql.ErrNoRows) {
 				c.JSON(400, gin.H{"success": false, "message": "รายการสต็อกไม่อยู่ในสาขาที่ระบุ"})
 				return
@@ -230,14 +230,14 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 		var before float64
 		if item.inventoryItemID != nil {
 			inventoryItemID = *item.inventoryItemID
-			updateErr = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryItemID, branchID).Scan(&before)
+			updateErr = tx.QueryRowContext(c.Request.Context(), `SELECT quantity FROM inventory_items WHERE id=$1 AND branch_id=$2 AND template_enabled FOR UPDATE`, inventoryItemID, branchID).Scan(&before)
 			if updateErr != nil {
 				c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต็อกได้"})
 				return
 			}
 			result, updateErr = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=quantity+$1,updated_at=now() WHERE id=$2 AND branch_id=$3`, item.quantity, *item.inventoryItemID, branchID)
 		} else {
-			updateErr = tx.QueryRowContext(c.Request.Context(), `SELECT id,quantity FROM inventory_items WHERE branch_id=$1 AND name=$2 AND unit=$3 FOR UPDATE`, branchID, item.name, item.unit).Scan(&inventoryItemID, &before)
+			updateErr = tx.QueryRowContext(c.Request.Context(), `SELECT id,quantity FROM inventory_items WHERE branch_id=$1 AND name=$2 AND unit=$3 AND template_enabled FOR UPDATE`, branchID, item.name, item.unit).Scan(&inventoryItemID, &before)
 			if errors.Is(updateErr, sql.ErrNoRows) {
 				updateErr = nil
 				before = 0

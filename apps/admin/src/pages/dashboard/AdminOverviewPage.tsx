@@ -13,7 +13,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardMain, formatCurrency } from '@stackbuild/ui';
+import { DashboardMain, formatCurrency, PageIntro } from '@stackbuild/ui';
 import {
   branchCodeByBranch,
   branches,
@@ -816,23 +816,10 @@ export function AdminOverviewPage({
               flexDirection: { xs: 'column', sm: 'row' },
             }}
           >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: { xs: 23, md: 27 },
-                  fontWeight: 700,
-                }}
-              >
-                ภาพรวมการดำเนินงานวันนี้
-              </Typography>
-              <Typography
-                sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
-              >
-                ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ
-              </Typography>
-            </Box>
+            <PageIntro
+              title="ภาพรวมการดำเนินงานวันนี้"
+              description="ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ"
+            />
             <Typography sx={{ color: 'text.secondary', fontSize: 12.5 }}>
               อัปเดตเมื่อ {updatedAt}
             </Typography>

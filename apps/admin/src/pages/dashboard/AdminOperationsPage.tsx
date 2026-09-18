@@ -116,7 +116,7 @@ const sectionTitleSx = {
 const sectionDescriptionSx = {
   color: 'text.secondary',
   fontFamily: 'Kanit, sans-serif',
-  fontSize: 12.5,
+  fontSize: 13,
   lineHeight: 1.6,
 };
 const formActionSx = {

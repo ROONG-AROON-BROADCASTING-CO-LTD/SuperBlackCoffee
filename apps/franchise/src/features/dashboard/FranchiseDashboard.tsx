@@ -16,7 +16,6 @@ import {
   LeaveRequestsSkeleton,
 } from '@stackbuild/management';
 import {
-  franchiseBranch,
   pageAvailableForPlan,
   type FranchisePlan,
 } from '../../components/sidebar/franchiseSidebarNavigation';
@@ -60,7 +59,13 @@ const PromotionsManagementPage = lazy(() =>
   })),
 );
 
-function FranchisePageSkeleton({ page }: { page: string }) {
+function FranchisePageSkeleton({
+  page,
+  branchName,
+}: {
+  page: string;
+  branchName: string;
+}) {
   const skeleton =
     page === 'ตารางพนักงาน' ? (
       <EmployeesSkeleton franchiseMode showHeader />
@@ -69,7 +74,7 @@ function FranchisePageSkeleton({ page }: { page: string }) {
     ) : page === 'เมนูและสินค้า' ? (
       <ProductsSkeleton readOnly />
     ) : page === 'โปรโมชั่น' ? (
-      <PromotionsSkeleton readOnly showHeader branchName={franchiseBranch} />
+      <PromotionsSkeleton readOnly showHeader branchName={branchName} />
     ) : page === 'สต๊อกอุปกรณ์เครื่องดื่ม' ||
       page === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
       <StockSkeleton readOnly />
@@ -86,9 +91,13 @@ function FranchisePageSkeleton({ page }: { page: string }) {
 export function FranchiseDashboard({
   logout,
   plan,
+  branchName,
+  branchCode,
 }: {
   logout: () => void;
   plan: FranchisePlan;
+  branchName: string;
+  branchCode: string;
 }) {
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -129,16 +138,22 @@ export function FranchiseDashboard({
         })
       }
     >
-      <Suspense fallback={<FranchisePageSkeleton page={activePage} />}>
+      <Suspense
+        fallback={
+          <FranchisePageSkeleton page={activePage} branchName={branchName} />
+        }
+      >
         {activePage === 'เมนูและสินค้า' ? (
           <ProductsManagementPage
-            activeBranch={franchiseBranch}
+            activeBranch={branchName}
+            branchCodes={{ [branchName]: branchCode }}
             franchisePlan={plan}
             readOnly
           />
         ) : activePage === 'วัตถุดิบ' || activePage === 'วัตถุดิบของสด' ? (
           <IngredientsManagementPage
-            activeBranch={franchiseBranch}
+            activeBranch={branchName}
+            branchCodes={{ [branchName]: branchCode }}
             franchisePlan={plan}
             readOnly
             allowOrdering
@@ -148,17 +163,15 @@ export function FranchiseDashboard({
             onRequestCreated={() => navigate('คำขอวัตถุดิบ')}
           />
         ) : activePage === 'โปรโมชั่น' ? (
-          <PromotionsManagementPage
-            mode="franchise"
-            branchName={franchiseBranch}
-          />
+          <PromotionsManagementPage mode="franchise" branchName={branchName} />
         ) : activePage === 'คำขอวัตถุดิบ' ? (
           <FranchiseIngredientRequestsPage />
         ) : activePage === 'แจ้งซ่อม / งานช่าง' ? (
           <FranchiseMaintenancePage />
         ) : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม' ? (
           <StockManagementPage
-            activeBranch={franchiseBranch}
+            activeBranch={branchName}
+            branchCodes={{ [branchName]: branchCode }}
             readOnly
             allowOrdering
             stockCategory="drink_equipment"
@@ -167,7 +180,8 @@ export function FranchiseDashboard({
           />
         ) : activePage === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
           <StockManagementPage
-            activeBranch={franchiseBranch}
+            activeBranch={branchName}
+            branchCodes={{ [branchName]: branchCode }}
             readOnly
             stockCategory="postal_equipment"
             stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
@@ -182,7 +196,12 @@ export function FranchiseDashboard({
           <CompanyDocumentsPage readOnly />
         ) : (
           <DashboardMain>
-            <FranchiseOverviewPage plan={plan} onNavigate={navigate} />
+            <FranchiseOverviewPage
+              plan={plan}
+              branchName={branchName}
+              branchCode={branchCode}
+              onNavigate={navigate}
+            />
           </DashboardMain>
         )}
       </Suspense>

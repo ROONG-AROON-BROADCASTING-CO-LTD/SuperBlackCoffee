@@ -1,6 +1,14 @@
-export type FranchiseSession = {
-  user: { id: number; name?: string; role: string; plan?: 'S' | 'M' | 'L' };
+export type FranchiseUser = {
+  id: number;
+  name?: string;
+  role: string;
+  plan?: 'S' | 'M' | 'L';
+  branchId?: number;
+  branchName?: string;
+  branchCode?: string;
 };
+
+export type FranchiseSession = { user: FranchiseUser };
 
 const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 

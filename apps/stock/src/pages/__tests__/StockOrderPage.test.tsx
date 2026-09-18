@@ -1,11 +1,12 @@
 import {
+  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
   within,
 } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StockOrderPage } from '../StockOrderPage';
 
 const item = {
@@ -20,6 +21,8 @@ const item = {
 };
 
 describe('StockOrderPage', () => {
+  afterEach(() => cleanup());
+
   it('sends a branch order to the headquarters workflow with the signed-in branch inventory only', async () => {
     const onCreateRequest = vi.fn().mockResolvedValue(undefined);
     render(
@@ -77,6 +80,30 @@ describe('StockOrderPage', () => {
         'ส่งคำขอเข้าหน้าแดชบอร์ดแฟรนไชส์เพื่อให้ผู้ดูแลดำเนินการ',
       ),
     ).toBeTruthy();
+  });
+
+  it('does not offer cost-only recipe inputs for a stock order', () => {
+    render(
+      <StockOrderPage
+        ingredients={[
+          item,
+          {
+            ...item,
+            id: 12,
+            name: 'น้ำสกัดกาแฟ',
+            // Older saved records may only expose this persisted status.
+            status: 'cost_only',
+          },
+        ]}
+        drinkStock={[]}
+        postalStock={[]}
+        isFranchise={false}
+        onCreateRequest={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
+    expect(screen.queryByText('น้ำสกัดกาแฟ')).toBeNull();
   });
 
   it('puts an ingredient selected from its stock card straight into the open order cart', () => {
