@@ -3,6 +3,7 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/stock/package.json apps/stock/package.json
+COPY packages/management/package.json packages/management/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/ui/package.json packages/ui/package.json
 RUN pnpm install --frozen-lockfile --filter @stackbuild/stock...
