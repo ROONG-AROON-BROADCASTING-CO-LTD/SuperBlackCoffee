@@ -5,20 +5,28 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
   MenuItem,
-  Snackbar,
   Stack,
   Switch,
   TextField,
   Typography,
 } from '@mui/material';
-import { DashboardMain, PageIntro } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  ActionSnackbar,
+  ItemActionButtons,
+  PageIntro,
+  XIcon,
+  coffeeIngredientsImage,
+} from '@stackbuild/ui';
 import {
   createCatalogTemplateInventoryItem,
   createCatalogTemplateMenuItem,
@@ -44,6 +52,17 @@ import {
 } from '../../api/catalogTemplates';
 
 const sizes: CatalogTemplateSize[] = ['S', 'M', 'L'];
+const menuCategories = [
+  'เมนูร้อน',
+  'เมนูกาแฟเย็น',
+  'เมนูชา',
+  'โซดา',
+  'เมนูปั่น',
+  'เมนูอโวคาโด',
+  'เมนูชาร้อน',
+  'อาหาร',
+  'เบเกอรี่',
+];
 
 const catalogTabs = [
   { value: 'menu', label: 'เมนูและสินค้า' },
@@ -52,11 +71,70 @@ const catalogTabs = [
 
 type CatalogTab = (typeof catalogTabs)[number]['value'];
 
+export type CentralCatalogSection =
+  | 'menus'
+  | 'ingredients'
+  | 'fresh-ingredients'
+  | 'drink-equipment'
+  | 'postal-equipment'
+  | 'branches'
+  | 'sync';
+
+const sectionContent: Record<
+  CentralCatalogSection,
+  { title: string; description: string }
+> = {
+  menus: {
+    title: 'เมนูและสินค้ากลาง',
+    description:
+      'จัดการเมนู ราคา และสูตรกลาง พร้อมเลือกขนาดสาขา S / M / L ที่ใช้',
+  },
+  ingredients: {
+    title: 'วัตถุดิบกลาง',
+    description:
+      'จัดการวัตถุดิบทั่วไป ต้นทุน และจุดแจ้งเตือนสำหรับแต่ละขนาดสาขา',
+  },
+  'fresh-ingredients': {
+    title: 'วัตถุดิบของสดกลาง',
+    description: 'จัดการวัตถุดิบของสดที่ใช้ในข้อมูลกลาง',
+  },
+  'drink-equipment': {
+    title: 'อุปกรณ์เครื่องดื่มกลาง',
+    description: 'จัดการอุปกรณ์เครื่องดื่มที่ใช้ในข้อมูลกลาง',
+  },
+  'postal-equipment': {
+    title: 'อุปกรณ์ไปรษณีย์กลาง',
+    description: 'จัดการอุปกรณ์ไปรษณีย์ที่ใช้ในข้อมูลกลาง',
+  },
+  branches: {
+    title: 'รายการกลางรายสาขา',
+    description: 'เลือกรายการกลางที่แต่ละสาขา SBC หรือแฟรนไชส์เปิดใช้งาน',
+  },
+  sync: {
+    title: 'กระจายข้อมูลกลาง',
+    description: 'ตรวจผลกระทบและยืนยันการอัปเดตข้อมูลกลางไปยังสาขา',
+  },
+};
+
+function matchesInventorySection(
+  item: CatalogTemplateInventoryItem,
+  section: CentralCatalogSection,
+) {
+  if (section === 'fresh-ingredients')
+    return item.kind === 'ingredient' && item.category === 'fresh';
+  if (section === 'ingredients')
+    return item.kind === 'ingredient' && item.category !== 'fresh';
+  if (section === 'drink-equipment')
+    return item.kind === 'stock' && item.stockCategory !== 'postal_equipment';
+  return item.kind === 'stock' && item.stockCategory === 'postal_equipment';
+}
+
 type InventoryEditorState = {
   type: 'inventory';
   item: CatalogTemplateInventoryItem;
   draft: {
     name: string;
+    imageUrl: string;
     category: string;
     stockCategory: string;
     kind: 'ingredient' | 'stock';
@@ -76,6 +154,9 @@ type MenuEditorState = {
     category: string;
     storePrice: string;
     linemanPrice: string;
+    costPrice: string;
+    linemanCostPrice: string;
+    imageUrl: string;
     status: 'available' | 'soldout';
     availableSizes: CatalogTemplateSize[];
     recipes: {
@@ -88,11 +169,53 @@ type MenuEditorState = {
 
 type TemplateEditorState = InventoryEditorState | MenuEditorState;
 
+type RetireTarget = {
+  type: 'inventory' | 'menu';
+  id: number;
+  name: string;
+};
+
 const templateCardSx = {
   borderColor: '#eadfd7',
   boxShadow: 'none',
   borderRadius: 3,
 };
+
+const tableColumns = {
+  xs: '52px minmax(0,1fr) auto',
+  // Keep each compact value to the space it actually needs. The product name
+  // is the only variable-length field, while the action pair needs a fixed
+  // width so its two buttons remain easy to press.
+  lg: '48px minmax(0,1fr) 64px 56px 80px 88px 200px',
+};
+
+function CatalogThumbnail({
+  name,
+  imageUrl,
+}: {
+  name: string;
+  imageUrl?: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [imageUrl]);
+  const hasItemImage = Boolean(imageUrl) && !imageFailed;
+  return (
+    <Box
+      component="img"
+      src={hasItemImage ? imageUrl : coffeeIngredientsImage}
+      alt={hasItemImage ? `รูป${name}` : 'ภาพประกอบรายการ'}
+      onError={() => setImageFailed(true)}
+      sx={{
+        width: 52,
+        height: 52,
+        borderRadius: '10px',
+        objectFit: 'cover',
+        bgcolor: '#f5eee8',
+        border: '1px solid #eadfd7',
+      }}
+    />
+  );
+}
 
 const numberFormatter = new Intl.NumberFormat('th-TH');
 
@@ -112,12 +235,13 @@ function TemplateDetail({
   search,
   onSearchChange,
   onSizeChange,
-  tab,
-  onTabChange,
+  section,
   onEditInventory,
   onEditMenu,
-  onRetireInventory,
-  onRetireMenu,
+  retireTarget,
+  onRequestRetire,
+  onCancelRetire,
+  onConfirmRetire,
   onAdd,
 }: {
   template: CatalogTemplate;
@@ -125,12 +249,13 @@ function TemplateDetail({
   search: string;
   onSearchChange: (value: string) => void;
   onSizeChange: (value: CatalogTemplateSize | 'ALL') => void;
-  tab: CatalogTab;
-  onTabChange: (tab: CatalogTab) => void;
+  section: CentralCatalogSection;
   onEditInventory: (item: CatalogTemplateInventoryItem) => void;
   onEditMenu: (item: CatalogTemplateMenuItem) => void;
-  onRetireInventory: (item: CatalogTemplateInventoryItem) => void;
-  onRetireMenu: (item: CatalogTemplateMenuItem) => void;
+  retireTarget: RetireTarget | null;
+  onRequestRetire: (target: RetireTarget) => void;
+  onCancelRetire: () => void;
+  onConfirmRetire: () => void;
   onAdd: () => void;
 }) {
   const [requestedPage, setRequestedPage] = useState(0);
@@ -144,54 +269,28 @@ function TemplateDetail({
     `${item.name} ${item.category}`
       .toLocaleLowerCase('th-TH')
       .includes(normalizedSearch);
-  const visibleMenus = template.menuItems.filter(matches);
-  const visibleInventory = template.inventoryItems.filter(matches);
-  const items = tab === 'menu' ? visibleMenus : visibleInventory;
+  const isMenuSection = section === 'menus';
+  const visibleMenus = isMenuSection ? template.menuItems.filter(matches) : [];
+  const visibleInventory = isMenuSection
+    ? []
+    : template.inventoryItems.filter(
+        (item) => matchesInventorySection(item, section) && matches(item),
+      );
+  const items = isMenuSection ? visibleMenus : visibleInventory;
   const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
   const page = Math.min(requestedPage, pageCount - 1);
   const pageStart = page * pageSize;
   return (
-    <Card variant="outlined" sx={templateCardSx}>
+    <Card
+      variant="outlined"
+      sx={{
+        ...templateCardSx,
+        // Keep the data table aligned with the system's smaller control radius.
+        borderRadius: 2,
+      }}
+    >
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-        <Box
-          role="tablist"
-          aria-label="ประเภทข้อมูลกลาง"
-          sx={{
-            display: 'flex',
-            gap: 0,
-            px: 2,
-            borderBottom: '1px solid #eee3dc',
-          }}
-        >
-          {catalogTabs.map((item) => (
-            <Button
-              key={item.value}
-              role="tab"
-              aria-selected={tab === item.value}
-              onClick={() => {
-                setRequestedPage(0);
-                onTabChange(item.value);
-              }}
-              size="small"
-              variant="text"
-              sx={{
-                minHeight: 48,
-                borderRadius: 0,
-                borderBottom:
-                  tab === item.value
-                    ? '3px solid #805637'
-                    : '3px solid transparent',
-                color: tab === item.value ? '#674633' : '#6c625c',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 13,
-              }}
-            >
-              {item.label}
-            </Button>
-          ))}
-        </Box>
-
         <Stack
           direction={{ xs: 'column', md: 'row' }}
           sx={{ p: 2, gap: 1, alignItems: { md: 'center' } }}
@@ -219,7 +318,7 @@ function TemplateDetail({
                 aria-pressed={size === item}
                 sx={{ ...tabButtonSx(size === item), minWidth: 38 }}
               >
-                {item === 'ALL' ? 'ทั้งหมด' : item}
+                {item === 'ALL' ? 'ทุกขนาด' : `ขนาด ${item}`}
               </Button>
             ))}
           </Stack>
@@ -228,18 +327,12 @@ function TemplateDetail({
             onClick={onAdd}
             sx={{ ...tabButtonSx(true), minHeight: 38, whiteSpace: 'nowrap' }}
           >
-            + เพิ่ม{tab === 'menu' ? 'เมนู' : 'รายการคลัง'}
+            + เพิ่ม{isMenuSection ? 'เมนู' : sectionContent[section].title}
           </Button>
         </Stack>
 
         <Box
           sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: 'minmax(0,1fr) auto',
-              md: 'minmax(0,2fr) minmax(80px,1fr) 84px minmax(100px,1fr) auto',
-            },
-            gap: 1,
             px: 2,
             py: 1,
             bgcolor: '#faf8f6',
@@ -247,24 +340,46 @@ function TemplateDetail({
           }}
         >
           <Typography sx={itemMetaSx}>
-            ชื่อรายการ · {numberFormatter.format(items.length)} รายการ
+            {numberFormatter.format(items.length)} รายการ
           </Typography>
-          <Typography
-            sx={{ ...itemMetaSx, display: { xs: 'none', md: 'block' } }}
-          >
-            หมวดหมู่
-          </Typography>
-          <Typography
-            sx={{ ...itemMetaSx, display: { xs: 'none', md: 'block' } }}
-          >
-            ขนาดที่ใช้
-          </Typography>
-          <Typography
-            sx={{ ...itemMetaSx, display: { xs: 'none', md: 'block' } }}
-          >
-            {tab === 'menu' ? 'ราคา' : 'ต้นทุน'}
-          </Typography>
-          <Typography sx={itemMetaSx}>จัดการ</Typography>
+        </Box>
+        <Box
+          role="row"
+          sx={{
+            display: { xs: 'none', lg: 'grid' },
+            gridTemplateColumns: tableColumns,
+            alignItems: 'center',
+            columnGap: 2,
+            px: 2,
+            py: 1,
+            bgcolor: '#faf8f6',
+            borderBottom: '1px solid #eee3dc',
+          }}
+        >
+          {[
+            'รูป',
+            'ชื่อรายการ',
+            'หมวดหมู่',
+            'ขนาดที่ใช้',
+            isMenuSection ? 'ราคาหน้าร้าน' : 'ต้นทุนต่อหน่วย',
+            isMenuSection ? 'ราคา LINE MAN' : 'จุดสั่งซื้อ',
+            'จัดการ',
+          ].map((label, index) => (
+            <Typography
+              key={label}
+              role="columnheader"
+              sx={{
+                ...itemMetaSx,
+                textAlign: index === 4 || index === 5 ? 'right' : 'left',
+                ...(index === 6 && {
+                  borderLeft: '1px solid #eee3dc',
+                  pl: 2,
+                }),
+              }}
+            >
+              {label}
+            </Typography>
+          ))}
         </Box>
 
         {items.length === 0 ? (
@@ -277,7 +392,7 @@ function TemplateDetail({
               fontSize: 13,
             }}
           >
-            ยังไม่มี{tab === 'menu' ? 'เมนูและสินค้า' : 'วัตถุดิบหรืออุปกรณ์'}
+            ยังไม่มี{sectionContent[section].title}
             ที่ตรงกับตัวกรอง ลองเปลี่ยนคำค้นหรือขนาดสาขา
           </Typography>
         ) : (
@@ -288,171 +403,390 @@ function TemplateDetail({
               overflow: 'hidden',
             }}
           >
-            {tab === 'menu'
+            {isMenuSection
               ? visibleMenus
                   .slice(pageStart, pageStart + pageSize)
-                  .map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: {
-                          xs: 'minmax(0,1fr) auto',
-                          md: 'minmax(0,2fr) minmax(80px,1fr) 84px minmax(100px,1fr) auto',
-                        },
-                        alignItems: 'center',
-                        gap: 1,
-                        px: 2,
-                        py: 1.25,
-                        borderBottom: '1px solid #f0e7e1',
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={itemTitleSx}>{item.name}</Typography>
-                        <Typography sx={itemMetaSx}>
-                          สูตร {item.recipes.length} รายการ
-                        </Typography>
-                        <Typography
+                  .map((item) => {
+                    const isRetiring =
+                      retireTarget?.type === 'menu' &&
+                      retireTarget.id === item.id;
+                    return (
+                      <Box
+                        key={item.id}
+                        role="row"
+                        sx={{
+                          position: 'relative',
+                          display: 'grid',
+                          gridTemplateColumns: tableColumns,
+                          alignItems: 'center',
+                          columnGap: 2,
+                          px: 2,
+                          py: 1.25,
+                          borderBottom: '1px solid #f0e7e1',
+                        }}
+                      >
+                        <>
+                          <CatalogThumbnail
+                            name={item.name}
+                            imageUrl={item.imageUrl}
+                          />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={itemTitleSx}>
+                              {item.name}
+                            </Typography>
+                            <Typography sx={itemMetaSx}>
+                              สูตร {item.recipes.length} รายการ
+                            </Typography>
+                            <Typography
+                              sx={{
+                                ...itemMetaSx,
+                                display: { xs: 'block', lg: 'none' },
+                              }}
+                            >
+                              {item.category} ·{' '}
+                              {item.availableSizes.join(' / ')}
+                              <br />
+                              หน้าร้าน {formatCurrency(item.storePrice)} · LINE
+                              MAN {formatCurrency(item.linemanPrice)}
+                            </Typography>
+                          </Box>
+                          <Typography
+                            sx={{
+                              ...itemMetaSx,
+                              display: { xs: 'none', lg: 'block' },
+                            }}
+                          >
+                            {item.category}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              ...itemMetaSx,
+                              display: { xs: 'none', lg: 'block' },
+                            }}
+                          >
+                            {item.availableSizes.join(' / ')}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              ...itemTitleSx,
+                              display: { xs: 'none', lg: 'block' },
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatCurrency(item.storePrice)}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              ...itemTitleSx,
+                              display: { xs: 'none', lg: 'block' },
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatCurrency(item.linemanPrice)}
+                          </Typography>
+                        </>
+                        <ItemActionButtons
+                          editLabel="แก้ไข"
+                          deleteLabel="นำออก"
+                          onEdit={() => onEditMenu(item)}
+                          onDelete={() =>
+                            onRequestRetire({
+                              type: 'menu',
+                              id: item.id,
+                              name: item.name,
+                            })
+                          }
                           sx={{
-                            ...itemMetaSx,
-                            display: { xs: 'block', md: 'none' },
+                            flexShrink: 0,
+                            borderLeft: '1px solid #f0e7e1',
+                            pl: 2,
                           }}
-                        >
-                          {item.category} · {item.availableSizes.join(' / ')} ·{' '}
-                          {formatCurrency(item.storePrice)}
-                        </Typography>
+                        />
+                        {isRetiring ? (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              zIndex: 2,
+                              display: 'grid',
+                              gridTemplateColumns: tableColumns,
+                              alignItems: 'center',
+                              columnGap: 2,
+                              px: 2,
+                              bgcolor: 'rgba(32,25,20,.94)',
+                              color: '#fff',
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                gridColumn: { xs: '1 / 3', lg: '1 / 7' },
+                                minWidth: 0,
+                                textAlign: 'center',
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 15,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ยืนยันการนำรายการออก?
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  color: 'rgba(255,255,255,.75)',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 12,
+                                }}
+                              >
+                                {item.name} จะถูกนำออกหลังซิงก์ข้อมูลกลาง
+                              </Typography>
+                            </Box>
+                            <Box
+                              sx={{
+                                gridColumn: { xs: 3, lg: 7 },
+                                display: 'flex',
+                                gap: 1,
+                                minWidth: 0,
+                                borderLeft: '1px solid rgba(255,255,255,.3)',
+                                pl: 2,
+                              }}
+                            >
+                              <Button
+                                fullWidth
+                                onClick={onCancelRetire}
+                                sx={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  minHeight: 40,
+                                  borderRadius: '12px',
+                                  color: '#fff',
+                                  border: '1px solid rgba(255,255,255,.45)',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ยกเลิก
+                              </Button>
+                              <Button
+                                fullWidth
+                                variant="contained"
+                                color="error"
+                                onClick={onConfirmRetire}
+                                sx={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  minHeight: 40,
+                                  borderRadius: '12px',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontWeight: 700,
+                                  boxShadow: 'none',
+                                  '&:hover': { boxShadow: 'none' },
+                                }}
+                              >
+                                ยืนยัน
+                              </Button>
+                            </Box>
+                          </Box>
+                        ) : null}
                       </Box>
-                      <Typography
-                        sx={{
-                          ...itemMetaSx,
-                          display: { xs: 'none', md: 'block' },
-                        }}
-                      >
-                        {item.category}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          ...itemMetaSx,
-                          display: { xs: 'none', md: 'block' },
-                        }}
-                      >
-                        {item.availableSizes.join(' / ')}
-                      </Typography>
-                      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                        <Typography sx={itemTitleSx}>
-                          {formatCurrency(item.storePrice)}
-                        </Typography>
-                        <Typography sx={itemMetaSx}>
-                          LINE MAN {formatCurrency(item.linemanPrice)}
-                        </Typography>
-                      </Box>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        sx={{ alignItems: 'center', flexShrink: 0 }}
-                      >
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => onEditMenu(item)}
-                          sx={editButtonSx}
-                        >
-                          แก้ไข
-                        </Button>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => onRetireMenu(item)}
-                          sx={editButtonSx}
-                        >
-                          นำออก
-                        </Button>
-                      </Stack>
-                    </Box>
-                  ))
+                    );
+                  })
               : visibleInventory
                   .slice(pageStart, pageStart + pageSize)
-                  .map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: {
-                          xs: 'minmax(0,1fr) auto',
-                          md: 'minmax(0,2fr) minmax(80px,1fr) 84px minmax(100px,1fr) auto',
-                        },
-                        alignItems: 'center',
-                        gap: 1,
-                        px: 2,
-                        py: 1.25,
-                        borderBottom: '1px solid #f0e7e1',
-                      }}
-                    >
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={itemTitleSx}>{item.name}</Typography>
-                        <Typography sx={itemMetaSx}>
-                          {item.trackStock === false
-                            ? 'คิดต้นทุนเท่านั้น'
-                            : 'ติดตามสต๊อก'}
-                        </Typography>
-                        <Typography
+                  .map((item) => {
+                    const isRetiring =
+                      retireTarget?.type === 'inventory' &&
+                      retireTarget.id === item.id;
+                    return (
+                      <Box
+                        key={item.id}
+                        role="row"
+                        sx={{
+                          position: 'relative',
+                          display: 'grid',
+                          gridTemplateColumns: tableColumns,
+                          alignItems: 'center',
+                          columnGap: 2,
+                          px: 2,
+                          py: 1.25,
+                          borderBottom: '1px solid #f0e7e1',
+                        }}
+                      >
+                        <>
+                          <CatalogThumbnail
+                            name={item.name}
+                            imageUrl={item.imageUrl}
+                          />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography sx={itemTitleSx}>
+                              {item.name}
+                            </Typography>
+                            <Typography sx={itemMetaSx}>
+                              {item.trackStock === false
+                                ? 'คิดต้นทุนเท่านั้น'
+                                : 'ติดตามสต๊อก'}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                ...itemMetaSx,
+                                display: { xs: 'block', lg: 'none' },
+                              }}
+                            >
+                              {item.category} ·{' '}
+                              {item.availableSizes.join(' / ')} ·{' '}
+                              {formatCurrency(item.unitCost)}/{item.unit}
+                              {item.trackStock !== false
+                                ? ` · จุดสั่งซื้อ ${numberFormatter.format(item.reorderLevel)} ${item.unit}`
+                                : ''}
+                            </Typography>
+                          </Box>
+                          <Typography
+                            sx={{
+                              ...itemMetaSx,
+                              display: { xs: 'none', lg: 'block' },
+                            }}
+                          >
+                            {item.category}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              ...itemMetaSx,
+                              display: { xs: 'none', lg: 'block' },
+                            }}
+                          >
+                            {item.availableSizes.join(' / ')}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              ...itemTitleSx,
+                              display: { xs: 'none', lg: 'block' },
+                              textAlign: 'right',
+                            }}
+                          >
+                            {formatCurrency(item.unitCost)}/{item.unit}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              ...itemTitleSx,
+                              display: { xs: 'none', lg: 'block' },
+                              textAlign: 'right',
+                            }}
+                          >
+                            {item.trackStock === false
+                              ? '—'
+                              : `${numberFormatter.format(item.reorderLevel)} ${item.unit}`}
+                          </Typography>
+                        </>
+                        <ItemActionButtons
+                          editLabel="แก้ไข"
+                          deleteLabel="นำออก"
+                          onEdit={() => onEditInventory(item)}
+                          onDelete={() =>
+                            onRequestRetire({
+                              type: 'inventory',
+                              id: item.id,
+                              name: item.name,
+                            })
+                          }
                           sx={{
-                            ...itemMetaSx,
-                            display: { xs: 'block', md: 'none' },
+                            flexShrink: 0,
+                            borderLeft: '1px solid #f0e7e1',
+                            pl: 2,
                           }}
-                        >
-                          {item.category} · {item.availableSizes.join(' / ')} ·{' '}
-                          {formatCurrency(item.unitCost)}/{item.unit}
-                        </Typography>
+                        />
+                        {isRetiring ? (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              zIndex: 2,
+                              display: 'grid',
+                              gridTemplateColumns: tableColumns,
+                              alignItems: 'center',
+                              columnGap: 2,
+                              px: 2,
+                              bgcolor: 'rgba(32,25,20,.94)',
+                              color: '#fff',
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                gridColumn: { xs: '1 / 3', lg: '1 / 7' },
+                                minWidth: 0,
+                                textAlign: 'center',
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 15,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ยืนยันการนำรายการออก?
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  color: 'rgba(255,255,255,.75)',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 12,
+                                }}
+                              >
+                                {item.name} จะถูกนำออกหลังซิงก์ข้อมูลกลาง
+                              </Typography>
+                            </Box>
+                            <Box
+                              sx={{
+                                gridColumn: { xs: 3, lg: 7 },
+                                display: 'flex',
+                                gap: 1,
+                                minWidth: 0,
+                                borderLeft: '1px solid rgba(255,255,255,.3)',
+                                pl: 2,
+                              }}
+                            >
+                              <Button
+                                fullWidth
+                                onClick={onCancelRetire}
+                                sx={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  minHeight: 40,
+                                  borderRadius: '12px',
+                                  color: '#fff',
+                                  border: '1px solid rgba(255,255,255,.45)',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ยกเลิก
+                              </Button>
+                              <Button
+                                fullWidth
+                                variant="contained"
+                                color="error"
+                                onClick={onConfirmRetire}
+                                sx={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  minHeight: 40,
+                                  borderRadius: '12px',
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontWeight: 700,
+                                  boxShadow: 'none',
+                                  '&:hover': { boxShadow: 'none' },
+                                }}
+                              >
+                                ยืนยัน
+                              </Button>
+                            </Box>
+                          </Box>
+                        ) : null}
                       </Box>
-                      <Typography
-                        sx={{
-                          ...itemMetaSx,
-                          display: { xs: 'none', md: 'block' },
-                        }}
-                      >
-                        {item.category}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          ...itemMetaSx,
-                          display: { xs: 'none', md: 'block' },
-                        }}
-                      >
-                        {item.availableSizes.join(' / ')}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          ...itemTitleSx,
-                          display: { xs: 'none', md: 'block' },
-                        }}
-                      >
-                        {formatCurrency(item.unitCost)}/{item.unit}
-                      </Typography>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        sx={{ alignItems: 'center', flexShrink: 0 }}
-                      >
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => onEditInventory(item)}
-                          sx={editButtonSx}
-                        >
-                          แก้ไข
-                        </Button>
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => onRetireInventory(item)}
-                          sx={editButtonSx}
-                        >
-                          นำออก
-                        </Button>
-                      </Stack>
-                    </Box>
-                  ))}
+                    );
+                  })}
           </Box>
         )}
         <Stack
@@ -523,7 +857,7 @@ const itemMetaSx = {
 const editButtonSx = {
   minWidth: 0,
   minHeight: 30,
-  borderRadius: 1.75,
+  borderRadius: '12px',
   borderColor: '#ddcec5',
   color: '#674633',
   fontFamily: 'Kanit, sans-serif',
@@ -538,7 +872,7 @@ const editButtonSx = {
 function tabButtonSx(selected: boolean) {
   return {
     minHeight: 32,
-    borderRadius: 2,
+    borderRadius: '12px',
     borderColor: selected ? '#805637' : '#ddcec5',
     bgcolor: selected ? '#805637' : '#fff',
     color: selected ? '#fff' : '#5d4030',
@@ -554,7 +888,11 @@ function tabButtonSx(selected: boolean) {
   };
 }
 
-export function AdminCentralCatalogPage() {
+export function AdminCentralCatalogPage({
+  section = 'menus',
+}: {
+  section?: CentralCatalogSection;
+}) {
   const [size, setSize] = useState<CatalogTemplateSize | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [templates, setTemplates] = useState<CatalogTemplateSummary[]>([]);
@@ -574,8 +912,12 @@ export function AdminCentralCatalogPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [editor, setEditor] = useState<TemplateEditorState | null>(null);
+  const [retireTarget, setRetireTarget] = useState<RetireTarget | null>(null);
   const [isSavingEditor, setIsSavingEditor] = useState(false);
   const [editorError, setEditorError] = useState('');
+  const [recipeChannel, setRecipeChannel] = useState<'storefront' | 'lineman'>(
+    'storefront',
+  );
   const [branchId, setBranchId] = useState<number | null>(null);
   const [branchSearch, setBranchSearch] = useState('');
   const [branchSelections, setBranchSelections] = useState<Set<string>>(
@@ -583,6 +925,11 @@ export function AdminCentralCatalogPage() {
   );
   const [selectionError, setSelectionError] = useState('');
   const [isSavingSelection, setIsSavingSelection] = useState(false);
+
+  useEffect(() => {
+    setSearch('');
+    setSize('ALL');
+  }, [section]);
 
   useEffect(() => {
     let active = true;
@@ -747,6 +1094,7 @@ export function AdminCentralCatalogPage() {
       item,
       draft: {
         name: item.name,
+        imageUrl: item.imageUrl ?? '',
         category: item.category,
         stockCategory: item.stockCategory ?? '',
         kind: item.kind ?? 'ingredient',
@@ -761,6 +1109,7 @@ export function AdminCentralCatalogPage() {
 
   const openMenuEditor = (item: CatalogTemplateMenuItem) => {
     setEditorError('');
+    setRecipeChannel('storefront');
     setEditor({
       type: 'menu',
       item,
@@ -769,6 +1118,9 @@ export function AdminCentralCatalogPage() {
         category: item.category,
         storePrice: String(item.storePrice),
         linemanPrice: String(item.linemanPrice),
+        costPrice: String(item.costPrice ?? 0),
+        linemanCostPrice: String(item.linemanCostPrice ?? 0),
+        imageUrl: item.imageUrl ?? '',
         status: item.status ?? 'available',
         availableSizes: item.availableSizes,
         recipes: item.recipes.map((recipe) => ({
@@ -782,15 +1134,24 @@ export function AdminCentralCatalogPage() {
 
   const openCreateEditor = () => {
     setEditorError('');
-    if (activeTab === 'inventory') {
+    if (section !== 'menus') {
+      const stockSection =
+        section === 'drink-equipment' || section === 'postal-equipment';
+      const freshSection = section === 'fresh-ingredients';
       setEditor({
         type: 'inventory',
         item: {
           id: 0,
           name: '',
-          category: 'วัตถุดิบ',
-          kind: 'ingredient',
-          unit: 'กรัม',
+          category: freshSection ? 'fresh' : 'other',
+          stockCategory:
+            section === 'postal-equipment'
+              ? 'postal_equipment'
+              : stockSection
+                ? 'drink_equipment'
+                : undefined,
+          kind: stockSection ? 'stock' : 'ingredient',
+          unit: stockSection ? 'ชิ้น' : 'กรัม',
           unitCost: 0,
           reorderLevel: 0,
           trackStock: true,
@@ -798,10 +1159,16 @@ export function AdminCentralCatalogPage() {
         },
         draft: {
           name: '',
-          category: 'วัตถุดิบ',
-          stockCategory: '',
-          kind: 'ingredient',
-          unit: 'กรัม',
+          imageUrl: '',
+          category: freshSection ? 'fresh' : 'other',
+          stockCategory:
+            section === 'postal-equipment'
+              ? 'postal_equipment'
+              : stockSection
+                ? 'drink_equipment'
+                : '',
+          kind: stockSection ? 'stock' : 'ingredient',
+          unit: stockSection ? 'ชิ้น' : 'กรัม',
           unitCost: '0',
           reorderLevel: '0',
           trackStock: true,
@@ -815,7 +1182,7 @@ export function AdminCentralCatalogPage() {
       item: {
         id: 0,
         name: '',
-        category: 'เครื่องดื่ม',
+        category: 'เมนูร้อน',
         storePrice: 0,
         linemanPrice: 0,
         status: 'available',
@@ -824,14 +1191,18 @@ export function AdminCentralCatalogPage() {
       },
       draft: {
         name: '',
-        category: 'เครื่องดื่ม',
+        category: 'เมนูร้อน',
         storePrice: '0',
         linemanPrice: '0',
+        costPrice: '0',
+        linemanCostPrice: '0',
+        imageUrl: '',
         status: 'available',
         recipes: [],
         availableSizes: size === 'ALL' ? [...sizes] : [size],
       },
     });
+    setRecipeChannel('storefront');
   };
 
   const saveEditor = async () => {
@@ -862,10 +1233,20 @@ export function AdminCentralCatalogPage() {
       editor.type === 'menu'
         ? nonNegativeNumber(editor.draft.linemanPrice)
         : null;
+    const costPrice =
+      editor.type === 'menu' ? nonNegativeNumber(editor.draft.costPrice) : null;
+    const linemanCostPrice =
+      editor.type === 'menu'
+        ? nonNegativeNumber(editor.draft.linemanCostPrice)
+        : null;
     if (
       (editor.type === 'inventory' &&
         (unitCost === null || reorderLevel === null)) ||
-      (editor.type === 'menu' && (storePrice === null || linemanPrice === null))
+      (editor.type === 'menu' &&
+        (storePrice === null ||
+          linemanPrice === null ||
+          costPrice === null ||
+          linemanCostPrice === null))
     ) {
       setEditorError('ราคาและจุดแจ้งเตือนต้องเป็นเลขศูนย์หรือมากกว่า');
       return;
@@ -876,6 +1257,7 @@ export function AdminCentralCatalogPage() {
       if (editor.type === 'inventory') {
         const data: CatalogTemplateInventoryPatch = {
           category: editor.draft.category.trim(),
+          imageUrl: editor.draft.imageUrl,
           stockCategory: editor.draft.stockCategory || undefined,
           kind: editor.draft.kind,
           unit: editor.draft.unit.trim(),
@@ -917,6 +1299,9 @@ export function AdminCentralCatalogPage() {
           category: editor.draft.category.trim(),
           storePrice: storePrice!,
           linemanPrice: linemanPrice!,
+          costPrice: costPrice!,
+          linemanCostPrice: linemanCostPrice!,
+          imageUrl: editor.draft.imageUrl,
           status: editor.draft.status,
           availableSizes: editor.draft.availableSizes,
         };
@@ -949,23 +1334,17 @@ export function AdminCentralCatalogPage() {
     }
   };
 
-  const retireItem = async (
-    type: 'inventory' | 'menu',
-    item: CatalogTemplateInventoryItem | CatalogTemplateMenuItem,
-  ) => {
-    if (!template) return;
-    const confirmed = window.confirm(
-      `นำ “${item.name}” ออกจากข้อมูลกลางใช่ไหม? ข้อมูลและประวัติของสาขาจะไม่ถูกลบ และจะมีผลหลังซิงก์`,
-    );
-    if (!confirmed) return;
+  const retireItem = async () => {
+    if (!template || !retireTarget) return;
     try {
-      if (type === 'inventory') {
-        await retireCatalogTemplateInventoryItem(template.id, item.id);
+      if (retireTarget.type === 'inventory') {
+        await retireCatalogTemplateInventoryItem(template.id, retireTarget.id);
       } else {
-        await retireCatalogTemplateMenuItem(template.id, item.id);
+        await retireCatalogTemplateMenuItem(template.id, retireTarget.id);
       }
       const refreshedTemplate = await getCatalogTemplate(template.id);
       setTemplate(refreshedTemplate);
+      setRetireTarget(null);
       setImpact(null);
       setNotice('นำรายการออกจากข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา');
       setReloadKey((current) => current + 1);
@@ -978,11 +1357,26 @@ export function AdminCentralCatalogPage() {
     }
   };
 
+  const menuEditor = editor?.type === 'menu' ? editor : null;
+  const updateMenuDraft = (patch: Partial<MenuEditorState['draft']>) => {
+    setEditor((current) =>
+      current?.type === 'menu'
+        ? { ...current, draft: { ...current.draft, ...patch } }
+        : current,
+    );
+  };
+  const categoryOptions = [
+    ...new Set([
+      ...menuCategories,
+      ...(template?.menuItems.map((item) => item.category) ?? []),
+    ]),
+  ];
+
   return (
     <DashboardMain>
       <PageIntro
-        title="สินค้าและคลังกลาง"
-        description="ข้อมูลเมนู สินค้า วัตถุดิบ และอุปกรณ์ชุดเดียวสำหรับทุกสาขา เลือกขนาด S / M / L ที่ใช้แต่ละรายการ"
+        title={sectionContent[section].title}
+        description={sectionContent[section].description}
       />
 
       {loadError ? (
@@ -1014,294 +1408,327 @@ export function AdminCentralCatalogPage() {
         ) : template ? (
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'minmax(0,1fr)',
-                lg: 'minmax(0,1.9fr) minmax(300px,.85fr)',
-              },
-              gap: 2,
-              alignItems: 'start',
+              maxWidth:
+                section === 'branches' || section === 'sync' ? 800 : 'none',
             }}
           >
-            <Box
-              sx={{
-                minWidth: 0,
-                gridColumn: { lg: 1 },
-              }}
-            >
-              <TemplateDetail
-                template={template}
-                size={size}
-                search={search}
-                onSearchChange={setSearch}
-                onSizeChange={setSize}
-                tab={activeTab}
-                onTabChange={setActiveTab}
-                onEditInventory={openInventoryEditor}
-                onEditMenu={openMenuEditor}
-                onRetireInventory={(item) => void retireItem('inventory', item)}
-                onRetireMenu={(item) => void retireItem('menu', item)}
-                onAdd={openCreateEditor}
-              />
-            </Box>
-            <Box
-              sx={{
-                minWidth: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                gridColumn: { lg: 2 },
-                position: { lg: 'sticky' },
-                top: { lg: 16 },
-              }}
-            >
-              <Card
-                variant="outlined"
+            {section !== 'branches' && section !== 'sync' && (
+              <Box
                 sx={{
-                  ...templateCardSx,
-                  order: 2,
+                  minWidth: 0,
+                  gridColumn: { lg: 1 },
                 }}
               >
-                <CardContent
-                  sx={{
-                    p: { xs: 2, sm: 2.5 },
-                    '&:last-child': { pb: { xs: 2, sm: 2.5 } },
-                  }}
-                >
-                  <Stack
-                    direction="column"
+                <TemplateDetail
+                  key={section}
+                  template={template}
+                  size={size}
+                  search={search}
+                  onSearchChange={setSearch}
+                  onSizeChange={setSize}
+                  section={section}
+                  onEditInventory={openInventoryEditor}
+                  onEditMenu={openMenuEditor}
+                  retireTarget={retireTarget}
+                  onRequestRetire={setRetireTarget}
+                  onCancelRetire={() => setRetireTarget(null)}
+                  onConfirmRetire={() => void retireItem()}
+                  onAdd={openCreateEditor}
+                />
+              </Box>
+            )}
+            {(section === 'branches' || section === 'sync') && (
+              <Box
+                sx={{
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  gridColumn: { lg: 2 },
+                  position: { lg: 'sticky' },
+                  top: { lg: 16 },
+                }}
+              >
+                {section === 'sync' && (
+                  <Card
+                    variant="outlined"
                     sx={{
-                      alignItems: 'stretch',
-                      gap: 1.5,
+                      ...templateCardSx,
+                      order: 2,
                     }}
                   >
-                    <Box>
-                      <Typography component="h2" sx={sectionTitleSx}>
-                        กระจายการเปลี่ยนแปลง
-                      </Typography>
-                      <Typography
-                        sx={{ ...sectionMetaSx, mt: 0.25, fontSize: 13 }}
-                      >
-                        อัปเดตข้อมูลกลางไปยังสาขาโดยไม่ทับยอดจริง ล็อต
-                        หรือประวัติ
-                      </Typography>
-                    </Box>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ flexWrap: 'wrap', gap: 1 }}
-                    >
-                      <Button
-                        variant="outlined"
-                        onClick={() => void previewImpact(false)}
-                        disabled={isLoadingImpact}
-                        sx={tabButtonSx(false)}
-                      >
-                        {isLoadingImpact ? 'กำลังคำนวณ' : 'ดูผลกระทบ'}
-                      </Button>
-                      <Button
-                        variant="contained"
-                        onClick={openSyncDialog}
-                        disabled={isLoadingImpact}
-                        sx={tabButtonSx(true)}
-                      >
-                        ซิงก์ไปยังสาขา
-                      </Button>
-                    </Stack>
-                  </Stack>
-                  {impact ? (
-                    <Box
+                    <CardContent
                       sx={{
-                        mt: 1.5,
-                        px: 1.25,
-                        py: 1,
-                        bgcolor: '#f7efe9',
-                        borderRadius: 2,
+                        p: { xs: 2, sm: 2.5 },
+                        '&:last-child': { pb: { xs: 2, sm: 2.5 } },
                       }}
                     >
-                      <Typography
+                      <Stack
+                        direction="column"
                         sx={{
-                          ...sectionMetaSx,
-                          color: '#674633',
-                          fontSize: 12,
+                          alignItems: 'stretch',
+                          gap: 1.5,
                         }}
                       >
-                        การเปลี่ยนแปลงนี้จะกระทบ{' '}
-                        {numberFormatter.format(impact.count)} สาขา · เลือก
-                        “ซิงก์ไปยังสาขา” เพื่อยืนยัน
-                      </Typography>
-                    </Box>
-                  ) : null}
-                  {impactError ? (
-                    <Alert
-                      severity="error"
-                      sx={{ mt: 1.5, fontFamily: 'Kanit, sans-serif' }}
-                    >
-                      {impactError}
-                    </Alert>
-                  ) : null}
-                </CardContent>
-              </Card>
-              <Card
-                variant="outlined"
-                sx={{
-                  ...templateCardSx,
-                  order: 1,
-                }}
-              >
-                <CardContent>
-                  <Typography component="h2" sx={sectionTitleSx}>
-                    รายการที่ใช้รายสาขา
-                  </Typography>
-                  <Typography sx={sectionMetaSx}>
-                    สาขา SBC และแฟรนไชส์เลือกใช้รายการจากข้อมูลกลางชุดเดียวกัน
-                    โดยไม่เปลี่ยนยอดสต๊อกจริง
-                  </Typography>
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    label="สาขา"
-                    value={branchId ?? ''}
-                    onClick={() => {
-                      if (!impact) void previewImpact(false);
+                        <Box>
+                          <Typography component="h2" sx={sectionTitleSx}>
+                            กระจายการเปลี่ยนแปลง
+                          </Typography>
+                          <Typography
+                            sx={{ ...sectionMetaSx, mt: 0.25, fontSize: 13 }}
+                          >
+                            อัปเดตข้อมูลกลางไปยังสาขาโดยไม่ทับยอดจริง ล็อต
+                            หรือประวัติ
+                          </Typography>
+                        </Box>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ flexWrap: 'wrap', gap: 1 }}
+                        >
+                          <Button
+                            variant="outlined"
+                            onClick={() => void previewImpact(false)}
+                            disabled={isLoadingImpact}
+                            sx={tabButtonSx(false)}
+                          >
+                            {isLoadingImpact ? 'กำลังคำนวณ' : 'ดูผลกระทบ'}
+                          </Button>
+                          <Button
+                            variant="contained"
+                            onClick={openSyncDialog}
+                            disabled={isLoadingImpact}
+                            sx={tabButtonSx(true)}
+                          >
+                            ซิงก์ไปยังสาขา
+                          </Button>
+                        </Stack>
+                      </Stack>
+                      {impact ? (
+                        <Box
+                          sx={{
+                            mt: 1.5,
+                            px: 1.25,
+                            py: 1,
+                            bgcolor: '#f7efe9',
+                            borderRadius: 2,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              ...sectionMetaSx,
+                              color: '#674633',
+                              fontSize: 12,
+                            }}
+                          >
+                            การเปลี่ยนแปลงนี้จะกระทบ{' '}
+                            {numberFormatter.format(impact.count)} สาขา · เลือก
+                            “ซิงก์ไปยังสาขา” เพื่อยืนยัน
+                          </Typography>
+                        </Box>
+                      ) : null}
+                      {impactError ? (
+                        <Alert
+                          severity="error"
+                          sx={{ mt: 1.5, fontFamily: 'Kanit, sans-serif' }}
+                        >
+                          {impactError}
+                        </Alert>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                )}
+                {section === 'branches' && (
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      ...templateCardSx,
+                      order: 1,
                     }}
-                    onChange={(event) =>
-                      setBranchId(Number(event.target.value))
-                    }
-                    sx={{ mt: 2 }}
                   >
-                    {(impact?.branches ?? []).map((branch) => (
-                      <MenuItem key={branch.id} value={branch.id}>
-                        {branch.name} · {branch.code} · {branch.size}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  {branchId !== null && (
-                    <TextField
-                      size="small"
-                      fullWidth
-                      label="ค้นหารายการในสาขา"
-                      value={branchSearch}
-                      onChange={(event) => setBranchSearch(event.target.value)}
-                      sx={{ mt: 1.25 }}
-                    />
-                  )}
-                  {selectionError && (
-                    <Alert severity="error" sx={{ mt: 1 }}>
-                      {selectionError}
-                    </Alert>
-                  )}
-                  {branchId !== null && template && (
-                    <Stack
-                      spacing={0.75}
-                      sx={{ mt: 1.5, maxHeight: 260, overflowY: 'auto' }}
-                    >
-                      {(activeTab === 'menu'
-                        ? template.menuItems
-                        : template.inventoryItems
-                      )
-                        .filter((item) => {
-                          const branchSize = impact?.branches.find(
-                            (branch) => branch.id === branchId,
-                          )?.size;
-                          return (
-                            branchSize &&
-                            item.availableSizes.includes(branchSize) &&
-                            item.name
-                              .toLocaleLowerCase('th-TH')
-                              .includes(
-                                branchSearch.trim().toLocaleLowerCase('th-TH'),
-                              )
-                          );
-                        })
-                        .map((item) => {
-                          const entityType =
-                            activeTab === 'menu' ? 'menu' : 'inventory';
-                          const enabled = !branchSelections.has(
-                            `${entityType}:${item.id}`,
-                          );
-                          return (
-                            <Stack
-                              key={item.id}
-                              direction="row"
-                              sx={{
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 1,
-                                py: 0.5,
-                                borderBottom: '1px solid #eee3dc',
-                              }}
-                            >
-                              <Typography
-                                sx={{
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 13,
-                                }}
-                              >
-                                {item.name}
-                              </Typography>
-                              <Switch
-                                size="small"
-                                checked={enabled}
-                                disabled={isSavingSelection}
-                                slotProps={{
-                                  input: {
-                                    'aria-label': `${item.name} สำหรับสาขา`,
-                                  },
-                                }}
-                                onClick={async () => {
-                                  setIsSavingSelection(true);
-                                  setSelectionError('');
-                                  try {
-                                    await setBranchCatalogSelection(
-                                      branchId,
-                                      entityType,
-                                      item.id,
-                                      !enabled,
-                                    );
-                                    const next =
-                                      await listBranchCatalogSelections(
-                                        branchId,
-                                      );
-                                    setBranchSelections(
-                                      new Set(
-                                        next
-                                          .filter(
-                                            (selection) => !selection.enabled,
-                                          )
-                                          .map(
-                                            (selection) =>
-                                              `${selection.entityType}:${selection.sourceKey}`,
+                    <CardContent>
+                      <Typography component="h2" sx={sectionTitleSx}>
+                        รายการที่ใช้รายสาขา
+                      </Typography>
+                      <Typography sx={sectionMetaSx}>
+                        สาขา SBC
+                        และแฟรนไชส์เลือกใช้รายการจากข้อมูลกลางชุดเดียวกัน
+                        โดยไม่เปลี่ยนยอดสต๊อกจริง
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ mt: 2 }}
+                        aria-label="ประเภทรายการรายสาขา"
+                      >
+                        {catalogTabs.map((item) => (
+                          <Button
+                            key={item.value}
+                            size="small"
+                            variant={
+                              activeTab === item.value
+                                ? 'contained'
+                                : 'outlined'
+                            }
+                            onClick={() => setActiveTab(item.value)}
+                            sx={tabButtonSx(activeTab === item.value)}
+                          >
+                            {item.label}
+                          </Button>
+                        ))}
+                      </Stack>
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        label="สาขา"
+                        value={branchId ?? ''}
+                        onClick={() => {
+                          if (!impact) void previewImpact(false);
+                        }}
+                        onChange={(event) =>
+                          setBranchId(Number(event.target.value))
+                        }
+                        sx={{ mt: 2 }}
+                      >
+                        {(impact?.branches ?? []).map((branch) => (
+                          <MenuItem key={branch.id} value={branch.id}>
+                            {branch.name} · {branch.code} · {branch.size}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      {branchId !== null && (
+                        <TextField
+                          size="small"
+                          fullWidth
+                          label="ค้นหารายการในสาขา"
+                          value={branchSearch}
+                          onChange={(event) =>
+                            setBranchSearch(event.target.value)
+                          }
+                          sx={{ mt: 1.25 }}
+                        />
+                      )}
+                      {selectionError && (
+                        <Alert severity="error" sx={{ mt: 1 }}>
+                          {selectionError}
+                        </Alert>
+                      )}
+                      {branchId !== null && template && (
+                        <Stack
+                          spacing={0.75}
+                          sx={{ mt: 1.5, maxHeight: 260, overflowY: 'auto' }}
+                        >
+                          {(activeTab === 'menu'
+                            ? template.menuItems
+                            : template.inventoryItems
+                          )
+                            .filter((item) => {
+                              const branchSize = impact?.branches.find(
+                                (branch) => branch.id === branchId,
+                              )?.size;
+                              return (
+                                branchSize &&
+                                item.availableSizes.includes(branchSize) &&
+                                item.name
+                                  .toLocaleLowerCase('th-TH')
+                                  .includes(
+                                    branchSearch
+                                      .trim()
+                                      .toLocaleLowerCase('th-TH'),
+                                  )
+                              );
+                            })
+                            .map((item) => {
+                              const entityType =
+                                activeTab === 'menu' ? 'menu' : 'inventory';
+                              const enabled = !branchSelections.has(
+                                `${entityType}:${item.id}`,
+                              );
+                              return (
+                                <Stack
+                                  key={item.id}
+                                  direction="row"
+                                  sx={{
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 1,
+                                    py: 0.5,
+                                    borderBottom: '1px solid #eee3dc',
+                                  }}
+                                >
+                                  <Typography
+                                    sx={{
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 13,
+                                    }}
+                                  >
+                                    {item.name}
+                                  </Typography>
+                                  <Switch
+                                    size="small"
+                                    checked={enabled}
+                                    disabled={isSavingSelection}
+                                    slotProps={{
+                                      input: {
+                                        'aria-label': `${item.name} สำหรับสาขา`,
+                                      },
+                                    }}
+                                    onClick={async () => {
+                                      setIsSavingSelection(true);
+                                      setSelectionError('');
+                                      try {
+                                        await setBranchCatalogSelection(
+                                          branchId,
+                                          entityType,
+                                          item.id,
+                                          !enabled,
+                                        );
+                                        const next =
+                                          await listBranchCatalogSelections(
+                                            branchId,
+                                          );
+                                        setBranchSelections(
+                                          new Set(
+                                            next
+                                              .filter(
+                                                (selection) =>
+                                                  !selection.enabled,
+                                              )
+                                              .map(
+                                                (selection) =>
+                                                  `${selection.entityType}:${selection.sourceKey}`,
+                                              ),
                                           ),
-                                      ),
-                                    );
-                                  } catch (error) {
-                                    setSelectionError(
-                                      error instanceof Error
-                                        ? error.message
-                                        : 'บันทึกรายการสาขาไม่สำเร็จ',
-                                    );
-                                  } finally {
-                                    setIsSavingSelection(false);
-                                  }
-                                }}
-                                sx={{
-                                  '& .MuiSwitch-switchBase.Mui-checked': {
-                                    color: '#805637',
-                                  },
-                                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':
-                                    { bgcolor: '#805637' },
-                                }}
-                              />
-                            </Stack>
-                          );
-                        })}
-                    </Stack>
-                  )}
-                </CardContent>
-              </Card>
-            </Box>
+                                        );
+                                      } catch (error) {
+                                        setSelectionError(
+                                          error instanceof Error
+                                            ? error.message
+                                            : 'บันทึกรายการสาขาไม่สำเร็จ',
+                                        );
+                                      } finally {
+                                        setIsSavingSelection(false);
+                                      }
+                                    }}
+                                    sx={{
+                                      '& .MuiSwitch-switchBase.Mui-checked': {
+                                        color: '#805637',
+                                      },
+                                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':
+                                        { bgcolor: '#805637' },
+                                    }}
+                                  />
+                                </Stack>
+                              );
+                            })}
+                        </Stack>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </Box>
+            )}
           </Box>
         ) : (
           <Card variant="outlined" sx={templateCardSx}>
@@ -1316,532 +1743,707 @@ export function AdminCentralCatalogPage() {
         )}
       </Box>
 
-      <Dialog
-        open={editor !== null}
+      <CentralInventoryEditorDrawer
+        editor={editor?.type === 'inventory' ? editor : null}
+        section={section}
+        isSaving={isSavingEditor}
+        error={editorError}
+        onClose={() => setEditor(null)}
+        onSave={() => void saveEditor()}
+        onError={setEditorError}
+        onChange={(patch) =>
+          setEditor((current) =>
+            current?.type === 'inventory'
+              ? { ...current, draft: { ...current.draft, ...patch } }
+              : current,
+          )
+        }
+      />
+
+      <Drawer
+        anchor="bottom"
+        open={menuEditor !== null}
         onClose={() => !isSavingEditor && setEditor(null)}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby="catalog-editor-dialog-title"
+        transitionDuration={{ enter: 360, exit: 280 }}
+        sx={{ zIndex: 1300 }}
+        slotProps={{
+          paper: {
+            sx: {
+              left: { md: '280px' },
+              width: { md: 'calc(100% - 304px)' },
+              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
+              overflow: 'hidden',
+              borderRadius: '24px 24px 0 0',
+              bgcolor: '#fffaf7',
+            },
+          },
+        }}
       >
-        <DialogTitle
-          id="catalog-editor-dialog-title"
-          sx={{
-            color: '#3c2d24',
-            fontFamily: 'Kanit, sans-serif',
-            fontWeight: 600,
-          }}
-        >
-          {editor?.item.id === 0 ? 'เพิ่ม' : 'แก้ไข'}
-          {editor?.type === 'inventory'
-            ? 'วัตถุดิบหรืออุปกรณ์'
-            : 'เมนูและสินค้า'}
-        </DialogTitle>
-        <DialogContent dividers sx={{ borderColor: '#eee3dc' }}>
-          {editor ? (
-            <>
-              <TextField
-                fullWidth
-                size="small"
-                label={editor.type === 'menu' ? 'ชื่อเมนู' : 'ชื่อรายการ'}
-                value={editor.draft.name}
-                disabled={editor.item.id !== 0}
-                sx={{ mb: 2 }}
-                onChange={(event) =>
-                  setEditor((current) => {
-                    if (current?.type === 'inventory') {
-                      return {
-                        ...current,
-                        draft: { ...current.draft, name: event.target.value },
-                      };
-                    }
-                    if (current?.type === 'menu') {
-                      return {
-                        ...current,
-                        draft: { ...current.draft, name: event.target.value },
-                      };
-                    }
-                    return current;
-                  })
-                }
-              />
-              <Box sx={{ mb: 2 }}>
-                <Typography sx={controlLabelSx}>ใช้กับขนาดสาขา</Typography>
-                <Stack direction="row" spacing={0.75}>
-                  {sizes.map((item) => (
-                    <Button
-                      key={item}
-                      size="small"
-                      variant={
-                        editor.draft.availableSizes.includes(item)
-                          ? 'contained'
-                          : 'outlined'
-                      }
-                      aria-pressed={editor.draft.availableSizes.includes(item)}
-                      onClick={() =>
-                        setEditor((current) => {
-                          if (!current) return current;
-                          const next = current.draft.availableSizes.includes(
-                            item,
-                          )
-                            ? current.draft.availableSizes.filter(
-                                (value) => value !== item,
-                              )
-                            : sizes.filter(
-                                (value) =>
-                                  current.draft.availableSizes.includes(
-                                    value,
-                                  ) || value === item,
-                              );
-                          return {
-                            ...current,
-                            draft: { ...current.draft, availableSizes: next },
-                          } as TemplateEditorState;
-                        })
-                      }
-                      sx={tabButtonSx(
-                        editor.draft.availableSizes.includes(item),
-                      )}
+        {menuEditor ? (
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              px: { xs: 2.5, sm: 4 },
+              pt: 1.5,
+              pb: 3.5,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 5,
+                mx: 'auto',
+                mb: 2.5,
+                borderRadius: 99,
+                bgcolor: '#d8c8bd',
+              }}
+            />
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Typography
+                component="h2"
+                sx={{
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 22,
+                  fontWeight: 600,
+                }}
+              >
+                {menuEditor.item.id === 0
+                  ? 'เพิ่มเมนูและสินค้า'
+                  : 'แก้ไขเมนูและสินค้า'}
+              </Typography>
+              <Button
+                aria-label="ปิด"
+                onClick={() => setEditor(null)}
+                disabled={isSavingEditor}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 40,
+                  width: 40,
+                  height: 40,
+                  p: 0,
+                  borderRadius: '12px',
+                  bgcolor: '#f7eee8',
+                  color: '#5f4b3d',
+                  '&:hover': { bgcolor: '#f1e4da' },
+                }}
+              >
+                <XIcon size={20} />
+              </Button>
+            </Box>
+            <Typography
+              sx={{
+                mt: 0.5,
+                color: 'text.secondary',
+                fontFamily: 'Kanit, sans-serif',
+              }}
+            >
+              {menuEditor.item.id === 0
+                ? 'กรอกข้อมูลเพื่อเพิ่มสินค้าใหม่'
+                : 'แก้ไขข้อมูลสินค้าในเมนู'}
+            </Typography>
+            <Divider
+              sx={{
+                mt: 2.25,
+                mx: { xs: -2.5, sm: -4 },
+                borderColor: '#e8ddd5',
+              }}
+            />
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                pt: 2.25,
+                pr: 0.5,
+              }}
+            >
+              <Box
+                component="form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveEditor();
+                }}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    md: 'minmax(0,1fr) minmax(0,2fr)',
+                  },
+                  gap: 2.5,
+                  '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+                }}
+              >
+                <Box
+                  component="label"
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    aspectRatio: '1 / 1',
+                    overflow: 'hidden',
+                    border: '1.5px dashed #c9b6a9',
+                    borderRadius: '16px',
+                    bgcolor: '#f7eee8',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {menuEditor.draft.imageUrl ? (
+                    <Box
+                      component="img"
+                      src={menuEditor.draft.imageUrl}
+                      alt="ตัวอย่างรูปสินค้า"
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  ) : (
+                    <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                      + เพิ่มรูปสินค้า
+                    </Typography>
+                  )}
+                  {menuEditor.item.id !== 0 && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 1,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: 'rgba(32,25,20,.42)',
+                        color: '#fff',
+                        fontFamily: 'Kanit, sans-serif',
+                      }}
                     >
-                      {item}
-                    </Button>
-                  ))}
-                </Stack>
-              </Box>
-              {editor.type === 'inventory' ? (
-                <Stack spacing={1.5}>
+                      เปลี่ยนรูปสินค้า
+                    </Box>
+                  )}
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        setEditorError('รูปสินค้าต้องไม่เกิน 5 MB');
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === 'string')
+                          updateMenuDraft({ imageUrl: reader.result });
+                      };
+                      reader.onerror = () =>
+                        setEditorError('ไม่สามารถอ่านรูปสินค้าได้');
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'repeat(2,minmax(0,1fr))',
+                    },
+                    gap: 2,
+                  }}
+                >
                   <TextField
+                    required
                     fullWidth
-                    size="small"
-                    label="หมวดหมู่"
-                    value={editor.draft.category}
+                    label="ชื่อสินค้า"
+                    value={menuEditor.draft.name}
+                    disabled={menuEditor.item.id !== 0}
                     onChange={(event) =>
-                      setEditor((current) =>
-                        current?.type === 'inventory'
-                          ? {
-                              ...current,
-                              draft: {
-                                ...current.draft,
-                                category: event.target.value,
-                              },
-                            }
-                          : current,
-                      )
+                      updateMenuDraft({ name: event.target.value })
                     }
+                    sx={{ gridColumn: { sm: '1 / -1' } }}
                   />
                   <TextField
+                    required
                     select
                     fullWidth
-                    size="small"
-                    label="ประเภท"
-                    value={editor.draft.kind}
-                    onChange={(event) =>
-                      setEditor((current) =>
-                        current?.type === 'inventory'
-                          ? {
-                              ...current,
-                              draft: {
-                                ...current.draft,
-                                kind: event.target.value as
-                                  'ingredient' | 'stock',
-                              },
-                            }
-                          : current,
-                      )
-                    }
-                  >
-                    <MenuItem value="ingredient">วัตถุดิบ</MenuItem>
-                    <MenuItem value="stock">อุปกรณ์ / สต๊อก</MenuItem>
-                  </TextField>
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    label="หมวดสต๊อก"
-                    value={editor.draft.stockCategory}
-                    onChange={(event) =>
-                      setEditor((current) =>
-                        current?.type === 'inventory'
-                          ? {
-                              ...current,
-                              draft: {
-                                ...current.draft,
-                                stockCategory: event.target.value,
-                              },
-                            }
-                          : current,
-                      )
-                    }
-                  >
-                    <MenuItem value="">ไม่มีหมวดสต๊อก</MenuItem>
-                    <MenuItem value="drink_equipment">
-                      อุปกรณ์เครื่องดื่ม
-                    </MenuItem>
-                    <MenuItem value="postal_equipment">
-                      อุปกรณ์ไปรษณีย์
-                    </MenuItem>
-                  </TextField>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="หน่วย"
-                      value={editor.draft.unit}
-                      onChange={(event) =>
-                        setEditor((current) =>
-                          current?.type === 'inventory'
-                            ? {
-                                ...current,
-                                draft: {
-                                  ...current.draft,
-                                  unit: event.target.value,
-                                },
-                              }
-                            : current,
-                        )
-                      }
-                    />
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      label="ต้นทุนต่อหน่วย"
-                      value={editor.draft.unitCost}
-                      slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
-                      onChange={(event) =>
-                        setEditor((current) =>
-                          current?.type === 'inventory'
-                            ? {
-                                ...current,
-                                draft: {
-                                  ...current.draft,
-                                  unitCost: event.target.value,
-                                },
-                              }
-                            : current,
-                        )
-                      }
-                    />
-                  </Stack>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      label="จุดแจ้งเตือน"
-                      value={editor.draft.reorderLevel}
-                      slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
-                      onChange={(event) =>
-                        setEditor((current) =>
-                          current?.type === 'inventory'
-                            ? {
-                                ...current,
-                                draft: {
-                                  ...current.draft,
-                                  reorderLevel: event.target.value,
-                                },
-                              }
-                            : current,
-                        )
-                      }
-                    />
-                    <TextField
-                      select
-                      fullWidth
-                      size="small"
-                      label="การจัดการสต๊อก"
-                      value={String(editor.draft.trackStock)}
-                      onChange={(event) =>
-                        setEditor((current) =>
-                          current?.type === 'inventory'
-                            ? {
-                                ...current,
-                                draft: {
-                                  ...current.draft,
-                                  trackStock: event.target.value === 'true',
-                                },
-                              }
-                            : current,
-                        )
-                      }
-                    >
-                      <MenuItem value="true">ติดตามสต๊อกและแจ้งเตือน</MenuItem>
-                      <MenuItem value="false">คิดต้นทุนเท่านั้น</MenuItem>
-                    </TextField>
-                  </Stack>
-                </Stack>
-              ) : (
-                <Stack spacing={1.5}>
-                  <TextField
-                    fullWidth
-                    size="small"
                     label="หมวดหมู่"
-                    value={editor.draft.category}
+                    value={menuEditor.draft.category}
                     onChange={(event) =>
-                      setEditor((current) =>
-                        current?.type === 'menu'
-                          ? {
-                              ...current,
-                              draft: {
-                                ...current.draft,
-                                category: event.target.value,
-                              },
-                            }
-                          : current,
-                      )
-                    }
-                  />
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      label="ราคาหน้าร้าน"
-                      value={editor.draft.storePrice}
-                      slotProps={{ htmlInput: { min: 0, step: '1' } }}
-                      onChange={(event) =>
-                        setEditor((current) =>
-                          current?.type === 'menu'
-                            ? {
-                                ...current,
-                                draft: {
-                                  ...current.draft,
-                                  storePrice: event.target.value,
-                                },
-                              }
-                            : current,
-                        )
-                      }
-                    />
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      label="ราคา LINE MAN"
-                      value={editor.draft.linemanPrice}
-                      slotProps={{ htmlInput: { min: 0, step: '1' } }}
-                      onChange={(event) =>
-                        setEditor((current) =>
-                          current?.type === 'menu'
-                            ? {
-                                ...current,
-                                draft: {
-                                  ...current.draft,
-                                  linemanPrice: event.target.value,
-                                },
-                              }
-                            : current,
-                        )
-                      }
-                    />
-                  </Stack>
-                  <TextField
-                    select
-                    fullWidth
-                    size="small"
-                    label="สถานะขาย"
-                    value={editor.draft.status}
-                    onChange={(event) =>
-                      setEditor((current) =>
-                        current?.type === 'menu'
-                          ? {
-                              ...current,
-                              draft: {
-                                ...current.draft,
-                                status: event.target.value as
-                                  'available' | 'soldout',
-                              },
-                            }
-                          : current,
-                      )
+                      updateMenuDraft({ category: event.target.value })
                     }
                   >
-                    <MenuItem value="available">พร้อมขาย</MenuItem>
-                    <MenuItem value="soldout">หมดชั่วคราว</MenuItem>
+                    {categoryOptions.map((category) => (
+                      <MenuItem key={category} value={category}>
+                        {category}
+                      </MenuItem>
+                    ))}
                   </TextField>
-                  <Divider />
-                  <Stack
-                    direction="row"
+                  <Box
                     sx={{
+                      display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       gap: 1,
+                      minHeight: 56,
+                      px: 1.5,
+                      border: '1px solid #e8ddd5',
+                      borderRadius: '12px',
+                      bgcolor: '#fffaf7',
                     }}
                   >
                     <Box>
                       <Typography
                         sx={{
+                          color: 'text.secondary',
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 12,
+                        }}
+                      >
+                        สถานะระบบ
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: 'text.secondary',
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 10,
+                        }}
+                      >
+                        กำหนดสถานะของเมนูกลาง
+                      </Typography>
+                    </Box>
+                    <Chip
+                      size="small"
+                      clickable
+                      label={
+                        menuEditor.draft.status === 'available'
+                          ? 'พร้อมขาย'
+                          : 'หมดชั่วคราว'
+                      }
+                      onClick={() =>
+                        updateMenuDraft({
+                          status:
+                            menuEditor.draft.status === 'available'
+                              ? 'soldout'
+                              : 'available',
+                        })
+                      }
+                      sx={{
+                        borderRadius: '12px',
+                        bgcolor:
+                          menuEditor.draft.status === 'available'
+                            ? '#1c5b39'
+                            : '#9d5a1b',
+                        color: '#fff',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+                    <Typography sx={controlLabelSx}>ใช้กับขนาดสาขา</Typography>
+                    <Stack direction="row" spacing={0.75}>
+                      {sizes.map((item) => (
+                        <Button
+                          key={item}
+                          size="small"
+                          variant={
+                            menuEditor.draft.availableSizes.includes(item)
+                              ? 'contained'
+                              : 'outlined'
+                          }
+                          aria-pressed={menuEditor.draft.availableSizes.includes(
+                            item,
+                          )}
+                          onClick={() =>
+                            updateMenuDraft({
+                              availableSizes:
+                                menuEditor.draft.availableSizes.includes(item)
+                                  ? menuEditor.draft.availableSizes.filter(
+                                      (value) => value !== item,
+                                    )
+                                  : sizes.filter(
+                                      (value) =>
+                                        menuEditor.draft.availableSizes.includes(
+                                          value,
+                                        ) || value === item,
+                                    ),
+                            })
+                          }
+                          sx={tabButtonSx(
+                            menuEditor.draft.availableSizes.includes(item),
+                          )}
+                        >
+                          {item}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </Box>
+                  <Box
+                    role="group"
+                    aria-label="ราคาตามช่องทางขาย"
+                    sx={{
+                      gridColumn: { sm: '1 / -1' },
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        md: 'repeat(2,minmax(0,1fr))',
+                      },
+                      gap: 1.5,
+                    }}
+                  >
+                    <Box
+                      component="section"
+                      sx={{
+                        p: 1.5,
+                        border: '1px solid #e8ddd5',
+                        borderRadius: '12px',
+                        bgcolor: '#fffaf7',
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          mb: 1,
+                          fontFamily: 'Kanit, sans-serif',
+                          fontWeight: 700,
+                        }}
+                      >
+                        หน้าร้าน
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: 'repeat(2,minmax(0,1fr))',
+                          },
+                          gap: 1.25,
+                        }}
+                      >
+                        <TextField
+                          required
+                          fullWidth
+                          type="number"
+                          label="ราคาต้นทุนหน้าร้าน"
+                          value={menuEditor.draft.costPrice}
+                          onChange={(event) =>
+                            updateMenuDraft({ costPrice: event.target.value })
+                          }
+                          helperText="ใช้คำนวณกำไร/ขาดทุน"
+                          slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                        />
+                        <TextField
+                          required
+                          fullWidth
+                          type="number"
+                          label="ราคาขายหน้าร้าน"
+                          value={menuEditor.draft.storePrice}
+                          onChange={(event) =>
+                            updateMenuDraft({ storePrice: event.target.value })
+                          }
+                          slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                        />
+                      </Box>
+                    </Box>
+                    <Box
+                      component="section"
+                      sx={{
+                        p: 1.5,
+                        border: '1px solid #e8ddd5',
+                        borderRadius: '12px',
+                        bgcolor: '#fffaf7',
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          mb: 1,
+                          fontFamily: 'Kanit, sans-serif',
+                          fontWeight: 700,
+                        }}
+                      >
+                        LINE MAN
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: 'repeat(2,minmax(0,1fr))',
+                          },
+                          gap: 1.25,
+                        }}
+                      >
+                        <TextField
+                          required
+                          fullWidth
+                          type="number"
+                          label="ราคาต้นทุน LINE MAN"
+                          value={menuEditor.draft.linemanCostPrice}
+                          onChange={(event) =>
+                            updateMenuDraft({
+                              linemanCostPrice: event.target.value,
+                            })
+                          }
+                          helperText="อ้างอิงต้นทุนจากสูตร LINE MAN"
+                          slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                        />
+                        <TextField
+                          required
+                          fullWidth
+                          type="number"
+                          label="ราคาขาย LINE MAN"
+                          value={menuEditor.draft.linemanPrice}
+                          onChange={(event) =>
+                            updateMenuDraft({
+                              linemanPrice: event.target.value,
+                            })
+                          }
+                          slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box
+                    sx={{
+                      gridColumn: { sm: '1 / -1' },
+                      p: 2,
+                      border: '1px solid #e8ddd5',
+                      borderRadius: '12px',
+                      bgcolor: '#fff',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 2,
+                        mb: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography
+                          sx={{
+                            color: '#3c2d24',
+                            fontFamily: 'Kanit, sans-serif',
+                            fontSize: 15,
+                            fontWeight: 600,
+                          }}
+                        >
+                          วัตถุดิบและส่วนผสม
+                        </Typography>
+                        <Typography sx={{ ...itemMetaSx, fontSize: 11 }}>
+                          ระบุวัตถุดิบที่ใช้ต่อ 1 เมนู
+                        </Typography>
+                      </Box>
+                      <Button
+                        size="small"
+                        disabled={!template?.inventoryItems.length}
+                        onClick={() => {
+                          const first = template?.inventoryItems[0];
+                          if (first)
+                            updateMenuDraft({
+                              recipes: [
+                                ...menuEditor.draft.recipes,
+                                {
+                                  catalogItemId: first.id,
+                                  channel: recipeChannel,
+                                  quantity: '1',
+                                },
+                              ],
+                            });
+                        }}
+                        sx={{
+                          minHeight: 34,
+                          borderRadius: '10px',
+                          color: '#805637',
                           fontFamily: 'Kanit, sans-serif',
                           fontWeight: 600,
                         }}
                       >
-                        สูตรกลาง
-                      </Typography>
-                      <Typography sx={itemMetaSx}>
-                        กำหนดแยกตามหน้าร้านและ LINE MAN
-                      </Typography>
+                        + เพิ่มส่วนผสม
+                      </Button>
                     </Box>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={!template?.inventoryItems.length}
-                      onClick={() =>
-                        setEditor((current) => {
-                          if (current?.type !== 'menu') return current;
-                          const first = template?.inventoryItems[0];
-                          if (!first) return current;
-                          return {
-                            ...current,
-                            draft: {
-                              ...current.draft,
-                              recipes: [
-                                ...current.draft.recipes,
-                                {
-                                  catalogItemId: first.id,
-                                  channel: 'storefront',
-                                  quantity: '1',
-                                },
-                              ],
-                            },
-                          };
-                        })
-                      }
-                    >
-                      เพิ่มวัตถุดิบในสูตร
-                    </Button>
-                  </Stack>
-                  {editor.draft.recipes.map((recipe, index) => (
                     <Stack
-                      key={`${recipe.catalogItemId}-${recipe.channel}-${index}`}
-                      direction={{ xs: 'column', sm: 'row' }}
+                      direction="row"
                       spacing={1}
+                      sx={{ mb: 2 }}
+                      aria-label="ช่องทางของสูตรกลาง"
                     >
-                      <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        label="วัตถุดิบ"
-                        value={recipe.catalogItemId}
-                        onChange={(event) =>
-                          setEditor((current) => {
-                            if (current?.type !== 'menu') return current;
-                            const recipes = [...current.draft.recipes];
-                            recipes[index] = {
-                              ...recipes[index],
-                              catalogItemId: Number(event.target.value),
-                            };
-                            return {
-                              ...current,
-                              draft: { ...current.draft, recipes },
-                            };
-                          })
-                        }
-                      >
-                        {(template?.inventoryItems ?? []).map((item) => (
-                          <MenuItem key={item.id} value={item.id}>
-                            {item.name} ({item.unit})
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        label="ช่องทาง"
-                        value={recipe.channel}
-                        onChange={(event) =>
-                          setEditor((current) => {
-                            if (current?.type !== 'menu') return current;
-                            const recipes = [...current.draft.recipes];
-                            recipes[index] = {
-                              ...recipes[index],
-                              channel: event.target.value as
-                                'storefront' | 'lineman',
-                            };
-                            return {
-                              ...current,
-                              draft: { ...current.draft, recipes },
-                            };
-                          })
-                        }
-                      >
-                        <MenuItem value="storefront">หน้าร้าน</MenuItem>
-                        <MenuItem value="lineman">LINE MAN</MenuItem>
-                      </TextField>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="number"
-                        label="จำนวน"
-                        value={recipe.quantity}
-                        slotProps={{ htmlInput: { min: 0.0001, step: '0.01' } }}
-                        onChange={(event) =>
-                          setEditor((current) => {
-                            if (current?.type !== 'menu') return current;
-                            const recipes = [...current.draft.recipes];
-                            recipes[index] = {
-                              ...recipes[index],
-                              quantity: event.target.value,
-                            };
-                            return {
-                              ...current,
-                              draft: { ...current.draft, recipes },
-                            };
-                          })
-                        }
-                      />
                       <Button
-                        color="error"
-                        onClick={() =>
-                          setEditor((current) =>
-                            current?.type === 'menu'
-                              ? {
-                                  ...current,
-                                  draft: {
-                                    ...current.draft,
-                                    recipes: current.draft.recipes.filter(
-                                      (_, recipeIndex) => recipeIndex !== index,
-                                    ),
-                                  },
-                                }
-                              : current,
-                          )
+                        size="small"
+                        variant={
+                          recipeChannel === 'storefront'
+                            ? 'contained'
+                            : 'outlined'
                         }
+                        onClick={() => setRecipeChannel('storefront')}
+                        sx={tabButtonSx(recipeChannel === 'storefront')}
                       >
-                        ลบสูตร
+                        หน้าร้าน
+                      </Button>
+                      <Button
+                        size="small"
+                        variant={
+                          recipeChannel === 'lineman' ? 'contained' : 'outlined'
+                        }
+                        onClick={() => setRecipeChannel('lineman')}
+                        sx={tabButtonSx(recipeChannel === 'lineman')}
+                      >
+                        LINE MAN
                       </Button>
                     </Stack>
-                  ))}
-                </Stack>
-              )}
-              {editorError ? (
-                <Alert
-                  severity="error"
-                  sx={{ mt: 1.5, fontFamily: 'Kanit, sans-serif' }}
-                >
-                  {editorError}
-                </Alert>
-              ) : null}
-            </>
-          ) : null}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            onClick={() => setEditor(null)}
-            disabled={isSavingEditor}
-            sx={{ color: '#674633', fontFamily: 'Kanit, sans-serif' }}
-          >
-            ยกเลิก
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => void saveEditor()}
-            disabled={!editor || isSavingEditor}
-            sx={tabButtonSx(true)}
-          >
-            {isSavingEditor ? 'กำลังบันทึก' : 'บันทึกข้อมูลกลาง'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                    <Box sx={{ display: 'grid', gap: 1.5 }}>
+                      {menuEditor.draft.recipes.map((recipe, index) =>
+                        recipe.channel !== recipeChannel ? null : (
+                          <Box
+                            key={`${recipe.channel}-${index}`}
+                            sx={{
+                              display: 'grid',
+                              gridTemplateColumns: {
+                                xs: 'minmax(0,1fr) 40px',
+                                sm: 'minmax(0,1fr) minmax(110px,.55fr) 40px',
+                              },
+                              gap: 1.5,
+                              alignItems: 'center',
+                            }}
+                          >
+                            <TextField
+                              select
+                              fullWidth
+                              label="วัตถุดิบ"
+                              value={recipe.catalogItemId}
+                              onChange={(event) => {
+                                const recipes = [...menuEditor.draft.recipes];
+                                recipes[index] = {
+                                  ...recipe,
+                                  catalogItemId: Number(event.target.value),
+                                };
+                                updateMenuDraft({ recipes });
+                              }}
+                            >
+                              {(template?.inventoryItems ?? []).map((item) => (
+                                <MenuItem key={item.id} value={item.id}>
+                                  {item.name} ({item.unit})
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                            <TextField
+                              fullWidth
+                              type="number"
+                              label="ปริมาณ"
+                              value={recipe.quantity}
+                              onChange={(event) => {
+                                const recipes = [...menuEditor.draft.recipes];
+                                recipes[index] = {
+                                  ...recipe,
+                                  quantity: event.target.value,
+                                };
+                                updateMenuDraft({ recipes });
+                              }}
+                              slotProps={{
+                                htmlInput: { min: 0.0001, step: '0.01' },
+                              }}
+                              sx={{ gridColumn: { xs: '1', sm: 'auto' } }}
+                            />
+                            <Button
+                              aria-label="ลบส่วนผสม"
+                              onClick={() =>
+                                updateMenuDraft({
+                                  recipes: menuEditor.draft.recipes.filter(
+                                    (_, recipeIndex) => recipeIndex !== index,
+                                  ),
+                                })
+                              }
+                              sx={{
+                                minWidth: 40,
+                                width: 40,
+                                height: 40,
+                                p: 0,
+                                borderRadius: '10px',
+                                bgcolor: '#fff0ee',
+                                color: '#b42318',
+                                '&:hover': { bgcolor: '#fbded9' },
+                              }}
+                            >
+                              <XIcon size={18} />
+                            </Button>
+                          </Box>
+                        ),
+                      )}
+                    </Box>
+                  </Box>
+                  {editorError && (
+                    <Alert
+                      severity="error"
+                      sx={{
+                        gridColumn: { sm: '1 / -1' },
+                        fontFamily: 'Kanit, sans-serif',
+                      }}
+                    >
+                      {editorError}
+                    </Alert>
+                  )}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      gap: 1.25,
+                      mt: 1,
+                      gridColumn: { sm: '1 / -1' },
+                    }}
+                  >
+                    <Button
+                      variant="outlined"
+                      onClick={() => setEditor(null)}
+                      disabled={isSavingEditor}
+                      sx={{
+                        minHeight: 40,
+                        borderRadius: '12px',
+                        color: '#5f4b3d',
+                        fontFamily: 'Kanit, sans-serif',
+                      }}
+                    >
+                      {menuEditor.item.id === 0 ? 'ยกเลิกเพิ่ม' : 'ยกเลิกแก้ไข'}
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={isSavingEditor}
+                      sx={{
+                        minHeight: 40,
+                        borderRadius: '12px',
+                        bgcolor: '#201914',
+                        fontFamily: 'Kanit, sans-serif',
+                      }}
+                    >
+                      {isSavingEditor
+                        ? 'กำลังบันทึก...'
+                        : menuEditor.item.id === 0
+                          ? 'บันทึกสินค้า'
+                          : 'บันทึกการแก้ไข'}
+                    </Button>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        ) : null}
+      </Drawer>
 
       <Dialog
         open={isImpactDialogOpen}
@@ -1943,22 +2545,474 @@ export function AdminCentralCatalogPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={notice !== null}
-        autoHideDuration={4_000}
+      <ActionSnackbar
+        notice={notice ? { message: notice } : null}
         onClose={() => setNotice(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setNotice(null)}
-          severity="success"
-          variant="filled"
-          sx={{ fontFamily: 'Kanit, sans-serif' }}
-        >
-          {notice}
-        </Alert>
-      </Snackbar>
+      />
     </DashboardMain>
+  );
+}
+
+function CentralInventoryEditorDrawer({
+  editor,
+  section,
+  isSaving,
+  error,
+  onClose,
+  onSave,
+  onChange,
+  onError,
+}: {
+  editor: InventoryEditorState | null;
+  section: CentralCatalogSection;
+  isSaving: boolean;
+  error: string;
+  onClose: () => void;
+  onSave: () => void;
+  onChange: (patch: Partial<InventoryEditorState['draft']>) => void;
+  onError: (message: string) => void;
+}) {
+  const fresh = section === 'fresh-ingredients';
+  const equipment =
+    section === 'drink-equipment' || section === 'postal-equipment';
+  const itemLabel =
+    section === 'drink-equipment'
+      ? 'อุปกรณ์เครื่องดื่ม'
+      : section === 'postal-equipment'
+        ? 'อุปกรณ์ไปรษณีย์'
+        : fresh
+          ? 'วัตถุดิบของสด'
+          : 'วัตถุดิบ';
+  const categoryChoices = equipment
+    ? [
+        ['cup', 'แก้วและบรรจุภัณฑ์'],
+        ['delivery', 'อุปกรณ์จัดส่ง'],
+        ['store', 'อุปกรณ์หน้าร้าน'],
+        ['other', 'อื่น ๆ'],
+      ]
+    : [
+        ['coffee', 'เมล็ดกาแฟ'],
+        ['milk', 'นมและครีม'],
+        ['syrup', 'ไซรัปและผงชง'],
+        ['other', 'อื่น ๆ'],
+      ];
+  const categories = editor?.draft.category
+    ? categoryChoices.some(([value]) => value === editor.draft.category)
+      ? categoryChoices
+      : [...categoryChoices, [editor.draft.category, editor.draft.category]]
+    : categoryChoices;
+  const units = [
+    'กรัม',
+    'กิโลกรัม',
+    'ml.',
+    'ลิตร',
+    'ชิ้น',
+    'ใบ',
+    'ขวด',
+    'ถุง',
+    'กล่อง',
+    'แพ็ค',
+    'ซอง',
+    'กระปุก',
+  ];
+  const unitChoices =
+    editor?.draft.unit && !units.includes(editor.draft.unit)
+      ? [...units, editor.draft.unit]
+      : units;
+
+  return (
+    <Drawer
+      anchor="bottom"
+      open={editor !== null}
+      onClose={() => !isSaving && onClose()}
+      transitionDuration={{ enter: 360, exit: 280 }}
+      sx={{ zIndex: 1300 }}
+      slotProps={{
+        paper: {
+          sx: {
+            left: { md: '280px' },
+            width: { md: 'calc(100% - 304px)' },
+            height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
+            overflow: 'hidden',
+            borderRadius: '24px 24px 0 0',
+            bgcolor: '#fffaf7',
+          },
+        },
+      }}
+    >
+      {editor ? (
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            px: { xs: 2.5, sm: 4 },
+            pt: 1.5,
+            pb: 3.5,
+          }}
+        >
+          <Box
+            sx={{
+              width: 44,
+              height: 5,
+              mx: 'auto',
+              mb: 2.5,
+              borderRadius: 99,
+              bgcolor: '#d8c8bd',
+            }}
+          />
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 2,
+            }}
+          >
+            <Typography
+              sx={{
+                color: '#201914',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 22,
+                fontWeight: 600,
+              }}
+            >
+              {editor.item.id === 0 ? `เพิ่ม${itemLabel}` : `แก้ไข${itemLabel}`}
+            </Typography>
+            <Button
+              aria-label="ปิด"
+              onClick={onClose}
+              disabled={isSaving}
+              sx={{
+                minWidth: 40,
+                width: 40,
+                height: 40,
+                p: 0,
+                borderRadius: '12px',
+                bgcolor: '#f7eee8',
+                color: '#5f4b3d',
+                '&:hover': { bgcolor: '#f1e4da' },
+              }}
+            >
+              <XIcon size={20} />
+            </Button>
+          </Box>
+          <Typography
+            sx={{
+              mt: 0.5,
+              color: 'text.secondary',
+              fontFamily: 'Kanit, sans-serif',
+            }}
+          >
+            {editor.item.id === 0
+              ? `กรอกข้อมูล${itemLabel}เพื่อเพิ่มเข้าคลังกลาง`
+              : `แก้ไขข้อมูล${itemLabel}ในคลังกลาง`}
+          </Typography>
+          <Divider
+            sx={{ mt: 2.25, mx: { xs: -2.5, sm: -4 }, borderColor: '#e8ddd5' }}
+          />
+          <Box
+            sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
+          >
+            <Box
+              component="form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onSave();
+              }}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'minmax(0, 1fr) minmax(0, 2fr)',
+                },
+                gap: 2.5,
+                '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+              }}
+            >
+              <Box
+                component="label"
+                sx={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  alignSelf: 'start',
+                  aspectRatio: '1 / 1',
+                  overflow: 'hidden',
+                  border: '1.5px dashed #c9b6a9',
+                  borderRadius: '16px',
+                  bgcolor: '#f7eee8',
+                  color: '#5f4b3d',
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: '#f1e4da', borderColor: '#805637' },
+                }}
+              >
+                {editor.draft.imageUrl ? (
+                  <Box
+                    component="img"
+                    src={editor.draft.imageUrl}
+                    alt={`ตัวอย่างรูป${itemLabel}`}
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
+                  />
+                ) : null}
+                <Typography
+                  sx={{
+                    position: 'relative',
+                    bgcolor: editor.draft.imageUrl
+                      ? 'rgba(32, 25, 20, .58)'
+                      : 'transparent',
+                    borderRadius: 1.5,
+                    color: editor.draft.imageUrl ? '#fff' : 'inherit',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontWeight: 500,
+                    px: 1.25,
+                    py: 0.5,
+                  }}
+                >
+                  {editor.draft.imageUrl
+                    ? `เปลี่ยนรูป${itemLabel}`
+                    : `เพิ่มรูป${itemLabel}`}
+                </Typography>
+                {!editor.draft.imageUrl ? (
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 12,
+                      mt: 0.25,
+                    }}
+                  >
+                    JPG หรือ PNG ขนาดไม่เกิน 5 MB
+                  </Typography>
+                ) : null}
+                <input
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      onError('รูปภาพต้องมีขนาดไม่เกิน 5 MB');
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.addEventListener('load', () => {
+                      if (typeof reader.result === 'string')
+                        onChange({ imageUrl: reader.result });
+                    });
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </Box>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, minmax(0, 1fr))',
+                  },
+                  gap: 2,
+                }}
+              >
+                <TextField
+                  required
+                  fullWidth
+                  label={`ชื่อ${itemLabel}`}
+                  value={editor.draft.name}
+                  disabled={editor.item.id !== 0}
+                  onChange={(event) => onChange({ name: event.target.value })}
+                  sx={{ gridColumn: { sm: '1 / -1' } }}
+                />
+                {fresh ? (
+                  <TextField
+                    fullWidth
+                    disabled
+                    label="หมวดหมู่"
+                    value="ของสด"
+                    helperText="รายการในหน้านี้จะถูกจัดเป็นของสดอัตโนมัติ"
+                  />
+                ) : (
+                  <TextField
+                    required
+                    select
+                    fullWidth
+                    label="หมวดหมู่"
+                    value={editor.draft.category}
+                    onChange={(event) =>
+                      onChange({ category: event.target.value })
+                    }
+                  >
+                    {categories.map(([value, label]) => (
+                      <MenuItem key={value} value={value}>
+                        {label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+                {!equipment && !fresh ? (
+                  <TextField
+                    select
+                    fullWidth
+                    label="การจัดการสต๊อก"
+                    value={String(editor.draft.trackStock)}
+                    onChange={(event) =>
+                      onChange({ trackStock: event.target.value === 'true' })
+                    }
+                  >
+                    <MenuItem value="true">ติดตามสต๊อกและแจ้งเตือน</MenuItem>
+                    <MenuItem value="false">คิดต้นทุนเท่านั้น</MenuItem>
+                  </TextField>
+                ) : null}
+                <TextField
+                  required
+                  select
+                  fullWidth
+                  label="หน่วย"
+                  value={editor.draft.unit}
+                  onChange={(event) => onChange({ unit: event.target.value })}
+                >
+                  {unitChoices.map((unit) => (
+                    <MenuItem key={unit} value={unit}>
+                      {unit}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  required
+                  fullWidth
+                  type="number"
+                  label="ต้นทุนต่อหน่วย"
+                  value={editor.draft.unitCost}
+                  onChange={(event) =>
+                    onChange({ unitCost: event.target.value })
+                  }
+                  slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                />
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="แจ้งเตือนเมื่อคงเหลือ"
+                  value={editor.draft.reorderLevel}
+                  onChange={(event) =>
+                    onChange({ reorderLevel: event.target.value })
+                  }
+                  disabled={!editor.draft.trackStock}
+                  slotProps={{ htmlInput: { min: 0 } }}
+                />
+                <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+                  <Typography sx={controlLabelSx}>ใช้กับขนาดสาขา</Typography>
+                  <Stack direction="row" spacing={0.75}>
+                    {sizes.map((size) => (
+                      <Button
+                        key={size}
+                        size="small"
+                        variant={
+                          editor.draft.availableSizes.includes(size)
+                            ? 'contained'
+                            : 'outlined'
+                        }
+                        aria-pressed={editor.draft.availableSizes.includes(
+                          size,
+                        )}
+                        onClick={() =>
+                          onChange({
+                            availableSizes:
+                              editor.draft.availableSizes.includes(size)
+                                ? editor.draft.availableSizes.filter(
+                                    (item) => item !== size,
+                                  )
+                                : sizes.filter(
+                                    (item) =>
+                                      editor.draft.availableSizes.includes(
+                                        item,
+                                      ) || item === size,
+                                  ),
+                          })
+                        }
+                        sx={tabButtonSx(
+                          editor.draft.availableSizes.includes(size),
+                        )}
+                      >
+                        {size}
+                      </Button>
+                    ))}
+                  </Stack>
+                </Box>
+                <Typography
+                  sx={{
+                    gridColumn: { sm: '1 / -1' },
+                    color: 'text.secondary',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 12,
+                  }}
+                >
+                  คลังกลางเก็บข้อมูลรายการและต้นทุนเท่านั้น
+                  ยอดคงเหลือและวันหมดอายุจัดการที่สาขา
+                </Typography>
+                {error ? (
+                  <Alert severity="error" sx={{ gridColumn: { sm: '1 / -1' } }}>
+                    {error}
+                  </Alert>
+                ) : null}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 1.25,
+                    mt: 1,
+                    gridColumn: { sm: '1 / -1' },
+                  }}
+                >
+                  <Button
+                    variant="outlined"
+                    onClick={onClose}
+                    disabled={isSaving}
+                    sx={{
+                      minHeight: 40,
+                      borderRadius: '12px',
+                      color: '#5f4b3d',
+                      fontFamily: 'Kanit, sans-serif',
+                    }}
+                  >
+                    {editor.item.id === 0 ? 'ยกเลิกเพิ่ม' : 'ยกเลิกแก้ไข'}
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    disabled={isSaving}
+                    sx={{
+                      minHeight: 40,
+                      borderRadius: '12px',
+                      bgcolor: '#201914',
+                      fontFamily: 'Kanit, sans-serif',
+                      boxShadow: 'none',
+                      '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+                    }}
+                  >
+                    {isSaving
+                      ? 'กำลังบันทึก…'
+                      : editor.item.id === 0
+                        ? `บันทึก${itemLabel}`
+                        : 'บันทึกการแก้ไข'}
+                  </Button>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      ) : null}
+    </Drawer>
   );
 }
 

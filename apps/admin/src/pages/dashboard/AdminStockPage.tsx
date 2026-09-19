@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  ItemActionButtons,
   INGREDIENT_STATUS_BADGES,
   INVENTORY_UNIT_OPTIONS,
   inventoryUnitSelectSlotProps,
@@ -313,45 +314,13 @@ export function AdminStockPage({
                       >
                         {item.amount}
                       </Typography>
-                      <Box sx={{ display: 'flex', gap: 1, mt: 'auto', pt: 2 }}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => openEdit(item)}
-                          sx={{
-                            flex: 1,
-                            minHeight: 34,
-                            borderRadius: '10px',
-                            bgcolor: '#5f4030',
-                            fontFamily: 'Kanit, sans-serif',
-                            fontSize: 12,
-                            boxShadow: 'none',
-                            '&:hover': {
-                              bgcolor: '#3c2d24',
-                              boxShadow: 'none',
-                            },
-                          }}
-                        >
-                          แก้ไขสต๊อก
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color="error"
-                          onClick={() => setDeleteTargetKey(itemKey)}
-                          sx={{
-                            flex: 1,
-                            minHeight: 34,
-                            borderRadius: '10px',
-                            fontFamily: 'Kanit, sans-serif',
-                            fontSize: 12,
-                            boxShadow: 'none',
-                            '&:hover': { boxShadow: 'none' },
-                          }}
-                        >
-                          ลบสต๊อก
-                        </Button>
-                      </Box>
+                      <ItemActionButtons
+                        editLabel="แก้ไขสต๊อก"
+                        deleteLabel="ลบสต๊อก"
+                        onEdit={() => openEdit(item)}
+                        onDelete={() => setDeleteTargetKey(itemKey)}
+                        sx={{ mt: 'auto', pt: 2 }}
+                      />
                     </Box>
                     {deleteTargetKey === itemKey && (
                       <Box

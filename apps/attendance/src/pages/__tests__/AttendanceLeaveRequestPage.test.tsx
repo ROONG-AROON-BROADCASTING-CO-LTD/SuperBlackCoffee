@@ -149,4 +149,32 @@ describe('AttendanceLeaveRequestPage', () => {
     await waitFor(() => expect(cancelLeaveRequest).toHaveBeenCalledWith(44));
     expect(screen.queryByText('2026-09-09 ถึง 2026-09-10')).toBeNull();
   });
+
+  it('keeps the request visible when cancellation is rejected', async () => {
+    vi.mocked(listMyLeaveRequests).mockResolvedValueOnce([
+      {
+        id: 45,
+        leaveDate: '2026-09-25',
+        leaveEndDate: '2026-09-26',
+        leaveType: 'sick',
+        reason: 'ป่วย',
+        contactPhone: '',
+        additionalDetails: '',
+        attachments: [],
+        status: 'pending',
+        createdAt: '2026-09-01T00:00:00Z',
+      },
+    ]);
+    vi.mocked(cancelLeaveRequest).mockRejectedValueOnce(
+      new Error('ยกเลิกคำขอไม่ได้'),
+    );
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    await screen.findByText('2026-09-25 ถึง 2026-09-26');
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }));
+
+    expect(await screen.findByText('ยกเลิกคำขอไม่ได้')).toBeTruthy();
+    expect(screen.getByText('2026-09-25 ถึง 2026-09-26')).toBeTruthy();
+  });
 });

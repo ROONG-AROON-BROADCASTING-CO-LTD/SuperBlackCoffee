@@ -25,6 +25,7 @@ type catalogTemplateSummary struct {
 type catalogTemplateInventoryItem struct {
 	ID             int64    `json:"id"`
 	Name           string   `json:"name"`
+	ImageURL       string   `json:"imageUrl"`
 	Category       string   `json:"category"`
 	StockCategory  string   `json:"stockCategory,omitempty"`
 	Kind           string   `json:"kind"`
@@ -36,14 +37,17 @@ type catalogTemplateInventoryItem struct {
 }
 
 type catalogTemplateMenuItem struct {
-	ID             int64                   `json:"id"`
-	Name           string                  `json:"name"`
-	Category       string                  `json:"category"`
-	StorePrice     float64                 `json:"storePrice"`
-	LinemanPrice   float64                 `json:"linemanPrice"`
-	Status         string                  `json:"status"`
-	Recipes        []catalogTemplateRecipe `json:"recipes"`
-	AvailableSizes []string                `json:"availableSizes"`
+	ID               int64                   `json:"id"`
+	Name             string                  `json:"name"`
+	ImageURL         string                  `json:"imageUrl"`
+	Category         string                  `json:"category"`
+	StorePrice       float64                 `json:"storePrice"`
+	LinemanPrice     float64                 `json:"linemanPrice"`
+	CostPrice        float64                 `json:"costPrice"`
+	LinemanCostPrice float64                 `json:"linemanCostPrice"`
+	Status           string                  `json:"status"`
+	Recipes          []catalogTemplateRecipe `json:"recipes"`
+	AvailableSizes   []string                `json:"availableSizes"`
 }
 
 type catalogTemplateRecipe struct {
@@ -83,6 +87,7 @@ type branchCatalogSelectionInput struct {
 
 type catalogTemplateInventoryUpdateInput struct {
 	Category       *string   `json:"category"`
+	ImageURL       *string   `json:"imageUrl"`
 	StockCategory  *string   `json:"stockCategory"`
 	Kind           *string   `json:"kind"`
 	Unit           *string   `json:"unit"`
@@ -95,6 +100,7 @@ type catalogTemplateInventoryUpdateInput struct {
 type catalogTemplateInventoryCreateInput struct {
 	Name           string   `json:"name" binding:"required"`
 	Category       string   `json:"category" binding:"required"`
+	ImageURL       string   `json:"imageUrl"`
 	StockCategory  string   `json:"stockCategory"`
 	Kind           string   `json:"kind" binding:"required,oneof=ingredient stock"`
 	Unit           string   `json:"unit" binding:"required"`
@@ -119,12 +125,15 @@ type catalogTemplateMenuUpdateInput struct {
 }
 
 type catalogTemplateMenuCreateInput struct {
-	Name           string   `json:"name" binding:"required"`
-	Category       string   `json:"category" binding:"required"`
-	StorePrice     float64  `json:"storePrice" binding:"min=0"`
-	LinemanPrice   float64  `json:"linemanPrice" binding:"min=0"`
-	Status         string   `json:"status" binding:"required,oneof=available soldout"`
-	AvailableSizes []string `json:"availableSizes" binding:"required"`
+	Name             string   `json:"name" binding:"required"`
+	Category         string   `json:"category" binding:"required"`
+	StorePrice       float64  `json:"storePrice" binding:"min=0"`
+	LinemanPrice     float64  `json:"linemanPrice" binding:"min=0"`
+	CostPrice        float64  `json:"costPrice" binding:"min=0"`
+	LinemanCostPrice float64  `json:"linemanCostPrice" binding:"min=0"`
+	ImageURL         string   `json:"imageUrl"`
+	Status           string   `json:"status" binding:"required,oneof=available soldout"`
+	AvailableSizes   []string `json:"availableSizes" binding:"required"`
 }
 
 func validatedCatalogSizes(sizes []string) ([]string, bool) {
@@ -245,7 +254,7 @@ func (h *PlatformHandler) GetCatalogTemplate(c *gin.Context) {
 	}
 
 	inventoryRows, err := h.db.QueryContext(c.Request.Context(), `
-		SELECT i.catalog_item_id,c.name,i.category,COALESCE(i.stock_category,''),i.kind,i.unit,i.unit_cost,i.reorder_level,i.track_stock,array_to_string(i.available_sizes,',')
+		SELECT i.catalog_item_id,c.name,COALESCE(NULLIF(i.image_url,''),c.image_url,''),i.category,COALESCE(i.stock_category,''),i.kind,i.unit,i.unit_cost,i.reorder_level,i.track_stock,array_to_string(i.available_sizes,',')
 		FROM catalog_template_inventory_items i
 		JOIN inventory_catalog_items c ON c.id=i.catalog_item_id
 		WHERE i.template_id=$1 AND i.active
@@ -259,7 +268,7 @@ func (h *PlatformHandler) GetCatalogTemplate(c *gin.Context) {
 	for inventoryRows.Next() {
 		var item catalogTemplateInventoryItem
 		var sizesCSV string
-		if err := inventoryRows.Scan(&item.ID, &item.Name, &item.Category, &item.StockCategory, &item.Kind, &item.Unit, &item.UnitCost, &item.ReorderLevel, &item.TrackStock, &sizesCSV); err != nil {
+		if err := inventoryRows.Scan(&item.ID, &item.Name, &item.ImageURL, &item.Category, &item.StockCategory, &item.Kind, &item.Unit, &item.UnitCost, &item.ReorderLevel, &item.TrackStock, &sizesCSV); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านรายการคลังของแม่แบบได้"})
 			return
 		}
@@ -272,7 +281,7 @@ func (h *PlatformHandler) GetCatalogTemplate(c *gin.Context) {
 	}
 
 	menuRows, err := h.db.QueryContext(c.Request.Context(), `
-		SELECT id,name,category,store_price,lineman_price,status,array_to_string(available_sizes,',')
+		SELECT id,name,COALESCE(image_url,''),category,store_price,lineman_price,cost_price,lineman_cost_price,status,array_to_string(available_sizes,',')
 		FROM catalog_template_menu_items
 		WHERE template_id=$1 AND active
 		ORDER BY category,name`, templateID)
@@ -285,7 +294,7 @@ func (h *PlatformHandler) GetCatalogTemplate(c *gin.Context) {
 	for menuRows.Next() {
 		var item catalogTemplateMenuItem
 		var sizesCSV string
-		if err := menuRows.Scan(&item.ID, &item.Name, &item.Category, &item.StorePrice, &item.LinemanPrice, &item.Status, &sizesCSV); err != nil {
+		if err := menuRows.Scan(&item.ID, &item.Name, &item.ImageURL, &item.Category, &item.StorePrice, &item.LinemanPrice, &item.CostPrice, &item.LinemanCostPrice, &item.Status, &sizesCSV); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านเมนูของแม่แบบได้"})
 			return
 		}
@@ -1078,9 +1087,9 @@ func (h *PlatformHandler) CreateCatalogTemplateInventory(c *gin.Context) {
 	var canonicalKind, canonicalUnit string
 	err = tx.QueryRowContext(c.Request.Context(), `
 		INSERT INTO inventory_catalog_items(name,category,stock_category,kind,unit,unit_cost,image_url,track_stock)
-		VALUES($1,$2,NULLIF($3,''),$4,$5,$6,'',$7)
+		VALUES($1,$2,NULLIF($3,''),$4,$5,$6,$7,$8)
 		ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name
-		RETURNING id,track_stock,kind,unit`, input.Name, input.Category, input.StockCategory, input.Kind, input.Unit, input.UnitCost, trackStock).Scan(&catalogItemID, &canonicalTrackStock, &canonicalKind, &canonicalUnit)
+		RETURNING id,track_stock,kind,unit`, input.Name, input.Category, input.StockCategory, input.Kind, input.Unit, input.UnitCost, input.ImageURL, trackStock).Scan(&catalogItemID, &canonicalTrackStock, &canonicalKind, &canonicalUnit)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่สามารถสร้างหรือใช้รายการกลางชื่อนี้ได้"})
 		return
@@ -1090,9 +1099,9 @@ func (h *PlatformHandler) CreateCatalogTemplateInventory(c *gin.Context) {
 		return
 	}
 	if _, err = tx.ExecContext(c.Request.Context(), `
-		INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,stock_category,kind,unit,unit_cost,reorder_level,track_stock,available_sizes,active)
-		VALUES($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,string_to_array($10,','),true)
-		ON CONFLICT (template_id,catalog_item_id) DO UPDATE SET category=EXCLUDED.category,stock_category=EXCLUDED.stock_category,kind=EXCLUDED.kind,unit=EXCLUDED.unit,unit_cost=EXCLUDED.unit_cost,reorder_level=EXCLUDED.reorder_level,track_stock=EXCLUDED.track_stock,available_sizes=EXCLUDED.available_sizes,active=true,updated_at=now()`, templateID, catalogItemID, input.Category, input.StockCategory, input.Kind, input.Unit, input.UnitCost, input.ReorderLevel, canonicalTrackStock, catalogSizesCSV(sizes)); err != nil {
+		INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,stock_category,kind,unit,unit_cost,reorder_level,track_stock,image_url,available_sizes,active)
+		VALUES($1,$2,$3,NULLIF($4,''),$5,$6,$7,$8,$9,$10,string_to_array($11,','),true)
+		ON CONFLICT (template_id,catalog_item_id) DO UPDATE SET category=EXCLUDED.category,stock_category=EXCLUDED.stock_category,kind=EXCLUDED.kind,unit=EXCLUDED.unit,unit_cost=EXCLUDED.unit_cost,reorder_level=EXCLUDED.reorder_level,track_stock=EXCLUDED.track_stock,image_url=EXCLUDED.image_url,available_sizes=EXCLUDED.available_sizes,active=true,updated_at=now()`, templateID, catalogItemID, input.Category, input.StockCategory, input.Kind, input.Unit, input.UnitCost, input.ReorderLevel, canonicalTrackStock, input.ImageURL, catalogSizesCSV(sizes)); err != nil {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "รายการนี้ไม่สอดคล้องกับข้อมูลกลางเดิม"})
 		return
 	}
@@ -1129,10 +1138,10 @@ func (h *PlatformHandler) CreateCatalogTemplateMenu(c *gin.Context) {
 	}
 	var id int64
 	err := h.db.QueryRowContext(c.Request.Context(), `
-		INSERT INTO catalog_template_menu_items(template_id,name,category,store_price,lineman_price,status,available_sizes,active)
-		VALUES($1,$2,$3,$4,$5,$6,string_to_array($7,','),true)
-		ON CONFLICT (template_id,name) DO UPDATE SET category=EXCLUDED.category,store_price=EXCLUDED.store_price,lineman_price=EXCLUDED.lineman_price,status=EXCLUDED.status,available_sizes=EXCLUDED.available_sizes,active=true,updated_at=now()
-		RETURNING id`, templateID, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.Status, catalogSizesCSV(sizes)).Scan(&id)
+		INSERT INTO catalog_template_menu_items(template_id,name,category,store_price,lineman_price,cost_price,lineman_cost_price,image_url,status,available_sizes,active)
+		VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,string_to_array($10,','),true)
+		ON CONFLICT (template_id,name) DO UPDATE SET category=EXCLUDED.category,store_price=EXCLUDED.store_price,lineman_price=EXCLUDED.lineman_price,cost_price=EXCLUDED.cost_price,lineman_cost_price=EXCLUDED.lineman_cost_price,image_url=EXCLUDED.image_url,status=EXCLUDED.status,available_sizes=EXCLUDED.available_sizes,active=true,updated_at=now()
+		RETURNING id`, templateID, input.Name, input.Category, input.StorePrice, input.LinemanPrice, input.CostPrice, input.LinemanCostPrice, input.ImageURL, input.Status, catalogSizesCSV(sizes)).Scan(&id)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่สามารถเพิ่มเมนูในแม่แบบกลางได้"})
 		return
@@ -1196,12 +1205,12 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 	var current catalogTemplateInventoryItem
 	var sizesCSV string
 	err = tx.QueryRowContext(c.Request.Context(), `
-		SELECT i.catalog_item_id,c.name,i.category,COALESCE(i.stock_category,''),i.kind,i.unit,i.unit_cost,i.reorder_level,i.track_stock,array_to_string(i.available_sizes,',')
+		SELECT i.catalog_item_id,c.name,COALESCE(i.image_url,''),i.category,COALESCE(i.stock_category,''),i.kind,i.unit,i.unit_cost,i.reorder_level,i.track_stock,array_to_string(i.available_sizes,',')
 		FROM catalog_template_inventory_items i
 		JOIN inventory_catalog_items c ON c.id=i.catalog_item_id
 		WHERE i.template_id=$1 AND i.catalog_item_id=$2 AND i.active
 	FOR UPDATE`, templateID, catalogItemID).Scan(
-		&current.ID, &current.Name, &current.Category, &current.StockCategory,
+		&current.ID, &current.Name, &current.ImageURL, &current.Category, &current.StockCategory,
 		&current.Kind, &current.Unit, &current.UnitCost, &current.ReorderLevel, &current.TrackStock, &sizesCSV,
 	)
 	if err == sql.ErrNoRows {
@@ -1218,6 +1227,9 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 	originalUnit := current.Unit
 	if input.Category != nil {
 		current.Category = strings.TrimSpace(*input.Category)
+	}
+	if input.ImageURL != nil {
+		current.ImageURL = strings.TrimSpace(*input.ImageURL)
 	}
 	if input.StockCategory != nil {
 		current.StockCategory = strings.TrimSpace(*input.StockCategory)
@@ -1291,10 +1303,10 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 	}
 	if _, err = tx.ExecContext(c.Request.Context(), `
 		UPDATE catalog_template_inventory_items
-		SET category=$3,stock_category=NULLIF($4,''),kind=$5,unit=$6,unit_cost=$7,reorder_level=$8,track_stock=$9,available_sizes=string_to_array($10,','),updated_at=now()
+		SET category=$3,stock_category=NULLIF($4,''),kind=$5,unit=$6,unit_cost=$7,reorder_level=$8,track_stock=$9,image_url=$10,available_sizes=string_to_array($11,','),updated_at=now()
 		WHERE template_id=$1 AND catalog_item_id=$2`,
 		templateID, catalogItemID, current.Category, current.StockCategory, current.Kind,
-		current.Unit, current.UnitCost, current.ReorderLevel, current.TrackStock, catalogSizesCSV(current.AvailableSizes)); err != nil {
+		current.Unit, current.UnitCost, current.ReorderLevel, current.TrackStock, current.ImageURL, catalogSizesCSV(current.AvailableSizes)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการคลังกลางได้"})
 		return
 	}

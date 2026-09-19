@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   adjustInventory,
   createStockRequest,
+  consumeStockFromMenus,
   listInventory,
   listMenuItems,
   listMyStockMovements,
@@ -131,6 +132,42 @@ describe('stock mutation API contracts', () => {
     );
     expect(String(options?.body)).not.toContain('branchId');
     expect(String(options?.body)).not.toContain('destination');
+  });
+
+  it('consumes menu stock for the selected channel without accepting a client branch', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: { menuCount: 2, salesTotal: 150 },
+          }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(
+      consumeStockFromMenus(
+        [{ menuItemId: 12, quantity: 2, channel: 'lineman' }],
+        'ขายผ่าน LINE MAN',
+        'lineman',
+      ),
+    ).resolves.toEqual({ menuCount: 2, salesTotal: 150 });
+
+    const [url, options] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/stock/consume');
+    expect(options?.method).toBe('POST');
+    expect(options?.credentials).toBe('include');
+    expect(JSON.parse(String(options?.body))).toEqual({
+      items: [{ menuItemId: 12, quantity: 2, channel: 'lineman' }],
+      note: 'ขายผ่าน LINE MAN',
+      channel: 'lineman',
+    });
+    expect(String(options?.body)).not.toContain('branchId');
+    expect(new Headers(options?.headers).get('X-SBC-Session-Role')).toBe(
+      'stock',
+    );
   });
 
   it('keeps stock login, session restoration, and logout on the dedicated cookie scope', async () => {

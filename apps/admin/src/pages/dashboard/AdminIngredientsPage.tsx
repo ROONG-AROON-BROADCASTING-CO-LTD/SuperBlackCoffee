@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  ItemActionButtons,
   coffeeIngredientsImage,
   INGREDIENT_STATUS_BADGES,
   INVENTORY_UNIT_OPTIONS,
@@ -390,61 +391,17 @@ export function AdminIngredientsPage({
                             >
                               {ingredient.amount}
                             </Typography>
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                gap: 1,
-                                mt: 'auto',
-                                pt: 2,
+                            <ItemActionButtons
+                              editLabel="แก้ไขวัตถุดิบ"
+                              deleteLabel="ลบวัตถุดิบ"
+                              onEdit={() => {
+                                setEditingIngredient(ingredient);
+                                setImagePreviewUrl(null);
+                                setIsAddDrawerOpen(true);
                               }}
-                            >
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() => {
-                                  setEditingIngredient(ingredient);
-                                  setImagePreviewUrl(null);
-                                  setIsAddDrawerOpen(true);
-                                }}
-                                sx={{
-                                  flex: 1,
-                                  minHeight: 34,
-                                  borderRadius: '10px',
-                                  bgcolor: '#5f4030',
-                                  color: '#fff',
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  boxShadow: 'none',
-                                  '&:hover': {
-                                    bgcolor: '#3c2d24',
-                                    boxShadow: 'none',
-                                  },
-                                }}
-                              >
-                                แก้ไขวัตถุดิบ
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="error"
-                                onClick={() =>
-                                  setDeleteTargetKey(ingredientKey)
-                                }
-                                sx={{
-                                  flex: 1,
-                                  minHeight: 34,
-                                  borderRadius: '10px',
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  boxShadow: 'none',
-                                  '&:hover': { boxShadow: 'none' },
-                                }}
-                              >
-                                ลบวัตถุดิบ
-                              </Button>
-                            </Box>
+                              onDelete={() => setDeleteTargetKey(ingredientKey)}
+                              sx={{ mt: 'auto', pt: 2 }}
+                            />
                           </Box>
                           {deleteTargetKey === ingredientKey && (
                             <Box

@@ -61,6 +61,32 @@ describe('FranchiseIngredientRequestsPage', () => {
     expect(screen.getByText('เมล็ดกาแฟ × 2 ถุง')).toBeTruthy();
   });
 
+  it('counts only pending requests when the API returns mixed statuses', async () => {
+    mockedListStockRequests.mockResolvedValue([
+      {
+        id: 8,
+        status: 'pending',
+        note: '',
+        createdAt: '2026-09-04T02:00:00Z',
+        branch: { id: 51, name: 'สาขาสุพรรณบุรี' },
+        items: [],
+      },
+      {
+        id: 9,
+        status: 'completed',
+        note: '',
+        createdAt: '2026-09-05T02:00:00Z',
+        branch: { id: 51, name: 'สาขาสุพรรณบุรี' },
+        items: [],
+      },
+    ]);
+    renderPage();
+
+    await screen.findByText('คำขอ #9');
+    expect(screen.getByText('รออนุมัติ 1 รายการ')).toBeTruthy();
+    expect(screen.getByText('จัดเสร็จแล้ว')).toBeTruthy();
+  });
+
   it('shows a safe error state when the franchise request query fails', async () => {
     mockedListStockRequests.mockRejectedValue(new Error('network unavailable'));
     renderPage();

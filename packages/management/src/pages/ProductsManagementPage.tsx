@@ -13,6 +13,7 @@ import {
 import {
   DashboardMain,
   PageIntro,
+  ItemActionButtons,
   PlusIcon,
   SearchField,
   selectionPillSx,
@@ -1064,52 +1065,13 @@ export function ProductsManagementPage({
                                 : 'จัดการสูตรการทำ'}
                           </Button>
                           {!readOnly ? (
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                gap: 1,
-                                mt: 'auto',
-                                pt: 2,
-                              }}
-                            >
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() => openEdit(item)}
-                                sx={{
-                                  flex: 1,
-                                  minHeight: 34,
-                                  borderRadius: '10px',
-                                  bgcolor: '#5f4030',
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 12,
-                                  boxShadow: 'none',
-                                  '&:hover': {
-                                    bgcolor: '#3c2d24',
-                                    boxShadow: 'none',
-                                  },
-                                }}
-                              >
-                                แก้ไขสินค้า
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="error"
-                                onClick={() => setDeleting(productKey)}
-                                sx={{
-                                  flex: 1,
-                                  minHeight: 34,
-                                  borderRadius: '10px',
-                                  fontFamily: 'Kanit, sans-serif',
-                                  fontSize: 12,
-                                  boxShadow: 'none',
-                                  '&:hover': { boxShadow: 'none' },
-                                }}
-                              >
-                                ลบสินค้า
-                              </Button>
-                            </Box>
+                            <ItemActionButtons
+                              editLabel="แก้ไขสินค้า"
+                              deleteLabel="ลบสินค้า"
+                              onEdit={() => openEdit(item)}
+                              onDelete={() => setDeleting(productKey)}
+                              sx={{ mt: 'auto', pt: 2 }}
+                            />
                           ) : null}
                         </Box>
                         {!readOnly && deleting === productKey && (

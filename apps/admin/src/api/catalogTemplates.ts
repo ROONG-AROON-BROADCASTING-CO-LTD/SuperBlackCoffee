@@ -16,6 +16,7 @@ export type CatalogTemplateSummary = {
 export type CatalogTemplateInventoryItem = {
   id: number;
   name: string;
+  imageUrl?: string;
   category: string;
   stockCategory?: string;
   kind?: 'ingredient' | 'stock';
@@ -29,9 +30,12 @@ export type CatalogTemplateInventoryItem = {
 export type CatalogTemplateMenuItem = {
   id: number;
   name: string;
+  imageUrl?: string;
   category: string;
   storePrice: number;
   linemanPrice: number;
+  costPrice?: number;
+  linemanCostPrice?: number;
   status?: 'available' | 'soldout';
   recipes: CatalogTemplateRecipe[];
   availableSizes: CatalogTemplateSize[];
@@ -71,6 +75,7 @@ export type CatalogTemplateSyncResult = {
 
 export type CatalogTemplateInventoryPatch = {
   category: string;
+  imageUrl?: string;
   stockCategory?: string;
   kind: 'ingredient' | 'stock';
   unit: string;
@@ -88,6 +93,9 @@ export type CatalogTemplateMenuPatch = {
   category: string;
   storePrice: number;
   linemanPrice: number;
+  costPrice?: number;
+  linemanCostPrice?: number;
+  imageUrl?: string;
   status: 'available' | 'soldout';
   availableSizes: CatalogTemplateSize[];
 };

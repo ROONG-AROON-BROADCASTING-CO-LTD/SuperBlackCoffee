@@ -22,6 +22,7 @@ import {
 import {
   ActionSnackbar,
   DashboardMain,
+  ItemActionButtons,
   CartIcon,
   DateField,
   FilterPill,
@@ -1126,10 +1127,19 @@ export function IngredientsManagementPage({
                                     ตัดทิ้งวัตถุดิบหมดอายุ
                                   </Button>
                                 ) : null}
-                                <Box
+                                <ItemActionButtons
+                                  editLabel="แก้ไขวัตถุดิบ"
+                                  deleteLabel="ลบวัตถุดิบ"
+                                  onEdit={() => {
+                                    setEditingIngredient(ingredient);
+                                    setEditingBranch(branch as InventoryBranch);
+                                    setImagePreviewUrl(null);
+                                    setIsAddDrawerOpen(true);
+                                  }}
+                                  onDelete={() =>
+                                    setDeleteTargetKey(ingredientKey)
+                                  }
                                   sx={{
-                                    display: 'flex',
-                                    gap: 1,
                                     mt:
                                       ingredient.category === 'fresh' ||
                                       ingredient.expiryStatus === 'expired'
@@ -1141,57 +1151,7 @@ export function IngredientsManagementPage({
                                         ? 0
                                         : 2,
                                   }}
-                                >
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    onClick={() => {
-                                      setEditingIngredient(ingredient);
-                                      setEditingBranch(
-                                        branch as InventoryBranch,
-                                      );
-                                      setImagePreviewUrl(null);
-                                      setIsAddDrawerOpen(true);
-                                    }}
-                                    sx={{
-                                      flex: 1,
-                                      minHeight: 34,
-                                      borderRadius: '10px',
-                                      bgcolor: '#5f4030',
-                                      color: '#fff',
-                                      fontFamily: 'Kanit, sans-serif',
-                                      fontSize: 12,
-                                      fontWeight: 500,
-                                      boxShadow: 'none',
-                                      '&:hover': {
-                                        bgcolor: '#3c2d24',
-                                        boxShadow: 'none',
-                                      },
-                                    }}
-                                  >
-                                    แก้ไขวัตถุดิบ
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    color="error"
-                                    onClick={() =>
-                                      setDeleteTargetKey(ingredientKey)
-                                    }
-                                    sx={{
-                                      flex: 1,
-                                      minHeight: 34,
-                                      borderRadius: '10px',
-                                      fontFamily: 'Kanit, sans-serif',
-                                      fontSize: 12,
-                                      fontWeight: 500,
-                                      boxShadow: 'none',
-                                      '&:hover': { boxShadow: 'none' },
-                                    }}
-                                  >
-                                    ลบวัตถุดิบ
-                                  </Button>
-                                </Box>
+                                />
                               </>
                             ) : null}
                           </Box>

@@ -14,6 +14,11 @@ export { ConnectionRetrySnackbar } from './components/ConnectionRetrySnackbar';
 export { DateField, type DateFieldProps } from './components/DateField';
 export { FilterPill, selectionPillSx } from './components/selectionPill';
 export {
+  DeleteItemButton,
+  EditItemButton,
+  ItemActionButtons,
+} from './components/ItemActionButtons';
+export {
   SearchField,
   searchFieldSx,
   type SearchFieldProps,

@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DeleteItemButton,
   PlusIcon,
   XIcon,
   type PlusIconHandle,
@@ -238,13 +239,13 @@ export function CompanyDocumentsPage({
                     ดาวน์โหลด
                   </Button>
                   {!readOnly && (
-                    <Button
+                    <DeleteItemButton
                       size="small"
-                      color="error"
                       onClick={() => void remove(document)}
+                      sx={{ flex: 0, minHeight: 36, px: 1.5 }}
                     >
                       ลบ
-                    </Button>
+                    </DeleteItemButton>
                   )}
                 </CardActions>
               </Card>

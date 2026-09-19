@@ -23,11 +23,7 @@ export function PromotionsSkeleton({
       {showHeader ? (
         <Box sx={{ pb: 3 }}>
           <Stack
-            direction={{ xs: 'column', sm: 'row' }}
             sx={{
-              alignItems: { sm: 'center' },
-              justifyContent: 'space-between',
-              gap: 2,
               mb: 2.5,
             }}
           >
@@ -68,6 +64,30 @@ export function PromotionsSkeleton({
                   : 'โปรโมชั่นจะใช้สูตรวัตถุดิบของเมนูเดิมในการตัดสต๊อกอัตโนมัติ'}
               </Typography>
             </Box>
+          </Stack>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            sx={{
+              alignItems: { sm: 'center' },
+              justifyContent: 'space-between',
+              gap: 1.5,
+              mb: 1,
+            }}
+          >
+            <TextField
+              size="small"
+              placeholder="ค้นหาชื่อเมนูหรือโปรโมชั่น"
+              slotProps={{
+                htmlInput: {
+                  'aria-label': 'ค้นหาชื่อโปรโมชั่น',
+                  readOnly: true,
+                },
+              }}
+              sx={{
+                width: { xs: '100%', sm: 280 },
+                '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+              }}
+            />
             {readOnly ? null : (
               <Button
                 aria-disabled="true"
@@ -91,11 +111,7 @@ export function PromotionsSkeleton({
             )}
           </Stack>
           <Stack
-            direction={{ xs: 'column', lg: 'row' }}
             sx={{
-              alignItems: { lg: 'center' },
-              justifyContent: 'space-between',
-              gap: 1.5,
               mb: 2.5,
             }}
           >
@@ -139,20 +155,6 @@ export function PromotionsSkeleton({
                 สิ้นสุดแล้ว
               </FilterPill>
             </Stack>
-            <TextField
-              size="small"
-              placeholder="ค้นหาชื่อเมนูหรือโปรโมชั่น"
-              slotProps={{
-                htmlInput: {
-                  'aria-label': 'ค้นหาชื่อโปรโมชั่น',
-                  readOnly: true,
-                },
-              }}
-              sx={{
-                width: { xs: '100%', lg: 280 },
-                '& .MuiOutlinedInput-root': { borderRadius: '10px' },
-              }}
-            />
           </Stack>
         </Box>
       ) : null}

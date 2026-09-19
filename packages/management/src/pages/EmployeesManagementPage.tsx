@@ -17,6 +17,7 @@ import {
   ClockIcon,
   DateField,
   DashboardMain,
+  ItemActionButtons,
   PageIntro,
   selectionPillSx,
   XIcon,
@@ -618,64 +619,29 @@ export function EmployeesManagementPage({
                               ? 'ผู้จัดการสาขา'
                               : 'แคชเชียร์'}
                           </Typography>
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.75,
-                              ml: 2,
-                            }}
-                          >
-                            <Divider
-                              orientation="vertical"
-                              flexItem
-                              sx={{ borderColor: '#d8cec7', mx: 0.5 }}
-                            />
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => {
-                                if (pendingDeleteEmployeeId === employee.id)
-                                  setPendingDeleteEmployeeId(null);
-                                else void editEmployee(employee);
-                              }}
-                              sx={{
-                                minHeight: 34,
-                                borderRadius: '10px',
-                                bgcolor: '#5f4030',
-                                color: '#fff',
-                                boxShadow: 'none',
-                                '&:hover': {
-                                  bgcolor: '#3c2d24',
-                                  boxShadow: 'none',
-                                },
-                              }}
-                            >
-                              {pendingDeleteEmployeeId === employee.id
+                          <ItemActionButtons
+                            editLabel={
+                              pendingDeleteEmployeeId === employee.id
                                 ? 'ยกเลิก'
-                                : 'แก้ไข'}
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color="error"
-                              onClick={() => {
-                                if (pendingDeleteEmployeeId === employee.id)
-                                  void removeEmployee(employee);
-                                else setPendingDeleteEmployeeId(employee.id);
-                              }}
-                              sx={{
-                                minHeight: 34,
-                                borderRadius: '10px',
-                                boxShadow: 'none',
-                                '&:hover': { boxShadow: 'none' },
-                              }}
-                            >
-                              {pendingDeleteEmployeeId === employee.id
+                                : 'แก้ไข'
+                            }
+                            deleteLabel={
+                              pendingDeleteEmployeeId === employee.id
                                 ? 'ยืนยัน'
-                                : 'ลบ'}
-                            </Button>
-                          </Box>
+                                : 'ลบ'
+                            }
+                            onEdit={() => {
+                              if (pendingDeleteEmployeeId === employee.id)
+                                setPendingDeleteEmployeeId(null);
+                              else void editEmployee(employee);
+                            }}
+                            onDelete={() => {
+                              if (pendingDeleteEmployeeId === employee.id)
+                                void removeEmployee(employee);
+                              else setPendingDeleteEmployeeId(employee.id);
+                            }}
+                            sx={{ ml: 2, width: 176, flexShrink: 0 }}
+                          />
                         </Box>
                       ))
                     )}
@@ -757,64 +723,29 @@ export function EmployeesManagementPage({
                               ? 'ผู้จัดการสาขา'
                               : 'แคชเชียร์'}
                           </Typography>
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 0.75,
-                              ml: 2,
-                            }}
-                          >
-                            <Divider
-                              orientation="vertical"
-                              flexItem
-                              sx={{ borderColor: '#d8cec7', mx: 0.5 }}
-                            />
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => {
-                                if (pendingDeleteEmployeeId === employee.id)
-                                  setPendingDeleteEmployeeId(null);
-                                else void editEmployee(employee);
-                              }}
-                              sx={{
-                                minHeight: 34,
-                                borderRadius: '10px',
-                                bgcolor: '#5f4030',
-                                color: '#fff',
-                                boxShadow: 'none',
-                                '&:hover': {
-                                  bgcolor: '#3c2d24',
-                                  boxShadow: 'none',
-                                },
-                              }}
-                            >
-                              {pendingDeleteEmployeeId === employee.id
+                          <ItemActionButtons
+                            editLabel={
+                              pendingDeleteEmployeeId === employee.id
                                 ? 'ยกเลิก'
-                                : 'แก้ไข'}
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              color="error"
-                              onClick={() => {
-                                if (pendingDeleteEmployeeId === employee.id)
-                                  void removeEmployee(employee);
-                                else setPendingDeleteEmployeeId(employee.id);
-                              }}
-                              sx={{
-                                minHeight: 34,
-                                borderRadius: '10px',
-                                boxShadow: 'none',
-                                '&:hover': { boxShadow: 'none' },
-                              }}
-                            >
-                              {pendingDeleteEmployeeId === employee.id
+                                : 'แก้ไข'
+                            }
+                            deleteLabel={
+                              pendingDeleteEmployeeId === employee.id
                                 ? 'ยืนยัน'
-                                : 'ลบ'}
-                            </Button>
-                          </Box>
+                                : 'ลบ'
+                            }
+                            onEdit={() => {
+                              if (pendingDeleteEmployeeId === employee.id)
+                                setPendingDeleteEmployeeId(null);
+                              else void editEmployee(employee);
+                            }}
+                            onDelete={() => {
+                              if (pendingDeleteEmployeeId === employee.id)
+                                void removeEmployee(employee);
+                              else setPendingDeleteEmployeeId(employee.id);
+                            }}
+                            sx={{ ml: 2, width: 176, flexShrink: 0 }}
+                          />
                         </Box>
                       ))}
                     </Box>

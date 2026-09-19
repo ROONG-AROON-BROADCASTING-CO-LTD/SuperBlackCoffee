@@ -497,11 +497,7 @@ export function PromotionsManagementPage({
     <>
       <Box sx={{ pb: 3 }}>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
           sx={{
-            alignItems: { sm: 'center' },
-            justifyContent: 'space-between',
-            gap: 2,
             mb: 2.5,
           }}
         >
@@ -542,6 +538,27 @@ export function PromotionsManagementPage({
                 : 'เลือกดูรายการโปรโมชั่นและเมนูที่ร่วมรายการของสาขาคุณ'}
             </Typography>
           </Box>
+        </Stack>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          sx={{
+            alignItems: { sm: 'center' },
+            justifyContent: 'space-between',
+            gap: 1.5,
+            mb: 1,
+          }}
+        >
+          <TextField
+            size="small"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="ค้นหาชื่อเมนูหรือโปรโมชั่น"
+            slotProps={{ htmlInput: { 'aria-label': 'ค้นหาชื่อโปรโมชั่น' } }}
+            sx={{
+              width: { xs: '100%', sm: 280 },
+              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
+            }}
+          />
           {canCreate && (
             <Button
               variant="contained"
@@ -564,11 +581,7 @@ export function PromotionsManagementPage({
           )}
         </Stack>
         <Stack
-          direction={{ xs: 'column', lg: 'row' }}
           sx={{
-            alignItems: { lg: 'center' },
-            justifyContent: 'space-between',
-            gap: 1.5,
             mb: 2.5,
           }}
         >
@@ -596,17 +609,6 @@ export function PromotionsManagementPage({
               </FilterPill>
             ))}
           </Stack>
-          <TextField
-            size="small"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="ค้นหาชื่อเมนูหรือโปรโมชั่น"
-            slotProps={{ htmlInput: { 'aria-label': 'ค้นหาชื่อโปรโมชั่น' } }}
-            sx={{
-              width: { xs: '100%', lg: 280 },
-              '& .MuiOutlinedInput-root': { borderRadius: '10px' },
-            }}
-          />
         </Stack>
         {visiblePromotions.length ? (
           <Box

@@ -108,13 +108,47 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <LeaveRequestsSkeleton />
     ) : page === 'สาขาแฟรนไชส์' ? (
       <AdminFranchiseBranchesSkeleton />
-    ) : page === 'สินค้าและคลังกลาง' ? (
+    ) : page === 'สินค้าและคลังกลาง' || page in centralCatalogPages ? (
       <AdminBranchesSkeleton />
     ) : (
       <AdminBranchesSkeleton />
     );
   return <DashboardMain>{skeleton}</DashboardMain>;
 }
+
+const centralCatalogPages = {
+  สินค้าและคลังกลาง: { section: 'menus', navigation: 'central-menus' },
+  เมนูและสินค้ากลาง: { section: 'menus', navigation: 'central-menus' },
+  วัตถุดิบกลาง: {
+    section: 'ingredients',
+    navigation: 'central-ingredients',
+  },
+  วัตถุดิบของสดกลาง: {
+    section: 'fresh-ingredients',
+    navigation: 'central-fresh-ingredients',
+  },
+  อุปกรณ์เครื่องดื่มกลาง: {
+    section: 'drink-equipment',
+    navigation: 'central-drink-equipment',
+  },
+  อุปกรณ์ไปรษณีย์กลาง: {
+    section: 'postal-equipment',
+    navigation: 'central-postal-equipment',
+  },
+  รายการรายสาขา: { section: 'branches', navigation: 'central-branches' },
+  กระจายข้อมูลกลาง: { section: 'sync', navigation: 'central-sync' },
+} as const;
+
+const centralCatalogNavigation: Record<string, AdminPage> = {
+  'central-catalog': 'เมนูและสินค้ากลาง',
+  'central-menus': 'เมนูและสินค้ากลาง',
+  'central-ingredients': 'วัตถุดิบกลาง',
+  'central-fresh-ingredients': 'วัตถุดิบของสดกลาง',
+  'central-drink-equipment': 'อุปกรณ์เครื่องดื่มกลาง',
+  'central-postal-equipment': 'อุปกรณ์ไปรษณีย์กลาง',
+  'central-branches': 'รายการรายสาขา',
+  'central-sync': 'กระจายข้อมูลกลาง',
+};
 
 export function AdminDashboard({ logout }: { logout: () => void }) {
   const location = useLocation();
@@ -169,9 +203,10 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     };
   }, []);
   const navigate = (navigationTarget: string) => {
-    if (navigationTarget === 'central-catalog') {
-      if (activePage === 'สินค้าและคลังกลาง') return;
-      routerNavigate(adminPagePaths['สินค้าและคลังกลาง']);
+    if (navigationTarget in centralCatalogNavigation) {
+      const destination = centralCatalogNavigation[navigationTarget];
+      if (activePage === destination) return;
+      routerNavigate(adminPagePaths[destination]);
       return;
     }
     const isFranchiseCatalogTarget = navigationTarget.startsWith('franchise-');
@@ -229,22 +264,23 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     isCatalogPage &&
     (selectedBranch === 'แฟรนไชส์ทั้งหมด' ||
       franchiseBranchOptions.includes(selectedBranch));
-  const activeNavigationKey =
-    activePage === 'สินค้าและคลังกลาง'
-      ? 'central-catalog'
-      : isCatalogPage
-        ? `${isFranchiseCatalogSelection ? 'franchise' : 'sbc'}-${
-            activePage === 'เมนูและสินค้า'
-              ? 'products'
-              : activePage === 'วัตถุดิบ'
-                ? 'ingredients'
-                : activePage === 'วัตถุดิบของสด'
-                  ? 'fresh-ingredients'
-                  : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
-                    ? 'drink-stock'
-                    : 'postal-stock'
-          }`
-        : activePage;
+  const centralCatalogPage =
+    centralCatalogPages[activePage as keyof typeof centralCatalogPages];
+  const activeNavigationKey = centralCatalogPage
+    ? centralCatalogPage.navigation
+    : isCatalogPage
+      ? `${isFranchiseCatalogSelection ? 'franchise' : 'sbc'}-${
+          activePage === 'เมนูและสินค้า'
+            ? 'products'
+            : activePage === 'วัตถุดิบ'
+              ? 'ingredients'
+              : activePage === 'วัตถุดิบของสด'
+                ? 'fresh-ingredients'
+                : activePage === 'สต๊อกอุปกรณ์เครื่องดื่ม'
+                  ? 'drink-stock'
+                  : 'postal-stock'
+        }`
+      : activePage;
   const catalogBranchCodes = useMemo(
     () => ({
       ...branchCodeByBranch,
@@ -300,8 +336,8 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     <AdminAuditPage />
   ) : activePage === 'เอกสารส่วนกลาง' ? (
     <CompanyDocumentsPage />
-  ) : activePage === 'สินค้าและคลังกลาง' ? (
-    <AdminCentralCatalogPage />
+  ) : centralCatalogPage ? (
+    <AdminCentralCatalogPage section={centralCatalogPage.section} />
   ) : isStockPage ? (
     <AdminStockPage
       activeBranch={activeBranch}
@@ -372,11 +408,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       navigation={adminSidebarNavigation}
       onNavigate={navigate}
       onLogout={logout}
-      forceSidebarCollapsed={
-        hasBranchSidebar ||
-        usesCompactPersonnelSidebar ||
-        activePage === 'สินค้าและคลังกลาง'
-      }
+      forceSidebarCollapsed={hasBranchSidebar || usesCompactPersonnelSidebar}
       secondarySidebarVisible={hasBranchSidebar}
       secondarySidebar={
         <BranchesSidebar

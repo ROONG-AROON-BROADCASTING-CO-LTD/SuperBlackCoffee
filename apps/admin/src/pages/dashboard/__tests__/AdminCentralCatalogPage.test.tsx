@@ -82,7 +82,9 @@ describe('AdminCentralCatalogPage', () => {
         {
           id: 1,
           name: 'เมล็ดกาแฟ',
+          imageUrl: '/images/coffee-beans.jpg',
           category: 'กาแฟ',
+          kind: 'ingredient',
           unit: 'กรัม',
           unitCost: 0.5,
           reorderLevel: 20,
@@ -94,6 +96,7 @@ describe('AdminCentralCatalogPage', () => {
         {
           id: 9,
           name: 'อเมริกาโน่เย็น',
+          imageUrl: '/images/americano.jpg',
           category: 'กาแฟ',
           storePrice: 75,
           linemanPrice: 85,
@@ -156,14 +159,150 @@ describe('AdminCentralCatalogPage', () => {
     render(<AdminCentralCatalogPage />);
 
     expect(
-      await screen.findByRole('heading', { name: 'สินค้าและคลังกลาง' }),
+      await screen.findByRole('heading', { name: 'เมนูและสินค้ากลาง' }),
     ).toBeTruthy();
     await waitFor(() =>
       expect(mockedListCatalogTemplates).toHaveBeenCalledWith(),
     );
     expect(await screen.findByText('อเมริกาโน่เย็น')).toBeTruthy();
-    expect(screen.getByText('LINE MAN 85 บาท')).toBeTruthy();
+    expect(
+      screen.getByRole('columnheader', { name: 'ราคาหน้าร้าน' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('columnheader', { name: 'ราคา LINE MAN' }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('img', { name: 'รูปอเมริกาโน่เย็น' })
+        .getAttribute('src'),
+    ).toBe('/images/americano.jpg');
+    expect(screen.getByText('85 บาท')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ทุกขนาด' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ขนาด S' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ขนาด M' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ขนาด L' })).toBeTruthy();
   });
+
+  it('aligns inventory columns with cost and reorder data and shows its image', async () => {
+    render(<AdminCentralCatalogPage section="ingredients" />);
+
+    expect(await screen.findByText('เมล็ดกาแฟ')).toBeTruthy();
+    expect(
+      screen.getByRole('columnheader', { name: 'ต้นทุนต่อหน่วย' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('columnheader', { name: 'จุดสั่งซื้อ' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('img', { name: 'รูปเมล็ดกาแฟ' }).getAttribute('src'),
+    ).toBe('/images/coffee-beans.jpg');
+    expect(screen.getByText('20 กรัม')).toBeTruthy();
+  });
+
+  it.each([
+    ['ingredients', 'เมล็ดกาแฟ'],
+    ['fresh-ingredients', 'นมสด'],
+    ['drink-equipment', 'แก้ว'],
+    ['postal-equipment', 'กล่องพัสดุ'],
+  ] as const)(
+    'shows only %s in its own central catalog page',
+    async (section, expectedName) => {
+      const base = await mockedGetCatalogTemplate(21);
+      mockedGetCatalogTemplate.mockResolvedValue({
+        ...base,
+        inventoryItems: [
+          ...base.inventoryItems,
+          { ...base.inventoryItems[0], id: 2, name: 'นมสด', category: 'fresh' },
+          {
+            ...base.inventoryItems[0],
+            id: 3,
+            name: 'แก้ว',
+            kind: 'stock',
+            stockCategory: 'drink_equipment',
+          },
+          {
+            ...base.inventoryItems[0],
+            id: 4,
+            name: 'กล่องพัสดุ',
+            kind: 'stock',
+            stockCategory: 'postal_equipment',
+          },
+        ],
+      });
+
+      render(<AdminCentralCatalogPage section={section} />);
+
+      expect(await screen.findByText(expectedName)).toBeTruthy();
+      for (const otherName of [
+        'เมล็ดกาแฟ',
+        'นมสด',
+        'แก้ว',
+        'กล่องพัสดุ',
+      ].filter((name) => name !== expectedName)) {
+        expect(screen.queryByText(otherName)).toBeNull();
+      }
+      expect(screen.queryByText('อเมริกาโน่เย็น')).toBeNull();
+    },
+  );
+
+  it.each([
+    ['ingredients', 'วัตถุดิบ', 'ingredient', undefined, 'other'],
+    ['fresh-ingredients', 'วัตถุดิบของสด', 'ingredient', undefined, 'fresh'],
+    [
+      'drink-equipment',
+      'อุปกรณ์เครื่องดื่ม',
+      'stock',
+      'drink_equipment',
+      'other',
+    ],
+    [
+      'postal-equipment',
+      'อุปกรณ์ไปรษณีย์',
+      'stock',
+      'postal_equipment',
+      'other',
+    ],
+  ] as const)(
+    'opens the branch-style drawer and creates a %s catalog item without a branch balance',
+    async (section, label, kind, stockCategory, category) => {
+      render(<AdminCentralCatalogPage section={section} />);
+      fireEvent.click(
+        await screen.findByRole('button', { name: `+ เพิ่ม${label}กลาง` }),
+      );
+      expect(
+        screen.getByText(`กรอกข้อมูล${label}เพื่อเพิ่มเข้าคลังกลาง`),
+      ).toBeTruthy();
+      expect(screen.getByText(`เพิ่มรูป${label}`)).toBeTruthy();
+      expect(
+        screen.getByRole('spinbutton', { name: 'ต้นทุนต่อหน่วย' }),
+      ).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'S' })).toBeTruthy();
+      expect(
+        screen.queryByRole('spinbutton', { name: 'จำนวนคงเหลือ' }),
+      ).toBeNull();
+
+      fireEvent.change(screen.getByRole('textbox', { name: `ชื่อ${label}` }), {
+        target: { value: `${label}ทดสอบ` },
+      });
+      fireEvent.submit(
+        screen.getByRole('button', { name: `บันทึก${label}` }).closest('form')!,
+      );
+      await waitFor(() =>
+        expect(mockedCreateCatalogTemplateInventoryItem).toHaveBeenCalledWith(
+          21,
+          expect.objectContaining({
+            name: `${label}ทดสอบ`,
+            category,
+            kind,
+            stockCategory,
+            imageUrl: '',
+            availableSizes: ['S', 'M', 'L'],
+          }),
+        ),
+      );
+      expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
+    },
+  );
 
   it('shows a retry action when the central catalog cannot be loaded', async () => {
     mockedListCatalogTemplates
@@ -183,10 +322,10 @@ describe('AdminCentralCatalogPage', () => {
     render(<AdminCentralCatalogPage />);
     await screen.findByText('อเมริกาโน่เย็น');
 
-    fireEvent.click(screen.getByRole('button', { name: 'M' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด M' }));
     expect(screen.getByText('อเมริกาโน่เย็น')).toBeTruthy();
     expect(mockedListCatalogTemplates).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'L' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด L' }));
     expect(screen.queryByText('อเมริกาโน่เย็น')).toBeNull();
   });
 
@@ -231,7 +370,9 @@ describe('AdminCentralCatalogPage', () => {
     await screen.findByText('อเมริกาโน่เย็น');
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
     fireEvent.click(screen.getByRole('button', { name: 'L' }));
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลกลาง' }));
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
+    );
     await waitFor(() =>
       expect(mockedUpdateCatalogTemplateMenuItem).toHaveBeenCalledWith(
         21,
@@ -245,10 +386,15 @@ describe('AdminCentralCatalogPage', () => {
     render(<AdminCentralCatalogPage />);
     await screen.findByText('อเมริกาโน่เย็น');
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'ราคาหน้าร้าน' }), {
-      target: { value: '' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลกลาง' }));
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ราคาขายหน้าร้าน' }),
+      {
+        target: { value: '' },
+      },
+    );
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
+    );
 
     expect(
       screen.getByText('ราคาและจุดแจ้งเตือนต้องเป็นเลขศูนย์หรือมากกว่า'),
@@ -257,8 +403,8 @@ describe('AdminCentralCatalogPage', () => {
   });
 
   it('can disable one branch menu without editing the shared catalog', async () => {
-    render(<AdminCentralCatalogPage />);
-    await screen.findByText('อเมริกาโน่เย็น');
+    render(<AdminCentralCatalogPage section="branches" />);
+    await screen.findByRole('heading', { name: 'รายการกลางรายสาขา' });
     await waitFor(() =>
       expect(mockedGetCatalogTemplateImpact).toHaveBeenCalledWith(21),
     );
@@ -286,8 +432,8 @@ describe('AdminCentralCatalogPage', () => {
     vi.mocked(setBranchCatalogSelection).mockRejectedValueOnce(
       new Error('บันทึกรายการสาขาไม่สำเร็จ'),
     );
-    render(<AdminCentralCatalogPage />);
-    await screen.findByText('อเมริกาโน่เย็น');
+    render(<AdminCentralCatalogPage section="branches" />);
+    await screen.findByRole('heading', { name: 'รายการกลางรายสาขา' });
     await waitFor(() =>
       expect(mockedGetCatalogTemplateImpact).toHaveBeenCalledWith(21),
     );
@@ -308,8 +454,9 @@ describe('AdminCentralCatalogPage', () => {
   });
 
   it('previews affected branches and requires confirmation before syncing a template', async () => {
-    render(<AdminCentralCatalogPage />);
-    await screen.findByText('อเมริกาโน่เย็น');
+    render(<AdminCentralCatalogPage section="sync" />);
+    await screen.findByRole('heading', { name: 'กระจายข้อมูลกลาง' });
+    await screen.findByRole('button', { name: 'ซิงก์ไปยังสาขา' });
 
     fireEvent.click(screen.getByRole('button', { name: 'ซิงก์ไปยังสาขา' }));
     expect(await screen.findByText('ยืนยันการซิงก์ข้อมูลกลาง')).toBeTruthy();
@@ -331,15 +478,23 @@ describe('AdminCentralCatalogPage', () => {
     await screen.findByText('อเมริกาโน่เย็น');
 
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'ราคาหน้าร้าน' }), {
-      target: { value: '80' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลกลาง' }));
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ราคาขายหน้าร้าน' }),
+      {
+        target: { value: '80' },
+      },
+    );
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
+    );
 
     await waitFor(() =>
       expect(mockedUpdateCatalogTemplateMenuItem).toHaveBeenCalledWith(21, 9, {
         category: 'กาแฟ',
         storePrice: 80,
+        costPrice: 0,
+        linemanCostPrice: 0,
+        imageUrl: '/images/americano.jpg',
         linemanPrice: 85,
         status: 'available',
         availableSizes: ['S', 'M'],
@@ -367,17 +522,19 @@ describe('AdminCentralCatalogPage', () => {
   });
 
   it('edits central inventory defaults without writing a branch stock balance', async () => {
-    render(<AdminCentralCatalogPage />);
-    await screen.findByText('อเมริกาโน่เย็น');
-
-    fireEvent.click(screen.getByRole('tab', { name: 'วัตถุดิบและอุปกรณ์' }));
+    render(<AdminCentralCatalogPage section="ingredients" />);
     expect(await screen.findByText('เมล็ดกาแฟ')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'จุดแจ้งเตือน' }), {
-      target: { value: '30' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลกลาง' }));
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'แจ้งเตือนเมื่อคงเหลือ' }),
+      {
+        target: { value: '30' },
+      },
+    );
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
+    );
 
     await waitFor(() =>
       expect(mockedUpdateCatalogTemplateInventoryItem).toHaveBeenCalledWith(
@@ -385,6 +542,7 @@ describe('AdminCentralCatalogPage', () => {
         1,
         {
           category: 'กาแฟ',
+          imageUrl: '/images/coffee-beans.jpg',
           stockCategory: undefined,
           kind: 'ingredient',
           unit: 'กรัม',
@@ -398,15 +556,70 @@ describe('AdminCentralCatalogPage', () => {
     expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
   });
 
+  it('edits equipment through its own drawer and retains its image and stock category', async () => {
+    const base = await mockedGetCatalogTemplate(21);
+    mockedGetCatalogTemplate.mockResolvedValue({
+      ...base,
+      inventoryItems: [
+        {
+          ...base.inventoryItems[0],
+          id: 3,
+          name: 'แก้วกระดาษ',
+          imageUrl: '/images/cup.jpg',
+          category: 'cup',
+          kind: 'stock',
+          stockCategory: 'drink_equipment',
+          unit: 'ใบ',
+        },
+      ],
+    });
+    render(<AdminCentralCatalogPage section="drink-equipment" />);
+    await screen.findByText('แก้วกระดาษ');
+
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    expect(screen.getByText('แก้ไขอุปกรณ์เครื่องดื่ม')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('img', { name: 'ตัวอย่างรูปอุปกรณ์เครื่องดื่ม' })
+        .getAttribute('src'),
+    ).toBe('/images/cup.jpg');
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'ต้นทุนต่อหน่วย' }),
+      {
+        target: { value: '2.5' },
+      },
+    );
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
+    );
+
+    await waitFor(() =>
+      expect(mockedUpdateCatalogTemplateInventoryItem).toHaveBeenCalledWith(
+        21,
+        3,
+        expect.objectContaining({
+          imageUrl: '/images/cup.jpg',
+          category: 'cup',
+          kind: 'stock',
+          stockCategory: 'drink_equipment',
+          unitCost: 2.5,
+        }),
+      ),
+    );
+    expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
+  });
+
   it('creates a menu in the selected central template before any branch sync', async () => {
     render(<AdminCentralCatalogPage />);
     await screen.findByText('อเมริกาโน่เย็น');
 
     fireEvent.click(screen.getByRole('button', { name: /เพิ่มเมนู/ }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อเมนู' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อสินค้า' }), {
       target: { value: 'อเมริกาโน่ใหม่' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูลกลาง' }));
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกสินค้า' }).closest('form')!,
+    );
 
     await waitFor(() =>
       expect(mockedCreateCatalogTemplateMenuItem).toHaveBeenCalledWith(
@@ -423,11 +636,14 @@ describe('AdminCentralCatalogPage', () => {
   });
 
   it('requires confirmation and soft-retires a central menu before branch sync', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<AdminCentralCatalogPage />);
     await screen.findByText('อเมริกาโน่เย็น');
 
     fireEvent.click(screen.getByRole('button', { name: 'นำออก' }));
+
+    expect(screen.getByText('ยืนยันการนำรายการออก?')).toBeTruthy();
+    expect(mockedRetireCatalogTemplateMenuItem).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยัน' }));
 
     await waitFor(() =>
       expect(mockedRetireCatalogTemplateMenuItem).toHaveBeenCalledWith(21, 9),
@@ -438,5 +654,35 @@ describe('AdminCentralCatalogPage', () => {
         'นำรายการออกจากข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา',
       ),
     ).toBeTruthy();
+  });
+
+  it('does not retire a central menu when removal is cancelled', async () => {
+    render(<AdminCentralCatalogPage />);
+    await screen.findByText('อเมริกาโน่เย็น');
+
+    fireEvent.click(screen.getByRole('button', { name: 'นำออก' }));
+    expect(screen.getByText('ยืนยันการนำรายการออก?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิก' }));
+
+    expect(screen.queryByText('ยืนยันการนำรายการออก?')).toBeNull();
+    expect(mockedRetireCatalogTemplateMenuItem).not.toHaveBeenCalled();
+    expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
+    expect(screen.getByText('อเมริกาโน่เย็น')).toBeTruthy();
+  });
+
+  it('requires confirmation before retiring an inventory item without syncing branches', async () => {
+    render(<AdminCentralCatalogPage section="ingredients" />);
+    await screen.findByText('เมล็ดกาแฟ');
+
+    fireEvent.click(screen.getByRole('button', { name: 'นำออก' }));
+    expect(screen.getByText('ยืนยันการนำรายการออก?')).toBeTruthy();
+    expect(retireCatalogTemplateInventoryItem).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยัน' }));
+
+    await waitFor(() =>
+      expect(retireCatalogTemplateInventoryItem).toHaveBeenCalledWith(21, 1),
+    );
+    expect(mockedRetireCatalogTemplateMenuItem).not.toHaveBeenCalled();
+    expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
   });
 });

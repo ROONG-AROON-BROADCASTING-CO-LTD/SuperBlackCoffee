@@ -23,9 +23,45 @@ export const adminSidebarNavigation = [
   { label: 'คำสั่งซื้อ', icon: <ReceiptIcon />, group: 'การขายและคำสั่งซื้อ' },
   { label: 'โปรโมชั่น', icon: <BadgeIcon />, group: 'การขายและคำสั่งซื้อ' },
   {
-    id: 'central-catalog',
-    label: 'สินค้าและคลังกลาง',
+    id: 'central-menus',
+    label: 'เมนูและสินค้า',
+    icon: <CartIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
+    id: 'central-ingredients',
+    label: 'วัตถุดิบ',
     icon: <BoxesIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
+    id: 'central-fresh-ingredients',
+    label: 'วัตถุดิบของสด',
+    icon: <BoxesIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
+    id: 'central-drink-equipment',
+    label: 'อุปกรณ์เครื่องดื่ม',
+    icon: <CupSodaIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
+    id: 'central-postal-equipment',
+    label: 'อุปกรณ์ไปรษณีย์',
+    icon: <TruckIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
+    id: 'central-branches',
+    label: 'รายการรายสาขา',
+    icon: <MapPinHouseIcon />,
+    group: 'สินค้าและคลังกลาง',
+  },
+  {
+    id: 'central-sync',
+    label: 'กระจายข้อมูลกลาง',
+    icon: <SendIcon />,
     group: 'สินค้าและคลังกลาง',
   },
   {
