@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  ActionSnackbar,
   CartIcon,
   coffeeIngredientsImage,
   SearchField,
@@ -396,7 +397,6 @@ export function StockOrderPage({
             multiline
             minRows={2}
           />
-          {error ? <Alert severity="error">{error}</Alert> : null}
           <Stack direction="row" sx={{ justifyContent: 'flex-end', gap: 1 }}>
             <Button variant="outlined" onClick={() => setDrawerOpen(false)}>
               ยกเลิก
@@ -412,6 +412,10 @@ export function StockOrderPage({
           </Stack>
         </Stack>
       </Drawer>
+      <ActionSnackbar
+        notice={error ? { message: error, severity: 'error' } : null}
+        onClose={() => setError('')}
+      />
     </Stack>
   );
 }

@@ -24,6 +24,8 @@ import {
   ActionSnackbar,
   ItemActionButtons,
   PageIntro,
+  SearchField,
+  selectionPillSx,
   XIcon,
   coffeeIngredientsImage,
 } from '@stackbuild/ui';
@@ -57,6 +59,7 @@ const menuCategories = [
   'เมนูกาแฟเย็น',
   'เมนูชา',
   'โซดา',
+  'เมนูน้ำอัดลม',
   'เมนูปั่น',
   'เมนูอโวคาโด',
   'เมนูชาร้อน',
@@ -295,9 +298,9 @@ function TemplateDetail({
           direction={{ xs: 'column', md: 'row' }}
           sx={{ p: 2, gap: 1, alignItems: { md: 'center' } }}
         >
-          <TextField
+          <SearchField
             size="small"
-            label="ค้นหารายการกลาง"
+            placeholder="ค้นหารายการกลาง"
             value={search}
             onChange={(event) => {
               setRequestedPage(0);
@@ -1187,7 +1190,7 @@ export function AdminCentralCatalogPage({
         linemanPrice: 0,
         status: 'available',
         recipes: [],
-        availableSizes: size === 'ALL' ? [...sizes] : [size],
+        availableSizes: [],
       },
       draft: {
         name: '',
@@ -1199,7 +1202,7 @@ export function AdminCentralCatalogPage({
         imageUrl: '',
         status: 'available',
         recipes: [],
-        availableSizes: size === 'ALL' ? [...sizes] : [size],
+        availableSizes: [],
       },
     });
     setRecipeChannel('storefront');
@@ -1316,15 +1319,31 @@ export function AdminCentralCatalogPage({
                 editor.item.id,
                 data,
               );
-        await replaceCatalogTemplateMenuRecipes(template.id, saved.id, recipes);
+        // A newly created menu has no recipe until the user adds ingredients.
+        // Existing menus still send an empty array to intentionally clear recipes.
+        if (recipes.length > 0 || editor.item.id !== 0) {
+          await replaceCatalogTemplateMenuRecipes(
+            template.id,
+            saved.id,
+            recipes,
+          );
+        }
       }
-      const refreshedTemplate = await getCatalogTemplate(template.id);
-      setTemplate(refreshedTemplate);
       setEditor(null);
       setImpact(null);
       setImpactError('');
       setNotice('บันทึกข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา');
       setReloadKey((current) => current + 1);
+      // The mutation has completed at this point. Refreshing the editor data is
+      // useful, but must not turn a successful save into a failed one when the
+      // follow-up read is temporarily unavailable (for example while the API
+      // connection is being restarted).
+      void getCatalogTemplate(template.id)
+        .then((refreshedTemplate) => setTemplate(refreshedTemplate))
+        .catch(() => {
+          // Keep the last known template on screen; the regular reload path
+          // will refresh it on the next successful request.
+        });
     } catch (error) {
       setEditorError(
         error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลกลางได้',
@@ -1378,25 +1397,6 @@ export function AdminCentralCatalogPage({
         title={sectionContent[section].title}
         description={sectionContent[section].description}
       />
-
-      {loadError ? (
-        <Alert
-          severity="error"
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => setReloadKey((current) => current + 1)}
-              sx={{ fontFamily: 'Kanit, sans-serif' }}
-            >
-              ลองใหม่
-            </Button>
-          }
-          sx={{ mb: 2.5, fontFamily: 'Kanit, sans-serif' }}
-        >
-          {loadError}
-        </Alert>
-      ) : null}
 
       <Box>
         {isLoadingTemplates || isLoadingTemplate ? (
@@ -1527,14 +1527,6 @@ export function AdminCentralCatalogPage({
                           </Typography>
                         </Box>
                       ) : null}
-                      {impactError ? (
-                        <Alert
-                          severity="error"
-                          sx={{ mt: 1.5, fontFamily: 'Kanit, sans-serif' }}
-                        >
-                          {impactError}
-                        </Alert>
-                      ) : null}
                     </CardContent>
                   </Card>
                 )}
@@ -1608,11 +1600,6 @@ export function AdminCentralCatalogPage({
                           }
                           sx={{ mt: 1.25 }}
                         />
-                      )}
-                      {selectionError && (
-                        <Alert severity="error" sx={{ mt: 1 }}>
-                          {selectionError}
-                        </Alert>
                       )}
                       {branchId !== null && template && (
                         <Stack
@@ -1747,7 +1734,6 @@ export function AdminCentralCatalogPage({
         editor={editor?.type === 'inventory' ? editor : null}
         section={section}
         isSaving={isSavingEditor}
-        error={editorError}
         onClose={() => setEditor(null)}
         onSave={() => void saveEditor()}
         onError={setEditorError}
@@ -2084,14 +2070,23 @@ export function AdminCentralCatalogPage({
                                     ),
                             })
                           }
-                          sx={tabButtonSx(
-                            menuEditor.draft.availableSizes.includes(item),
-                          )}
+                          disableElevation
+                          sx={{
+                            ...selectionPillSx(
+                              menuEditor.draft.availableSizes.includes(item),
+                            ),
+                            minWidth: { xs: 112, sm: 128 },
+                          }}
                         >
-                          {item}
+                          {`ขนาด ${item}`}
                         </Button>
                       ))}
                     </Stack>
+                    <Typography
+                      sx={{ mt: 0.75, color: 'text.secondary', fontSize: 12 }}
+                    >
+                      เลือกขนาดอย่างน้อย 1 ขนาดก่อนบันทึกสินค้า
+                    </Typography>
                   </Box>
                   <Box
                     role="group"
@@ -2250,33 +2245,48 @@ export function AdminCentralCatalogPage({
                           ระบุวัตถุดิบที่ใช้ต่อ 1 เมนู
                         </Typography>
                       </Box>
-                      <Button
-                        size="small"
-                        disabled={!template?.inventoryItems.length}
-                        onClick={() => {
-                          const first = template?.inventoryItems[0];
-                          if (first)
+                      <Stack direction="row" spacing={0.75}>
+                        <Button
+                          size="small"
+                          variant={
+                            menuEditor.draft.recipes.length > 0
+                              ? 'contained'
+                              : 'outlined'
+                          }
+                          aria-pressed={menuEditor.draft.recipes.length > 0}
+                          disabled={!template?.inventoryItems.length}
+                          onClick={() => {
                             updateMenuDraft({
                               recipes: [
                                 ...menuEditor.draft.recipes,
                                 {
-                                  catalogItemId: first.id,
+                                  catalogItemId: 0,
                                   channel: recipeChannel,
-                                  quantity: '1',
+                                  quantity: '0',
                                 },
                               ],
                             });
-                        }}
-                        sx={{
-                          minHeight: 34,
-                          borderRadius: '10px',
-                          color: '#805637',
-                          fontFamily: 'Kanit, sans-serif',
-                          fontWeight: 600,
-                        }}
-                      >
-                        + เพิ่มส่วนผสม
-                      </Button>
+                          }}
+                          sx={tabButtonSx(menuEditor.draft.recipes.length > 0)}
+                        >
+                          + เพิ่มส่วนผสม
+                        </Button>
+                        <Button
+                          size="small"
+                          variant={
+                            menuEditor.draft.recipes.length === 0
+                              ? 'contained'
+                              : 'outlined'
+                          }
+                          aria-pressed={menuEditor.draft.recipes.length === 0}
+                          onClick={() => updateMenuDraft({ recipes: [] })}
+                          sx={tabButtonSx(
+                            menuEditor.draft.recipes.length === 0,
+                          )}
+                        >
+                          ไม่มีสูตร/ส่วนผสม
+                        </Button>
+                      </Stack>
                     </Box>
                     <Stack
                       direction="row"
@@ -2336,6 +2346,9 @@ export function AdminCentralCatalogPage({
                                 updateMenuDraft({ recipes });
                               }}
                             >
+                              <MenuItem value={0} disabled>
+                                กรุณาเลือกวัตถุดิบ
+                              </MenuItem>
                               {(template?.inventoryItems ?? []).map((item) => (
                                 <MenuItem key={item.id} value={item.id}>
                                   {item.name} ({item.unit})
@@ -2356,7 +2369,7 @@ export function AdminCentralCatalogPage({
                                 updateMenuDraft({ recipes });
                               }}
                               slotProps={{
-                                htmlInput: { min: 0.0001, step: '0.01' },
+                                htmlInput: { min: 0, step: '0.01' },
                               }}
                               sx={{ gridColumn: { xs: '1', sm: 'auto' } }}
                             />
@@ -2386,18 +2399,12 @@ export function AdminCentralCatalogPage({
                         ),
                       )}
                     </Box>
+                    {menuEditor.draft.recipes.length === 0 ? (
+                      <Typography sx={{ ...itemMetaSx, fontSize: 12 }}>
+                        ยังไม่มีสูตรหรือส่วนผสม — สามารถบันทึกสินค้าได้
+                      </Typography>
+                    ) : null}
                   </Box>
-                  {editorError && (
-                    <Alert
-                      severity="error"
-                      sx={{
-                        gridColumn: { sm: '1 / -1' },
-                        fontFamily: 'Kanit, sans-serif',
-                      }}
-                    >
-                      {editorError}
-                    </Alert>
-                  )}
                   <Box
                     sx={{
                       display: 'flex',
@@ -2423,7 +2430,10 @@ export function AdminCentralCatalogPage({
                     <Button
                       type="submit"
                       variant="contained"
-                      disabled={isSavingEditor}
+                      disabled={
+                        isSavingEditor ||
+                        menuEditor.draft.availableSizes.length === 0
+                      }
                       sx={{
                         minHeight: 40,
                         borderRadius: '12px',
@@ -2546,8 +2556,35 @@ export function AdminCentralCatalogPage({
       </Dialog>
 
       <ActionSnackbar
-        notice={notice ? { message: notice } : null}
-        onClose={() => setNotice(null)}
+        notice={
+          editorError || selectionError || impactError || loadError
+            ? {
+                message:
+                  editorError || selectionError || impactError || loadError,
+                severity: 'error',
+              }
+            : notice
+              ? { message: notice }
+              : null
+        }
+        onClose={() => {
+          setNotice(null);
+          setEditorError('');
+          setSelectionError('');
+          setImpactError('');
+        }}
+        action={
+          loadError ? (
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => setReloadKey((current) => current + 1)}
+            >
+              ลองใหม่
+            </Button>
+          ) : undefined
+        }
+        autoHideDuration={loadError ? null : 3500}
       />
     </DashboardMain>
   );
@@ -2557,7 +2594,6 @@ function CentralInventoryEditorDrawer({
   editor,
   section,
   isSaving,
-  error,
   onClose,
   onSave,
   onChange,
@@ -2566,7 +2602,6 @@ function CentralInventoryEditorDrawer({
   editor: InventoryEditorState | null;
   section: CentralCatalogSection;
   isSaving: boolean;
-  error: string;
   onClose: () => void;
   onSave: () => void;
   onChange: (patch: Partial<InventoryEditorState['draft']>) => void;
@@ -2940,11 +2975,15 @@ function CentralInventoryEditorDrawer({
                                   ),
                           })
                         }
-                        sx={tabButtonSx(
-                          editor.draft.availableSizes.includes(size),
-                        )}
+                        disableElevation
+                        sx={{
+                          ...selectionPillSx(
+                            editor.draft.availableSizes.includes(size),
+                          ),
+                          minWidth: { xs: 112, sm: 128 },
+                        }}
                       >
-                        {size}
+                        {`ขนาด ${size}`}
                       </Button>
                     ))}
                   </Stack>
@@ -2960,11 +2999,6 @@ function CentralInventoryEditorDrawer({
                   คลังกลางเก็บข้อมูลรายการและต้นทุนเท่านั้น
                   ยอดคงเหลือและวันหมดอายุจัดการที่สาขา
                 </Typography>
-                {error ? (
-                  <Alert severity="error" sx={{ gridColumn: { sm: '1 / -1' } }}>
-                    {error}
-                  </Alert>
-                ) : null}
                 <Box
                   sx={{
                     display: 'flex',

@@ -135,17 +135,15 @@ describe('stock mutation API contracts', () => {
   });
 
   it('consumes menu stock for the selected channel without accepting a client branch', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: { menuCount: 2, salesTotal: 150 },
-          }),
-          { status: 200 },
-        ),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { menuCount: 2, salesTotal: 150 },
+        }),
+        { status: 200 },
+      ),
+    );
 
     await expect(
       consumeStockFromMenus(

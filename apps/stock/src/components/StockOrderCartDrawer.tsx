@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Divider,
@@ -10,7 +9,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { XIcon } from '@stackbuild/ui';
+import { ActionSnackbar, XIcon } from '@stackbuild/ui';
 import { isCountableStockItem, type InventoryItem } from '../api/stock';
 
 type OrderItem = InventoryItem & { quantityToOrder: number };
@@ -319,7 +318,6 @@ export function StockOrderCartDrawer({
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />
-        {error ? <Alert severity="error">{error}</Alert> : null}
         <Button
           fullWidth
           variant="contained"
@@ -331,6 +329,10 @@ export function StockOrderCartDrawer({
           {saving ? 'กำลังส่งคำสั่งซื้อ…' : 'ส่งคำสั่งซื้อ'}
         </Button>
       </Stack>
+      <ActionSnackbar
+        notice={error ? { message: error, severity: 'error' } : null}
+        onClose={() => setError('')}
+      />
     </Drawer>
   );
 }

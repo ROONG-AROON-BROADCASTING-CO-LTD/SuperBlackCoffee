@@ -419,13 +419,6 @@ export function AdminFranchiseBranchesPage() {
           ไม่พบข้อมูลสาขาแฟรนไชส์
         </Typography>
       )}
-      {activationError ? (
-        <Typography
-          sx={{ mt: 1.5, color: 'error.main', fontFamily: 'Kanit, sans-serif' }}
-        >
-          {activationError}
-        </Typography>
-      ) : null}
       <Drawer
         anchor="bottom"
         open={isDrawerOpen}
@@ -610,13 +603,6 @@ export function AdminFranchiseBranchesPage() {
                 </MenuItem>
               ))}
             </TextField>
-            {saveError ? (
-              <Typography
-                sx={{ gridColumn: { sm: '1 / -1' }, color: 'error.main' }}
-              >
-                {saveError}
-              </Typography>
-            ) : null}
             <Box
               sx={{
                 display: 'flex',
@@ -665,8 +651,16 @@ export function AdminFranchiseBranchesPage() {
         </Box>
       </Drawer>
       <ActionSnackbar
-        notice={actionNotice}
-        onClose={() => setActionNotice(null)}
+        notice={
+          saveError || activationError
+            ? { message: saveError || activationError, severity: 'error' }
+            : actionNotice
+        }
+        onClose={() => {
+          setSaveError('');
+          setActivationError('');
+          setActionNotice(null);
+        }}
       />
     </DashboardMain>
   );

@@ -312,6 +312,9 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
       ingredientScope={isFreshIngredientsPage ? 'fresh' : 'regular'}
+      readOnly
+      allowEditing
+      cardColumns={5}
     />
   ) : activePage === 'ภาพรวม' ? (
     <AdminOverviewPage onNavigate={navigate} />
@@ -345,6 +348,9 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
+      readOnly
+      allowEditing
+      cardColumns={5}
     />
   ) : isPostalStockPage ? (
     <AdminStockPage
@@ -353,12 +359,17 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
+      readOnly
+      allowEditing
+      cardColumns={5}
     />
   ) : activePage === 'เมนูและสินค้า' ? (
     <AdminProductsPage
       activeBranch={activeBranch}
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
+      readOnly
+      cardColumns={5}
     />
   ) : activePage === 'สาขาแฟรนไชส์' ? (
     <AdminFranchiseBranchesPage />

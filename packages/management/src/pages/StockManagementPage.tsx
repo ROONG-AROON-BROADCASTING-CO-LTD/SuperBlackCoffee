@@ -1,4 +1,11 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type FormEvent,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -16,6 +23,7 @@ import {
   ActionSnackbar,
   CartIcon,
   DashboardMain,
+  EditItemButton,
   ItemActionButtons,
   FilterPill,
   INGREDIENT_STATUS_BADGES,
@@ -36,7 +44,11 @@ import {
   branches,
   type BranchCodeMap,
 } from '../components/sidebar/BranchesSidebar';
-import { listInventory } from '../api/inventory';
+import {
+  listInventory,
+  updateInventory,
+  type InventoryInput,
+} from '../api/inventory';
 import { StockSkeleton } from '../components/skeletons/StockSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { useAutoRetry } from '../hooks/useAutoRetry';
@@ -45,6 +57,7 @@ import { createStockRequest } from '../api/stock-requests';
 type StockItem = {
   id: number;
   name: string;
+  category: string;
   quantity: number;
   unit: string;
   reorderLevel: number;
@@ -60,6 +73,8 @@ type StockFilter = (typeof filters)[number];
 export function StockManagementPage({
   activeBranch,
   readOnly = false,
+  allowEditing = false,
+  cardColumns = 4,
   allowOrdering = false,
   onRequestCreated,
   stockCategory = 'drink_equipment',
@@ -69,6 +84,8 @@ export function StockManagementPage({
 }: {
   activeBranch: string;
   readOnly?: boolean;
+  allowEditing?: boolean;
+  cardColumns?: 4 | 5;
   allowOrdering?: boolean;
   onRequestCreated?: () => void;
   stockCategory?: 'drink_equipment' | 'postal_equipment';
@@ -85,6 +102,7 @@ export function StockManagementPage({
   const [filter, setFilter] = useState<StockFilter>('ทั้งหมด');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [editingBranch, setEditingBranch] = useState<string | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [catalogStockItemsByBranch, setCatalogStockItemsByBranch] = useState<
     Record<string, StockItem[]>
@@ -93,12 +111,19 @@ export function StockManagementPage({
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
+  const [inventoryNotice, setInventoryNotice] = useState<{
+    severity: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [isSavingStock, setIsSavingStock] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<StockCartItem[]>([]);
   const [cartError, setCartError] = useState<string | null>(null);
   const [isCartSuccessVisible, setIsCartSuccessVisible] = useState(false);
   const queryClient = useQueryClient();
   const canOrder = allowOrdering && stockCategory === 'drink_equipment';
+  const canEdit = !readOnly || allowEditing;
+  const isLimitedEdit = readOnly && allowEditing && editingItem !== null;
   const createRequest = useMutation({
     mutationFn: createStockRequest,
     onSuccess: () => {
@@ -143,7 +168,11 @@ export function StockManagementPage({
   );
   const displayedBranches =
     activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
-  const drawerTitle = editingItem ? `แก้ไข${stockLabel}` : `เพิ่ม${stockLabel}`;
+  const drawerTitle = editingItem
+    ? isLimitedEdit
+      ? `ปรับยอด${stockLabel}`
+      : `แก้ไข${stockLabel}`
+    : `เพิ่ม${stockLabel}`;
   const imageSource = imagePreviewUrl ?? editingItem?.imageUrl ?? null;
 
   useEffect(
@@ -171,6 +200,7 @@ export function StockManagementPage({
           items.map((item, index) => ({
             id: item.id,
             name: item.name,
+            category: item.category,
             quantity: item.quantity,
             unit: item.unit,
             reorderLevel: item.reorderLevel,
@@ -221,13 +251,67 @@ export function StockManagementPage({
   ]);
   const openAdd = () => {
     setEditingItem(null);
+    setEditingBranch(null);
     setImagePreviewUrl(null);
     setDrawerOpen(true);
   };
-  const openEdit = (item: StockItem) => {
+  const openEdit = (item: StockItem, branch: string) => {
     setEditingItem(item);
+    setEditingBranch(branch);
     setImagePreviewUrl(null);
     setDrawerOpen(true);
+  };
+  const saveStock = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingItem) return;
+    const formData = new FormData(event.currentTarget);
+    const data: InventoryInput = {
+      name: isLimitedEdit
+        ? editingItem.name
+        : String(formData.get('name') ?? '').trim(),
+      category: isLimitedEdit
+        ? editingItem.category
+        : String(formData.get('category') ?? 'other'),
+      kind: 'stock',
+      stockCategory,
+      quantity: Number(formData.get('quantity') ?? 0),
+      unit: isLimitedEdit
+        ? editingItem.unit
+        : String(formData.get('unit') ?? ''),
+      reorderLevel: Number(formData.get('reorderLevel') ?? 0),
+      unitCost: editingItem.unitCost,
+      trackStock: true,
+      imageUrl: isLimitedEdit
+        ? editingItem.imageUrl
+        : (imagePreviewUrl ?? editingItem.imageUrl),
+      expiryDate: null,
+    };
+    if (!data.name || !data.unit || Number.isNaN(data.quantity)) return;
+    setIsSavingStock(true);
+    try {
+      await updateInventory(
+        editingItem.id,
+        data,
+        branchCodes[editingBranch ?? activeBranch],
+      );
+      setDrawerOpen(false);
+      setEditingItem(null);
+      setEditingBranch(null);
+      setImagePreviewUrl(null);
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({
+        severity: 'success',
+        message: 'บันทึกการแก้ไขแล้ว',
+      });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error ? error.message : 'บันทึกสต๊อกไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingStock(false);
+    }
   };
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantityToOrder,
@@ -262,7 +346,9 @@ export function StockManagementPage({
         title={stockLabel}
         description={
           readOnly
-            ? 'ตรวจสอบจำนวนคงเหลือของอุปกรณ์สาขาแฟรนไชส์'
+            ? allowEditing
+              ? 'ตรวจสอบและแก้ไขข้อมูลอุปกรณ์รายสาขา'
+              : 'ตรวจสอบจำนวนคงเหลือของอุปกรณ์รายสาขา'
             : 'ตรวจสอบจำนวนคงเหลือและจัดการอุปกรณ์ของสาขา SBC'
         }
       />
@@ -415,7 +501,7 @@ export function StockManagementPage({
                     gridTemplateColumns: {
                       xs: '1fr',
                       sm: 'repeat(2, minmax(0, 1fr))',
-                      md: 'repeat(4, minmax(0, 1fr))',
+                      md: `repeat(${cardColumns}, minmax(0, 1fr))`,
                     },
                     gap: '16px',
                   }}
@@ -431,6 +517,7 @@ export function StockManagementPage({
                           position: 'relative',
                           display: 'flex',
                           flexDirection: 'column',
+                          height: '100%',
                           overflow: 'hidden',
                           borderRadius: '15px',
                           borderColor: '#e8ddd5',
@@ -543,27 +630,6 @@ export function StockManagementPage({
                                 {item.unitCost.toFixed(2)} บาท/{item.unit}
                               </Box>
                             </Typography>
-                            <Typography
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                px: 1,
-                                py: 0.45,
-                                color: '#5f4b3d',
-                                fontFamily: 'Kanit, sans-serif',
-                                fontSize: 12,
-                                fontWeight: 600,
-                              }}
-                            >
-                              แจ้งเตือนเมื่อเหลือ
-                              <Box
-                                component="span"
-                                sx={{ fontWeight: 700, lineHeight: 1 }}
-                              >
-                                {item.reorderLevel} {item.unit}
-                              </Box>
-                            </Typography>
                           </Box>
                           {canOrder ? (
                             <Box
@@ -602,10 +668,19 @@ export function StockManagementPage({
                             <ItemActionButtons
                               editLabel="แก้ไขสต๊อก"
                               deleteLabel="ลบสต๊อก"
-                              onEdit={() => openEdit(item)}
+                              onEdit={() => openEdit(item, branch)}
                               onDelete={() => setDeleteTargetKey(itemKey)}
                               sx={{ mt: 'auto', pt: 2 }}
                             />
+                          ) : allowEditing ? (
+                            <Box sx={{ mt: 'auto', pt: 2 }}>
+                              <EditItemButton
+                                fullWidth
+                                onClick={() => openEdit(item, branch)}
+                              >
+                                ปรับยอดคงเหลือ
+                              </EditItemButton>
+                            </Box>
                           ) : null}
                         </Box>
                         {!readOnly && deleteTargetKey === itemKey && (
@@ -797,9 +872,23 @@ export function StockManagementPage({
             }}
           >
             {editingItem
-              ? `แก้ไขข้อมูล${stockLabel}`
+              ? isLimitedEdit
+                ? 'ปรับจำนวนคงเหลือและจุดแจ้งเตือน'
+                : `แก้ไขข้อมูล${stockLabel}`
               : `กรอกข้อมูลเพื่อเพิ่ม${stockLabel}ใหม่`}
           </Typography>
+          {isLimitedEdit ? (
+            <Typography
+              sx={{
+                mt: 0.5,
+                color: 'text.secondary',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+              }}
+            >
+              แก้ไขได้เฉพาะจำนวนคงเหลือและแจ้งเตือนเมื่อคงเหลือ
+            </Typography>
+          ) : null}
           <Divider
             sx={{
               mt: 2.25,
@@ -813,10 +902,7 @@ export function StockManagementPage({
           >
             <Box
               component="form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setDrawerOpen(false);
-              }}
+              onSubmit={(event) => void saveStock(event)}
               sx={{
                 display: 'grid',
                 gridTemplateColumns: {
@@ -843,10 +929,12 @@ export function StockManagementPage({
                   borderRadius: '16px',
                   bgcolor: '#f7eee8',
                   color: '#5f4b3d',
-                  cursor: 'pointer',
+                  cursor: isLimitedEdit ? 'default' : 'pointer',
                   transition:
                     'background-color .2s ease, border-color .2s ease',
-                  '&:hover': { bgcolor: '#f1e4da', borderColor: '#805637' },
+                  '&:hover': isLimitedEdit
+                    ? undefined
+                    : { bgcolor: '#f1e4da', borderColor: '#805637' },
                 }}
               >
                 {imageSource ? (
@@ -911,6 +999,7 @@ export function StockManagementPage({
                     const file = event.target.files?.[0];
                     if (file) setImagePreviewUrl(URL.createObjectURL(file));
                   }}
+                  disabled={isLimitedEdit}
                 />
               </Box>
               <Box
@@ -927,8 +1016,10 @@ export function StockManagementPage({
                   required
                   fullWidth
                   label={`ชื่อ${stockLabel}`}
+                  name="name"
                   placeholder="เช่น แก้วกระดาษ 16 oz"
                   defaultValue={editingItem?.name}
+                  disabled={isLimitedEdit}
                   sx={{ gridColumn: { sm: '1 / -1' } }}
                 />
                 <TextField
@@ -936,7 +1027,9 @@ export function StockManagementPage({
                   select
                   fullWidth
                   label="หมวดหมู่"
-                  defaultValue=""
+                  name="category"
+                  defaultValue={editingItem?.category ?? ''}
+                  disabled={isLimitedEdit}
                 >
                   <MenuItem value="" disabled>
                     เลือกหมวดหมู่
@@ -949,6 +1042,7 @@ export function StockManagementPage({
                 <TextField
                   fullWidth
                   label="จำนวนคงเหลือ"
+                  name="quantity"
                   type="number"
                   defaultValue={editingItem?.quantity}
                   slotProps={{ htmlInput: { min: 0 } }}
@@ -958,10 +1052,12 @@ export function StockManagementPage({
                   select
                   fullWidth
                   label="หน่วย"
+                  name="unit"
                   defaultValue={normalizeInventoryUnit(
                     editingItem?.unit ?? 'ชิ้น',
                   )}
                   slotProps={inventoryUnitSelectSlotProps}
+                  disabled={isLimitedEdit}
                 >
                   {INVENTORY_UNIT_OPTIONS.map((unit) => (
                     <MenuItem key={unit.value} value={unit.value}>
@@ -972,7 +1068,9 @@ export function StockManagementPage({
                 <TextField
                   fullWidth
                   label="แจ้งเตือนเมื่อคงเหลือ"
+                  name="reorderLevel"
                   type="number"
+                  defaultValue={editingItem?.reorderLevel ?? 0}
                   slotProps={{ htmlInput: { min: 0 } }}
                 />
                 <TextField
@@ -980,6 +1078,7 @@ export function StockManagementPage({
                   label="หมายเหตุ"
                   placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"
                   sx={{ gridColumn: { sm: '1 / -1' } }}
+                  disabled={isLimitedEdit}
                 />
                 <Box
                   sx={{
@@ -1005,6 +1104,7 @@ export function StockManagementPage({
                   <Button
                     type="submit"
                     variant="contained"
+                    disabled={isSavingStock}
                     sx={{
                       minHeight: 40,
                       borderRadius: '12px',
@@ -1014,7 +1114,11 @@ export function StockManagementPage({
                       '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                     }}
                   >
-                    {editingItem ? 'บันทึกการแก้ไข' : 'บันทึกสต๊อก'}
+                    {isSavingStock
+                      ? 'กำลังบันทึก…'
+                      : editingItem
+                        ? 'บันทึกการแก้ไข'
+                        : 'บันทึกสต๊อก'}
                   </Button>
                 </Box>
               </Box>
@@ -1257,19 +1361,6 @@ export function StockManagementPage({
               pt: 2.25,
             }}
           >
-            {cartError ? (
-              <Typography
-                sx={{
-                  alignSelf: 'stretch',
-                  mb: 1,
-                  color: 'error.main',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 13,
-                }}
-              >
-                {cartError}
-              </Typography>
-            ) : null}
             <Button
               variant="contained"
               disabled={cartItems.length === 0 || createRequest.isPending}
@@ -1300,6 +1391,14 @@ export function StockManagementPage({
           </Box>
         </Box>
       </Drawer>
+      <ActionSnackbar
+        notice={inventoryNotice}
+        onClose={() => setInventoryNotice(null)}
+      />
+      <ActionSnackbar
+        notice={cartError ? { message: cartError, severity: 'error' } : null}
+        onClose={() => setCartError(null)}
+      />
       <ActionSnackbar
         notice={
           isCartSuccessVisible

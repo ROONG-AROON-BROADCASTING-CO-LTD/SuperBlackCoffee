@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -187,6 +186,7 @@ export function FranchiseMaintenancePage() {
     useState<FranchiseMaintenanceTicket['priority']>('normal');
   const [dueAt, setDueAt] = useState('');
   const [notice, setNotice] = useState<ActionNotice | null>(null);
+  const [dismissedLoadError, setDismissedLoadError] = useState(false);
   const tickets = useQuery({
     queryKey: maintenanceKey,
     queryFn: listFranchiseMaintenanceTickets,
@@ -383,16 +383,24 @@ export function FranchiseMaintenancePage() {
                 </Typography>
               </Card>
             ) : null}
-            {tickets.isError ? (
-              <Alert severity="error">ไม่สามารถโหลดรายการแจ้งซ่อมได้</Alert>
-            ) : null}
             {!tickets.isLoading && !tickets.isError ? (
               <MaintenanceTicketList tickets={tickets.data ?? []} />
             ) : null}
           </Stack>
         </Box>
       </Stack>
-      <ActionSnackbar notice={notice} onClose={() => setNotice(null)} />
+      <ActionSnackbar
+        notice={
+          tickets.isError && !dismissedLoadError
+            ? { message: 'ไม่สามารถโหลดรายการแจ้งซ่อมได้', severity: 'error' }
+            : notice
+        }
+        onClose={() => {
+          setNotice(null);
+          setDismissedLoadError(true);
+        }}
+        autoHideDuration={tickets.isError ? null : 3500}
+      />
     </DashboardMain>
   );
 }

@@ -221,12 +221,14 @@ export function ProductsManagementPage({
   activeBranch,
   franchisePlan,
   readOnly = false,
+  cardColumns = 4,
   branchOptions = branches,
   branchCodes = branchCodeByBranch,
 }: {
   activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
   readOnly?: boolean;
+  cardColumns?: 4 | 5;
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
 }) {
@@ -695,9 +697,11 @@ export function ProductsManagementPage({
       <PageIntro
         title="เมนูและสินค้า"
         description={
-          franchisePlan
-            ? 'จัดการเมนู ราคา และสูตรของสาขาแฟรนไชส์'
-            : 'จัดการเมนู ราคา และสูตรของสาขา SBC'
+          readOnly
+            ? 'ดูเมนู ราคา และสูตรของสาขา'
+            : franchisePlan
+              ? 'จัดการเมนู ราคา และสูตรของสาขาแฟรนไชส์'
+              : 'จัดการเมนู ราคา และสูตรของสาขา SBC'
         }
       />
       <Box
@@ -856,7 +860,7 @@ export function ProductsManagementPage({
                     gridTemplateColumns: {
                       xs: '1fr',
                       sm: 'repeat(2, minmax(0, 1fr))',
-                      md: 'repeat(4, minmax(0, 1fr))',
+                      md: `repeat(${cardColumns}, minmax(0, 1fr))`,
                     },
                     gap: '16px',
                   }}
@@ -884,6 +888,7 @@ export function ProductsManagementPage({
                           position: 'relative',
                           display: 'flex',
                           flexDirection: 'column',
+                          height: '100%',
                           overflow: 'hidden',
                           borderRadius: '15px',
                           borderColor: '#e8ddd5',
@@ -1039,40 +1044,47 @@ export function ProductsManagementPage({
                               </Box>
                             </Typography>
                           </Box>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => openRecipe(item)}
+                          <Box
                             sx={{
-                              mt: 1.5,
-                              minHeight: 34,
-                              borderRadius: '10px',
-                              borderColor: '#d8c8bd',
-                              color: '#5f4030',
-                              fontFamily: 'Kanit, sans-serif',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              '&:hover': {
-                                borderColor: '#805637',
-                                bgcolor: '#f7eee8',
-                              },
+                              display: 'grid',
+                              gap: 1.5,
+                              mt: 'auto',
+                              pt: 2,
                             }}
                           >
-                            {readOnly
-                              ? 'ดูสูตรการทำ'
-                              : item.ingredients.length === 0
-                                ? 'เพิ่มสูตรการทำ'
-                                : 'จัดการสูตรการทำ'}
-                          </Button>
-                          {!readOnly ? (
-                            <ItemActionButtons
-                              editLabel="แก้ไขสินค้า"
-                              deleteLabel="ลบสินค้า"
-                              onEdit={() => openEdit(item)}
-                              onDelete={() => setDeleting(productKey)}
-                              sx={{ mt: 'auto', pt: 2 }}
-                            />
-                          ) : null}
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => openRecipe(item)}
+                              sx={{
+                                minHeight: 34,
+                                borderRadius: '10px',
+                                borderColor: '#d8c8bd',
+                                color: '#5f4030',
+                                fontFamily: 'Kanit, sans-serif',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                '&:hover': {
+                                  borderColor: '#805637',
+                                  bgcolor: '#f7eee8',
+                                },
+                              }}
+                            >
+                              {readOnly
+                                ? 'ดูสูตรการทำ'
+                                : item.ingredients.length === 0
+                                  ? 'เพิ่มสูตรการทำ'
+                                  : 'จัดการสูตรการทำ'}
+                            </Button>
+                            {!readOnly ? (
+                              <ItemActionButtons
+                                editLabel="แก้ไขสินค้า"
+                                deleteLabel="ลบสินค้า"
+                                onEdit={() => openEdit(item)}
+                                onDelete={() => setDeleting(productKey)}
+                              />
+                            ) : null}
+                          </Box>
                         </Box>
                         {!readOnly && deleting === productKey && (
                           <Box

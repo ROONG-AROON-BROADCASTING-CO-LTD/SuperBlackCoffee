@@ -50,6 +50,29 @@ describe('AttendanceLeaveRequestPage', () => {
     );
   });
 
+  it('keeps the entered leave reason when submission fails so it can be retried', async () => {
+    const onSuccess = vi.fn().mockRejectedValue(new Error('offline'));
+    render(<AttendanceLeaveRequestPage onSuccess={onSuccess} />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'เหตุผลการลา' }), {
+      target: { value: 'ต้องไปพบแพทย์' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'ส่งคำขอลาและสร้างใบลา PDF' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'ไม่สามารถส่งคำขอลาได้ กรุณาตรวจสอบวันที่ลาแล้วลองใหม่อีกครั้ง',
+      ),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('textbox', { name: 'เหตุผลการลา' }) as HTMLInputElement)
+        .value,
+    ).toBe('ต้องไปพบแพทย์');
+    expect(onSuccess).toHaveBeenCalledOnce();
+  });
+
   it('opens a leave PDF through the authenticated API link, not a blocked blob preview', async () => {
     vi.mocked(listMyLeaveRequests).mockResolvedValueOnce([
       {

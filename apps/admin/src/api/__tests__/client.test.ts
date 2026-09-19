@@ -93,6 +93,16 @@ describe('admin API client', () => {
     );
   });
 
+  it('treats a successful no-content mutation as complete', async () => {
+    mocks.request.mockResolvedValueOnce({ status: 204, data: '' });
+
+    await expect(
+      secured('/catalog-templates/7/menu-items/802/recipes', {
+        method: 'PUT',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it('turns malformed JSON responses into a user-friendly message', async () => {
     mocks.isAxiosError.mockReturnValue(false);
     mocks.request.mockRejectedValueOnce(

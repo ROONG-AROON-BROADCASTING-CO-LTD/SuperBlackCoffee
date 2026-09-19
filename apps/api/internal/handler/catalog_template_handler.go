@@ -68,7 +68,10 @@ type catalogTemplateRecipeInput struct {
 }
 
 type catalogTemplateRecipesInput struct {
-	Recipes []catalogTemplateRecipeInput `json:"recipes" binding:"required,dive"`
+	// A present-but-empty array deliberately clears the recipe for menu items
+	// that do not need ingredients. A pointer still rejects a missing recipes
+	// field, while allowing [] as a valid explicit value.
+	Recipes *[]catalogTemplateRecipeInput `json:"recipes" binding:"required,dive"`
 }
 
 type catalogTemplateSyncInput struct {
@@ -1504,9 +1507,9 @@ func (h *PlatformHandler) ReplaceCatalogTemplateMenuRecipes(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบเมนูในแม่แบบกลาง"})
 		return
 	}
-	seen := make(map[string]struct{}, len(input.Recipes))
-	for index := range input.Recipes {
-		recipe := &input.Recipes[index]
+	seen := make(map[string]struct{}, len(*input.Recipes))
+	for index := range *input.Recipes {
+		recipe := &(*input.Recipes)[index]
 		recipe.Unit = strings.TrimSpace(recipe.Unit)
 		key := strconv.FormatInt(recipe.CatalogItemID, 10) + ":" + recipe.Channel
 		if recipe.Unit == "" {
@@ -1549,7 +1552,7 @@ func (h *PlatformHandler) ReplaceCatalogTemplateMenuRecipes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถล้างสูตรเดิมได้"})
 		return
 	}
-	for _, recipe := range input.Recipes {
+	for _, recipe := range *input.Recipes {
 		if _, err = tx.ExecContext(c.Request.Context(), `
 			INSERT INTO catalog_template_menu_ingredients(template_menu_item_id,catalog_item_id,channel,quantity,unit,cost_amount)
 			VALUES($1,$2,$3,$4,$5,$6)`, menuID, recipe.CatalogItemID, recipe.Channel, recipe.Quantity, recipe.Unit, recipe.CostAmount); err != nil {
@@ -1561,7 +1564,7 @@ func (h *PlatformHandler) ReplaceCatalogTemplateMenuRecipes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถยืนยันสูตรกลางได้"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": menuID, "recipeCount": len(input.Recipes)}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": menuID, "recipeCount": len(*input.Recipes)}})
 }
 
 // RetireCatalogTemplateInventory removes an item from future syncs without

@@ -49,6 +49,19 @@ func TestBranchIDRejectsUnscopedNonAdmin(t *testing.T) {
 	}
 }
 
+func TestBranchIDRejectsNonPositiveClaimedBranch(t *testing.T) {
+	for _, branchID := range []int64{0, -1} {
+		res := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(res)
+		ctx.Request = httptest.NewRequest(http.MethodGet, "/inventory?branchId=12", nil)
+		ctx.Set("claims", &middleware.Claims{Role: "cashier", BranchID: &branchID})
+		got, ok := BranchID(ctx, nil)
+		if ok || got != 0 || res.Code != http.StatusForbidden {
+			t.Fatalf("claimed branch %d resolved branch %d, ok=%t, status=%d", branchID, got, ok, res.Code)
+		}
+	}
+}
+
 func TestBranchIDValidatesAdminBranchID(t *testing.T) {
 	res := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(res)

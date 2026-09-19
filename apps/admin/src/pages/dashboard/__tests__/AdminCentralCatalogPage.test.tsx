@@ -276,7 +276,7 @@ describe('AdminCentralCatalogPage', () => {
       expect(
         screen.getByRole('spinbutton', { name: 'ต้นทุนต่อหน่วย' }),
       ).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'S' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'ขนาด S' })).toBeTruthy();
       expect(
         screen.queryByRole('spinbutton', { name: 'จำนวนคงเหลือ' }),
       ).toBeNull();
@@ -333,13 +333,13 @@ describe('AdminCentralCatalogPage', () => {
     render(<AdminCentralCatalogPage />);
     await screen.findByText('อเมริกาโน่เย็น');
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'ค้นหารายการกลาง' }), {
+    fireEvent.change(screen.getByPlaceholderText('ค้นหารายการกลาง'), {
       target: { value: 'ไม่พบรายการนี้' },
     });
     expect(screen.queryByText('อเมริกาโน่เย็น')).toBeNull();
     expect(screen.getByText(/ที่ตรงกับตัวกรอง/)).toBeTruthy();
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'ค้นหารายการกลาง' }), {
+    fireEvent.change(screen.getByPlaceholderText('ค้นหารายการกลาง'), {
       target: { value: 'อเมริกาโน่' },
     });
     expect(screen.getByText('อเมริกาโน่เย็น')).toBeTruthy();
@@ -369,7 +369,7 @@ describe('AdminCentralCatalogPage', () => {
     render(<AdminCentralCatalogPage />);
     await screen.findByText('อเมริกาโน่เย็น');
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
-    fireEvent.click(screen.getByRole('button', { name: 'L' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด L' }));
     fireEvent.submit(
       screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
     );
@@ -521,6 +521,34 @@ describe('AdminCentralCatalogPage', () => {
     expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
   });
 
+  it('keeps a completed menu edit successful when its follow-up refresh fails', async () => {
+    render(<AdminCentralCatalogPage />);
+    await screen.findByText('อเมริกาโน่เย็น');
+
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    mockedGetCatalogTemplate.mockRejectedValueOnce(new Error('Network Error'));
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
+    );
+
+    await waitFor(() =>
+      expect(mockedUpdateCatalogTemplateMenuItem).toHaveBeenCalledWith(
+        21,
+        9,
+        expect.any(Object),
+      ),
+    );
+    expect(
+      await screen.findByText(
+        'บันทึกข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Network Error')).toBeNull();
+    expect(
+      screen.queryByRole('heading', { name: 'แก้ไขเมนูและสินค้า' }),
+    ).toBeNull();
+  });
+
   it('edits central inventory defaults without writing a branch stock balance', async () => {
     render(<AdminCentralCatalogPage section="ingredients" />);
     expect(await screen.findByText('เมล็ดกาแฟ')).toBeTruthy();
@@ -617,6 +645,7 @@ describe('AdminCentralCatalogPage', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อสินค้า' }), {
       target: { value: 'อเมริกาโน่ใหม่' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด M' }));
     fireEvent.submit(
       screen.getByRole('button', { name: 'บันทึกสินค้า' }).closest('form')!,
     );
@@ -627,12 +656,114 @@ describe('AdminCentralCatalogPage', () => {
         expect.objectContaining({ name: 'อเมริกาโน่ใหม่' }),
       ),
     );
-    expect(mockedReplaceCatalogTemplateMenuRecipes).toHaveBeenCalledWith(
-      21,
-      10,
-      [],
-    );
+    expect(mockedReplaceCatalogTemplateMenuRecipes).not.toHaveBeenCalled();
     expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
+  });
+
+  it('creates a menu without ingredients or a recipe request', async () => {
+    render(<AdminCentralCatalogPage />);
+    await screen.findByText('อเมริกาโน่เย็น');
+
+    fireEvent.click(screen.getByRole('button', { name: /เพิ่มเมนู/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อสินค้า' }), {
+      target: { value: 'โค้กไม่มีสูตร' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด S' }));
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกสินค้า' }).closest('form')!,
+    );
+
+    expect(
+      await screen.findByText(
+        'บันทึกข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('heading', { name: 'เพิ่มเมนูและสินค้า' }),
+    ).toBeNull();
+    expect(mockedReplaceCatalogTemplateMenuRecipes).not.toHaveBeenCalled();
+  });
+
+  it('keeps a new menu editable and does not report success when creation fails', async () => {
+    mockedCreateCatalogTemplateMenuItem.mockRejectedValueOnce(
+      new Error('ไม่สามารถบันทึกเมนูได้'),
+    );
+    render(<AdminCentralCatalogPage />);
+    await screen.findByText('อเมริกาโน่เย็น');
+
+    fireEvent.click(screen.getByRole('button', { name: /เพิ่มเมนู/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อสินค้า' }), {
+      target: { value: 'โค้ก' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด S' }));
+    fireEvent.submit(
+      screen.getByRole('button', { name: 'บันทึกสินค้า' }).closest('form')!,
+    );
+
+    expect(await screen.findByText('ไม่สามารถบันทึกเมนูได้')).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: 'เพิ่มเมนูและสินค้า' }),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('textbox', { name: 'ชื่อสินค้า' }) as HTMLInputElement)
+        .value,
+    ).toBe('โค้ก');
+    expect(
+      screen.queryByText('บันทึกข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา'),
+    ).toBeNull();
+  });
+
+  it('requires an explicitly selected branch size and supports an ingredient-free soda menu', async () => {
+    render(<AdminCentralCatalogPage />);
+    await screen.findByText('อเมริกาโน่เย็น');
+
+    fireEvent.click(screen.getByRole('button', { name: /เพิ่มเมนู/ }));
+    expect(screen.getByRole('button', { name: 'บันทึกสินค้า' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(
+      screen.getByText('เลือกขนาดอย่างน้อย 1 ขนาดก่อนบันทึกสินค้า'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('ยังไม่มีสูตรหรือส่วนผสม — สามารถบันทึกสินค้าได้'),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'ไม่มีสูตร/ส่วนผสม' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'หมวดหมู่' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'เมนูน้ำอัดลม' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ขนาด L' }));
+    expect(screen.getByRole('button', { name: 'บันทึกสินค้า' })).toHaveProperty(
+      'disabled',
+      false,
+    );
+    expect(
+      screen.getByText('เลือกขนาดอย่างน้อย 1 ขนาดก่อนบันทึกสินค้า'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '+ เพิ่มส่วนผสม' }));
+    expect(
+      screen
+        .getByRole('button', { name: '+ เพิ่มส่วนผสม' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(
+      screen
+        .getByRole('button', { name: 'ไม่มีสูตร/ส่วนผสม' })
+        .getAttribute('aria-pressed'),
+    ).toBe('false');
+    expect(
+      (screen.getByRole('spinbutton', { name: 'ปริมาณ' }) as HTMLInputElement)
+        .value,
+    ).toBe('0');
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'วัตถุดิบ' }));
+    expect(
+      await screen.findByRole('option', { name: 'กรุณาเลือกวัตถุดิบ' }),
+    ).toBeTruthy();
   });
 
   it('requires confirmation and soft-retires a central menu before branch sync', async () => {

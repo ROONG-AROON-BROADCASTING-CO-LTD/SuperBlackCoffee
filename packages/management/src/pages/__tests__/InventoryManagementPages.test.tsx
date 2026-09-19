@@ -628,8 +628,8 @@ describe('inventory management pages', () => {
     expect(screen.getByText('4 ถุง')).toBeTruthy();
     expect(screen.getByText('ต้นทุน')).toBeTruthy();
     expect(screen.getByText('125.00 บาท/ถุง')).toBeTruthy();
-    expect(screen.getByText('แจ้งเตือนเมื่อเหลือ')).toBeTruthy();
-    expect(screen.getByText('5 ถุง')).toBeTruthy();
+    expect(screen.queryByText('แจ้งเตือนเมื่อเหลือ')).toBeNull();
+    expect(screen.queryByText('5 ถุง')).toBeNull();
     expect(
       screen.queryByText('คงเหลือ 4 ถุง · ต้นทุน 125.00 บาท/ถุง'),
     ).toBeNull();
@@ -640,6 +640,93 @@ describe('inventory management pages', () => {
       'stock',
       'SBC-AYA-001',
       'postal_equipment',
+    );
+  });
+
+  it('allows only editing—not adding or deleting—on protected branch inventory pages', async () => {
+    const { unmount } = renderPage(
+      <IngredientsManagementPage activeBranch="อยุธยา" readOnly allowEditing />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'แก้ไขวัตถุดิบ' }),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByRole('button', { name: 'เพิ่มวัตถุดิบ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'ลบวัตถุดิบ' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขวัตถุดิบ' }));
+    expect(
+      screen.getByRole('textbox', { name: 'ชื่อวัตถุดิบ' }),
+    ).toHaveProperty('disabled', true);
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'จำนวนคงเหลือ' }), {
+      target: { value: '7' },
+    });
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'แจ้งเตือนเมื่อคงเหลือ' }),
+      { target: { value: '3' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+    await waitFor(() =>
+      expect(mockedUpdateInventory).toHaveBeenCalledWith(
+        ingredient.id,
+        expect.objectContaining({
+          name: ingredient.name,
+          quantity: 7,
+          reorderLevel: 3,
+          unit: ingredient.unit,
+          unitCost: ingredient.unitCost,
+        }),
+        'SBC-AYA-001',
+      ),
+    );
+
+    unmount();
+    mockedUpdateInventory.mockClear();
+    renderPage(
+      <StockManagementPage
+        activeBranch="อยุธยา"
+        readOnly
+        allowEditing
+        stockCategory="postal_equipment"
+        stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'ปรับยอดคงเหลือ' }),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByRole('button', { name: 'เพิ่มสต๊อก' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'ลบสต๊อก' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'ปรับยอดคงเหลือ' }));
+    expect(
+      screen.getByRole('textbox', {
+        name: 'ชื่อสต๊อกอุปกรณ์ไปรษณีย์',
+      }),
+    ).toHaveProperty('disabled', true);
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'จำนวนคงเหลือ' }), {
+      target: { value: '8' },
+    });
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'แจ้งเตือนเมื่อคงเหลือ' }),
+      { target: { value: '2' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+    await waitFor(() =>
+      expect(mockedUpdateInventory).toHaveBeenCalledWith(
+        ingredient.id,
+        expect.objectContaining({
+          name: ingredient.name,
+          quantity: 8,
+          reorderLevel: 2,
+          unit: ingredient.unit,
+          unitCost: ingredient.unitCost,
+          stockCategory: 'postal_equipment',
+        }),
+        'SBC-AYA-001',
+      ),
     );
   });
 

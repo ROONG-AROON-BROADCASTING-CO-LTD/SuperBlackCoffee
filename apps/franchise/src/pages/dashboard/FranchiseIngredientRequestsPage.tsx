@@ -1,7 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Box, Card, Chip, Typography } from '@mui/material';
-import { DashboardMain, formatDate, PageIntro } from '@stackbuild/ui';
+import {
+  ActionSnackbar,
+  DashboardMain,
+  formatDate,
+  PageIntro,
+} from '@stackbuild/ui';
 import {
   listStockRequests,
   type StockRequestStatus,
@@ -23,6 +28,7 @@ const statusConfig: Record<
 };
 
 export function FranchiseIngredientRequestsPage() {
+  const [dismissedLoadError, setDismissedLoadError] = useState(false);
   const requests = useQuery({
     queryKey: ['franchise-stock-requests'],
     queryFn: listStockRequests,
@@ -85,9 +91,9 @@ export function FranchiseIngredientRequestsPage() {
             sx={{ p: 2.5, borderRadius: '16px', borderColor: '#e8ddd5' }}
           >
             <Typography
-              sx={{ color: 'error.main', fontFamily: 'Kanit, sans-serif' }}
+              sx={{ color: 'text.secondary', fontFamily: 'Kanit, sans-serif' }}
             >
-              ไม่สามารถโหลดคำขอวัตถุดิบได้
+              ไม่สามารถแสดงรายการได้ในขณะนี้
             </Typography>
           </Card>
         ) : requests.data?.length ? (
@@ -212,6 +218,15 @@ export function FranchiseIngredientRequestsPage() {
           </Card>
         )}
       </Box>
+      <ActionSnackbar
+        notice={
+          requests.isError && !dismissedLoadError
+            ? { message: 'ไม่สามารถโหลดคำขอวัตถุดิบได้', severity: 'error' }
+            : null
+        }
+        onClose={() => setDismissedLoadError(true)}
+        autoHideDuration={null}
+      />
     </DashboardMain>
   );
 }

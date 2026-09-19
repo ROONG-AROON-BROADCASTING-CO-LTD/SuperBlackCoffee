@@ -30,7 +30,7 @@ func BranchID(c *gin.Context, db *sql.DB) (int64, bool) {
 		}
 		return id, true
 	}
-	if claims.BranchID == nil {
+	if claims.BranchID == nil || *claims.BranchID < 1 {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีนี้ไม่มีสิทธิ์เข้าถึงสาขา"})
 		return 0, false
 	}

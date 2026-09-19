@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  ActionSnackbar,
   DashboardMain,
   DeleteItemButton,
   PlusIcon,
@@ -178,11 +179,6 @@ export function CompanyDocumentsPage({
             </Button>
           )}
         </Box>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
         {loading ? (
           <CompanyDocumentsSkeleton />
         ) : documents.length === 0 ? (
@@ -499,6 +495,10 @@ export function CompanyDocumentsPage({
           </Box>
         </Drawer>
       </Box>
+      <ActionSnackbar
+        notice={error ? { message: error, severity: 'error' } : null}
+        onClose={() => setError('')}
+      />
     </DashboardMain>
   );
 }

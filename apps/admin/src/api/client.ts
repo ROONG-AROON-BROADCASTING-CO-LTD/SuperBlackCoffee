@@ -26,6 +26,7 @@ export async function publicRequest<T>(
       url: path,
       ...options,
     });
+    if (response.status === 204) return undefined as T;
     if (!response.data.success)
       throw new Error(response.data.message ?? 'ไม่สามารถเชื่อมต่อระบบได้');
     return response.data.data;
@@ -43,6 +44,7 @@ export async function secured<T>(
       url: path,
       ...options,
     });
+    if (response.status === 204) return undefined as T;
     if (!response.data.success)
       throw new Error(response.data.message ?? 'ไม่สามารถเชื่อมต่อระบบได้');
     return response.data.data;

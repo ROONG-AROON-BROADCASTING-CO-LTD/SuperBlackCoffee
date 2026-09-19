@@ -63,6 +63,38 @@ describe('StockOrderPage', () => {
     );
   });
 
+  it('keeps an order in the cart when sending fails so it can be retried', async () => {
+    const onCreateRequest = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('ส่งคำสั่งซื้อไม่สำเร็จ'))
+      .mockResolvedValueOnce(undefined);
+    render(
+      <StockOrderPage
+        ingredients={[item]}
+        drinkStock={[]}
+        postalStock={[]}
+        isFranchise={false}
+        onCreateRequest={onCreateRequest}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'เพิ่ม เมล็ดกาแฟ ในรายการสั่งซื้อ' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'เปิดรายการสั่งซื้อ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งคำสั่งซื้อ' }));
+
+    expect(await screen.findByText('ส่งคำสั่งซื้อไม่สำเร็จ')).toBeTruthy();
+    expect(
+      within(screen.getByRole('dialog')).getByText('เมล็ดกาแฟ'),
+    ).toBeTruthy();
+    expect(onCreateRequest).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งคำสั่งซื้อ' }));
+    await waitFor(() => expect(onCreateRequest).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
   it('labels franchise orders for the franchise dashboard workflow', () => {
     render(
       <StockOrderPage

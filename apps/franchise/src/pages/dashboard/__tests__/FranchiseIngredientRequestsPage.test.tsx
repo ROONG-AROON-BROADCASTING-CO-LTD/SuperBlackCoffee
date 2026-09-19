@@ -87,6 +87,26 @@ describe('FranchiseIngredientRequestsPage', () => {
     expect(screen.getByText('จัดเสร็จแล้ว')).toBeTruthy();
   });
 
+  it('renders every non-pending workflow state without counting it as awaiting approval', async () => {
+    mockedListStockRequests.mockResolvedValue(
+      (['approved', 'preparing', 'rejected'] as const).map((status, index) => ({
+        id: 20 + index,
+        status,
+        note: '',
+        createdAt: '2026-09-05T02:00:00Z',
+        branch: { id: 51, name: 'สาขาสุพรรณบุรี' },
+        items: [],
+      })),
+    );
+    renderPage();
+
+    await screen.findByText('คำขอ #22');
+    expect(screen.getByText('รออนุมัติ 0 รายการ')).toBeTruthy();
+    expect(screen.getByText('อนุมัติแล้ว')).toBeTruthy();
+    expect(screen.getByText('กำลังจัดเตรียม')).toBeTruthy();
+    expect(screen.getByText('ไม่อนุมัติ')).toBeTruthy();
+  });
+
   it('shows a safe error state when the franchise request query fails', async () => {
     mockedListStockRequests.mockRejectedValue(new Error('network unavailable'));
     renderPage();

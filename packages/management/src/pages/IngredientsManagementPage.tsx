@@ -22,6 +22,7 @@ import {
 import {
   ActionSnackbar,
   DashboardMain,
+  EditItemButton,
   ItemActionButtons,
   CartIcon,
   DateField,
@@ -120,6 +121,8 @@ export function IngredientsManagementPage({
   activeBranch,
   franchisePlan,
   readOnly = false,
+  allowEditing = false,
+  cardColumns = 4,
   allowOrdering = false,
   onRequestCreated,
   branchOptions = branches,
@@ -129,6 +132,8 @@ export function IngredientsManagementPage({
   activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
   readOnly?: boolean;
+  allowEditing?: boolean;
+  cardColumns?: 4 | 5;
   allowOrdering?: boolean;
   onRequestCreated?: () => void;
   branchOptions?: readonly string[];
@@ -348,6 +353,7 @@ export function IngredientsManagementPage({
   const drawerTitle = editingIngredient
     ? `แก้ไข${ingredientLabel}`
     : `เพิ่ม${ingredientLabel}`;
+  const isLimitedEdit = readOnly && allowEditing && editingIngredient !== null;
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantityToOrder,
     0,
@@ -388,21 +394,33 @@ export function IngredientsManagementPage({
     const expiryDate = String(formData.get('expiryDate') ?? '').trim();
     const trackStockValue = String(formData.get('trackStock') ?? '');
     const data: InventoryInput = {
-      name: String(formData.get('name') ?? '').trim(),
+      name: isLimitedEdit
+        ? (editingIngredient?.name ?? '')
+        : String(formData.get('name') ?? '').trim(),
       category: isFreshIngredientsPage
         ? 'fresh'
-        : String(formData.get('category') ?? 'other'),
+        : isLimitedEdit
+          ? (editingIngredient?.category ?? 'other')
+          : String(formData.get('category') ?? 'other'),
       kind: 'ingredient',
       quantity: Number(formData.get('quantity') ?? 0),
-      unit: String(formData.get('unit') ?? ''),
+      unit: isLimitedEdit
+        ? (editingIngredient?.unit ?? '')
+        : String(formData.get('unit') ?? ''),
       reorderLevel: Number(formData.get('reorderLevel') ?? 0),
-      unitCost: Number(formData.get('unitCost') ?? 0),
+      unitCost: isLimitedEdit
+        ? (editingIngredient?.unitCost ?? 0)
+        : Number(formData.get('unitCost') ?? 0),
       trackStock: isFreshIngredientsPage
         ? true
-        : trackStockValue === ''
-          ? undefined
-          : trackStockValue === 'true',
-      imageUrl: imagePreviewUrl ?? editingIngredient?.imageUrl ?? '',
+        : isLimitedEdit
+          ? editingIngredient?.trackStock
+          : trackStockValue === ''
+            ? undefined
+            : trackStockValue === 'true',
+      imageUrl: isLimitedEdit
+        ? (editingIngredient?.imageUrl ?? '')
+        : (imagePreviewUrl ?? editingIngredient?.imageUrl ?? ''),
       expiryDate: expiryDate || null,
     };
     if (!data.name || !data.unit || Number.isNaN(data.quantity)) return;
@@ -585,9 +603,13 @@ export function IngredientsManagementPage({
       <PageIntro
         title={ingredientLabel}
         description={
-          franchisePlan
-            ? `ตรวจสอบและจัดการ${ingredientLabel}ของสาขาแฟรนไชส์`
-            : `ตรวจสอบและจัดการ${ingredientLabel}ของสาขา SBC`
+          readOnly
+            ? allowEditing
+              ? `ตรวจสอบและแก้ไข${ingredientLabel}ของสาขา`
+              : `ตรวจสอบ${ingredientLabel}ของสาขา`
+            : franchisePlan
+              ? `ตรวจสอบและจัดการ${ingredientLabel}ของสาขาแฟรนไชส์`
+              : `ตรวจสอบและจัดการ${ingredientLabel}ของสาขา SBC`
         }
       />
       <Box
@@ -791,7 +813,7 @@ export function IngredientsManagementPage({
                       gridTemplateColumns: {
                         xs: '1fr',
                         sm: 'repeat(2, minmax(0, 1fr))',
-                        md: 'repeat(4, minmax(0, 1fr))',
+                        md: `repeat(${cardColumns}, minmax(0, 1fr))`,
                       },
                       gap: '16px',
                     }}
@@ -812,6 +834,7 @@ export function IngredientsManagementPage({
                             position: 'relative',
                             display: 'flex',
                             flexDirection: 'column',
+                            height: '100%',
                             overflow: 'hidden',
                             borderRadius: '15px',
                             borderColor: '#e8ddd5',
@@ -1153,6 +1176,20 @@ export function IngredientsManagementPage({
                                   }}
                                 />
                               </>
+                            ) : allowEditing ? (
+                              <Box sx={{ mt: 'auto', pt: 2 }}>
+                                <EditItemButton
+                                  fullWidth
+                                  onClick={() => {
+                                    setEditingIngredient(ingredient);
+                                    setEditingBranch(branch as InventoryBranch);
+                                    setImagePreviewUrl(null);
+                                    setIsAddDrawerOpen(true);
+                                  }}
+                                >
+                                  แก้ไขวัตถุดิบ
+                                </EditItemButton>
+                              </Box>
                             ) : null}
                           </Box>
                           {!readOnly && discardTargetKey === ingredientKey && (
@@ -1429,6 +1466,18 @@ export function IngredientsManagementPage({
               ? 'แก้ไขข้อมูลวัตถุดิบในสต๊อก'
               : 'กรอกข้อมูลวัตถุดิบเพื่อเพิ่มเข้าสต๊อก'}
           </Typography>
+          {isLimitedEdit ? (
+            <Typography
+              sx={{
+                mt: 0.5,
+                color: 'text.secondary',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+              }}
+            >
+              แก้ไขได้เฉพาะจำนวนคงเหลือ แจ้งเตือนเมื่อคงเหลือ และวันหมดอายุ
+            </Typography>
+          ) : null}
           <Divider
             sx={{
               mt: 2.25,
@@ -1467,13 +1516,15 @@ export function IngredientsManagementPage({
                   border: '1.5px dashed #c9b6a9',
                   borderRadius: '16px',
                   color: '#5f4b3d',
-                  cursor: 'pointer',
+                  cursor: isLimitedEdit ? 'default' : 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
                   overflow: 'hidden',
                   position: 'relative',
-                  '&:hover': { bgcolor: '#f1e4da', borderColor: '#805637' },
+                  '&:hover': isLimitedEdit
+                    ? undefined
+                    : { bgcolor: '#f1e4da', borderColor: '#805637' },
                 }}
               >
                 {imagePreviewUrl || editingIngredient?.imageUrl ? (
@@ -1544,6 +1595,7 @@ export function IngredientsManagementPage({
                     );
                     reader.readAsDataURL(file);
                   }}
+                  disabled={isLimitedEdit}
                 />
               </Box>
               <Box
@@ -1563,6 +1615,7 @@ export function IngredientsManagementPage({
                   label="ชื่อวัตถุดิบ"
                   placeholder="เช่น เมล็ดกาแฟคั่วกลาง"
                   defaultValue={editingIngredient?.name}
+                  disabled={isLimitedEdit}
                   sx={{ gridColumn: { sm: '1 / -1' } }}
                 />
                 {isFreshIngredientsPage ? (
@@ -1581,6 +1634,7 @@ export function IngredientsManagementPage({
                     name="category"
                     label="หมวดหมู่"
                     defaultValue={editingIngredient?.category ?? 'other'}
+                    disabled={isLimitedEdit}
                   >
                     <MenuItem value="coffee">เมล็ดกาแฟ</MenuItem>
                     <MenuItem value="milk">นมและครีม</MenuItem>
@@ -1604,6 +1658,7 @@ export function IngredientsManagementPage({
                         ? 'การเปลี่ยนค่านี้จะมีผลกับรายการชื่อเดียวกันทุกสาขา'
                         : 'หากเพิ่มชื่อที่มีอยู่แล้ว ระบบจะใช้การตั้งค่ากลางเดิม'
                     }
+                    disabled={isLimitedEdit}
                   >
                     {!editingIngredient ? (
                       <MenuItem value="">ใช้การตั้งค่ากลางเดิม</MenuItem>
@@ -1631,6 +1686,7 @@ export function IngredientsManagementPage({
                     editingIngredient?.unit ?? 'กิโลกรัม',
                   )}
                   slotProps={inventoryUnitSelectSlotProps}
+                  disabled={isLimitedEdit}
                 >
                   {INVENTORY_UNIT_OPTIONS.map((unit) => (
                     <MenuItem key={unit.value} value={unit.value}>
@@ -1654,6 +1710,7 @@ export function IngredientsManagementPage({
                   type="number"
                   defaultValue={editingIngredient?.unitCost ?? 0}
                   slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                  disabled={isLimitedEdit}
                 />
                 <DateField
                   fullWidth
@@ -2397,19 +2454,6 @@ export function IngredientsManagementPage({
                 สรุป {cartItems.length} รายการ · จำนวนที่เลือก {cartQuantity}
               </Typography>
             ) : null}
-            {cartError ? (
-              <Typography
-                sx={{
-                  alignSelf: 'stretch',
-                  mb: 1,
-                  color: 'error.main',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 13,
-                }}
-              >
-                {cartError}
-              </Typography>
-            ) : null}
             <Button
               variant="contained"
               disabled={cartItems.length === 0 || createRequest.isPending}
@@ -2440,6 +2484,10 @@ export function IngredientsManagementPage({
           </Box>
         </Box>
       </Drawer>
+      <ActionSnackbar
+        notice={cartError ? { message: cartError, severity: 'error' } : null}
+        onClose={() => setCartError(null)}
+      />
       <ActionSnackbar
         notice={inventoryNotice}
         autoHideDuration={5_000}

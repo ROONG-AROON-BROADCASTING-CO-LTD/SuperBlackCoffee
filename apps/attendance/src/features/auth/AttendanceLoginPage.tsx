@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Paper, TextField, Typography } from '@mui/material';
 import {
+  ActionSnackbar,
   DeleteIcon,
   type DeleteIconHandle,
   FingerprintIcon,
@@ -421,10 +422,18 @@ export function AttendanceLoginPage({
             เปลี่ยนชื่อผู้ใช้
           </Button>
         ) : null}
-        {isUsernameStep && (validationError || error) ? (
-          <Typography color="error">{validationError || error}</Typography>
-        ) : null}
       </Paper>
+      <ActionSnackbar
+        notice={
+          isUsernameStep && (validationError || error)
+            ? { message: validationError || error || '', severity: 'error' }
+            : null
+        }
+        onClose={() => {
+          setValidationError('');
+          onClearError?.();
+        }}
+      />
     </Box>
   );
 }

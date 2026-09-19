@@ -9,6 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  ActionSnackbar,
   AmbulanceIcon,
   DateField,
   PlusIcon,
@@ -335,11 +336,6 @@ export function AttendanceLeaveRequestPage({
           <Typography sx={{ fontSize: 18, fontWeight: 700 }}>
             ใบลาของฉัน
           </Typography>
-          {previewError ? (
-            <Typography color="error" variant="body2">
-              {previewError}
-            </Typography>
-          ) : null}
           {requests.length === 0 ? (
             <Typography color="text.secondary">ยังไม่มีคำขอลา</Typography>
           ) : (
@@ -406,6 +402,12 @@ export function AttendanceLeaveRequestPage({
           )}
         </Stack>
       </Paper>
+      <ActionSnackbar
+        notice={
+          previewError ? { message: previewError, severity: 'error' } : null
+        }
+        onClose={() => setPreviewError('')}
+      />
     </Stack>
   );
 }
