@@ -164,6 +164,30 @@ describe('FranchiseDashboard plan restrictions', () => {
     );
   });
 
+  it('revokes a direct postal-stock page when the franchise plan changes from M to S', async () => {
+    const view = render(
+      <MemoryRouter initialEntries={['/postal-stock']}>
+        <FranchiseDashboard logout={vi.fn()} plan="M" {...branchProps} />
+        <CurrentPath />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('current-path').textContent).toBe(
+      '/postal-stock',
+    );
+
+    view.rerender(
+      <MemoryRouter initialEntries={['/postal-stock']}>
+        <FranchiseDashboard logout={vi.fn()} plan="S" {...branchProps} />
+        <CurrentPath />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('current-path').textContent).toBe('/'),
+    );
+    expect(screen.getByTestId('active-page').textContent).toBe('ภาพรวม');
+  });
+
   it('loads the promotion page with the franchise branch scope', async () => {
     render(
       <MemoryRouter initialEntries={['/promotions']}>

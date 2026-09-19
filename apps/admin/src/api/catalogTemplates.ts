@@ -1,12 +1,11 @@
 import { secured } from './client';
 
-export type CatalogTemplateScope = 'sbc' | 'franchise';
 export type CatalogTemplateSize = 'S' | 'M' | 'L';
 
 export type CatalogTemplateSummary = {
   id: number;
-  scope: CatalogTemplateScope;
-  size: CatalogTemplateSize;
+  scope: 'central';
+  size: 'ALL';
   name: string;
   description: string;
   inventoryCount: number;
@@ -24,6 +23,7 @@ export type CatalogTemplateInventoryItem = {
   unitCost: number;
   reorderLevel: number;
   trackStock?: boolean;
+  availableSizes: CatalogTemplateSize[];
 };
 
 export type CatalogTemplateMenuItem = {
@@ -34,6 +34,7 @@ export type CatalogTemplateMenuItem = {
   linemanPrice: number;
   status?: 'available' | 'soldout';
   recipes: CatalogTemplateRecipe[];
+  availableSizes: CatalogTemplateSize[];
 };
 
 export type CatalogTemplateRecipe = {
@@ -76,6 +77,7 @@ export type CatalogTemplateInventoryPatch = {
   unitCost: number;
   reorderLevel: number;
   trackStock: boolean;
+  availableSizes: CatalogTemplateSize[];
 };
 
 export type CatalogTemplateInventoryCreate = CatalogTemplateInventoryPatch & {
@@ -87,6 +89,7 @@ export type CatalogTemplateMenuPatch = {
   storePrice: number;
   linemanPrice: number;
   status: 'available' | 'soldout';
+  availableSizes: CatalogTemplateSize[];
 };
 
 export type CatalogTemplateMenuCreate = CatalogTemplateMenuPatch & {
@@ -97,15 +100,28 @@ export type CatalogTemplateRecipePatch = Omit<CatalogTemplateRecipe, 'name'>;
 
 const templatePath = (templateId: number) => `/catalog-templates/${templateId}`;
 
-export function listCatalogTemplates(
-  scope: CatalogTemplateScope,
-  size: CatalogTemplateSize,
-) {
-  const params = new URLSearchParams({ scope, size });
-  return secured<CatalogTemplateSummary[]>(
-    `/catalog-templates?${params.toString()}`,
+export const listCatalogTemplates = () =>
+  secured<CatalogTemplateSummary[]>('/catalog-templates');
+
+export type BranchCatalogSelection = {
+  entityType: 'inventory' | 'menu';
+  sourceKey: number;
+  enabled: boolean;
+};
+
+export const listBranchCatalogSelections = (branchId: number) =>
+  secured<BranchCatalogSelection[]>(`/branches/${branchId}/catalog-selections`);
+
+export const setBranchCatalogSelection = (
+  branchId: number,
+  entityType: BranchCatalogSelection['entityType'],
+  sourceKey: number,
+  enabled: boolean,
+) =>
+  secured<BranchCatalogSelection>(
+    `/branches/${branchId}/catalog-selections/${entityType}/${sourceKey}`,
+    { method: 'PUT', data: { enabled } },
   );
-}
 
 export const getCatalogTemplate = (templateId: number) =>
   secured<CatalogTemplate>(templatePath(templateId));

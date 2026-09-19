@@ -20,6 +20,24 @@ func TestBranchIDUsesClaimForNonAdmin(t *testing.T) {
 	}
 }
 
+func TestBranchIDIgnoresForgedBranchSelectorsForScopedRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, role := range []string{"cashier", "branch_manager", "franchise_owner"} {
+		t.Run(role, func(t *testing.T) {
+			claimedBranch := int64(12)
+			response := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(response)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/inventory?branchId=99&branchCode=OTHER-FRANCHISE", nil)
+			ctx.Set("claims", &middleware.Claims{Role: role, BranchID: &claimedBranch})
+
+			got, ok := BranchID(ctx, nil)
+			if !ok || got != claimedBranch || response.Code != http.StatusOK {
+				t.Fatalf("role %q resolved branch %d, ok=%t, status=%d; want claimed branch %d", role, got, ok, response.Code, claimedBranch)
+			}
+		})
+	}
+}
+
 func TestBranchIDRejectsUnscopedNonAdmin(t *testing.T) {
 	res := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(res)

@@ -68,10 +68,14 @@ func TestCentralCatalogTemplateRoutesAreAdminOnly(t *testing.T) {
 		name, method, path, role string
 		want                     int
 	}{
-		{name: "requires authentication", method: http.MethodGet, path: "/api/v1/catalog-templates?scope=sbc&size=S", want: http.StatusUnauthorized},
-		{name: "franchise owner cannot list", method: http.MethodGet, path: "/api/v1/catalog-templates?scope=sbc&size=S", role: "franchise_owner", want: http.StatusForbidden},
+		{name: "requires authentication", method: http.MethodGet, path: "/api/v1/catalog-templates", want: http.StatusUnauthorized},
+		{name: "franchise owner cannot list", method: http.MethodGet, path: "/api/v1/catalog-templates", role: "franchise_owner", want: http.StatusForbidden},
 		{name: "cashier cannot inspect impact", method: http.MethodGet, path: "/api/v1/catalog-templates/1/impact", role: "cashier", want: http.StatusForbidden},
-		{name: "admin reaches the unavailable handler", method: http.MethodGet, path: "/api/v1/catalog-templates?scope=sbc&size=S", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "admin reaches the unavailable handler", method: http.MethodGet, path: "/api/v1/catalog-templates", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "cashier cannot change branch selection", method: http.MethodPut, path: "/api/v1/branches/1/catalog-selections/menu/2", role: "cashier", want: http.StatusForbidden},
+		{name: "franchise owner cannot read another branch selection", method: http.MethodGet, path: "/api/v1/branches/999/catalog-selections", role: "franchise_owner", want: http.StatusForbidden},
+		{name: "branch manager cannot change another branch selection", method: http.MethodPut, path: "/api/v1/branches/999/catalog-selections/menu/2", role: "branch_manager", want: http.StatusForbidden},
+		{name: "admin selection reaches unavailable handler", method: http.MethodPut, path: "/api/v1/branches/1/catalog-selections/menu/2", role: "admin", want: http.StatusServiceUnavailable},
 		{name: "admin sync reaches the unavailable handler", method: http.MethodPost, path: "/api/v1/catalog-templates/1/sync", role: "admin", want: http.StatusServiceUnavailable},
 		{name: "cashier cannot create central inventory", method: http.MethodPost, path: "/api/v1/catalog-templates/1/inventory", role: "cashier", want: http.StatusForbidden},
 		{name: "admin create menu reaches unavailable handler", method: http.MethodPost, path: "/api/v1/catalog-templates/1/menu-items", role: "admin", want: http.StatusServiceUnavailable},
@@ -104,8 +108,8 @@ func TestCentralTemplateProvisioningAndSyncPreserveBranchPhysicalStock(t *testin
 	seedUser(t, db, 7, "central-template-admin", "admin", seedBranchID, nil)
 
 	var templateID int64
-	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='sbc' AND branch_size='S'`).Scan(&templateID); err != nil {
-		t.Fatalf("read SBC S template: %v", err)
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='central' AND branch_size='ALL'`).Scan(&templateID); err != nil {
+		t.Fatalf("read central catalog: %v", err)
 	}
 	templateInventoryName := fmt.Sprintf("วัตถุดิบแม่แบบทดสอบ-%d", time.Now().UnixNano())
 	var catalogItemID int64
@@ -1349,8 +1353,8 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	franchiseBranchCode := "FR-" + fixtureID
 	branchID := seedBranch(t, db, "FRANCHISE-ADMIN")
 	var franchiseTemplateID int64
-	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='franchise' AND branch_size='S'`).Scan(&franchiseTemplateID); err != nil {
-		t.Fatalf("read franchise S template: %v", err)
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='central' AND branch_size='ALL'`).Scan(&franchiseTemplateID); err != nil {
+		t.Fatalf("read central catalog for franchise: %v", err)
 	}
 	fixtureCatalogNames := []string{"แก้วเครื่องดื่ม-" + fixtureID, "กล่องพัสดุ-" + fixtureID}
 	fixtureCatalogIDs := make([]int64, 0, len(fixtureCatalogNames))

@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -15,6 +14,7 @@ import {
   MenuItem,
   Snackbar,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -24,6 +24,8 @@ import {
   createCatalogTemplateMenuItem,
   getCatalogTemplate,
   getCatalogTemplateImpact,
+  listBranchCatalogSelections,
+  setBranchCatalogSelection,
   listCatalogTemplates,
   retireCatalogTemplateInventoryItem,
   retireCatalogTemplateMenuItem,
@@ -37,15 +39,9 @@ import {
   type CatalogTemplateMenuItem,
   type CatalogTemplateInventoryPatch,
   type CatalogTemplateMenuPatch,
-  type CatalogTemplateScope,
   type CatalogTemplateSize,
   type CatalogTemplateSummary,
 } from '../../api/catalogTemplates';
-
-const scopes: { value: CatalogTemplateScope; label: string }[] = [
-  { value: 'sbc', label: 'สาขา SBC' },
-  { value: 'franchise', label: 'แฟรนไชส์' },
-];
 
 const sizes: CatalogTemplateSize[] = ['S', 'M', 'L'];
 
@@ -68,6 +64,7 @@ type InventoryEditorState = {
     unitCost: string;
     reorderLevel: string;
     trackStock: boolean;
+    availableSizes: CatalogTemplateSize[];
   };
 };
 
@@ -80,6 +77,7 @@ type MenuEditorState = {
     storePrice: string;
     linemanPrice: string;
     status: 'available' | 'soldout';
+    availableSizes: CatalogTemplateSize[];
     recipes: {
       catalogItemId: number;
       channel: 'storefront' | 'lineman';
@@ -98,142 +96,22 @@ const templateCardSx = {
 
 const numberFormatter = new Intl.NumberFormat('th-TH');
 
-function scopeLabel(scope: CatalogTemplateScope) {
-  return scope === 'sbc' ? 'สาขา SBC' : 'แฟรนไชส์';
-}
-
-function sizeDescription(size: CatalogTemplateSize) {
-  if (size === 'S') return 'น้ำและสต๊อก';
-  if (size === 'M') return 'น้ำ อาหาร เบเกอรี่ และสต๊อก';
-  return 'บริการครบรูปแบบ';
-}
-
 function formatCurrency(value: number) {
   return `${numberFormatter.format(value)} บาท`;
 }
 
 function nonNegativeNumber(value: string) {
+  if (!value.trim()) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function TemplateCard({
-  template,
-  selected,
-  onSelect,
-}: {
-  template: CatalogTemplateSummary;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <Card
-      component="button"
-      type="button"
-      variant="outlined"
-      onClick={onSelect}
-      aria-pressed={selected}
-      sx={{
-        ...templateCardSx,
-        width: '100%',
-        p: 0,
-        textAlign: 'left',
-        cursor: 'pointer',
-        bgcolor: selected ? '#f4ece6' : '#fff',
-        borderColor: selected ? '#805637' : '#eadfd7',
-        transition: 'border-color 150ms ease, background-color 150ms ease',
-        '&:hover': {
-          borderColor: '#805637',
-          bgcolor: '#fcf8f5',
-        },
-        '&:focus-visible': {
-          outline: '3px solid rgba(128, 86, 55, 0.25)',
-          outlineOffset: 2,
-        },
-      }}
-    >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Stack direction="row" sx={{ justifyContent: 'space-between', gap: 1 }}>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              sx={{
-                color: '#3c2d24',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 16,
-                fontWeight: 600,
-                lineHeight: 1.4,
-              }}
-            >
-              {template.name}
-            </Typography>
-            <Typography
-              sx={{
-                mt: 0.25,
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 12,
-                lineHeight: 1.5,
-              }}
-            >
-              {template.description ||
-                `${sizeDescription(template.size)} · ${scopeLabel(template.scope)}`}
-            </Typography>
-          </Box>
-          <Chip
-            label={template.size}
-            size="small"
-            sx={{
-              flexShrink: 0,
-              height: 24,
-              bgcolor: selected ? '#805637' : '#ede2da',
-              color: selected ? '#fff' : '#674633',
-              fontFamily: 'Kanit, sans-serif',
-              fontWeight: 600,
-            }}
-          />
-        </Stack>
-        <Stack direction="row" spacing={1.5} sx={{ mt: 1.5 }}>
-          <TemplateMetric label="เมนู" value={template.menuCount} />
-          <TemplateMetric label="คลัง" value={template.inventoryCount} />
-          <TemplateMetric label="สาขา" value={template.branchCount} />
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TemplateMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <Box>
-      <Typography
-        component="div"
-        sx={{
-          color: '#3c2d24',
-          fontFamily: 'Kanit, sans-serif',
-          fontSize: 15,
-          fontWeight: 600,
-          lineHeight: 1.2,
-        }}
-      >
-        {numberFormatter.format(value)}
-      </Typography>
-      <Typography
-        component="div"
-        sx={{
-          color: 'text.secondary',
-          fontFamily: 'Kanit, sans-serif',
-          fontSize: 11,
-          lineHeight: 1.35,
-        }}
-      >
-        {label}
-      </Typography>
-    </Box>
-  );
-}
-
 function TemplateDetail({
   template,
+  size,
+  search,
+  onSearchChange,
+  onSizeChange,
   tab,
   onTabChange,
   onEditInventory,
@@ -243,6 +121,10 @@ function TemplateDetail({
   onAdd,
 }: {
   template: CatalogTemplate;
+  size: CatalogTemplateSize | 'ALL';
+  search: string;
+  onSearchChange: (value: string) => void;
+  onSizeChange: (value: CatalogTemplateSize | 'ALL') => void;
   tab: CatalogTab;
   onTabChange: (tab: CatalogTab) => void;
   onEditInventory: (item: CatalogTemplateInventoryItem) => void;
@@ -251,75 +133,34 @@ function TemplateDetail({
   onRetireMenu: (item: CatalogTemplateMenuItem) => void;
   onAdd: () => void;
 }) {
-  const items = tab === 'menu' ? template.menuItems : template.inventoryItems;
+  const [requestedPage, setRequestedPage] = useState(0);
+  const normalizedSearch = search.trim().toLocaleLowerCase('th-TH');
+  const matches = (item: {
+    name: string;
+    category: string;
+    availableSizes: CatalogTemplateSize[];
+  }) =>
+    (size === 'ALL' || item.availableSizes.includes(size)) &&
+    `${item.name} ${item.category}`
+      .toLocaleLowerCase('th-TH')
+      .includes(normalizedSearch);
+  const visibleMenus = template.menuItems.filter(matches);
+  const visibleInventory = template.inventoryItems.filter(matches);
+  const items = tab === 'menu' ? visibleMenus : visibleInventory;
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const page = Math.min(requestedPage, pageCount - 1);
+  const pageStart = page * pageSize;
   return (
     <Card variant="outlined" sx={templateCardSx}>
-      <CardContent
-        sx={{
-          p: { xs: 2, sm: 2.5 },
-          '&:last-child': { pb: { xs: 2, sm: 2.5 } },
-        }}
-      >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          sx={{
-            justifyContent: 'space-between',
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            gap: 1.25,
-          }}
-        >
-          <Box>
-            <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
-              <Typography
-                component="h2"
-                sx={{
-                  color: '#3c2d24',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 18,
-                  fontWeight: 600,
-                  lineHeight: 1.35,
-                }}
-              >
-                {template.name}
-              </Typography>
-              <Chip
-                label={`${scopeLabel(template.scope)} · ${template.size}`}
-                size="small"
-                sx={{
-                  bgcolor: '#f1e7df',
-                  color: '#674633',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 11,
-                }}
-              />
-            </Stack>
-            <Typography
-              sx={{
-                mt: 0.35,
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 13,
-                lineHeight: 1.5,
-              }}
-            >
-              {template.description ||
-                `แม่แบบ ${sizeDescription(template.size)} สำหรับ${scopeLabel(template.scope)}`}
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1}>
-            <TemplateMetric label="เมนู" value={template.menuCount} />
-            <TemplateMetric label="คลัง" value={template.inventoryCount} />
-          </Stack>
-        </Stack>
-
+      <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         <Box
           role="tablist"
-          aria-label="ประเภทข้อมูลในแม่แบบ"
+          aria-label="ประเภทข้อมูลกลาง"
           sx={{
             display: 'flex',
-            gap: 0.75,
-            mt: 2.25,
-            pb: 1.5,
+            gap: 0,
+            px: 2,
             borderBottom: '1px solid #eee3dc',
           }}
         >
@@ -328,22 +169,102 @@ function TemplateDetail({
               key={item.value}
               role="tab"
               aria-selected={tab === item.value}
-              onClick={() => onTabChange(item.value)}
+              onClick={() => {
+                setRequestedPage(0);
+                onTabChange(item.value);
+              }}
               size="small"
-              variant={tab === item.value ? 'contained' : 'outlined'}
-              sx={tabButtonSx(tab === item.value)}
+              variant="text"
+              sx={{
+                minHeight: 48,
+                borderRadius: 0,
+                borderBottom:
+                  tab === item.value
+                    ? '3px solid #805637'
+                    : '3px solid transparent',
+                color: tab === item.value ? '#674633' : '#6c625c',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 13,
+              }}
             >
               {item.label}
             </Button>
           ))}
-          <Button
+        </Box>
+
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          sx={{ p: 2, gap: 1, alignItems: { md: 'center' } }}
+        >
+          <TextField
             size="small"
-            variant="outlined"
+            label="ค้นหารายการกลาง"
+            value={search}
+            onChange={(event) => {
+              setRequestedPage(0);
+              onSearchChange(event.target.value);
+            }}
+            sx={{ flex: 1, minWidth: 180 }}
+          />
+          <Stack direction="row" spacing={0.5} aria-label="กรองขนาดสาขา">
+            {(['ALL', ...sizes] as const).map((item) => (
+              <Button
+                key={item}
+                size="small"
+                onClick={() => {
+                  setRequestedPage(0);
+                  onSizeChange(item);
+                }}
+                variant={size === item ? 'contained' : 'outlined'}
+                aria-pressed={size === item}
+                sx={{ ...tabButtonSx(size === item), minWidth: 38 }}
+              >
+                {item === 'ALL' ? 'ทั้งหมด' : item}
+              </Button>
+            ))}
+          </Stack>
+          <Button
+            variant="contained"
             onClick={onAdd}
-            sx={{ ...editButtonSx, ml: 'auto' }}
+            sx={{ ...tabButtonSx(true), minHeight: 38, whiteSpace: 'nowrap' }}
           >
-            เพิ่ม{tab === 'menu' ? 'เมนู' : 'รายการคลัง'}
+            + เพิ่ม{tab === 'menu' ? 'เมนู' : 'รายการคลัง'}
           </Button>
+        </Stack>
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'minmax(0,1fr) auto',
+              md: 'minmax(0,2fr) minmax(80px,1fr) 84px minmax(100px,1fr) auto',
+            },
+            gap: 1,
+            px: 2,
+            py: 1,
+            bgcolor: '#faf8f6',
+            borderBlock: '1px solid #eee3dc',
+          }}
+        >
+          <Typography sx={itemMetaSx}>
+            ชื่อรายการ · {numberFormatter.format(items.length)} รายการ
+          </Typography>
+          <Typography
+            sx={{ ...itemMetaSx, display: { xs: 'none', md: 'block' } }}
+          >
+            หมวดหมู่
+          </Typography>
+          <Typography
+            sx={{ ...itemMetaSx, display: { xs: 'none', md: 'block' } }}
+          >
+            ขนาดที่ใช้
+          </Typography>
+          <Typography
+            sx={{ ...itemMetaSx, display: { xs: 'none', md: 'block' } }}
+          >
+            {tab === 'menu' ? 'ราคา' : 'ต้นทุน'}
+          </Typography>
+          <Typography sx={itemMetaSx}>จัดการ</Typography>
         </Box>
 
         {items.length === 0 ? (
@@ -357,47 +278,67 @@ function TemplateDetail({
             }}
           >
             ยังไม่มี{tab === 'menu' ? 'เมนูและสินค้า' : 'วัตถุดิบหรืออุปกรณ์'}
-            ในแม่แบบนี้
+            ที่ตรงกับตัวกรอง ลองเปลี่ยนคำค้นหรือขนาดสาขา
           </Typography>
         ) : (
           <Box
             role="tabpanel"
             sx={{
-              mt: 1.5,
               display: 'grid',
-              gap: 0.75,
-              maxHeight: 430,
-              overflowY: 'auto',
-              contentVisibility: 'auto',
+              overflow: 'hidden',
             }}
           >
             {tab === 'menu'
-              ? template.menuItems.map((item) => (
-                  <Box
-                    key={item.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1.5,
-                      p: 1.25,
-                      border: '1px solid #f0e7e1',
-                      borderRadius: 2,
-                      bgcolor: '#fffdfc',
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={itemTitleSx}>{item.name}</Typography>
-                      <Typography sx={itemMetaSx}>
-                        {item.category} · สูตร {item.recipes.length} รายการ
-                      </Typography>
-                    </Box>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ alignItems: 'center', flexShrink: 0 }}
+              ? visibleMenus
+                  .slice(pageStart, pageStart + pageSize)
+                  .map((item) => (
+                    <Box
+                      key={item.id}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: 'minmax(0,1fr) auto',
+                          md: 'minmax(0,2fr) minmax(80px,1fr) 84px minmax(100px,1fr) auto',
+                        },
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 2,
+                        py: 1.25,
+                        borderBottom: '1px solid #f0e7e1',
+                      }}
                     >
-                      <Box sx={{ textAlign: 'right' }}>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={itemTitleSx}>{item.name}</Typography>
+                        <Typography sx={itemMetaSx}>
+                          สูตร {item.recipes.length} รายการ
+                        </Typography>
+                        <Typography
+                          sx={{
+                            ...itemMetaSx,
+                            display: { xs: 'block', md: 'none' },
+                          }}
+                        >
+                          {item.category} · {item.availableSizes.join(' / ')} ·{' '}
+                          {formatCurrency(item.storePrice)}
+                        </Typography>
+                      </Box>
+                      <Typography
+                        sx={{
+                          ...itemMetaSx,
+                          display: { xs: 'none', md: 'block' },
+                        }}
+                      >
+                        {item.category}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          ...itemMetaSx,
+                          display: { xs: 'none', md: 'block' },
+                        }}
+                      >
+                        {item.availableSizes.join(' / ')}
+                      </Typography>
+                      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
                         <Typography sx={itemTitleSx}>
                           {formatCurrency(item.storePrice)}
                         </Typography>
@@ -405,82 +346,159 @@ function TemplateDetail({
                           LINE MAN {formatCurrency(item.linemanPrice)}
                         </Typography>
                       </Box>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => onEditMenu(item)}
-                        sx={editButtonSx}
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ alignItems: 'center', flexShrink: 0 }}
                       >
-                        แก้ไข
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={() => onRetireMenu(item)}
-                        sx={editButtonSx}
-                      >
-                        นำออก
-                      </Button>
-                    </Stack>
-                  </Box>
-                ))
-              : template.inventoryItems.map((item) => (
-                  <Box
-                    key={item.id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 1.5,
-                      p: 1.25,
-                      border: '1px solid #f0e7e1',
-                      borderRadius: 2,
-                      bgcolor: '#fffdfc',
-                    }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography sx={itemTitleSx}>{item.name}</Typography>
-                      <Typography sx={itemMetaSx}>
-                        {item.category}
-                        {item.stockCategory ? ` · ${item.stockCategory}` : ''}
-                      </Typography>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onEditMenu(item)}
+                          sx={editButtonSx}
+                        >
+                          แก้ไข
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => onRetireMenu(item)}
+                          sx={editButtonSx}
+                        >
+                          นำออก
+                        </Button>
+                      </Stack>
                     </Box>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      sx={{ alignItems: 'center', flexShrink: 0 }}
+                  ))
+              : visibleInventory
+                  .slice(pageStart, pageStart + pageSize)
+                  .map((item) => (
+                    <Box
+                      key={item.id}
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: 'minmax(0,1fr) auto',
+                          md: 'minmax(0,2fr) minmax(80px,1fr) 84px minmax(100px,1fr) auto',
+                        },
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 2,
+                        py: 1.25,
+                        borderBottom: '1px solid #f0e7e1',
+                      }}
                     >
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography sx={itemTitleSx}>
-                          {formatCurrency(item.unitCost)}/{item.unit}
-                        </Typography>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={itemTitleSx}>{item.name}</Typography>
                         <Typography sx={itemMetaSx}>
                           {item.trackStock === false
                             ? 'คิดต้นทุนเท่านั้น'
                             : 'ติดตามสต๊อก'}
                         </Typography>
+                        <Typography
+                          sx={{
+                            ...itemMetaSx,
+                            display: { xs: 'block', md: 'none' },
+                          }}
+                        >
+                          {item.category} · {item.availableSizes.join(' / ')} ·{' '}
+                          {formatCurrency(item.unitCost)}/{item.unit}
+                        </Typography>
                       </Box>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => onEditInventory(item)}
-                        sx={editButtonSx}
+                      <Typography
+                        sx={{
+                          ...itemMetaSx,
+                          display: { xs: 'none', md: 'block' },
+                        }}
                       >
-                        แก้ไข
-                      </Button>
-                      <Button
-                        size="small"
-                        color="error"
-                        onClick={() => onRetireInventory(item)}
-                        sx={editButtonSx}
+                        {item.category}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          ...itemMetaSx,
+                          display: { xs: 'none', md: 'block' },
+                        }}
                       >
-                        นำออก
-                      </Button>
-                    </Stack>
-                  </Box>
-                ))}
+                        {item.availableSizes.join(' / ')}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          ...itemTitleSx,
+                          display: { xs: 'none', md: 'block' },
+                        }}
+                      >
+                        {formatCurrency(item.unitCost)}/{item.unit}
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ alignItems: 'center', flexShrink: 0 }}
+                      >
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onEditInventory(item)}
+                          sx={editButtonSx}
+                        >
+                          แก้ไข
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          onClick={() => onRetireInventory(item)}
+                          sx={editButtonSx}
+                        >
+                          นำออก
+                        </Button>
+                      </Stack>
+                    </Box>
+                  ))}
           </Box>
         )}
+        <Stack
+          direction="row"
+          sx={{
+            px: 2,
+            py: 1.5,
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          <Typography sx={itemMetaSx}>
+            {items.length === 0
+              ? '0 รายการ'
+              : `แสดง ${numberFormatter.format(pageStart + 1)}–${numberFormatter.format(Math.min(pageStart + pageSize, items.length))} จาก ${numberFormatter.format(items.length)} รายการ`}
+          </Typography>
+          <Stack direction="row" spacing={0.5}>
+            <Button
+              size="small"
+              disabled={page === 0}
+              onClick={() => setRequestedPage(page - 1)}
+              sx={editButtonSx}
+            >
+              ก่อนหน้า
+            </Button>
+            <Typography
+              sx={{
+                ...itemMetaSx,
+                alignSelf: 'center',
+                minWidth: 35,
+                textAlign: 'center',
+              }}
+            >
+              {page + 1}/{pageCount}
+            </Typography>
+            <Button
+              size="small"
+              disabled={page + 1 >= pageCount}
+              onClick={() => setRequestedPage(page + 1)}
+              sx={editButtonSx}
+            >
+              ถัดไป
+            </Button>
+          </Stack>
+        </Stack>
       </CardContent>
     </Card>
   );
@@ -537,8 +555,8 @@ function tabButtonSx(selected: boolean) {
 }
 
 export function AdminCentralCatalogPage() {
-  const [scope, setScope] = useState<CatalogTemplateScope>('sbc');
-  const [size, setSize] = useState<CatalogTemplateSize>('S');
+  const [size, setSize] = useState<CatalogTemplateSize | 'ALL'>('ALL');
+  const [search, setSearch] = useState('');
   const [templates, setTemplates] = useState<CatalogTemplateSummary[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     null,
@@ -558,6 +576,13 @@ export function AdminCentralCatalogPage() {
   const [editor, setEditor] = useState<TemplateEditorState | null>(null);
   const [isSavingEditor, setIsSavingEditor] = useState(false);
   const [editorError, setEditorError] = useState('');
+  const [branchId, setBranchId] = useState<number | null>(null);
+  const [branchSearch, setBranchSearch] = useState('');
+  const [branchSelections, setBranchSelections] = useState<Set<string>>(
+    new Set(),
+  );
+  const [selectionError, setSelectionError] = useState('');
+  const [isSavingSelection, setIsSavingSelection] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -565,7 +590,7 @@ export function AdminCentralCatalogPage() {
     setLoadError('');
     setImpact(null);
     setImpactError('');
-    void listCatalogTemplates(scope, size)
+    void listCatalogTemplates()
       .then((items) => {
         if (!active) return;
         setTemplates(items);
@@ -580,7 +605,7 @@ export function AdminCentralCatalogPage() {
         setTemplates([]);
         setSelectedTemplateId(null);
         setLoadError(
-          error instanceof Error ? error.message : 'ไม่สามารถโหลดแม่แบบกลางได้',
+          error instanceof Error ? error.message : 'ไม่สามารถโหลดข้อมูลกลางได้',
         );
       })
       .finally(() => {
@@ -589,7 +614,35 @@ export function AdminCentralCatalogPage() {
     return () => {
       active = false;
     };
-  }, [reloadKey, scope, size]);
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (branchId === null) return;
+    let active = true;
+    setSelectionError('');
+    void listBranchCatalogSelections(branchId)
+      .then((items) => {
+        if (active)
+          setBranchSelections(
+            new Set(
+              items
+                .filter((item) => !item.enabled)
+                .map((item) => `${item.entityType}:${item.sourceKey}`),
+            ),
+          );
+      })
+      .catch((error: unknown) => {
+        if (active)
+          setSelectionError(
+            error instanceof Error
+              ? error.message
+              : 'โหลดรายการของสาขาไม่สำเร็จ',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [branchId, reloadKey]);
 
   useEffect(() => {
     if (selectedTemplateId === null) {
@@ -608,7 +661,7 @@ export function AdminCentralCatalogPage() {
         setLoadError(
           error instanceof Error
             ? error.message
-            : 'ไม่สามารถโหลดรายละเอียดแม่แบบได้',
+            : 'ไม่สามารถโหลดรายละเอียดข้อมูลกลางได้',
         );
       })
       .finally(() => {
@@ -636,12 +689,27 @@ export function AdminCentralCatalogPage() {
       setImpactError(
         error instanceof Error
           ? error.message
-          : 'ไม่สามารถคำนวณผลกระทบของแม่แบบได้',
+          : 'ไม่สามารถคำนวณผลกระทบของข้อมูลกลางได้',
       );
     } finally {
       setIsLoadingImpact(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedTemplateId === null) return;
+    let active = true;
+    void getCatalogTemplateImpact(selectedTemplateId)
+      .then((result) => {
+        if (active) setImpact(result);
+      })
+      .catch(() => {
+        /* The explicit preview action shows fetch errors. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTemplateId, reloadKey]);
 
   const openSyncDialog = () => {
     if (impact) {
@@ -658,7 +726,7 @@ export function AdminCentralCatalogPage() {
       const result = await syncCatalogTemplate(selectedTemplateId);
       setIsImpactDialogOpen(false);
       setNotice(
-        `อัปเดตแม่แบบไปยัง ${numberFormatter.format(result.syncedBranches)} สาขาแล้ว`,
+        `อัปเดตข้อมูลกลางไปยัง ${numberFormatter.format(result.syncedBranches)} สาขาแล้ว`,
       );
       setReloadKey((current) => current + 1);
     } catch (error) {
@@ -686,6 +754,7 @@ export function AdminCentralCatalogPage() {
         unitCost: String(item.unitCost),
         reorderLevel: String(item.reorderLevel),
         trackStock: item.trackStock !== false,
+        availableSizes: item.availableSizes,
       },
     });
   };
@@ -701,6 +770,7 @@ export function AdminCentralCatalogPage() {
         storePrice: String(item.storePrice),
         linemanPrice: String(item.linemanPrice),
         status: item.status ?? 'available',
+        availableSizes: item.availableSizes,
         recipes: item.recipes.map((recipe) => ({
           catalogItemId: recipe.catalogItemId,
           channel: recipe.channel,
@@ -724,6 +794,7 @@ export function AdminCentralCatalogPage() {
           unitCost: 0,
           reorderLevel: 0,
           trackStock: true,
+          availableSizes: size === 'ALL' ? [...sizes] : [size],
         },
         draft: {
           name: '',
@@ -734,6 +805,7 @@ export function AdminCentralCatalogPage() {
           unitCost: '0',
           reorderLevel: '0',
           trackStock: true,
+          availableSizes: size === 'ALL' ? [...sizes] : [size],
         },
       });
       return;
@@ -748,6 +820,7 @@ export function AdminCentralCatalogPage() {
         linemanPrice: 0,
         status: 'available',
         recipes: [],
+        availableSizes: size === 'ALL' ? [...sizes] : [size],
       },
       draft: {
         name: '',
@@ -756,6 +829,7 @@ export function AdminCentralCatalogPage() {
         linemanPrice: '0',
         status: 'available',
         recipes: [],
+        availableSizes: size === 'ALL' ? [...sizes] : [size],
       },
     });
   };
@@ -766,6 +840,7 @@ export function AdminCentralCatalogPage() {
     if (
       !editor.draft.name.trim() ||
       !editor.draft.category.trim() ||
+      editor.draft.availableSizes.length === 0 ||
       (editor.type === 'inventory' && !editor.draft.unit.trim())
     ) {
       setEditorError('กรุณากรอกข้อมูลที่จำเป็นให้ครบ');
@@ -807,6 +882,7 @@ export function AdminCentralCatalogPage() {
           unitCost: unitCost!,
           reorderLevel: reorderLevel!,
           trackStock: editor.draft.trackStock,
+          availableSizes: editor.draft.availableSizes,
         };
         if (editor.item.id === 0) {
           await createCatalogTemplateInventoryItem(template.id, {
@@ -842,6 +918,7 @@ export function AdminCentralCatalogPage() {
           storePrice: storePrice!,
           linemanPrice: linemanPrice!,
           status: editor.draft.status,
+          availableSizes: editor.draft.availableSizes,
         };
         const saved =
           editor.item.id === 0
@@ -861,11 +938,11 @@ export function AdminCentralCatalogPage() {
       setEditor(null);
       setImpact(null);
       setImpactError('');
-      setNotice('บันทึกแม่แบบกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา');
+      setNotice('บันทึกข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา');
       setReloadKey((current) => current + 1);
     } catch (error) {
       setEditorError(
-        error instanceof Error ? error.message : 'ไม่สามารถบันทึกแม่แบบกลางได้',
+        error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูลกลางได้',
       );
     } finally {
       setIsSavingEditor(false);
@@ -878,7 +955,7 @@ export function AdminCentralCatalogPage() {
   ) => {
     if (!template) return;
     const confirmed = window.confirm(
-      `นำ “${item.name}” ออกจากแม่แบบนี้ใช่ไหม? ข้อมูลและประวัติของสาขาจะไม่ถูกลบ และจะมีผลหลังซิงก์`,
+      `นำ “${item.name}” ออกจากข้อมูลกลางใช่ไหม? ข้อมูลและประวัติของสาขาจะไม่ถูกลบ และจะมีผลหลังซิงก์`,
     );
     if (!confirmed) return;
     try {
@@ -890,13 +967,13 @@ export function AdminCentralCatalogPage() {
       const refreshedTemplate = await getCatalogTemplate(template.id);
       setTemplate(refreshedTemplate);
       setImpact(null);
-      setNotice('นำรายการออกจากแม่แบบแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา');
+      setNotice('นำรายการออกจากข้อมูลกลางแล้ว ตรวจผลกระทบก่อนซิงก์ไปยังสาขา');
       setReloadKey((current) => current + 1);
     } catch (error) {
       setLoadError(
         error instanceof Error
           ? error.message
-          : 'ไม่สามารถนำรายการออกจากแม่แบบได้',
+          : 'ไม่สามารถนำรายการออกจากข้อมูลกลางได้',
       );
     }
   };
@@ -905,49 +982,8 @@ export function AdminCentralCatalogPage() {
     <DashboardMain>
       <PageIntro
         title="สินค้าและคลังกลาง"
-        description="จัดการแม่แบบเมนู สินค้า วัตถุดิบ และอุปกรณ์ตามประเภทสาขาและขนาด S / M / L"
+        description="ข้อมูลเมนู สินค้า วัตถุดิบ และอุปกรณ์ชุดเดียวสำหรับทุกสาขา เลือกขนาด S / M / L ที่ใช้แต่ละรายการ"
       />
-
-      <Card variant="outlined" sx={{ ...templateCardSx, mb: 2.5 }}>
-        <CardContent
-          sx={{
-            p: { xs: 1.5, sm: 2 },
-            '&:last-child': { pb: { xs: 1.5, sm: 2 } },
-          }}
-        >
-          <Typography sx={controlLabelSx}>ขอบเขตแม่แบบ</Typography>
-          <Stack
-            direction="row"
-            spacing={0.75}
-            sx={{ flexWrap: 'wrap', gap: 0.75 }}
-          >
-            {scopes.map((item) => (
-              <Button
-                key={item.value}
-                onClick={() => setScope(item.value)}
-                variant={scope === item.value ? 'contained' : 'outlined'}
-                sx={tabButtonSx(scope === item.value)}
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Stack>
-          <Divider sx={{ my: 1.5, borderColor: '#eee3dc' }} />
-          <Typography sx={controlLabelSx}>ขนาดสาขา</Typography>
-          <Stack direction="row" spacing={0.75}>
-            {sizes.map((item) => (
-              <Button
-                key={item}
-                onClick={() => setSize(item)}
-                variant={size === item ? 'contained' : 'outlined'}
-                sx={{ ...tabButtonSx(size === item), minWidth: 48 }}
-              >
-                {item}
-              </Button>
-            ))}
-          </Stack>
-        </CardContent>
-      </Card>
 
       {loadError ? (
         <Alert
@@ -968,78 +1004,37 @@ export function AdminCentralCatalogPage() {
         </Alert>
       ) : null}
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            lg: 'minmax(270px, 0.75fr) minmax(0, 1.6fr)',
-          },
-          gap: 2.5,
-          alignItems: 'start',
-        }}
-      >
-        <Box>
-          <Stack
-            direction="row"
+      <Box>
+        {isLoadingTemplates || isLoadingTemplate ? (
+          <Card variant="outlined" sx={templateCardSx}>
+            <CardContent sx={{ py: 10, textAlign: 'center' }}>
+              <CircularProgress size={26} sx={{ color: '#805637' }} />
+            </CardContent>
+          </Card>
+        ) : template ? (
+          <Box
             sx={{
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 1.25,
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'minmax(0,1fr)',
+                lg: 'minmax(0,1.9fr) minmax(300px,.85fr)',
+              },
+              gap: 2,
+              alignItems: 'start',
             }}
           >
-            <Typography component="h2" sx={sectionTitleSx}>
-              แม่แบบ {scopeLabel(scope)} · {size}
-            </Typography>
-            <Typography sx={sectionMetaSx}>
-              {isLoadingTemplates
-                ? 'กำลังโหลด'
-                : `${numberFormatter.format(templates.length)} รายการ`}
-            </Typography>
-          </Stack>
-          {isLoadingTemplates ? (
-            <Card variant="outlined" sx={templateCardSx}>
-              <CardContent sx={{ py: 5, textAlign: 'center' }}>
-                <CircularProgress size={24} sx={{ color: '#805637' }} />
-              </CardContent>
-            </Card>
-          ) : templates.length === 0 ? (
-            <Card variant="outlined" sx={templateCardSx}>
-              <CardContent sx={{ py: 4, textAlign: 'center' }}>
-                <Typography sx={{ ...sectionMetaSx, fontSize: 13 }}>
-                  ยังไม่มีแม่แบบกลางในขอบเขตนี้
-                </Typography>
-              </CardContent>
-            </Card>
-          ) : (
-            <Stack spacing={1.25}>
-              {templates.map((item) => (
-                <TemplateCard
-                  key={item.id}
-                  template={item}
-                  selected={item.id === selectedTemplateId}
-                  onSelect={() => {
-                    setSelectedTemplateId(item.id);
-                    setImpact(null);
-                    setImpactError('');
-                  }}
-                />
-              ))}
-            </Stack>
-          )}
-        </Box>
-
-        <Box>
-          {isLoadingTemplate ? (
-            <Card variant="outlined" sx={templateCardSx}>
-              <CardContent sx={{ py: 10, textAlign: 'center' }}>
-                <CircularProgress size={26} sx={{ color: '#805637' }} />
-              </CardContent>
-            </Card>
-          ) : template ? (
-            <>
+            <Box
+              sx={{
+                minWidth: 0,
+                gridColumn: { lg: 1 },
+              }}
+            >
               <TemplateDetail
                 template={template}
+                size={size}
+                search={search}
+                onSearchChange={setSearch}
+                onSizeChange={setSize}
                 tab={activeTab}
                 onTabChange={setActiveTab}
                 onEditInventory={openInventoryEditor}
@@ -1048,7 +1043,25 @@ export function AdminCentralCatalogPage() {
                 onRetireMenu={(item) => void retireItem('menu', item)}
                 onAdd={openCreateEditor}
               />
-              <Card variant="outlined" sx={{ ...templateCardSx, mt: 2 }}>
+            </Box>
+            <Box
+              sx={{
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                gridColumn: { lg: 2 },
+                position: { lg: 'sticky' },
+                top: { lg: 16 },
+              }}
+            >
+              <Card
+                variant="outlined"
+                sx={{
+                  ...templateCardSx,
+                  order: 2,
+                }}
+              >
                 <CardContent
                   sx={{
                     p: { xs: 2, sm: 2.5 },
@@ -1056,10 +1069,9 @@ export function AdminCentralCatalogPage() {
                   }}
                 >
                   <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
+                    direction="column"
                     sx={{
-                      alignItems: { xs: 'flex-start', sm: 'center' },
-                      justifyContent: 'space-between',
+                      alignItems: 'stretch',
                       gap: 1.5,
                     }}
                   >
@@ -1070,11 +1082,15 @@ export function AdminCentralCatalogPage() {
                       <Typography
                         sx={{ ...sectionMetaSx, mt: 0.25, fontSize: 13 }}
                       >
-                        อัปเดตเมนู สูตร ราคา และข้อมูลคลังจากแม่แบบ
-                        โดยไม่ทับยอดจริง ล็อต หรือประวัติของสาขา
+                        อัปเดตข้อมูลกลางไปยังสาขาโดยไม่ทับยอดจริง ล็อต
+                        หรือประวัติ
                       </Typography>
                     </Box>
-                    <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ flexWrap: 'wrap', gap: 1 }}
+                    >
                       <Button
                         variant="outlined"
                         onClick={() => void previewImpact(false)}
@@ -1110,8 +1126,9 @@ export function AdminCentralCatalogPage() {
                           fontSize: 12,
                         }}
                       >
-                        แม่แบบนี้จะกระทบ {numberFormatter.format(impact.count)}{' '}
-                        สาขา · เลือก “ซิงก์ไปยังสาขา” เพื่อยืนยัน
+                        การเปลี่ยนแปลงนี้จะกระทบ{' '}
+                        {numberFormatter.format(impact.count)} สาขา · เลือก
+                        “ซิงก์ไปยังสาขา” เพื่อยืนยัน
                       </Typography>
                     </Box>
                   ) : null}
@@ -1125,19 +1142,178 @@ export function AdminCentralCatalogPage() {
                   ) : null}
                 </CardContent>
               </Card>
-            </>
-          ) : (
-            <Card variant="outlined" sx={templateCardSx}>
-              <CardContent sx={{ py: 10, textAlign: 'center' }}>
-                <Typography sx={{ ...sectionMetaSx, fontSize: 13 }}>
-                  {selectedSummary
-                    ? 'ไม่สามารถโหลดรายละเอียดแม่แบบนี้ได้'
-                    : 'เลือกแม่แบบเพื่อดูเมนูและรายการคลัง'}
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
-        </Box>
+              <Card
+                variant="outlined"
+                sx={{
+                  ...templateCardSx,
+                  order: 1,
+                }}
+              >
+                <CardContent>
+                  <Typography component="h2" sx={sectionTitleSx}>
+                    รายการที่ใช้รายสาขา
+                  </Typography>
+                  <Typography sx={sectionMetaSx}>
+                    สาขา SBC และแฟรนไชส์เลือกใช้รายการจากข้อมูลกลางชุดเดียวกัน
+                    โดยไม่เปลี่ยนยอดสต๊อกจริง
+                  </Typography>
+                  <TextField
+                    select
+                    fullWidth
+                    size="small"
+                    label="สาขา"
+                    value={branchId ?? ''}
+                    onClick={() => {
+                      if (!impact) void previewImpact(false);
+                    }}
+                    onChange={(event) =>
+                      setBranchId(Number(event.target.value))
+                    }
+                    sx={{ mt: 2 }}
+                  >
+                    {(impact?.branches ?? []).map((branch) => (
+                      <MenuItem key={branch.id} value={branch.id}>
+                        {branch.name} · {branch.code} · {branch.size}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  {branchId !== null && (
+                    <TextField
+                      size="small"
+                      fullWidth
+                      label="ค้นหารายการในสาขา"
+                      value={branchSearch}
+                      onChange={(event) => setBranchSearch(event.target.value)}
+                      sx={{ mt: 1.25 }}
+                    />
+                  )}
+                  {selectionError && (
+                    <Alert severity="error" sx={{ mt: 1 }}>
+                      {selectionError}
+                    </Alert>
+                  )}
+                  {branchId !== null && template && (
+                    <Stack
+                      spacing={0.75}
+                      sx={{ mt: 1.5, maxHeight: 260, overflowY: 'auto' }}
+                    >
+                      {(activeTab === 'menu'
+                        ? template.menuItems
+                        : template.inventoryItems
+                      )
+                        .filter((item) => {
+                          const branchSize = impact?.branches.find(
+                            (branch) => branch.id === branchId,
+                          )?.size;
+                          return (
+                            branchSize &&
+                            item.availableSizes.includes(branchSize) &&
+                            item.name
+                              .toLocaleLowerCase('th-TH')
+                              .includes(
+                                branchSearch.trim().toLocaleLowerCase('th-TH'),
+                              )
+                          );
+                        })
+                        .map((item) => {
+                          const entityType =
+                            activeTab === 'menu' ? 'menu' : 'inventory';
+                          const enabled = !branchSelections.has(
+                            `${entityType}:${item.id}`,
+                          );
+                          return (
+                            <Stack
+                              key={item.id}
+                              direction="row"
+                              sx={{
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: 1,
+                                py: 0.5,
+                                borderBottom: '1px solid #eee3dc',
+                              }}
+                            >
+                              <Typography
+                                sx={{
+                                  fontFamily: 'Kanit, sans-serif',
+                                  fontSize: 13,
+                                }}
+                              >
+                                {item.name}
+                              </Typography>
+                              <Switch
+                                size="small"
+                                checked={enabled}
+                                disabled={isSavingSelection}
+                                slotProps={{
+                                  input: {
+                                    'aria-label': `${item.name} สำหรับสาขา`,
+                                  },
+                                }}
+                                onClick={async () => {
+                                  setIsSavingSelection(true);
+                                  setSelectionError('');
+                                  try {
+                                    await setBranchCatalogSelection(
+                                      branchId,
+                                      entityType,
+                                      item.id,
+                                      !enabled,
+                                    );
+                                    const next =
+                                      await listBranchCatalogSelections(
+                                        branchId,
+                                      );
+                                    setBranchSelections(
+                                      new Set(
+                                        next
+                                          .filter(
+                                            (selection) => !selection.enabled,
+                                          )
+                                          .map(
+                                            (selection) =>
+                                              `${selection.entityType}:${selection.sourceKey}`,
+                                          ),
+                                      ),
+                                    );
+                                  } catch (error) {
+                                    setSelectionError(
+                                      error instanceof Error
+                                        ? error.message
+                                        : 'บันทึกรายการสาขาไม่สำเร็จ',
+                                    );
+                                  } finally {
+                                    setIsSavingSelection(false);
+                                  }
+                                }}
+                                sx={{
+                                  '& .MuiSwitch-switchBase.Mui-checked': {
+                                    color: '#805637',
+                                  },
+                                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':
+                                    { bgcolor: '#805637' },
+                                }}
+                              />
+                            </Stack>
+                          );
+                        })}
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+            </Box>
+          </Box>
+        ) : (
+          <Card variant="outlined" sx={templateCardSx}>
+            <CardContent sx={{ py: 10, textAlign: 'center' }}>
+              <Typography sx={{ ...sectionMetaSx, fontSize: 13 }}>
+                {selectedSummary
+                  ? 'ไม่สามารถโหลดรายละเอียดข้อมูลกลางได้'
+                  : 'ไม่พบข้อมูลกลาง'}
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
       </Box>
 
       <Dialog
@@ -1188,6 +1364,49 @@ export function AdminCentralCatalogPage() {
                   })
                 }
               />
+              <Box sx={{ mb: 2 }}>
+                <Typography sx={controlLabelSx}>ใช้กับขนาดสาขา</Typography>
+                <Stack direction="row" spacing={0.75}>
+                  {sizes.map((item) => (
+                    <Button
+                      key={item}
+                      size="small"
+                      variant={
+                        editor.draft.availableSizes.includes(item)
+                          ? 'contained'
+                          : 'outlined'
+                      }
+                      aria-pressed={editor.draft.availableSizes.includes(item)}
+                      onClick={() =>
+                        setEditor((current) => {
+                          if (!current) return current;
+                          const next = current.draft.availableSizes.includes(
+                            item,
+                          )
+                            ? current.draft.availableSizes.filter(
+                                (value) => value !== item,
+                              )
+                            : sizes.filter(
+                                (value) =>
+                                  current.draft.availableSizes.includes(
+                                    value,
+                                  ) || value === item,
+                              );
+                          return {
+                            ...current,
+                            draft: { ...current.draft, availableSizes: next },
+                          } as TemplateEditorState;
+                        })
+                      }
+                      sx={tabButtonSx(
+                        editor.draft.availableSizes.includes(item),
+                      )}
+                    >
+                      {item}
+                    </Button>
+                  ))}
+                </Stack>
+              </Box>
               {editor.type === 'inventory' ? (
                 <Stack spacing={1.5}>
                   <TextField
@@ -1619,7 +1838,7 @@ export function AdminCentralCatalogPage() {
             disabled={!editor || isSavingEditor}
             sx={tabButtonSx(true)}
           >
-            {isSavingEditor ? 'กำลังบันทึก' : 'บันทึกแม่แบบ'}
+            {isSavingEditor ? 'กำลังบันทึก' : 'บันทึกข้อมูลกลาง'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1639,7 +1858,7 @@ export function AdminCentralCatalogPage() {
             fontWeight: 600,
           }}
         >
-          ยืนยันการซิงก์แม่แบบ
+          ยืนยันการซิงก์ข้อมูลกลาง
         </DialogTitle>
         <DialogContent dividers sx={{ borderColor: '#eee3dc' }}>
           {impact ? (
@@ -1695,7 +1914,7 @@ export function AdminCentralCatalogPage() {
                   severity="info"
                   sx={{ mt: 2, fontFamily: 'Kanit, sans-serif' }}
                 >
-                  ยังไม่มีสาขาที่ใช้แม่แบบนี้
+                  ยังไม่มีสาขาที่ใช้ข้อมูลกลาง
                 </Alert>
               ) : null}
             </>

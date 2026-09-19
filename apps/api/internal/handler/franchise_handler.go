@@ -60,21 +60,17 @@ type companyBranchInput struct {
 	Size string `json:"size" binding:"required,oneof=S M L"`
 }
 
-// copyCompanyCatalog provisions an SBC branch from its explicit central
-// template. It does not clone a real branch, preventing balances, lots and
-// expiry data from being inherited from another location.
+// Both ownership types select from the same central catalog by branch size.
 func copyCompanyCatalog(c context.Context, tx *sql.Tx, branchID int64, size string) error {
-	templateID, err := assignBranchCatalogTemplateTx(c, tx, branchID, "sbc", size)
+	templateID, err := assignBranchCatalogTemplateTx(c, tx, branchID, size)
 	if err != nil {
 		return err
 	}
 	return syncCatalogTemplateToBranchTx(c, tx, templateID, branchID)
 }
 
-// copyFranchiseCatalog uses the parallel franchise-scoped template for the
-// same size and follows the same no-physical-stock-copy safety rule.
 func copyFranchiseCatalog(c context.Context, tx *sql.Tx, branchID int64, size string) error {
-	templateID, err := assignBranchCatalogTemplateTx(c, tx, branchID, "franchise", size)
+	templateID, err := assignBranchCatalogTemplateTx(c, tx, branchID, size)
 	if err != nil {
 		return err
 	}

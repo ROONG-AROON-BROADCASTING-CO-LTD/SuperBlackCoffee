@@ -372,7 +372,11 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       navigation={adminSidebarNavigation}
       onNavigate={navigate}
       onLogout={logout}
-      forceSidebarCollapsed={hasBranchSidebar || usesCompactPersonnelSidebar}
+      forceSidebarCollapsed={
+        hasBranchSidebar ||
+        usesCompactPersonnelSidebar ||
+        activePage === 'สินค้าและคลังกลาง'
+      }
       secondarySidebarVisible={hasBranchSidebar}
       secondarySidebar={
         <BranchesSidebar

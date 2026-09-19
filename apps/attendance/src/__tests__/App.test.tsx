@@ -173,6 +173,50 @@ describe('Attendance App session', () => {
     });
   });
 
+  it('does not submit a check-in when the action is disabled by the schedule', async () => {
+    render(<App />);
+    await screen.findByText('attendance-router');
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'true',
+      ),
+    );
+
+    // The route normally disables this button; invoke its callback through the
+    // test route to also protect against stale or programmatic UI events.
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    expect(checkIn).not.toHaveBeenCalled();
+    expect(checkOut).not.toHaveBeenCalled();
+  });
+
+  it('keeps an existing check-in available when checkout fails transiently', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: true,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkOut).mockRejectedValueOnce(new Error('network unavailable'));
+
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => expect(checkOut).toHaveBeenCalledOnce());
+    expect(screen.getByText('attendance-router')).toBeTruthy();
+    expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+      'false',
+    );
+    expect(checkIn).not.toHaveBeenCalled();
+  });
+
   it('refreshes the monthly late count after checking in', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',

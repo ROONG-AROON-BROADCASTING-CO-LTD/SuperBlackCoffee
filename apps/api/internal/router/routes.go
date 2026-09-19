@@ -133,6 +133,8 @@ func registerAdminRoutes(protected *gin.RouterGroup, deps routeDependencies) {
 	protected.PUT("/branches/:branchId/catalog-template-exceptions", middleware.RequireAuth(deps.secret, "admin"), deps.platform.SetCatalogTemplateException)
 	protected.GET("/branches/:branchId/catalog-template-exceptions", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListCatalogTemplateExceptions)
 	protected.DELETE("/branches/:branchId/catalog-template-exceptions/:entityType/:sourceKey", middleware.RequireAuth(deps.secret, "admin"), deps.platform.DeleteCatalogTemplateException)
+	protected.GET("/branches/:branchId/catalog-selections", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListBranchCatalogSelections)
+	protected.PUT("/branches/:branchId/catalog-selections/:entityType/:sourceKey", middleware.RequireAuth(deps.secret, "admin"), deps.platform.SetBranchCatalogSelection)
 	protected.GET("/suppliers", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListSuppliers)
 	protected.POST("/suppliers", middleware.RequireAuth(deps.secret, "admin"), deps.platform.CreateSupplier)
 	protected.PATCH("/suppliers/:id", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateSupplier)

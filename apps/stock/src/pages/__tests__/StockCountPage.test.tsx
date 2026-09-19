@@ -208,6 +208,51 @@ describe('StockCountPage', () => {
     expect(onAdjust).not.toHaveBeenCalled();
   });
 
+  it('allows zero as an actual count and never treats it as missing input', async () => {
+    const onAdjust = vi.fn().mockResolvedValue(undefined);
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={onAdjust}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+    fireEvent.change(screen.getByLabelText('จำนวนคงเหลือ (กรัม)'), {
+      target: { value: '0' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+
+    await waitFor(() =>
+      expect(onAdjust).toHaveBeenCalledWith(ingredient, 0, 'ตรวจนับสิ้นกะ'),
+    );
+  });
+
+  it('rejects an empty actual count instead of silently saving zero', () => {
+    const onAdjust = vi.fn().mockResolvedValue(undefined);
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={onAdjust}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+    fireEvent.change(screen.getByLabelText('จำนวนคงเหลือ (กรัม)'), {
+      target: { value: '' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+
+    expect(screen.getByText('กรอกจำนวนคงเหลือเป็น 0 หรือมากกว่า')).toBeTruthy();
+    expect(onAdjust).not.toHaveBeenCalled();
+  });
+
   it('requires a note before recording a stock adjustment', async () => {
     const onAdjust = vi.fn().mockResolvedValue(undefined);
     render(

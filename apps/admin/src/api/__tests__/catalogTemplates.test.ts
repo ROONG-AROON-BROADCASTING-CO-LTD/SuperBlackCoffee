@@ -10,6 +10,8 @@ import {
   getCatalogTemplate,
   getCatalogTemplateImpact,
   listCatalogTemplates,
+  listBranchCatalogSelections,
+  setBranchCatalogSelection,
   replaceCatalogTemplateMenuRecipes,
   retireCatalogTemplateInventoryItem,
   retireCatalogTemplateMenuItem,
@@ -21,13 +23,11 @@ import {
 describe('admin central catalog API', () => {
   afterEach(() => vi.clearAllMocks());
 
-  it('keeps central templates explicitly scoped by business type and branch size', async () => {
+  it('loads one shared central catalog without business type or size scope', async () => {
     secured.mockResolvedValueOnce([]);
 
-    await expect(listCatalogTemplates('franchise', 'M')).resolves.toEqual([]);
-    expect(secured).toHaveBeenCalledWith(
-      '/catalog-templates?scope=franchise&size=M',
-    );
+    await expect(listCatalogTemplates()).resolves.toEqual([]);
+    expect(secured).toHaveBeenCalledWith('/catalog-templates');
   });
 
   it('uses protected detail, impact, and explicit sync endpoints', async () => {
@@ -58,12 +58,14 @@ describe('admin central catalog API', () => {
       unitCost: 0.5,
       reorderLevel: 20,
       trackStock: true,
+      availableSizes: ['S', 'M'],
     });
     await updateCatalogTemplateMenuItem(7, 8, {
       category: 'กาแฟ',
       storePrice: 80,
       linemanPrice: 90,
       status: 'available',
+      availableSizes: ['S', 'M'],
     });
 
     expect(secured).toHaveBeenNthCalledWith(
@@ -78,6 +80,7 @@ describe('admin central catalog API', () => {
           unitCost: 0.5,
           reorderLevel: 20,
           trackStock: true,
+          availableSizes: ['S', 'M'],
         },
       },
     );
@@ -91,6 +94,7 @@ describe('admin central catalog API', () => {
           storePrice: 80,
           linemanPrice: 90,
           status: 'available',
+          availableSizes: ['S', 'M'],
         },
       },
     );
@@ -107,6 +111,7 @@ describe('admin central catalog API', () => {
       unitCost: 0.5,
       reorderLevel: 20,
       trackStock: true,
+      availableSizes: ['S', 'M'],
     });
     await createCatalogTemplateMenuItem(7, {
       name: 'อเมริกาโน่ใหม่',
@@ -114,6 +119,7 @@ describe('admin central catalog API', () => {
       storePrice: 80,
       linemanPrice: 90,
       status: 'available',
+      availableSizes: ['S', 'M'],
     });
 
     expect(secured).toHaveBeenNthCalledWith(
@@ -131,6 +137,25 @@ describe('admin central catalog API', () => {
         method: 'POST',
         data: expect.objectContaining({ name: 'อเมริกาโน่ใหม่' }),
       },
+    );
+  });
+
+  it('loads and changes a branch selection without deleting its stock', async () => {
+    secured.mockResolvedValueOnce([]).mockResolvedValueOnce({
+      entityType: 'inventory',
+      sourceKey: 6,
+      enabled: false,
+    });
+    await listBranchCatalogSelections(11);
+    await setBranchCatalogSelection(11, 'inventory', 6, false);
+    expect(secured).toHaveBeenNthCalledWith(
+      1,
+      '/branches/11/catalog-selections',
+    );
+    expect(secured).toHaveBeenNthCalledWith(
+      2,
+      '/branches/11/catalog-selections/inventory/6',
+      { method: 'PUT', data: { enabled: false } },
     );
   });
 

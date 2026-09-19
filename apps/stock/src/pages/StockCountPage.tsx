@@ -96,7 +96,7 @@ export function StockCountPage({
   const save = async () => {
     if (!editing) return;
     const next = Number(quantity);
-    if (!Number.isFinite(next) || next < 0) {
+    if (!quantity.trim() || !Number.isFinite(next) || next < 0) {
       setError('กรอกจำนวนคงเหลือเป็น 0 หรือมากกว่า');
       return;
     }
