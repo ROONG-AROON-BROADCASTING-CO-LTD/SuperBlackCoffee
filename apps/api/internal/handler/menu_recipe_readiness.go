@@ -86,7 +86,7 @@ func (h *PlatformHandler) applyMenuRecipeStatuses(ctx context.Context, branchID 
 		SELECT m.id, COALESCE(mi.channel, 'storefront'),
 			CASE
 				WHEN COUNT(mi.inventory_item_id) = 0 THEN 'missing_recipe'
-				WHEN BOOL_AND(COALESCE(c.track_stock,true) OR (i.id IS NOT NULL AND i.branch_id=m.branch_id AND lower(trim(trailing '.' FROM i.unit)) = lower(trim(trailing '.' FROM mi.unit)) AND i.quantity >= mi.quantity AND (i.category='fresh' OR i.expiry_date IS NULL OR i.expiry_date >= CURRENT_DATE) AND (i.category <> 'fresh' OR NOT EXISTS (SELECT 1 FROM fresh_inventory_lots legacy_lot WHERE legacy_lot.branch_id=i.branch_id AND legacy_lot.inventory_item_id=i.id) OR COALESCE((SELECT SUM(lot.quantity_remaining) FROM fresh_inventory_lots lot WHERE lot.branch_id=i.branch_id AND lot.inventory_item_id=i.id AND lot.status='active' AND lot.quantity_remaining>0 AND lot.expiry_date>=CURRENT_DATE),0) >= mi.quantity))) THEN 'ready'
+				WHEN BOOL_AND(NOT COALESCE(c.track_stock,true) OR (i.id IS NOT NULL AND i.branch_id=m.branch_id AND lower(trim(trailing '.' FROM i.unit)) = lower(trim(trailing '.' FROM mi.unit)) AND i.quantity >= mi.quantity AND (i.category='fresh' OR i.expiry_date IS NULL OR i.expiry_date >= CURRENT_DATE) AND (i.category <> 'fresh' OR NOT EXISTS (SELECT 1 FROM fresh_inventory_lots legacy_lot WHERE legacy_lot.branch_id=i.branch_id AND legacy_lot.inventory_item_id=i.id) OR COALESCE((SELECT SUM(lot.quantity_remaining) FROM fresh_inventory_lots lot WHERE lot.branch_id=i.branch_id AND lot.inventory_item_id=i.id AND lot.status='active' AND lot.quantity_remaining>0 AND lot.expiry_date>=CURRENT_DATE),0) >= mi.quantity))) THEN 'ready'
 				ELSE 'insufficient_stock'
 			END
 		FROM menu_items m
