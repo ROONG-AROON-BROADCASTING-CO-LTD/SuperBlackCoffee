@@ -2,6 +2,18 @@ package config
 
 import "testing"
 
+func TestJWTSecretUsesConfiguredValueAndDevelopmentFallback(t *testing.T) {
+	t.Setenv("JWT_SECRET", "")
+	if got := JWTSecret(); got != "development-only-change-me" {
+		t.Fatalf("development JWT secret = %q", got)
+	}
+
+	t.Setenv("JWT_SECRET", "configured-secret")
+	if got := JWTSecret(); got != "configured-secret" {
+		t.Fatalf("configured JWT secret = %q", got)
+	}
+}
+
 func TestValidateRuntimeRequiresProductionSecrets(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "")

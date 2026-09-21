@@ -8,7 +8,7 @@ export const adminPagePaths = {
   วัตถุดิบของสดกลาง: '/central-catalog/fresh-ingredients',
   อุปกรณ์เครื่องดื่มกลาง: '/central-catalog/drink-equipment',
   อุปกรณ์ไปรษณีย์กลาง: '/central-catalog/postal-equipment',
-  รายการรายสาขา: '/central-catalog/branches',
+  รายการสาขาและแฟรนไชส์: '/central-catalog/branches',
   กระจายข้อมูลกลาง: '/central-catalog/sync',
   ประวัติการทำรายการ: '/audit',
   เอกสารส่วนกลาง: '/documents',

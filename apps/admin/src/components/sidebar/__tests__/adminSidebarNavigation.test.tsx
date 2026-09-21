@@ -31,7 +31,6 @@ describe('adminSidebarNavigation', () => {
       'central-drink-equipment',
       'central-postal-equipment',
       'central-branches',
-      'central-sync',
     ]);
   });
 });

@@ -54,14 +54,8 @@ export const adminSidebarNavigation = [
   },
   {
     id: 'central-branches',
-    label: 'รายการรายสาขา',
+    label: 'รายการสาขาและแฟรนไชส์',
     icon: <MapPinHouseIcon />,
-    group: 'สินค้าและคลังกลาง',
-  },
-  {
-    id: 'central-sync',
-    label: 'กระจายข้อมูลกลาง',
-    icon: <SendIcon />,
     group: 'สินค้าและคลังกลาง',
   },
   {

@@ -73,6 +73,7 @@ const catalogTabs = [
 ] as const;
 
 type CatalogTab = (typeof catalogTabs)[number]['value'];
+type ImpactDialogMode = 'preview' | 'sync' | null;
 
 export type CentralCatalogSection =
   | 'menus'
@@ -110,12 +111,14 @@ const sectionContent: Record<
     description: 'จัดการอุปกรณ์ไปรษณีย์ที่ใช้ในข้อมูลกลาง',
   },
   branches: {
-    title: 'รายการกลางรายสาขา',
-    description: 'เลือกรายการกลางที่แต่ละสาขา SBC หรือแฟรนไชส์เปิดใช้งาน',
+    title: 'รายการสาขาและแฟรนไชส์',
+    description:
+      'เลือกรายการที่ใช้ในสาขา SBC และแฟรนไชส์ พร้อมตรวจผลกระทบก่อนซิงก์ข้อมูลกลาง',
   },
   sync: {
-    title: 'กระจายข้อมูลกลาง',
-    description: 'ตรวจผลกระทบและยืนยันการอัปเดตข้อมูลกลางไปยังสาขา',
+    title: 'รายการสาขาและแฟรนไชส์',
+    description:
+      'เลือกรายการที่ใช้ในสาขา SBC และแฟรนไชส์ พร้อมตรวจผลกระทบก่อนซิงก์ข้อมูลกลาง',
   },
 };
 
@@ -911,7 +914,10 @@ export function AdminCentralCatalogPage({
   const [impact, setImpact] = useState<CatalogTemplateImpact | null>(null);
   const [isLoadingImpact, setIsLoadingImpact] = useState(false);
   const [impactError, setImpactError] = useState('');
-  const [isImpactDialogOpen, setIsImpactDialogOpen] = useState(false);
+  const [impactDialogMode, setImpactDialogMode] =
+    useState<ImpactDialogMode>(null);
+  const [isCentralCatalogDrawerOpen, setIsCentralCatalogDrawerOpen] =
+    useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [editor, setEditor] = useState<TemplateEditorState | null>(null);
@@ -927,7 +933,9 @@ export function AdminCentralCatalogPage({
     new Set(),
   );
   const [selectionError, setSelectionError] = useState('');
+  const [selectionReloadKey, setSelectionReloadKey] = useState(0);
   const [isSavingSelection, setIsSavingSelection] = useState(false);
+  const [isLoadingSelections, setIsLoadingSelections] = useState(false);
 
   useEffect(() => {
     setSearch('');
@@ -970,6 +978,8 @@ export function AdminCentralCatalogPage({
     if (branchId === null) return;
     let active = true;
     setSelectionError('');
+    setBranchSelections(new Set());
+    setIsLoadingSelections(true);
     void listBranchCatalogSelections(branchId)
       .then((items) => {
         if (active)
@@ -988,11 +998,14 @@ export function AdminCentralCatalogPage({
               ? error.message
               : 'โหลดรายการของสาขาไม่สำเร็จ',
           );
+      })
+      .finally(() => {
+        if (active) setIsLoadingSelections(false);
       });
     return () => {
       active = false;
     };
-  }, [branchId, reloadKey]);
+  }, [branchId, reloadKey, selectionReloadKey]);
 
   useEffect(() => {
     if (selectedTemplateId === null) {
@@ -1027,14 +1040,14 @@ export function AdminCentralCatalogPage({
     [selectedTemplateId, templates],
   );
 
-  const previewImpact = async (openDialog: boolean) => {
+  const previewImpact = async (dialogMode: Exclude<ImpactDialogMode, null>) => {
     if (selectedTemplateId === null) return;
     setImpactError('');
     setIsLoadingImpact(true);
     try {
       const nextImpact = await getCatalogTemplateImpact(selectedTemplateId);
       setImpact(nextImpact);
-      if (openDialog) setIsImpactDialogOpen(true);
+      setImpactDialogMode(dialogMode);
     } catch (error) {
       setImpactError(
         error instanceof Error
@@ -1063,10 +1076,10 @@ export function AdminCentralCatalogPage({
 
   const openSyncDialog = () => {
     if (impact) {
-      setIsImpactDialogOpen(true);
+      setImpactDialogMode('sync');
       return;
     }
-    void previewImpact(true);
+    void previewImpact('sync');
   };
 
   const syncTemplate = async () => {
@@ -1074,7 +1087,7 @@ export function AdminCentralCatalogPage({
     setIsSyncing(true);
     try {
       const result = await syncCatalogTemplate(selectedTemplateId);
-      setIsImpactDialogOpen(false);
+      setImpactDialogMode(null);
       setNotice(
         `อัปเดตข้อมูลกลางไปยัง ${numberFormatter.format(result.syncedBranches)} สาขาแล้ว`,
       );
@@ -1390,6 +1403,21 @@ export function AdminCentralCatalogPage({
       ...(template?.menuItems.map((item) => item.category) ?? []),
     ]),
   ];
+  const branchSize = impact?.branches.find(
+    (branch) => branch.id === branchId,
+  )?.size;
+  const visibleBranchItems =
+    (activeTab === 'menu'
+      ? template?.menuItems
+      : template?.inventoryItems
+    )?.filter(
+      (item) =>
+        branchSize &&
+        item.availableSizes.includes(branchSize) &&
+        item.name
+          .toLocaleLowerCase('th-TH')
+          .includes(branchSearch.trim().toLocaleLowerCase('th-TH')),
+    ) ?? [];
 
   return (
     <DashboardMain>
@@ -1409,7 +1437,7 @@ export function AdminCentralCatalogPage({
           <Box
             sx={{
               maxWidth:
-                section === 'branches' || section === 'sync' ? 800 : 'none',
+                section === 'branches' || section === 'sync' ? 1240 : 'none',
             }}
           >
             {section !== 'branches' && section !== 'sync' && (
@@ -1441,15 +1469,17 @@ export function AdminCentralCatalogPage({
               <Box
                 sx={{
                   minWidth: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'minmax(0, 1fr)',
+                    lg: 'minmax(0, 1.7fr) minmax(320px, 1fr)',
+                  },
+                  gap: { xs: 2, lg: 2.5 },
+                  alignItems: 'start',
                   gridColumn: { lg: 2 },
-                  position: { lg: 'sticky' },
-                  top: { lg: 16 },
                 }}
               >
-                {section === 'sync' && (
+                {(section === 'branches' || section === 'sync') && (
                   <Card
                     variant="outlined"
                     sx={{
@@ -1471,38 +1501,39 @@ export function AdminCentralCatalogPage({
                         }}
                       >
                         <Box>
+                          <Chip
+                            size="small"
+                            label="ข้อมูลกลาง"
+                            sx={{
+                              mb: 1,
+                              bgcolor: '#f7efe9',
+                              color: '#674633',
+                              fontFamily: 'Kanit, sans-serif',
+                            }}
+                          />
                           <Typography component="h2" sx={sectionTitleSx}>
-                            กระจายการเปลี่ยนแปลง
+                            ข้อมูลกลาง
                           </Typography>
                           <Typography
                             sx={{ ...sectionMetaSx, mt: 0.25, fontSize: 13 }}
                           >
-                            อัปเดตข้อมูลกลางไปยังสาขาโดยไม่ทับยอดจริง ล็อต
-                            หรือประวัติ
+                            ตรวจสอบเมนู วัตถุดิบ และอุปกรณ์ชุดกลางที่ทุกสาขา
+                            และแฟรนไชส์ใช้ร่วมกัน
+                          </Typography>
+                          <Typography
+                            sx={{ ...sectionMetaSx, mt: 1.25, fontSize: 12.5 }}
+                          >
+                            เปิดดูข้อมูลกลางหรือจัดการการกระจายการเปลี่ยนแปลง
+                            ไปยังสาขาได้จากหน้าต่างเดียว
                           </Typography>
                         </Box>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          sx={{ flexWrap: 'wrap', gap: 1 }}
+                        <Button
+                          variant="contained"
+                          onClick={() => setIsCentralCatalogDrawerOpen(true)}
+                          sx={{ ...tabButtonSx(true), alignSelf: 'flex-start' }}
                         >
-                          <Button
-                            variant="outlined"
-                            onClick={() => void previewImpact(false)}
-                            disabled={isLoadingImpact}
-                            sx={tabButtonSx(false)}
-                          >
-                            {isLoadingImpact ? 'กำลังคำนวณ' : 'ดูผลกระทบ'}
-                          </Button>
-                          <Button
-                            variant="contained"
-                            onClick={openSyncDialog}
-                            disabled={isLoadingImpact}
-                            sx={tabButtonSx(true)}
-                          >
-                            ซิงก์ไปยังสาขา
-                          </Button>
-                        </Stack>
+                          เปิดข้อมูลกลาง
+                        </Button>
                       </Stack>
                       {impact ? (
                         <Box
@@ -1521,16 +1552,15 @@ export function AdminCentralCatalogPage({
                               fontSize: 12,
                             }}
                           >
-                            การเปลี่ยนแปลงนี้จะกระทบ{' '}
-                            {numberFormatter.format(impact.count)} สาขา · เลือก
-                            “ซิงก์ไปยังสาขา” เพื่อยืนยัน
+                            ข้อมูลกลางชุดนี้ใช้กับ{' '}
+                            {numberFormatter.format(impact.count)} สาขา
                           </Typography>
                         </Box>
                       ) : null}
                     </CardContent>
                   </Card>
                 )}
-                {section === 'branches' && (
+                {(section === 'branches' || section === 'sync') && (
                   <Card
                     variant="outlined"
                     sx={{
@@ -1539,36 +1569,23 @@ export function AdminCentralCatalogPage({
                     }}
                   >
                     <CardContent>
+                      <Chip
+                        size="small"
+                        label="รายสาขา"
+                        sx={{
+                          mb: 1,
+                          bgcolor: '#f7efe9',
+                          color: '#674633',
+                          fontFamily: 'Kanit, sans-serif',
+                        }}
+                      />
                       <Typography component="h2" sx={sectionTitleSx}>
                         รายการที่ใช้รายสาขา
                       </Typography>
                       <Typography sx={sectionMetaSx}>
-                        สาขา SBC
-                        และแฟรนไชส์เลือกใช้รายการจากข้อมูลกลางชุดเดียวกัน
+                        เลือกสาขาแล้วเปิดหรือปิดรายการที่ใช้ได้ทันที
                         โดยไม่เปลี่ยนยอดสต๊อกจริง
                       </Typography>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{ mt: 2 }}
-                        aria-label="ประเภทรายการรายสาขา"
-                      >
-                        {catalogTabs.map((item) => (
-                          <Button
-                            key={item.value}
-                            size="small"
-                            variant={
-                              activeTab === item.value
-                                ? 'contained'
-                                : 'outlined'
-                            }
-                            onClick={() => setActiveTab(item.value)}
-                            sx={tabButtonSx(activeTab === item.value)}
-                          >
-                            {item.label}
-                          </Button>
-                        ))}
-                      </Stack>
                       <TextField
                         select
                         fullWidth
@@ -1576,7 +1593,7 @@ export function AdminCentralCatalogPage({
                         label="สาขา"
                         value={branchId ?? ''}
                         onClick={() => {
-                          if (!impact) void previewImpact(false);
+                          if (!impact) void previewImpact('preview');
                         }}
                         onChange={(event) =>
                           setBranchId(Number(event.target.value))
@@ -1590,10 +1607,34 @@ export function AdminCentralCatalogPage({
                         ))}
                       </TextField>
                       {branchId !== null && (
-                        <TextField
-                          size="small"
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}
+                          aria-label="ประเภทรายการรายสาขา"
+                        >
+                          {catalogTabs.map((item) => (
+                            <Button
+                              key={item.value}
+                              size="small"
+                              variant={
+                                activeTab === item.value
+                                  ? 'contained'
+                                  : 'outlined'
+                              }
+                              onClick={() => setActiveTab(item.value)}
+                              sx={tabButtonSx(activeTab === item.value)}
+                            >
+                              {item.label}
+                            </Button>
+                          ))}
+                        </Stack>
+                      )}
+                      {branchId !== null && (
+                        <SearchField
                           fullWidth
-                          label="ค้นหารายการในสาขา"
+                          placeholder="ค้นหารายการในสาขา"
+                          aria-label="ค้นหารายการในสาขา"
                           value={branchSearch}
                           onChange={(event) =>
                             setBranchSearch(event.target.value)
@@ -1601,32 +1642,54 @@ export function AdminCentralCatalogPage({
                           sx={{ mt: 1.25 }}
                         />
                       )}
-                      {branchId !== null && template && (
-                        <Stack
-                          spacing={0.75}
-                          sx={{ mt: 1.5, maxHeight: 260, overflowY: 'auto' }}
-                        >
-                          {(activeTab === 'menu'
-                            ? template.menuItems
-                            : template.inventoryItems
-                          )
-                            .filter((item) => {
-                              const branchSize = impact?.branches.find(
-                                (branch) => branch.id === branchId,
-                              )?.size;
-                              return (
-                                branchSize &&
-                                item.availableSizes.includes(branchSize) &&
-                                item.name
-                                  .toLocaleLowerCase('th-TH')
-                                  .includes(
-                                    branchSearch
-                                      .trim()
-                                      .toLocaleLowerCase('th-TH'),
-                                  )
-                              );
-                            })
-                            .map((item) => {
+                      {branchId === null && (
+                        <Typography sx={{ ...sectionMetaSx, mt: 2 }}>
+                          เลือกสาขาเพื่อดูและจัดการรายการที่ใช้งาน
+                        </Typography>
+                      )}
+                      {branchId !== null && isLoadingSelections && (
+                        <Typography sx={{ ...sectionMetaSx, mt: 1.5 }}>
+                          กำลังโหลดรายการของสาขา…
+                        </Typography>
+                      )}
+                      {branchId !== null &&
+                        selectionError &&
+                        !isLoadingSelections && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() =>
+                              setSelectionReloadKey((current) => current + 1)
+                            }
+                            sx={{ ...tabButtonSx(false), mt: 1.5 }}
+                          >
+                            ลองโหลดรายการอีกครั้ง
+                          </Button>
+                        )}
+                      {branchId !== null &&
+                        !isLoadingSelections &&
+                        !selectionError &&
+                        visibleBranchItems.length === 0 && (
+                          <Typography sx={{ ...sectionMetaSx, mt: 1.5 }}>
+                            ไม่พบรายการที่ตรงกับสาขาหรือคำค้นหา
+                          </Typography>
+                        )}
+                      {branchId !== null &&
+                        !isLoadingSelections &&
+                        !selectionError &&
+                        template && (
+                          <Stack
+                            spacing={0.75}
+                            sx={{ mt: 1.5, maxHeight: 420, overflowY: 'auto' }}
+                          >
+                            <Typography sx={{ ...sectionMetaSx, fontSize: 12 }}>
+                              สาขาขนาด {branchSize} ·{' '}
+                              {numberFormatter.format(
+                                visibleBranchItems.length,
+                              )}{' '}
+                              รายการ
+                            </Typography>
+                            {visibleBranchItems.map((item) => {
                               const entityType =
                                 activeTab === 'menu' ? 'menu' : 'inventory';
                               const enabled = !branchSelections.has(
@@ -1640,22 +1703,37 @@ export function AdminCentralCatalogPage({
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
                                     gap: 1,
-                                    py: 0.5,
-                                    borderBottom: '1px solid #eee3dc',
+                                    px: 1.5,
+                                    py: 1,
+                                    border: '1px solid #eee3dc',
+                                    borderRadius: 2,
+                                    bgcolor: enabled ? '#fffaf7' : '#faf7f4',
                                   }}
                                 >
-                                  <Typography
-                                    sx={{
-                                      fontFamily: 'Kanit, sans-serif',
-                                      fontSize: 13,
-                                    }}
-                                  >
-                                    {item.name}
-                                  </Typography>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Typography
+                                      sx={{
+                                        fontFamily: 'Kanit, sans-serif',
+                                        fontSize: 13,
+                                        overflowWrap: 'anywhere',
+                                      }}
+                                    >
+                                      {item.name}
+                                    </Typography>
+                                    <Typography
+                                      sx={{ ...sectionMetaSx, fontSize: 11.5 }}
+                                    >
+                                      {enabled
+                                        ? 'เปิดใช้ในสาขานี้'
+                                        : 'ปิดใช้ในสาขานี้'}
+                                    </Typography>
+                                  </Box>
                                   <Switch
                                     size="small"
                                     checked={enabled}
-                                    disabled={isSavingSelection}
+                                    disabled={
+                                      isSavingSelection || isLoadingSelections
+                                    }
                                     slotProps={{
                                       input: {
                                         'aria-label': `${item.name} สำหรับสาขา`,
@@ -1709,8 +1787,8 @@ export function AdminCentralCatalogPage({
                                 </Stack>
                               );
                             })}
-                        </Stack>
-                      )}
+                          </Stack>
+                        )}
                     </CardContent>
                   </Card>
                 )}
@@ -1745,6 +1823,259 @@ export function AdminCentralCatalogPage({
           )
         }
       />
+
+      {template ? (
+        <Drawer
+          anchor="bottom"
+          open={isCentralCatalogDrawerOpen}
+          onClose={() => setIsCentralCatalogDrawerOpen(false)}
+          transitionDuration={{ enter: 360, exit: 280 }}
+          sx={{ zIndex: 1300 }}
+          slotProps={{
+            paper: {
+              sx: {
+                left: { md: '280px' },
+                width: { md: 'calc(100% - 304px)' },
+                height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
+                overflow: 'hidden',
+                borderRadius: '24px 24px 0 0',
+                bgcolor: '#fffaf7',
+              },
+            },
+          }}
+        >
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              px: { xs: 2.5, sm: 4 },
+              pt: 1.5,
+              pb: 3.5,
+            }}
+          >
+            <Box
+              sx={{
+                width: 44,
+                height: 5,
+                mx: 'auto',
+                mb: 2.5,
+                borderRadius: 99,
+                bgcolor: '#d8c8bd',
+              }}
+            />
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <Box>
+                <Typography
+                  component="h2"
+                  sx={{
+                    color: '#3c2d24',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 22,
+                    fontWeight: 600,
+                  }}
+                >
+                  ข้อมูลกลาง
+                </Typography>
+                <Typography sx={{ ...sectionMetaSx, mt: 0.25, fontSize: 13 }}>
+                  ข้อมูลชุดเดียวที่ใช้ร่วมกันระหว่างสาขา SBC และแฟรนไชส์
+                </Typography>
+              </Box>
+              <Button
+                aria-label="ปิดข้อมูลกลาง"
+                onClick={() => setIsCentralCatalogDrawerOpen(false)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  minWidth: 40,
+                  width: 40,
+                  height: 40,
+                  p: 0,
+                  borderRadius: '12px',
+                  bgcolor: '#f7eee8',
+                  color: '#5f4b3d',
+                  '&:hover': { bgcolor: '#f1e4da' },
+                }}
+              >
+                <XIcon size={20} />
+              </Button>
+            </Box>
+
+            <Divider sx={{ my: 2, borderColor: '#eee3dc' }} />
+
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                pr: { sm: 0.5 },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'minmax(0, 1fr)',
+                    sm: 'repeat(3, minmax(0, 1fr))',
+                  },
+                  gap: 1.25,
+                }}
+              >
+                {[
+                  {
+                    label: 'เมนูและสินค้า',
+                    count: template.menuItems.length,
+                    unit: 'รายการ',
+                  },
+                  {
+                    label: 'วัตถุดิบและอุปกรณ์',
+                    count: template.inventoryItems.length,
+                    unit: 'รายการ',
+                  },
+                  {
+                    label: 'สาขาที่ใช้ข้อมูล',
+                    count: impact?.count ?? 0,
+                    unit: 'สาขา',
+                  },
+                ].map(({ label, count, unit }) => (
+                  <Box
+                    key={label}
+                    sx={{
+                      border: '1px solid #eadfd7',
+                      borderRadius: 3,
+                      bgcolor: '#fff',
+                      px: 2,
+                      py: 1.5,
+                    }}
+                  >
+                    <Typography sx={{ ...sectionMetaSx, fontSize: 12 }}>
+                      {label}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 0.5,
+                        color: '#3c2d24',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 22,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {numberFormatter.format(count)} {unit}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              <Box
+                sx={{
+                  mt: 2,
+                  border: '1px solid #eadfd7',
+                  borderRadius: 3,
+                  bgcolor: '#fff',
+                  p: { xs: 2, sm: 2.5 },
+                }}
+              >
+                <Typography component="h3" sx={sectionTitleSx}>
+                  กระจายการเปลี่ยนแปลง
+                </Typography>
+                <Typography sx={{ ...sectionMetaSx, mt: 0.5, fontSize: 13 }}>
+                  ตรวจสอบผลกระทบก่อนซิงก์ข้อมูลกลาง ยอดคงเหลือ ล็อต วันหมดอายุ
+                  และประวัติในแต่ละสาขาจะไม่ถูกเปลี่ยนแปลง
+                </Typography>
+                <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setIsCentralCatalogDrawerOpen(false);
+                      void previewImpact('preview');
+                    }}
+                    disabled={isLoadingImpact}
+                    sx={tabButtonSx(false)}
+                  >
+                    {isLoadingImpact ? 'กำลังคำนวณ' : 'ดูผลกระทบ'}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setIsCentralCatalogDrawerOpen(false);
+                      openSyncDialog();
+                    }}
+                    disabled={isLoadingImpact}
+                    sx={tabButtonSx(true)}
+                  >
+                    ซิงก์ไปยังสาขา
+                  </Button>
+                </Stack>
+              </Box>
+
+              <Box
+                sx={{
+                  mt: 2,
+                  border: '1px solid #eadfd7',
+                  borderRadius: 3,
+                  bgcolor: '#fff',
+                  p: { xs: 2, sm: 2.5 },
+                }}
+              >
+                <Typography component="h3" sx={sectionTitleSx}>
+                  รายการเมนูจากข้อมูลกลาง
+                </Typography>
+                <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+                  {template.menuItems.slice(0, 6).map((item) => (
+                    <Box
+                      key={item.id}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 2,
+                        borderBottom: '1px solid #f0e7e1',
+                        pb: 0.75,
+                      }}
+                    >
+                      <Typography sx={itemTitleSx}>{item.name}</Typography>
+                      <Typography sx={itemMetaSx}>
+                        {item.availableSizes.join(' / ')}
+                      </Typography>
+                    </Box>
+                  ))}
+                  {template.menuItems.length === 0 ? (
+                    <Typography sx={sectionMetaSx}>
+                      ยังไม่มีเมนูในข้อมูลกลาง
+                    </Typography>
+                  ) : null}
+                </Stack>
+              </Box>
+            </Box>
+
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                pt: 2.5,
+              }}
+            >
+              <Button
+                variant="outlined"
+                onClick={() => setIsCentralCatalogDrawerOpen(false)}
+                sx={tabButtonSx(false)}
+              >
+                ปิด
+              </Button>
+            </Box>
+          </Box>
+        </Drawer>
+      ) : null}
 
       <Drawer
         anchor="bottom"
@@ -2456,21 +2787,23 @@ export function AdminCentralCatalogPage({
       </Drawer>
 
       <Dialog
-        open={isImpactDialogOpen}
-        onClose={() => !isSyncing && setIsImpactDialogOpen(false)}
+        open={impactDialogMode !== null}
+        onClose={() => !isSyncing && setImpactDialogMode(null)}
         fullWidth
         maxWidth="sm"
-        aria-labelledby="catalog-sync-dialog-title"
+        aria-labelledby="catalog-impact-dialog-title"
       >
         <DialogTitle
-          id="catalog-sync-dialog-title"
+          id="catalog-impact-dialog-title"
           sx={{
             color: '#3c2d24',
             fontFamily: 'Kanit, sans-serif',
             fontWeight: 600,
           }}
         >
-          ยืนยันการซิงก์ข้อมูลกลาง
+          {impactDialogMode === 'sync'
+            ? 'ยืนยันการซิงก์ข้อมูลกลาง'
+            : 'ผลกระทบของข้อมูลกลาง'}
         </DialogTitle>
         <DialogContent dividers sx={{ borderColor: '#eee3dc' }}>
           {impact ? (
@@ -2482,8 +2815,9 @@ export function AdminCentralCatalogPage({
                   fontSize: 14,
                 }}
               >
-                {impact.template.name} จะอัปเดตไปยัง{' '}
-                {numberFormatter.format(impact.count)} สาขา
+                {impactDialogMode === 'sync'
+                  ? `${impact.template.name} จะอัปเดตไปยัง ${numberFormatter.format(impact.count)} สาขา`
+                  : `${impact.template.name} ใช้อยู่ใน ${numberFormatter.format(impact.count)} สาขา`}
               </Typography>
               <Typography
                 sx={{
@@ -2494,8 +2828,9 @@ export function AdminCentralCatalogPage({
                   lineHeight: 1.55,
                 }}
               >
-                ยอดคงเหลือ ล็อต วันหมดอายุ
-                และประวัติของแต่ละสาขาจะไม่ถูกเปลี่ยนแปลง
+                {impactDialogMode === 'sync'
+                  ? 'ยอดคงเหลือ ล็อต วันหมดอายุ และประวัติของแต่ละสาขาจะไม่ถูกเปลี่ยนแปลง'
+                  : 'ตรวจสอบรายชื่อสาขาที่ได้รับผลกระทบก่อนเลือกซิงก์ข้อมูลกลาง'}
               </Typography>
               <Stack
                 spacing={0.75}
@@ -2538,20 +2873,22 @@ export function AdminCentralCatalogPage({
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button
-            onClick={() => setIsImpactDialogOpen(false)}
+            onClick={() => setImpactDialogMode(null)}
             disabled={isSyncing}
             sx={{ color: '#674633', fontFamily: 'Kanit, sans-serif' }}
           >
-            ยกเลิก
+            {impactDialogMode === 'sync' ? 'ยกเลิก' : 'ปิด'}
           </Button>
-          <Button
-            variant="contained"
-            onClick={() => void syncTemplate()}
-            disabled={!impact || impact.count === 0 || isSyncing}
-            sx={tabButtonSx(true)}
-          >
-            {isSyncing ? 'กำลังซิงก์' : 'ยืนยันการซิงก์'}
-          </Button>
+          {impactDialogMode === 'sync' ? (
+            <Button
+              variant="contained"
+              onClick={() => void syncTemplate()}
+              disabled={!impact || impact.count === 0 || isSyncing}
+              sx={tabButtonSx(true)}
+            >
+              {isSyncing ? 'กำลังซิงก์' : 'ยืนยันการซิงก์'}
+            </Button>
+          ) : null}
         </DialogActions>
       </Dialog>
 

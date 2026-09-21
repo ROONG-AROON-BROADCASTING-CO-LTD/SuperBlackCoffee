@@ -404,7 +404,12 @@ describe('AdminCentralCatalogPage', () => {
 
   it('can disable one branch menu without editing the shared catalog', async () => {
     render(<AdminCentralCatalogPage section="branches" />);
-    await screen.findByRole('heading', { name: 'รายการกลางรายสาขา' });
+    await screen.findByRole('heading', {
+      name: 'รายการสาขาและแฟรนไชส์',
+    });
+    expect(
+      await screen.findByRole('button', { name: 'เปิดข้อมูลกลาง' }),
+    ).toBeTruthy();
     await waitFor(() =>
       expect(mockedGetCatalogTemplateImpact).toHaveBeenCalledWith(21),
     );
@@ -433,7 +438,9 @@ describe('AdminCentralCatalogPage', () => {
       new Error('บันทึกรายการสาขาไม่สำเร็จ'),
     );
     render(<AdminCentralCatalogPage section="branches" />);
-    await screen.findByRole('heading', { name: 'รายการกลางรายสาขา' });
+    await screen.findByRole('heading', {
+      name: 'รายการสาขาและแฟรนไชส์',
+    });
     await waitFor(() =>
       expect(mockedGetCatalogTemplateImpact).toHaveBeenCalledWith(21),
     );
@@ -453,9 +460,43 @@ describe('AdminCentralCatalogPage', () => {
     expect(mockedUpdateCatalogTemplateMenuItem).not.toHaveBeenCalled();
   });
 
+  it('prevents branch edits while selections fail to load and offers a retry', async () => {
+    vi.mocked(listBranchCatalogSelections)
+      .mockRejectedValueOnce(new Error('โหลดรายการของสาขาไม่สำเร็จ'))
+      .mockResolvedValueOnce([]);
+    render(<AdminCentralCatalogPage section="branches" />);
+    await screen.findByRole('heading', { name: 'รายการที่ใช้รายสาขา' });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'สาขา' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'อยุธยา · SBC-AYA-001 · S' }),
+    );
+
+    const retry = await screen.findByRole('button', {
+      name: 'ลองโหลดรายการอีกครั้ง',
+    });
+    expect(
+      screen.queryByRole('switch', { name: 'อเมริกาโน่เย็น สำหรับสาขา' }),
+    ).toBeNull();
+    fireEvent.click(retry);
+
+    expect(
+      await screen.findByRole('switch', { name: 'อเมริกาโน่เย็น สำหรับสาขา' }),
+    ).toBeTruthy();
+    expect(listBranchCatalogSelections).toHaveBeenCalledTimes(2);
+  });
+
   it('previews affected branches and requires confirmation before syncing a template', async () => {
     render(<AdminCentralCatalogPage section="sync" />);
-    await screen.findByRole('heading', { name: 'กระจายข้อมูลกลาง' });
+    await screen.findByRole('heading', {
+      name: 'รายการสาขาและแฟรนไชส์',
+    });
+    expect(
+      await screen.findByRole('heading', { name: 'รายการที่ใช้รายสาขา' }),
+    ).toBeTruthy();
+    await screen.findByRole('button', { name: 'เปิดข้อมูลกลาง' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'เปิดข้อมูลกลาง' }));
+    expect(await screen.findByText('กระจายการเปลี่ยนแปลง')).toBeTruthy();
     await screen.findByRole('button', { name: 'ซิงก์ไปยังสาขา' });
 
     fireEvent.click(screen.getByRole('button', { name: 'ซิงก์ไปยังสาขา' }));
@@ -471,6 +512,26 @@ describe('AdminCentralCatalogPage', () => {
     expect(
       await screen.findByText('อัปเดตข้อมูลกลางไปยัง 2 สาขาแล้ว'),
     ).toBeTruthy();
+  });
+
+  it('opens an impact overlay without starting a sync', async () => {
+    render(<AdminCentralCatalogPage section="branches" />);
+    await screen.findByRole('button', { name: 'เปิดข้อมูลกลาง' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'เปิดข้อมูลกลาง' }));
+    expect(await screen.findByText('รายการเมนูจากข้อมูลกลาง')).toBeTruthy();
+    await screen.findByRole('button', { name: 'ดูผลกระทบ' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'ดูผลกระทบ' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'ผลกระทบของข้อมูลกลาง' }),
+    ).toBeTruthy();
+    expect(screen.getByText('อยุธยา')).toBeTruthy();
+    expect(screen.getByText('พิษณุโลก')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'ปิด' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'ยืนยันการซิงก์' })).toBeNull();
+    expect(mockedSyncCatalogTemplate).not.toHaveBeenCalled();
   });
 
   it('edits central menu data before a later impact preview and sync', async () => {

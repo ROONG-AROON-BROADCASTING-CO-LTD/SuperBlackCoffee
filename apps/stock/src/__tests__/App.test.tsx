@@ -33,7 +33,9 @@ vi.mock('../components/StockNavigation', () => ({
   stockNavigation: [{ page: 'sales', label: 'บันทึกเมนูที่ขาย' }],
 }));
 vi.mock('../components/AutoRetrySnackbar', () => ({
-  AutoRetrySnackbar: () => null,
+  AutoRetrySnackbar: ({ open }: { open: boolean }) => (
+    <output data-testid="stock-retry-open">{String(open)}</output>
+  ),
 }));
 vi.mock('../api/stock', () => ({
   adjustInventory: vi.fn(),
@@ -178,6 +180,28 @@ describe('Stock App session and loading', () => {
     expect((await screen.findByTestId('stock-page')).textContent).toBe(
       'promotions',
     );
+  });
+
+  it('keeps the session and reloads all stock data when the connection returns', async () => {
+    vi.mocked(listInventory).mockRejectedValueOnce(
+      new Error('network unavailable'),
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stock-retry-open').textContent).toBe('true');
+    });
+    expect(screen.getByTestId('stock-page')).toBeTruthy();
+
+    fireEvent(window, new Event('online'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('stock-retry-open').textContent).toBe('false');
+    });
+    expect(listInventory).toHaveBeenCalledTimes(6);
+    expect(listMyStockMovements).toHaveBeenCalledTimes(2);
+    expect(listMenuItems).toHaveBeenCalledTimes(2);
   });
 
   it.each([401, 403])(

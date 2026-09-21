@@ -135,8 +135,11 @@ const centralCatalogPages = {
     section: 'postal-equipment',
     navigation: 'central-postal-equipment',
   },
-  รายการรายสาขา: { section: 'branches', navigation: 'central-branches' },
-  กระจายข้อมูลกลาง: { section: 'sync', navigation: 'central-sync' },
+  รายการสาขาและแฟรนไชส์: {
+    section: 'branches',
+    navigation: 'central-branches',
+  },
+  กระจายข้อมูลกลาง: { section: 'branches', navigation: 'central-branches' },
 } as const;
 
 const centralCatalogNavigation: Record<string, AdminPage> = {
@@ -146,8 +149,8 @@ const centralCatalogNavigation: Record<string, AdminPage> = {
   'central-fresh-ingredients': 'วัตถุดิบของสดกลาง',
   'central-drink-equipment': 'อุปกรณ์เครื่องดื่มกลาง',
   'central-postal-equipment': 'อุปกรณ์ไปรษณีย์กลาง',
-  'central-branches': 'รายการรายสาขา',
-  'central-sync': 'กระจายข้อมูลกลาง',
+  'central-branches': 'รายการสาขาและแฟรนไชส์',
+  'central-sync': 'รายการสาขาและแฟรนไชส์',
 };
 
 export function AdminDashboard({ logout }: { logout: () => void }) {

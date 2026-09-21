@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const secured = vi.hoisted(() => vi.fn());
+const publicRequest = vi.hoisted(() => vi.fn());
 
-vi.mock('../client', () => ({ secured }));
+vi.mock('../client', () => ({ publicRequest, secured }));
 
-import { createFranchisee, updateFranchiseeStatus } from '../franchisees';
+import { listAuditEvents } from '../audit';
+import { login, logout, restoreSession } from '../auth';
+import {
+  createFranchisee,
+  listFranchisees,
+  updateFranchiseeStatus,
+} from '../franchisees';
 import { createEmployee, listEmployees } from '../users';
 
 describe('admin administration API', () => {
@@ -54,5 +61,37 @@ describe('admin administration API', () => {
       method: 'PATCH',
       data: { status: 'inactive' },
     });
+  });
+
+  it('uses the admin role header when restoring and ending the platform session', async () => {
+    publicRequest.mockResolvedValueOnce({ user: { id: 1, role: 'admin' } });
+    secured.mockResolvedValueOnce({ user: { id: 1, role: 'admin' } });
+    publicRequest.mockResolvedValueOnce(undefined);
+
+    await login('admin', 'safe-password');
+    await restoreSession();
+    await logout();
+
+    expect(publicRequest).toHaveBeenNthCalledWith(1, '/auth/login', {
+      method: 'POST',
+      data: { username: 'admin', password: 'safe-password' },
+    });
+    expect(secured).toHaveBeenCalledWith('/auth/session', {
+      headers: { 'X-SBC-Session-Role': 'admin' },
+    });
+    expect(publicRequest).toHaveBeenNthCalledWith(2, '/auth/logout', {
+      method: 'POST',
+      headers: { 'X-SBC-Session-Role': 'admin' },
+    });
+  });
+
+  it('loads franchise and audit listings from their protected endpoints', async () => {
+    secured.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    await listFranchisees();
+    await listAuditEvents();
+
+    expect(secured).toHaveBeenNthCalledWith(1, '/franchisees');
+    expect(secured).toHaveBeenNthCalledWith(2, '/audit-events?limit=100');
   });
 });
