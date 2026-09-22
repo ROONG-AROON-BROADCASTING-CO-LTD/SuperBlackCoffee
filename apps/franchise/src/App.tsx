@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SbcThemeProvider } from '@stackbuild/ui';
 import {
   QueryAutoRetrySnackbar,
@@ -15,7 +15,9 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState<FranchiseUser | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const sessionEpoch = useRef(0);
   const logout = () => {
+    sessionEpoch.current += 1;
     void endSession();
     sessionStorage.removeItem('sbc-franchise-active-page');
     sessionStorage.removeItem('sbc-franchise-sidebar-collapsed');
@@ -27,14 +29,24 @@ export default function App() {
     return () => window.removeEventListener('sbc:session-expired', logout);
   }, []);
   useEffect(() => {
+    let active = true;
+    const epoch = sessionEpoch.current;
     void restoreSession()
       .then((session) => {
+        if (!active || epoch !== sessionEpoch.current) return;
         if (session.user.role !== 'franchise_owner') return;
         setUser(session.user);
         setLoggedIn(true);
       })
-      .catch(() => setLoggedIn(false))
-      .finally(() => setCheckingSession(false));
+      .catch(() => {
+        if (active && epoch === sessionEpoch.current) setLoggedIn(false);
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   if (checkingSession) return null;
   return (

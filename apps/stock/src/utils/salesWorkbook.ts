@@ -96,8 +96,24 @@ const matchWorkbookMenu = (
 
   // FoodStory appends option text to the display name. Match against the
   // canonical database name after removing those option segments.
-  const optionStart = /\s+(?:เมล็ดกาแฟ|ระดับความหวาน|แยกน้ำ|ท็อปปิ้ง)\s*:/u;
+  // FoodStory can add a recipe hint between an option label and its colon,
+  // for example "ระดับความหวาน (สูตรที่ร้านจะหวานน้อยอยู่แล้ว) :".
+  const optionStart =
+    /\s+(?:เมล็ดกาแฟ|ระดับความหวาน|แยกน้ำ|ท็อปปิ้ง)(?:\s*\([^)]*\))?\s*:/u;
   const displayName = menuName.split(optionStart, 1)[0];
+  const normalizedDisplayName = normalizeMenuText(displayName);
+  const exactDisplayName = menus.find(
+    (menu) =>
+      normalizeMenuText(menu.name) === normalizedDisplayName &&
+      workbookCategoryMatches(menu, category),
+  );
+  if (exactDisplayName) {
+    return {
+      menuItemId: exactDisplayName.id,
+      menuName: exactDisplayName.name,
+      quantity: 1,
+    };
+  }
   const baseName = displayName
     .split(/\s+-\s+/u, 1)[0]
     .replace(/\([^)]*\)/gu, '')
@@ -170,7 +186,10 @@ export function matchWorkbookSales(
 
   for (const row of rows) {
     const menuName = asText(cell(row, 'Menu Name'));
-    const category = asText(cell(row, 'Category'));
+    // FoodStory's Thai export uses "กลุ่ม" for the menu family (for example
+    // "กาแฟเย็น") while "หมวดสินค้า" is commonly just "FoodStory".
+    const category =
+      asText(cell(row, 'Group')) || asText(cell(row, 'Category'));
     const quantity = parseQuantity(cell(row, 'Quantity'));
     if (!menuName || !quantity) continue;
     rowCount += 1;
@@ -291,6 +310,7 @@ const spreadsheetRows = (sheet: Document, sharedStrings: string[]) => {
 const workbookHeaderAliases = {
   menuName: ['Menu Name', 'ชื่อเมนู'],
   category: ['Category', 'หมวดหมู่', 'หมวดสินค้า'],
+  group: ['Group', 'กลุ่ม'],
   quantity: ['Quantity', 'จำนวน'],
   channel: ['Channel', 'ช่องทาง'],
 } as const;
@@ -406,6 +426,7 @@ export async function readSalesWorkbook(file: File): Promise<WorkbookRow[]> {
     const field = headerAlias(header);
     if (field === 'menuName') return 'Menu Name';
     if (field === 'category') return 'Category';
+    if (field === 'group') return 'Group';
     if (field === 'quantity') return 'Quantity';
     if (field === 'channel') return 'Channel';
     return header;

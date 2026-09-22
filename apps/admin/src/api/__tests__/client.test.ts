@@ -67,11 +67,20 @@ describe('admin API client', () => {
     mocks.request.mockRejectedValueOnce({ response: { status: 403 } });
 
     await expect(secured('/forbidden')).rejects.toThrow(
-      'ไม่สามารถเชื่อมต่อระบบได้',
+      'ระบบตอบกลับข้อผิดพลาด HTTP 403',
     );
 
     expect(expired).not.toHaveBeenCalled();
     window.removeEventListener('sbc:session-expired', expired);
+  });
+
+  it('identifies a missing API response as a connection failure', async () => {
+    mocks.isAxiosError.mockReturnValue(true);
+    mocks.request.mockRejectedValueOnce({ code: 'ERR_NETWORK' });
+
+    await expect(secured('/catalog-templates')).rejects.toThrow(
+      'เชื่อมต่อ API ไม่ได้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์กำลังทำงาน',
+    );
   });
 
   it('keeps public login requests separate from expiry handling', async () => {

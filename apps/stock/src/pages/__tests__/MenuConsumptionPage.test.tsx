@@ -55,6 +55,28 @@ describe('MenuConsumptionPage', () => {
     expect(screen.getByText('ราคาLINE MAN ฿75')).toBeTruthy();
   });
 
+  it('shows the image sent for a menu and retains a fallback for menus without one', () => {
+    render(
+      <MenuConsumptionPage
+        loading={false}
+        onConsume={vi.fn().mockResolvedValue(undefined)}
+        menus={[
+          { ...storefrontMenu, imageUrl: '/images/americano.jpg' },
+          { ...storefrontMenu, id: 8, name: 'ชาไทยเย็น' },
+        ]}
+      />,
+    );
+
+    expect(
+      screen
+        .getByRole('img', { name: 'รูปอเมริกาโน่เย็น' })
+        .getAttribute('src'),
+    ).toBe('/images/americano.jpg');
+    expect(
+      screen.getByRole('img', { name: 'รูปชาไทยเย็น' }).getAttribute('src'),
+    ).toContain('coffee-ingredients');
+  });
+
   it('submits selected menu quantities instead of asking staff to edit ingredients', async () => {
     const onConsume = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(

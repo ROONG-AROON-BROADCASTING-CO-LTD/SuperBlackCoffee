@@ -67,4 +67,22 @@ describe('Admin App session', () => {
     await waitFor(() => expect(screen.getByText('admin-login')).toBeTruthy());
     expect(logout).toHaveBeenCalledOnce();
   });
+
+  it('does not restore an expired admin session from a late response', async () => {
+    let resolveRestore!: (value: {
+      user: { id: number; role: string };
+    }) => void;
+    vi.mocked(restoreSession).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRestore = resolve;
+      }),
+    );
+
+    render(<App />);
+    fireEvent(window, new Event('sbc:session-expired'));
+    resolveRestore({ user: { id: 1, role: 'admin' } });
+
+    expect(await screen.findByText('admin-login')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'admin-logout' })).toBeNull();
+  });
 });

@@ -145,6 +145,82 @@ describe('sales workbook import', () => {
     ]);
   });
 
+  it('matches FoodStory names when the sweetness option includes a recipe hint', () => {
+    const result = matchWorkbookSales(
+      [
+        {
+          'Menu Name':
+            'มอคค่า (Ice Mocha) ระดับความหวาน (สูตรที่ร้านจะหวานน้อยอยู่แล้ว) : หวานน้อย 50% x 1 แยกน้ำ : ใส่แก้ว x 1',
+          Group: 'กาแฟเย็น',
+          Quantity: 1,
+          Channel: 'LINE MAN เดลิเวอรี',
+        },
+      ],
+      [
+        {
+          id: 88,
+          name: 'มอคค่า (Ice Mocha)',
+          category: 'เมนูกาแฟเย็น',
+        },
+      ],
+    );
+
+    expect(result.sales).toEqual([
+      {
+        menuItemId: 88,
+        menuName: 'มอคค่า (Ice Mocha)',
+        quantity: 1,
+        channel: 'lineman',
+      },
+    ]);
+    expect(result.unmatchedMenuNames).toEqual([]);
+  });
+
+  it('keeps sale rows from the supplied FoodStory shape while skipping non-menu requests', () => {
+    const result = matchWorkbookSales(
+      [
+        {
+          'Menu Name':
+            'มอคค่า (Ice Mocha) ระดับความหวาน (สูตรที่ร้านจะหวานน้อยอยู่แล้ว) : หวานน้อย 50% x 1',
+          Group: 'กาแฟเย็น',
+          Category: 'FoodStory',
+          Quantity: 1,
+          Channel: 'LINE MAN เดลิเวอรี',
+        },
+        {
+          'Menu Name':
+            'อเมริกาโน่ส้ม (Orange Americano) ระดับความหวาน (สูตรที่ร้านจะหวานน้อยอยู่แล้ว) : หวานปกติ 100% x 1',
+          Group: 'กาแฟเย็น',
+          Category: 'FoodStory',
+          Quantity: 1,
+          Channel: 'LINE MAN เดลิเวอรี',
+        },
+        {
+          'Menu Name': 'ไม่รับช้อนส้อมพลาสติก',
+          Quantity: 1,
+          Channel: 'LINE MAN เดลิเวอรี',
+        },
+      ],
+      [
+        { id: 1, name: 'มอคค่า (Ice Mocha)', category: 'เมนูกาแฟเย็น' },
+        {
+          id: 2,
+          name: 'อเมริกาโน่ส้ม (Orange Americano)',
+          category: 'เมนูกาแฟเย็น',
+        },
+      ],
+    );
+
+    expect(
+      result.sales.map(({ menuItemId, channel }) => ({ menuItemId, channel })),
+    ).toEqual([
+      { menuItemId: 1, channel: 'lineman' },
+      { menuItemId: 2, channel: 'lineman' },
+    ]);
+    expect(result.unmatchedMenuNames).toEqual(['ไม่รับช้อนส้อมพลาสติก']);
+    expect(result.rowCount).toBe(3);
+  });
+
   it('maps FoodStory columns, totals duplicate menu rows, and retains each channel', () => {
     const result = matchWorkbookSales(
       [

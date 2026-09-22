@@ -23,7 +23,11 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	db, err := database.Open(context.Background(), os.Getenv("DATABASE_URL"))
+	openDatabase := database.Open
+	if os.Getenv("APP_ENV") != "production" && os.Getenv("API_SKIP_MIGRATIONS") == "1" {
+		openDatabase = database.OpenWithoutMigrations
+	}
+	db, err := openDatabase(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		slog.Error("เริ่มต้นฐานข้อมูลไม่สำเร็จ", "ข้อผิดพลาด", err)
 		os.Exit(1)

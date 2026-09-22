@@ -114,6 +114,24 @@ describe('StockOrderPage', () => {
     ).toBeTruthy();
   });
 
+  it('uses an inventory image from the API when one is available', () => {
+    render(
+      <StockOrderPage
+        ingredients={[
+          { ...item, imageUrl: 'https://cdn.example.test/coffee.png' },
+        ]}
+        drinkStock={[]}
+        postalStock={[]}
+        isFranchise={false}
+        onCreateRequest={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('img', { name: 'รูปเมล็ดกาแฟ' }).getAttribute('src'),
+    ).toBe('https://cdn.example.test/coffee.png');
+  });
+
   it('does not offer cost-only recipe inputs for a stock order', () => {
     render(
       <StockOrderPage

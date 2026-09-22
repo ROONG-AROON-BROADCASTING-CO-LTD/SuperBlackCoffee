@@ -254,7 +254,9 @@ function TemplateDetail({
   template,
   size,
   search,
+  menuCategory,
   onSearchChange,
+  onMenuCategoryChange,
   onSizeChange,
   section,
   onEditInventory,
@@ -268,7 +270,9 @@ function TemplateDetail({
   template: CatalogTemplate;
   size: CatalogTemplateSize | 'ALL';
   search: string;
+  menuCategory: string;
   onSearchChange: (value: string) => void;
+  onMenuCategoryChange: (value: string) => void;
   onSizeChange: (value: CatalogTemplateSize | 'ALL') => void;
   section: CentralCatalogSection;
   onEditInventory: (item: CatalogTemplateInventoryItem) => void;
@@ -287,10 +291,16 @@ function TemplateDetail({
     availableSizes: CatalogTemplateSize[];
   }) =>
     (size === 'ALL' || item.availableSizes.includes(size)) &&
+    (!isMenuSection ||
+      menuCategory === 'ALL' ||
+      item.category === menuCategory) &&
     `${item.name} ${item.category}`
       .toLocaleLowerCase('th-TH')
       .includes(normalizedSearch);
   const isMenuSection = section === 'menus';
+  const menuCategoryOptions = [
+    ...new Set(template.menuItems.map((item) => item.category).filter(Boolean)),
+  ].sort((left, right) => left.localeCompare(right, 'th-TH'));
   const visibleMenus = isMenuSection ? template.menuItems.filter(matches) : [];
   const visibleInventory = isMenuSection
     ? []
@@ -325,6 +335,26 @@ function TemplateDetail({
             }}
             sx={{ flex: 1, minWidth: 180 }}
           />
+          {isMenuSection && (
+            <TextField
+              select
+              size="small"
+              label="ประเภทเมนู"
+              value={menuCategory || 'ALL'}
+              onChange={(event) => {
+                setRequestedPage(0);
+                onMenuCategoryChange(event.target.value || 'ALL');
+              }}
+              sx={{ minWidth: { xs: '100%', sm: 190 } }}
+            >
+              <MenuItem value="ALL">ทุกประเภทเมนู</MenuItem>
+              {menuCategoryOptions.map((category) => (
+                <MenuItem key={category} value={category}>
+                  {category}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <Stack direction="row" spacing={0.5} aria-label="กรองขนาดสาขา">
             {(['ALL', ...sizes] as const).map((item) => (
               <Button
@@ -915,6 +945,7 @@ export function AdminCentralCatalogPage({
 }) {
   const [size, setSize] = useState<CatalogTemplateSize | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
+  const [menuCategory, setMenuCategory] = useState('ALL');
   const [templates, setTemplates] = useState<CatalogTemplateSummary[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(
     null,
@@ -954,6 +985,7 @@ export function AdminCentralCatalogPage({
   useEffect(() => {
     setSearch('');
     setSize('ALL');
+    setMenuCategory('ALL');
   }, [section]);
 
   useEffect(() => {
@@ -1286,6 +1318,7 @@ export function AdminCentralCatalogPage({
     try {
       if (editor.type === 'inventory') {
         const data: CatalogTemplateInventoryPatch = {
+          name: editor.draft.name.trim(),
           category: editor.draft.category.trim(),
           imageUrl: editor.draft.imageUrl,
           stockCategory: editor.draft.stockCategory || undefined,
@@ -1298,8 +1331,8 @@ export function AdminCentralCatalogPage({
         };
         if (editor.item.id === 0) {
           await createCatalogTemplateInventoryItem(template.id, {
-            name: editor.draft.name.trim(),
             ...data,
+            name: editor.draft.name.trim(),
           });
         } else {
           await updateCatalogTemplateInventoryItem(
@@ -1326,6 +1359,7 @@ export function AdminCentralCatalogPage({
           };
         });
         const data: CatalogTemplateMenuPatch = {
+          name: editor.draft.name.trim(),
           category: editor.draft.category.trim(),
           storePrice: storePrice!,
           linemanPrice: linemanPrice!,
@@ -1338,8 +1372,8 @@ export function AdminCentralCatalogPage({
         const saved =
           editor.item.id === 0
             ? await createCatalogTemplateMenuItem(template.id, {
-                name: editor.draft.name.trim(),
                 ...data,
+                name: editor.draft.name.trim(),
               })
             : await updateCatalogTemplateMenuItem(
                 template.id,
@@ -1466,7 +1500,9 @@ export function AdminCentralCatalogPage({
                   template={template}
                   size={size}
                   search={search}
+                  menuCategory={menuCategory}
                   onSearchChange={setSearch}
+                  onMenuCategoryChange={setMenuCategory}
                   onSizeChange={setSize}
                   section={section}
                   onEditInventory={openInventoryEditor}
@@ -2475,7 +2511,6 @@ export function AdminCentralCatalogPage({
                     fullWidth
                     label="ชื่อสินค้า"
                     value={menuEditor.draft.name}
-                    disabled={menuEditor.item.id !== 0}
                     onChange={(event) =>
                       updateMenuDraft({ name: event.target.value })
                     }
@@ -3389,7 +3424,6 @@ function CentralInventoryEditorDrawer({
                   fullWidth
                   label={`ชื่อ${itemLabel}`}
                   value={editor.draft.name}
-                  disabled={editor.item.id !== 0}
                   onChange={(event) => onChange({ name: event.target.value })}
                   sx={{ gridColumn: { sm: '1 / -1' } }}
                 />

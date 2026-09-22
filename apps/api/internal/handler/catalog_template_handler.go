@@ -89,6 +89,7 @@ type branchCatalogSelectionInput struct {
 }
 
 type catalogTemplateInventoryUpdateInput struct {
+	Name           *string   `json:"name"`
 	Category       *string   `json:"category"`
 	ImageURL       *string   `json:"imageUrl"`
 	StockCategory  *string   `json:"stockCategory"`
@@ -114,6 +115,7 @@ type catalogTemplateInventoryCreateInput struct {
 }
 
 type catalogTemplateMenuUpdateInput struct {
+	Name                  *string   `json:"name"`
 	Category              *string   `json:"category"`
 	StorePrice            *float64  `json:"storePrice"`
 	StorePriceAvailable   *bool     `json:"storePriceAvailable"`
@@ -473,7 +475,8 @@ func syncCatalogTemplateToBranchTx(ctx context.Context, tx *sql.Tx, templateID, 
 	// expiry columns intact. An explicit branch exception opts the row out.
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE inventory_items target
-		SET category=template_item.category,
+		SET name=catalog.name,
+			category=template_item.category,
 			stock_category=NULLIF(template_item.stock_category,''),
 			kind=template_item.kind,
 			unit=template_item.unit,
@@ -484,6 +487,7 @@ func syncCatalogTemplateToBranchTx(ctx context.Context, tx *sql.Tx, templateID, 
 			template_enabled=true,
 			updated_at=now()
 		FROM catalog_template_inventory_items template_item
+		JOIN inventory_catalog_items catalog ON catalog.id=template_item.catalog_item_id
 		LEFT JOIN branch_catalog_template_exceptions exception
 		  ON exception.branch_id=$2
 		 AND exception.entity_type='inventory'
@@ -543,7 +547,8 @@ func syncCatalogTemplateToBranchTx(ctx context.Context, tx *sql.Tx, templateID, 
 	// opted out through a branch exception; no menu is deleted by synchronization.
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE menu_items target
-		SET category=template_menu.category,
+		SET name=template_menu.name,
+			category=template_menu.category,
 			store_price=template_menu.store_price,
 			store_price_available=template_menu.store_price_available,
 			lineman_price=template_menu.lineman_price,
@@ -562,7 +567,7 @@ func syncCatalogTemplateToBranchTx(ctx context.Context, tx *sql.Tx, templateID, 
 		 AND exception.entity_type='menu'
 		 AND exception.source_key=template_menu.id
 		WHERE target.branch_id=$2
-		  AND target.name=template_menu.name
+		  AND (target.catalog_template_menu_item_id=template_menu.id OR target.name=template_menu.name)
 		  AND template_menu.template_id=$1
 		  AND template_menu.active
 		  AND EXISTS (SELECT 1 FROM branches branch WHERE branch.id=$2 AND COALESCE(branch.size,'S')=ANY(template_menu.available_sizes))
@@ -653,7 +658,7 @@ func syncCatalogTemplateToBranchTx(ctx context.Context, tx *sql.Tx, templateID, 
 		SELECT branch_menu.id,branch_inventory.id,recipe.quantity,recipe.unit,recipe.cost_amount,recipe.channel
 		FROM catalog_template_menu_ingredients recipe
 		JOIN catalog_template_menu_items template_menu ON template_menu.id=recipe.template_menu_item_id
-		JOIN menu_items branch_menu ON branch_menu.branch_id=$2 AND branch_menu.name=template_menu.name AND branch_menu.template_enabled
+		JOIN menu_items branch_menu ON branch_menu.branch_id=$2 AND branch_menu.catalog_template_menu_item_id=template_menu.id AND branch_menu.template_enabled
 		JOIN inventory_items branch_inventory ON branch_inventory.branch_id=$2 AND branch_inventory.catalog_item_id=recipe.catalog_item_id AND branch_inventory.template_enabled
 		LEFT JOIN branch_catalog_template_exceptions exception
 		  ON exception.branch_id=$2
@@ -1188,6 +1193,10 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุหมวดหมู่"})
 		return
 	}
+	if _, valid := nonEmptyTemplateString(input.Name, "name"); !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุชื่อรายการ"})
+		return
+	}
 	if _, valid := nonEmptyTemplateString(input.Unit, "unit"); !valid {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุหน่วย"})
 		return
@@ -1225,6 +1234,9 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 		return
 	}
 	current.AvailableSizes = catalogSizesFromCSV(sizesCSV)
+	if input.Name != nil {
+		current.Name = strings.TrimSpace(*input.Name)
+	}
 	originalCategory := current.Category
 	originalKind := current.Kind
 	originalUnit := current.Unit
@@ -1261,6 +1273,17 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 	if current.Category == "" || current.Unit == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "หมวดหมู่และหน่วยต้องไม่ว่าง"})
 		return
+	}
+	if input.Name != nil {
+		var duplicate bool
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM inventory_catalog_items WHERE name=$1 AND id<>$2)`, current.Name, catalogItemID).Scan(&duplicate); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบชื่อรายการคลังกลางได้"})
+			return
+		}
+		if duplicate {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "มีรายการคลังกลางชื่อนี้อยู่แล้ว"})
+			return
+		}
 	}
 	if current.Unit != originalUnit || current.Kind != originalKind {
 		var recipeUses int
@@ -1312,6 +1335,12 @@ func (h *PlatformHandler) UpdateCatalogTemplateInventory(c *gin.Context) {
 		current.Unit, current.UnitCost, current.ReorderLevel, current.TrackStock, current.ImageURL, catalogSizesCSV(current.AvailableSizes)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถแก้ไขรายการคลังกลางได้"})
 		return
+	}
+	if input.Name != nil {
+		if _, err = tx.ExecContext(c.Request.Context(), `UPDATE inventory_catalog_items SET name=$2,updated_at=now() WHERE id=$1`, catalogItemID, current.Name); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนชื่อรายการคลังกลางได้"})
+			return
+		}
 	}
 	// Tracking is an intrinsic property of a measurable item, not a branch
 	// balance. Keeping it canonical protects stock consumption and procurement
@@ -1365,6 +1394,10 @@ func (h *PlatformHandler) UpdateCatalogTemplateMenu(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "สถานะเมนูไม่ถูกต้อง"})
 		return
 	}
+	if _, valid := nonEmptyTemplateString(input.Name, "name"); !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุชื่อเมนู"})
+		return
+	}
 	if input.AvailableSizes != nil {
 		if _, valid := validatedCatalogSizes(*input.AvailableSizes); !valid {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ขนาดที่ใช้ได้ต้องเป็น S, M หรือ L อย่างน้อยหนึ่งขนาด"})
@@ -1409,6 +1442,9 @@ func (h *PlatformHandler) UpdateCatalogTemplateMenu(c *gin.Context) {
 		return
 	}
 	current.AvailableSizes = catalogSizesFromCSV(sizesCSV)
+	if input.Name != nil {
+		current.Name = strings.TrimSpace(*input.Name)
+	}
 	if input.Category != nil {
 		current.Category = strings.TrimSpace(*input.Category)
 	}
@@ -1446,6 +1482,17 @@ func (h *PlatformHandler) UpdateCatalogTemplateMenu(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุหมวดหมู่เมนู"})
 		return
 	}
+	if input.Name != nil {
+		var duplicate bool
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM catalog_template_menu_items WHERE template_id=$1 AND name=$2 AND id<>$3)`, templateID, current.Name, menuID).Scan(&duplicate); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบชื่อเมนูในแม่แบบได้"})
+			return
+		}
+		if duplicate {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "มีเมนูชื่อนี้อยู่แล้วในข้อมูลกลาง"})
+			return
+		}
+	}
 	var unavailableIngredients int
 	if err = tx.QueryRowContext(c.Request.Context(), `
 		SELECT COUNT(*)
@@ -1463,10 +1510,10 @@ func (h *PlatformHandler) UpdateCatalogTemplateMenu(c *gin.Context) {
 	}
 	if _, err = tx.ExecContext(c.Request.Context(), `
 		UPDATE catalog_template_menu_items
-		SET category=$3,store_price=$4,store_price_available=$5,lineman_price=$6,lineman_price_available=$7,
-			cost_price=$8,lineman_cost_price=$9,status=$10,image_url=$11,preparation_steps=$12,available_sizes=string_to_array($13,','),updated_at=now()
+		SET name=$3,category=$4,store_price=$5,store_price_available=$6,lineman_price=$7,lineman_price_available=$8,
+			cost_price=$9,lineman_cost_price=$10,status=$11,image_url=$12,preparation_steps=$13,available_sizes=string_to_array($14,','),updated_at=now()
 		WHERE template_id=$1 AND id=$2`,
-		templateID, menuID, current.Category, current.StorePrice, current.StorePriceAvailable,
+		templateID, menuID, current.Name, current.Category, current.StorePrice, current.StorePriceAvailable,
 		current.LinemanPrice, current.LinemanPriceAvailable, current.CostPrice, current.LinemanCostPrice,
 		current.Status, current.ImageURL, current.PreparationSteps, catalogSizesCSV(current.AvailableSizes)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถแก้ไขเมนูในแม่แบบได้"})

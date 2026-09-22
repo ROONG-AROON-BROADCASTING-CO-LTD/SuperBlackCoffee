@@ -183,6 +183,34 @@ describe('AdminCentralCatalogPage', () => {
     expect(screen.getByRole('button', { name: 'ขนาด L' })).toBeTruthy();
   });
 
+  it('filters central menus by menu category from the dropdown', async () => {
+    const base = await mockedGetCatalogTemplate(21);
+    mockedGetCatalogTemplate.mockResolvedValue({
+      ...base,
+      menuItems: [
+        ...base.menuItems,
+        {
+          ...base.menuItems[0],
+          id: 10,
+          name: 'ชาไทยเย็น',
+          category: 'เมนูชา',
+        },
+      ],
+    });
+
+    render(<AdminCentralCatalogPage />);
+
+    expect(await screen.findByText('อเมริกาโน่เย็น')).toBeTruthy();
+    expect(screen.getByText('ชาไทยเย็น')).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'ประเภทเมนู' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'เมนูชา' }));
+
+    expect(screen.getByText('ชาไทยเย็น')).toBeTruthy();
+    expect(screen.queryByText('อเมริกาโน่เย็น')).toBeNull();
+    expect(screen.getByText('1 รายการ')).toBeTruthy();
+  });
+
   it('aligns inventory columns with cost and reorder data and shows its image', async () => {
     render(<AdminCentralCatalogPage section="ingredients" />);
 
@@ -561,6 +589,9 @@ describe('AdminCentralCatalogPage', () => {
     await screen.findByText('อเมริกาโน่เย็น');
 
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อสินค้า' }), {
+      target: { value: 'อเมริกาโน่เย็นสูตรใหม่' },
+    });
     fireEvent.change(
       screen.getByRole('spinbutton', { name: 'ราคาขายหน้าร้าน' }),
       {
@@ -573,6 +604,7 @@ describe('AdminCentralCatalogPage', () => {
 
     await waitFor(() =>
       expect(mockedUpdateCatalogTemplateMenuItem).toHaveBeenCalledWith(21, 9, {
+        name: 'อเมริกาโน่เย็นสูตรใหม่',
         category: 'กาแฟ',
         storePrice: 80,
         costPrice: 0,
@@ -637,6 +669,9 @@ describe('AdminCentralCatalogPage', () => {
     expect(await screen.findByText('เมล็ดกาแฟ')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'ชื่อวัตถุดิบ' }), {
+      target: { value: 'เมล็ดกาแฟสูตรใหม่' },
+    });
     fireEvent.change(
       screen.getByRole('spinbutton', { name: 'แจ้งเตือนเมื่อคงเหลือ' }),
       {
@@ -652,6 +687,7 @@ describe('AdminCentralCatalogPage', () => {
         21,
         1,
         {
+          name: 'เมล็ดกาแฟสูตรใหม่',
           category: 'กาแฟ',
           imageUrl: '/images/coffee-beans.jpg',
           stockCategory: undefined,

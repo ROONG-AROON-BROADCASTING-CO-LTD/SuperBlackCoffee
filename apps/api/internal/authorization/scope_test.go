@@ -20,6 +20,17 @@ func TestBranchIDUsesClaimForNonAdmin(t *testing.T) {
 	}
 }
 
+func TestBranchIDRejectsMissingClaims(t *testing.T) {
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/inventory?branchId=12", nil)
+
+	got, ok := BranchID(ctx, nil)
+	if ok || got != 0 || response.Code != http.StatusUnauthorized {
+		t.Fatalf("branch = %d, ok = %t, status = %d; want unauthorized", got, ok, response.Code)
+	}
+}
+
 func TestBranchIDIgnoresForgedBranchSelectorsForScopedRoles(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, role := range []string{"cashier", "branch_manager", "franchise_owner"} {

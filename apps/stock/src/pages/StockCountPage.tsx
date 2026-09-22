@@ -167,159 +167,168 @@ export function StockCountPage({
             gridTemplateColumns: {
               xs: 'repeat(2, minmax(0, 1fr))',
               sm: 'repeat(2, minmax(0, 1fr))',
-              lg: 'repeat(3, minmax(0, 1fr))',
+              lg: 'repeat(5, minmax(0, 1fr))',
             },
             gap: { xs: 1.25, sm: 2 },
             alignContent: 'start',
           }}
         >
-          {filtered.map((item, index) => (
-            <Card
-              key={item.id}
-              role="listitem"
-              variant="outlined"
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                minWidth: 0,
-                borderRadius: '15px',
-                borderColor:
-                  item.status === 'out'
-                    ? 'error.light'
-                    : item.status === 'low'
-                      ? 'warning.light'
-                      : '#e8ddd5',
-                bgcolor: item.status === 'out' ? '#fff8f7' : '#fff',
-              }}
-            >
-              <Box sx={{ position: 'relative' }}>
-                <Box
-                  component="img"
-                  src={coffeeIngredientsImage}
-                  alt=""
-                  aria-hidden="true"
-                  sx={{
-                    display: 'block',
-                    width: '100%',
-                    aspectRatio: '1 / 1',
-                    objectFit: 'cover',
-                    objectPosition: `${15 + (index % 4) * 20}% 50%`,
-                    filter: item.status === 'out' ? 'grayscale(.45)' : 'none',
-                  }}
-                />
-                <Chip
-                  label={
-                    item.status === 'out'
-                      ? 'หมด'
-                      : item.status === 'low'
-                        ? 'ใกล้หมด'
-                        : item.status === 'stale'
-                          ? 'ค้างสต๊อก'
-                          : item.expiryStatus === 'expiring_soon'
-                            ? 'มีของ แต่ใกล้หมดอายุ'
-                            : 'เพียงพอ'
-                  }
-                  color={
-                    item.status === 'out'
-                      ? 'error'
-                      : item.status === 'low'
-                        ? 'warning'
-                        : item.status === 'stale'
-                          ? 'default'
-                          : item.expiryStatus === 'expiring_soon'
-                            ? 'warning'
-                            : 'success'
-                  }
-                  size="small"
-                  sx={{
-                    position: 'absolute',
-                    top: { xs: 8, sm: 12 },
-                    right: { xs: 8, sm: 12 },
-                    height: 25,
-                    borderRadius: '12px',
-                    fontSize: 11,
-                  }}
-                />
-              </Box>
-              <Box
+          {filtered.map((item, index) => {
+            const imageUrl = item.imageUrl?.trim() || coffeeIngredientsImage;
+            return (
+              <Card
+                key={item.id}
+                role="listitem"
+                variant="outlined"
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
-                  flex: 1,
-                  p: { xs: 1.25, sm: 2.5 },
+                  overflow: 'hidden',
+                  minWidth: 0,
+                  borderRadius: '15px',
+                  borderColor:
+                    item.status === 'out'
+                      ? 'error.light'
+                      : item.status === 'low'
+                        ? 'warning.light'
+                        : '#e8ddd5',
+                  bgcolor: item.status === 'out' ? '#fff8f7' : '#fff',
                 }}
               >
-                <Typography
-                  sx={{
-                    fontSize: { xs: 14, sm: 18 },
-                    fontWeight: 600,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  {item.name}
-                </Typography>
-                <Typography
-                  color="text.secondary"
-                  sx={{ mt: 0.4, fontSize: { xs: 11, sm: 13 } }}
-                >
-                  คงเหลือ {item.quantity.toLocaleString('th-TH')} {item.unit}
-                </Typography>
-                <Typography
-                  sx={{
-                    mt: 0.3,
-                    color: '#5f4030',
-                    fontSize: { xs: 12.5, sm: 14 },
-                    fontWeight: 700,
-                    lineHeight: 1.35,
-                  }}
-                >
-                  หมดอายุ: {formatExpiryDate(item.expiryDate)}
-                </Typography>
+                <Box sx={{ position: 'relative' }}>
+                  <Box
+                    component="img"
+                    src={imageUrl}
+                    alt={`รูป${item.name}`}
+                    onError={(event) => {
+                      if (event.currentTarget.src !== coffeeIngredientsImage)
+                        event.currentTarget.src = coffeeIngredientsImage;
+                    }}
+                    sx={{
+                      display: 'block',
+                      width: '100%',
+                      aspectRatio: '1 / 1',
+                      objectFit: 'cover',
+                      objectPosition:
+                        imageUrl === coffeeIngredientsImage
+                          ? `${15 + (index % 4) * 20}% 50%`
+                          : 'center',
+                      filter: item.status === 'out' ? 'grayscale(.45)' : 'none',
+                    }}
+                  />
+                  <Chip
+                    label={
+                      item.status === 'out'
+                        ? 'หมด'
+                        : item.status === 'low'
+                          ? 'ใกล้หมด'
+                          : item.status === 'stale'
+                            ? 'ค้างสต๊อก'
+                            : item.expiryStatus === 'expiring_soon'
+                              ? 'มีของ แต่ใกล้หมดอายุ'
+                              : 'เพียงพอ'
+                    }
+                    color={
+                      item.status === 'out'
+                        ? 'error'
+                        : item.status === 'low'
+                          ? 'warning'
+                          : item.status === 'stale'
+                            ? 'default'
+                            : item.expiryStatus === 'expiring_soon'
+                              ? 'warning'
+                              : 'success'
+                    }
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: { xs: 8, sm: 12 },
+                      right: { xs: 8, sm: 12 },
+                      height: 25,
+                      borderRadius: '12px',
+                      fontSize: 11,
+                    }}
+                  />
+                </Box>
                 <Box
                   sx={{
-                    display: 'grid',
-                    gap: { xs: 0.75, sm: 1 },
-                    mt: 'auto',
-                    pt: { xs: 1.25, sm: 2 },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: 1,
+                    p: { xs: 1.25, sm: 2.5 },
                   }}
                 >
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => beginEdit(item)}
+                  <Typography
                     sx={{
-                      flex: 1,
-                      minHeight: { xs: 32, sm: 36 },
-                      borderRadius: '10px',
-                      bgcolor: '#5f4030',
-                      boxShadow: 'none',
-                      '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
-                      fontSize: { xs: 11, sm: 14 },
+                      fontSize: { xs: 14, sm: 18 },
+                      fontWeight: 600,
+                      lineHeight: 1.35,
                     }}
                   >
-                    บันทึกยอดจริง
-                  </Button>
-                  {group === 'ingredient' ? (
+                    {item.name}
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{ mt: 0.4, fontSize: { xs: 11, sm: 13 } }}
+                  >
+                    คงเหลือ {item.quantity.toLocaleString('th-TH')} {item.unit}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      color: '#5f4030',
+                      fontSize: { xs: 12.5, sm: 14 },
+                      fontWeight: 700,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    หมดอายุ: {formatExpiryDate(item.expiryDate)}
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gap: { xs: 0.75, sm: 1 },
+                      mt: 'auto',
+                      pt: { xs: 1.25, sm: 2 },
+                    }}
+                  >
                     <Button
                       fullWidth
-                      variant="outlined"
-                      onClick={() => onOrderIngredients?.(item)}
+                      variant="contained"
+                      onClick={() => beginEdit(item)}
                       sx={{
+                        flex: 1,
                         minHeight: { xs: 32, sm: 36 },
                         borderRadius: '10px',
-                        borderColor: '#5f4030',
-                        color: '#5f4030',
+                        bgcolor: '#5f4030',
+                        boxShadow: 'none',
+                        '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                         fontSize: { xs: 11, sm: 14 },
                       }}
                     >
-                      สั่งซื้อวัตถุดิบ
+                      บันทึกยอดจริง
                     </Button>
-                  ) : null}
+                    {group === 'ingredient' ? (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        onClick={() => onOrderIngredients?.(item)}
+                        sx={{
+                          minHeight: { xs: 32, sm: 36 },
+                          borderRadius: '10px',
+                          borderColor: '#5f4030',
+                          color: '#5f4030',
+                          fontSize: { xs: 11, sm: 14 },
+                        }}
+                      >
+                        สั่งซื้อวัตถุดิบ
+                      </Button>
+                    ) : null}
+                  </Box>
                 </Box>
-              </Box>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </Box>
       )}
       <Drawer

@@ -10,8 +10,14 @@ const apiClient = axios.create({
 export type { ApiEnvelope } from '@stackbuild/types';
 
 function messageFrom(error: unknown) {
-  if (axios.isAxiosError<ApiEnvelope<unknown>>(error))
-    return error.response?.data?.message ?? 'ไม่สามารถเชื่อมต่อระบบได้';
+  if (axios.isAxiosError<ApiEnvelope<unknown>>(error)) {
+    if (!error.response)
+      return 'เชื่อมต่อ API ไม่ได้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์กำลังทำงาน';
+    return (
+      error.response.data?.message ??
+      `ระบบตอบกลับข้อผิดพลาด HTTP ${error.response.status}`
+    );
+  }
   if (error instanceof SyntaxError && /JSON/i.test(error.message))
     return 'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง';
   return error instanceof Error ? error.message : 'ไม่สามารถเชื่อมต่อระบบได้';

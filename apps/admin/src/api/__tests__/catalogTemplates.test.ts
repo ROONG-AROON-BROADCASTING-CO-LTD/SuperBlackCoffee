@@ -52,6 +52,7 @@ describe('admin central catalog API', () => {
     secured.mockResolvedValueOnce({ id: 6 }).mockResolvedValueOnce({ id: 8 });
 
     await updateCatalogTemplateInventoryItem(7, 6, {
+      name: 'เมล็ดกาแฟใหม่',
       category: 'กาแฟ',
       kind: 'ingredient',
       unit: 'กรัม',
@@ -61,6 +62,7 @@ describe('admin central catalog API', () => {
       availableSizes: ['S', 'M'],
     });
     await updateCatalogTemplateMenuItem(7, 8, {
+      name: 'อเมริกาโน่ใหม่',
       category: 'กาแฟ',
       storePrice: 80,
       linemanPrice: 90,
@@ -74,6 +76,7 @@ describe('admin central catalog API', () => {
       {
         method: 'PATCH',
         data: {
+          name: 'เมล็ดกาแฟใหม่',
           category: 'กาแฟ',
           kind: 'ingredient',
           unit: 'กรัม',
@@ -90,6 +93,7 @@ describe('admin central catalog API', () => {
       {
         method: 'PATCH',
         data: {
+          name: 'อเมริกาโน่ใหม่',
           category: 'กาแฟ',
           storePrice: 80,
           linemanPrice: 90,

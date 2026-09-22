@@ -21,6 +21,22 @@ describe('AttendanceHistoryList', () => {
     expect(screen.getByText('8 ชม. 45 นาที')).toBeTruthy();
   });
 
+  it('calculates an overnight shift across the date boundary', () => {
+    render(
+      <AttendanceHistoryList
+        history={[
+          {
+            date: '2026-12-31',
+            checkInAt: '2026-12-31T22:30:00+07:00',
+            checkOutAt: '2027-01-01T06:15:00+07:00',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('7 ชม. 45 นาที')).toBeTruthy();
+  });
+
   it('does not show a negative duration for malformed attendance timestamps', () => {
     render(
       <AttendanceHistoryList

@@ -725,6 +725,9 @@ func TestCORSOnlyAllowsConfiguredOrigin(t *testing.T) {
 	if got := res.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(got, "X-SBC-Session-Role") {
 		t.Fatalf("allow headers = %q, want X-SBC-Session-Role", got)
 	}
+	if got := res.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPut) {
+		t.Fatalf("allow methods = %q, want PUT", got)
+	}
 }
 
 func TestCORSRejectsUnknownProductionOrigin(t *testing.T) {

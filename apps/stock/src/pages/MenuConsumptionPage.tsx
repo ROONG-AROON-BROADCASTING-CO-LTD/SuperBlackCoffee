@@ -423,6 +423,7 @@ export function MenuConsumptionPage({
                 channel === 'lineman'
                   ? menu.linemanPriceAvailable
                   : menu.storePriceAvailable;
+              const imageUrl = menu.imageUrl?.trim() || coffeeIngredientsImage;
               const unavailableLabel =
                 channelRecipeStatus === 'missing_recipe'
                   ? 'ไม่มีสูตร'
@@ -444,15 +445,21 @@ export function MenuConsumptionPage({
                   <Box sx={{ position: 'relative' }}>
                     <Box
                       component="img"
-                      src={coffeeIngredientsImage}
-                      alt=""
-                      aria-hidden="true"
+                      src={imageUrl}
+                      alt={`รูป${menu.name}`}
+                      onError={(event) => {
+                        if (event.currentTarget.src !== coffeeIngredientsImage)
+                          event.currentTarget.src = coffeeIngredientsImage;
+                      }}
                       sx={{
                         display: 'block',
                         width: '100%',
                         aspectRatio: '1 / 1',
                         objectFit: 'cover',
-                        objectPosition: `${15 + (index % 4) * 20}% 50%`,
+                        objectPosition:
+                          imageUrl === coffeeIngredientsImage
+                            ? `${15 + (index % 4) * 20}% 50%`
+                            : 'center',
                         filter: channelSellable ? 'none' : 'grayscale(.45)',
                       }}
                     />
@@ -679,9 +686,12 @@ export function MenuConsumptionPage({
                   >
                     <Box
                       component="img"
-                      src={coffeeIngredientsImage}
-                      alt=""
-                      aria-hidden="true"
+                      src={item.menu.imageUrl?.trim() || coffeeIngredientsImage}
+                      alt={`รูป${item.menu.name}`}
+                      onError={(event) => {
+                        if (event.currentTarget.src !== coffeeIngredientsImage)
+                          event.currentTarget.src = coffeeIngredientsImage;
+                      }}
                       sx={{
                         width: 64,
                         height: 64,

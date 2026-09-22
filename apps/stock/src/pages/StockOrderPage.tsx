@@ -235,6 +235,7 @@ export function StockOrderPage({
           {visibleItems.map((item, index) => {
             const selectedQuantityForItem =
               orderItems[item.id]?.quantityToOrder ?? 0;
+            const imageUrl = item.imageUrl?.trim() || coffeeIngredientsImage;
             return (
               <Card
                 key={item.id}
@@ -249,15 +250,21 @@ export function StockOrderPage({
                 <Box sx={{ position: 'relative' }}>
                   <Box
                     component="img"
-                    src={coffeeIngredientsImage}
-                    alt=""
-                    aria-hidden="true"
+                    src={imageUrl}
+                    alt={`รูป${item.name}`}
+                    onError={(event) => {
+                      if (event.currentTarget.src !== coffeeIngredientsImage)
+                        event.currentTarget.src = coffeeIngredientsImage;
+                    }}
                     sx={{
                       display: 'block',
                       width: '100%',
                       aspectRatio: '1 / 1',
                       objectFit: 'cover',
-                      objectPosition: `${15 + (index % 4) * 20}% 50%`,
+                      objectPosition:
+                        imageUrl === coffeeIngredientsImage
+                          ? `${15 + (index % 4) * 20}% 50%`
+                          : 'center',
                     }}
                   />
                   {selectedQuantityForItem ? (

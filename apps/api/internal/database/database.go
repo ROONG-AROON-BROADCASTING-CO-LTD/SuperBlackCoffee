@@ -16,6 +16,16 @@ import (
 var migrationFiles embed.FS
 
 func Open(ctx context.Context, url string) (*sql.DB, error) {
+	return open(ctx, url, true)
+}
+
+// OpenWithoutMigrations connects to an existing schema without changing it.
+// This is intended for local diagnostics where database writes are prohibited.
+func OpenWithoutMigrations(ctx context.Context, url string) (*sql.DB, error) {
+	return open(ctx, url, false)
+}
+
+func open(ctx context.Context, url string, runMigrations bool) (*sql.DB, error) {
 	if strings.TrimSpace(url) == "" {
 		return nil, fmt.Errorf("ไม่ได้กำหนดค่า DATABASE_URL")
 	}
@@ -27,9 +37,11 @@ func Open(ctx context.Context, url string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("ตรวจสอบการเชื่อมต่อฐานข้อมูลไม่สำเร็จ: %w", err)
 	}
-	if err := migrate(ctx, db); err != nil {
-		db.Close()
-		return nil, err
+	if runMigrations {
+		if err := migrate(ctx, db); err != nil {
+			db.Close()
+			return nil, err
+		}
 	}
 	return db, nil
 }

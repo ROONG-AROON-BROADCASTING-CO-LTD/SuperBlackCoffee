@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,10 @@ func (h *PlatformHandler) branchScope(c *gin.Context) (int64, bool) {
 
 func (h *PlatformHandler) requestBranchScope(c *gin.Context, requested *int64) (int64, bool) {
 	claims := middleware.ClaimsFrom(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "กรุณาเข้าสู่ระบบ"})
+		return 0, false
+	}
 	if claims.Role == "admin" {
 		if requested == nil || *requested < 1 {
 			c.JSON(400, gin.H{"success": false, "message": "ต้องระบุ branchId"})

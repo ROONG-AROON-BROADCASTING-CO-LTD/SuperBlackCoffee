@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SbcThemeProvider } from '@stackbuild/ui';
 import {
   QueryAutoRetrySnackbar,
@@ -13,7 +13,9 @@ setManagementSessionRole('admin');
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const sessionEpoch = useRef(0);
   const logout = () => {
+    sessionEpoch.current += 1;
     setLoggedIn(false);
     void endSession();
   };
@@ -22,10 +24,22 @@ export default function App() {
     return () => window.removeEventListener('sbc:session-expired', logout);
   }, []);
   useEffect(() => {
+    let active = true;
+    const epoch = sessionEpoch.current;
     void restoreSession()
-      .then((session) => setLoggedIn(session.user.role === 'admin'))
-      .catch(() => setLoggedIn(false))
-      .finally(() => setCheckingSession(false));
+      .then((session) => {
+        if (active && epoch === sessionEpoch.current)
+          setLoggedIn(session.user.role === 'admin');
+      })
+      .catch(() => {
+        if (active && epoch === sessionEpoch.current) setLoggedIn(false);
+      })
+      .finally(() => {
+        if (active) setCheckingSession(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
   if (checkingSession) return null;
   return (

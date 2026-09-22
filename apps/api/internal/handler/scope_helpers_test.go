@@ -27,6 +27,17 @@ func TestRequestBranchScopePreventsNonAdminFromSelectingAnotherBranch(t *testing
 	}
 }
 
+func TestRequestBranchScopeRejectsMissingClaims(t *testing.T) {
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	requestedBranch := int64(99)
+
+	got, ok := (&PlatformHandler{}).requestBranchScope(ctx, &requestedBranch)
+	if ok || got != 0 || response.Code != http.StatusUnauthorized {
+		t.Fatalf("branch = %d, ok = %t, status = %d; want unauthorized", got, ok, response.Code)
+	}
+}
+
 func TestRequestBranchScopeRequiresAnExplicitValidBranchForAdmin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, test := range []struct {

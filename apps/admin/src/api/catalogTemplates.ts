@@ -74,6 +74,7 @@ export type CatalogTemplateSyncResult = {
 };
 
 export type CatalogTemplateInventoryPatch = {
+  name?: string;
   category: string;
   imageUrl?: string;
   stockCategory?: string;
@@ -90,6 +91,7 @@ export type CatalogTemplateInventoryCreate = CatalogTemplateInventoryPatch & {
 };
 
 export type CatalogTemplateMenuPatch = {
+  name?: string;
   category: string;
   storePrice: number;
   linemanPrice: number;

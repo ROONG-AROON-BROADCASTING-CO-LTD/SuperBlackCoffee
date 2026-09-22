@@ -15,6 +15,7 @@ export type InventoryItem = {
   id: number;
   name: string;
   category: string;
+  imageUrl?: string;
   kind: 'ingredient' | 'stock';
   stockCategory?: 'drink_equipment' | 'postal_equipment';
   quantity: number;
@@ -47,6 +48,7 @@ export type MenuItem = {
   id: number;
   name: string;
   category: string;
+  imageUrl?: string;
   status: 'available' | 'soldout';
   storePrice?: number;
   storePriceAvailable?: boolean;

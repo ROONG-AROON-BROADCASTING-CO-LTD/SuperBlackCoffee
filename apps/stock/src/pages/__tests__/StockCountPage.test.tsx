@@ -61,7 +61,7 @@ describe('StockCountPage', () => {
     const grid = screen.getByRole('list', { name: 'รายการตรวจนับสต๊อก' });
     expect(grid).toBeTruthy();
     expect(grid.querySelectorAll('[role="listitem"]')).toHaveLength(2);
-    expect(grid.querySelectorAll('img[alt=""]')).toHaveLength(2);
+    expect(grid.querySelectorAll('img[alt^="รูป"]')).toHaveLength(2);
     expect(
       screen.getAllByRole('button', { name: 'บันทึกยอดจริง' }),
     ).toHaveLength(2);
@@ -73,6 +73,24 @@ describe('StockCountPage', () => {
       screen.getAllByRole('button', { name: 'สั่งซื้อวัตถุดิบ' })[0],
     );
     expect(onOrderIngredients).toHaveBeenCalledWith(ingredient);
+  });
+
+  it('uses an inventory image from the API when one is available', () => {
+    render(
+      <StockCountPage
+        ingredients={[
+          { ...ingredient, imageUrl: 'https://cdn.example.test/coffee.png' },
+        ]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('img', { name: 'รูปเมล็ดกาแฟ' }).getAttribute('src'),
+    ).toBe('https://cdn.example.test/coffee.png');
   });
 
   it('excludes cost-only recipe inputs even when a legacy payload omits trackStock', () => {

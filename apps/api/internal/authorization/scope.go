@@ -14,6 +14,10 @@ import (
 // other roles are always constrained to the branch in their JWT claims.
 func BranchID(c *gin.Context, db *sql.DB) (int64, bool) {
 	claims := middleware.ClaimsFrom(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "กรุณาเข้าสู่ระบบ"})
+		return 0, false
+	}
 	if claims.Role == "admin" {
 		if code := strings.TrimSpace(c.Query("branchCode")); code != "" {
 			var id int64

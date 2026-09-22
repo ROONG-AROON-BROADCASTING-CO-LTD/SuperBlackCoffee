@@ -109,4 +109,22 @@ describe('Franchise App session', () => {
       sessionStorage.getItem('sbc-franchise-sidebar-collapsed'),
     ).toBeNull();
   });
+
+  it('does not restore an expired franchise session from a late response', async () => {
+    let resolveRestore!: (value: {
+      user: { id: number; role: string; plan: 'M' };
+    }) => void;
+    vi.mocked(restoreSession).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRestore = resolve;
+      }),
+    );
+
+    render(<App />);
+    fireEvent(window, new Event('sbc:session-expired'));
+    resolveRestore({ user: { id: 1, role: 'franchise_owner', plan: 'M' } });
+
+    expect(await screen.findByText('franchise-login')).toBeTruthy();
+    expect(screen.queryByText('franchise-plan-M')).toBeNull();
+  });
 });

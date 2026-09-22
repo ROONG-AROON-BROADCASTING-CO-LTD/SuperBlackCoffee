@@ -83,6 +83,17 @@ describe('AdminOrdersPage', () => {
     );
   });
 
+  it('shows an update failure without claiming the request was approved', async () => {
+    mutateAsync.mockRejectedValueOnce(new Error('ไม่สามารถบันทึกสถานะได้'));
+    render(<AdminOrdersPage activeBranch="อยุธยา" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'อนุมัติคำขอ' }));
+
+    expect(await screen.findByText('ไม่สามารถบันทึกสถานะได้')).toBeTruthy();
+    expect(screen.getByText('รออนุมัติ')).toBeTruthy();
+    expect(screen.queryByText('อัปเดตสถานะคำขอแล้ว')).toBeNull();
+  });
+
   it('separates franchise requests into their own tab', async () => {
     render(<AdminOrdersPage activeBranch="ทุกสาขา" />);
 
