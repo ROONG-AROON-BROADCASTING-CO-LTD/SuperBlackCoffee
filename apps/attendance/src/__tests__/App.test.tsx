@@ -94,12 +94,14 @@ vi.mock('../routes/AttendancePageRouter', () => ({
   AttendancePageRouter: ({
     attendanceActionDisabled,
     attendanceActionHint,
+    attendanceActionDisabledLabel,
     onAttendanceAction,
     page,
     summary,
   }: {
     attendanceActionDisabled: boolean;
     attendanceActionHint: string;
+    attendanceActionDisabledLabel: string;
     onAttendanceAction: () => void;
     page: string;
     summary: { lateCount: number } | null;
@@ -111,6 +113,9 @@ vi.mock('../routes/AttendancePageRouter', () => ({
         {String(attendanceActionDisabled)}
       </span>
       <span data-testid="attendance-action-hint">{attendanceActionHint}</span>
+      <span data-testid="attendance-action-disabled-label">
+        {attendanceActionDisabledLabel}
+      </span>
       <span data-testid="attendance-page">{page}</span>
       <span data-testid="attendance-late-count">{summary?.lateCount ?? 0}</span>
     </div>
@@ -297,6 +302,31 @@ describe('Attendance App session', () => {
       );
     });
     expect(checkIn).not.toHaveBeenCalled();
+  });
+
+  it('rejects another attendance action after a completed checkout even if a stale status says it can record', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: '2026-09-08T09:00:00Z',
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+
+    render(<App />);
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('attendance-action-disabled-label').textContent,
+      ).toBe('ลงเวลาวันนี้ครบแล้ว'),
+    );
+    expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+      'true',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    expect(checkIn).not.toHaveBeenCalled();
+    expect(checkOut).not.toHaveBeenCalled();
   });
 
   it('ends the local session when the check-in request reports an expired cookie', async () => {

@@ -104,4 +104,26 @@ describe('franchise auth API', () => {
       'ไม่พบระบบที่ต้องการ กรุณาลองใหม่อีกครั้ง',
     );
   });
+
+  it('rejects a successful envelope without a franchise user', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ success: true, data: null }), {
+        status: 200,
+      }),
+    );
+
+    await expect(restoreSession()).rejects.toThrow(
+      'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
+    );
+  });
+
+  it('rejects a null JSON response with a readable error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('null', { status: 200 }),
+    );
+
+    await expect(restoreSession()).rejects.toThrow(
+      'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
+    );
+  });
 });

@@ -16,6 +16,12 @@ import {
   MenuItem,
   Stack,
   Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
@@ -184,7 +190,16 @@ type RetireTarget = {
 const templateCardSx = {
   borderColor: '#eadfd7',
   boxShadow: 'none',
-  borderRadius: 3,
+  borderRadius: 1,
+};
+
+const branchTableHeaderSx = {
+  bgcolor: '#faf8f6',
+  borderColor: '#eadfd7',
+  color: '#674633',
+  fontFamily: 'Kanit, sans-serif',
+  fontSize: 12,
+  fontWeight: 600,
 };
 
 const tableColumns = {
@@ -292,8 +307,7 @@ function TemplateDetail({
       variant="outlined"
       sx={{
         ...templateCardSx,
-        // Keep the data table aligned with the system's smaller control radius.
-        borderRadius: 2,
+        overflow: 'hidden',
       }}
     >
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
@@ -1470,13 +1484,9 @@ export function AdminCentralCatalogPage({
                 sx={{
                   minWidth: 0,
                   display: 'grid',
-                  gridTemplateColumns: {
-                    xs: 'minmax(0, 1fr)',
-                    lg: 'minmax(0, 1.7fr) minmax(320px, 1fr)',
-                  },
-                  gap: { xs: 2, lg: 2.5 },
+                  gridTemplateColumns: 'minmax(0, 1fr)',
+                  gap: 2,
                   alignItems: 'start',
-                  gridColumn: { lg: 2 },
                 }}
               >
                 {(section === 'branches' || section === 'sync') && (
@@ -1484,7 +1494,7 @@ export function AdminCentralCatalogPage({
                     variant="outlined"
                     sx={{
                       ...templateCardSx,
-                      order: 2,
+                      order: 1,
                     }}
                   >
                     <CardContent
@@ -1494,23 +1504,14 @@ export function AdminCentralCatalogPage({
                       }}
                     >
                       <Stack
-                        direction="column"
+                        direction={{ xs: 'column', sm: 'row' }}
                         sx={{
-                          alignItems: 'stretch',
-                          gap: 1.5,
+                          alignItems: { xs: 'stretch', sm: 'center' },
+                          justifyContent: 'space-between',
+                          gap: 2,
                         }}
                       >
                         <Box>
-                          <Chip
-                            size="small"
-                            label="ข้อมูลกลาง"
-                            sx={{
-                              mb: 1,
-                              bgcolor: '#f7efe9',
-                              color: '#674633',
-                              fontFamily: 'Kanit, sans-serif',
-                            }}
-                          />
                           <Typography component="h2" sx={sectionTitleSx}>
                             ข้อมูลกลาง
                           </Typography>
@@ -1520,43 +1521,35 @@ export function AdminCentralCatalogPage({
                             ตรวจสอบเมนู วัตถุดิบ และอุปกรณ์ชุดกลางที่ทุกสาขา
                             และแฟรนไชส์ใช้ร่วมกัน
                           </Typography>
-                          <Typography
-                            sx={{ ...sectionMetaSx, mt: 1.25, fontSize: 12.5 }}
-                          >
-                            เปิดดูข้อมูลกลางหรือจัดการการกระจายการเปลี่ยนแปลง
-                            ไปยังสาขาได้จากหน้าต่างเดียว
-                          </Typography>
                         </Box>
-                        <Button
-                          variant="contained"
-                          onClick={() => setIsCentralCatalogDrawerOpen(true)}
-                          sx={{ ...tabButtonSx(true), alignSelf: 'flex-start' }}
-                        >
-                          เปิดข้อมูลกลาง
-                        </Button>
-                      </Stack>
-                      {impact ? (
-                        <Box
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
                           sx={{
-                            mt: 1.5,
-                            px: 1.25,
-                            py: 1,
-                            bgcolor: '#f7efe9',
-                            borderRadius: 2,
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            gap: 1.5,
                           }}
                         >
-                          <Typography
-                            sx={{
-                              ...sectionMetaSx,
-                              color: '#674633',
-                              fontSize: 12,
-                            }}
+                          {impact ? (
+                            <Typography
+                              sx={{
+                                ...sectionMetaSx,
+                                whiteSpace: 'nowrap',
+                                fontSize: 12,
+                              }}
+                            >
+                              ใช้ร่วมกัน {numberFormatter.format(impact.count)}{' '}
+                              สาขา
+                            </Typography>
+                          ) : null}
+                          <Button
+                            variant="contained"
+                            onClick={() => setIsCentralCatalogDrawerOpen(true)}
+                            sx={{ ...tabButtonSx(true), whiteSpace: 'nowrap' }}
                           >
-                            ข้อมูลกลางชุดนี้ใช้กับ{' '}
-                            {numberFormatter.format(impact.count)} สาขา
-                          </Typography>
-                        </Box>
-                      ) : null}
+                            เปิดข้อมูลกลาง
+                          </Button>
+                        </Stack>
+                      </Stack>
                     </CardContent>
                   </Card>
                 )}
@@ -1565,87 +1558,167 @@ export function AdminCentralCatalogPage({
                     variant="outlined"
                     sx={{
                       ...templateCardSx,
-                      order: 1,
+                      order: 2,
+                      overflow: 'hidden',
                     }}
                   >
-                    <CardContent>
-                      <Chip
-                        size="small"
-                        label="รายสาขา"
-                        sx={{
-                          mb: 1,
-                          bgcolor: '#f7efe9',
-                          color: '#674633',
-                          fontFamily: 'Kanit, sans-serif',
-                        }}
-                      />
-                      <Typography component="h2" sx={sectionTitleSx}>
-                        รายการที่ใช้รายสาขา
-                      </Typography>
-                      <Typography sx={sectionMetaSx}>
-                        เลือกสาขาแล้วเปิดหรือปิดรายการที่ใช้ได้ทันที
-                        โดยไม่เปลี่ยนยอดสต๊อกจริง
-                      </Typography>
-                      <TextField
-                        select
-                        fullWidth
-                        size="small"
-                        label="สาขา"
-                        value={branchId ?? ''}
-                        onClick={() => {
-                          if (!impact) void previewImpact('preview');
-                        }}
-                        onChange={(event) =>
-                          setBranchId(Number(event.target.value))
-                        }
-                        sx={{ mt: 2 }}
-                      >
-                        {(impact?.branches ?? []).map((branch) => (
-                          <MenuItem key={branch.id} value={branch.id}>
-                            {branch.name} · {branch.code} · {branch.size}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      {branchId !== null && (
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}
-                          aria-label="ประเภทรายการรายสาขา"
-                        >
-                          {catalogTabs.map((item) => (
-                            <Button
-                              key={item.value}
-                              size="small"
-                              variant={
-                                activeTab === item.value
-                                  ? 'contained'
-                                  : 'outlined'
-                              }
-                              onClick={() => setActiveTab(item.value)}
-                              sx={tabButtonSx(activeTab === item.value)}
-                            >
-                              {item.label}
-                            </Button>
-                          ))}
-                        </Stack>
-                      )}
-                      {branchId !== null && (
-                        <SearchField
-                          fullWidth
-                          placeholder="ค้นหารายการในสาขา"
-                          aria-label="ค้นหารายการในสาขา"
-                          value={branchSearch}
-                          onChange={(event) =>
-                            setBranchSearch(event.target.value)
-                          }
-                          sx={{ mt: 1.25 }}
-                        />
-                      )}
-                      {branchId === null && (
-                        <Typography sx={{ ...sectionMetaSx, mt: 2 }}>
-                          เลือกสาขาเพื่อดูและจัดการรายการที่ใช้งาน
+                    <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                      <Box sx={{ p: 2 }}>
+                        <Typography component="h2" sx={sectionTitleSx}>
+                          รายการที่ใช้รายสาขา
                         </Typography>
+                        <Typography sx={sectionMetaSx}>
+                          ดูรายการของสาขาที่เลือกและเปิดหรือปิดการใช้งานได้ทันที
+                          โดยไม่เปลี่ยนยอดสต๊อกจริง
+                        </Typography>
+                        <TextField
+                          select
+                          fullWidth
+                          size="small"
+                          label="สาขา"
+                          value={branchId ?? ''}
+                          slotProps={{
+                            inputLabel: { shrink: true },
+                            select: {
+                              displayEmpty: true,
+                              renderValue: (value: unknown) => {
+                                const branch = (impact?.branches ?? []).find(
+                                  (item) => item.id === Number(value),
+                                );
+                                return branch
+                                  ? `${branch.name} · ${branch.code} · ${branch.size}`
+                                  : 'กรุณาเลือกสาขา';
+                              },
+                            },
+                          }}
+                          onClick={() => {
+                            if (!impact) void previewImpact('preview');
+                          }}
+                          onChange={(event) =>
+                            setBranchId(Number(event.target.value))
+                          }
+                          sx={{ mt: 2, maxWidth: 440 }}
+                        >
+                          <MenuItem disabled value="">
+                            กรุณาเลือกสาขา
+                          </MenuItem>
+                          {(impact?.branches ?? []).map((branch) => (
+                            <MenuItem key={branch.id} value={branch.id}>
+                              {branch.name} · {branch.code} · {branch.size}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        {branchId !== null && (
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{ mt: 2, flexWrap: 'wrap', gap: 1 }}
+                            aria-label="ประเภทรายการรายสาขา"
+                          >
+                            {catalogTabs.map((item) => (
+                              <Button
+                                key={item.value}
+                                size="small"
+                                variant={
+                                  activeTab === item.value
+                                    ? 'contained'
+                                    : 'outlined'
+                                }
+                                onClick={() => setActiveTab(item.value)}
+                                sx={tabButtonSx(activeTab === item.value)}
+                              >
+                                {item.label}
+                              </Button>
+                            ))}
+                          </Stack>
+                        )}
+                        {branchId !== null && (
+                          <SearchField
+                            fullWidth
+                            placeholder="ค้นหารายการในสาขา"
+                            aria-label="ค้นหารายการในสาขา"
+                            value={branchSearch}
+                            onChange={(event) =>
+                              setBranchSearch(event.target.value)
+                            }
+                            sx={{ mt: 1.25 }}
+                          />
+                        )}
+                      </Box>
+                      {branchId === null && (
+                        <Box sx={{ borderTop: '1px solid #eee3dc' }}>
+                          <Box
+                            sx={{
+                              px: 2,
+                              py: 1,
+                              bgcolor: '#faf8f6',
+                              borderBottom: '1px solid #eee3dc',
+                            }}
+                          >
+                            <Typography sx={itemMetaSx}>0 รายการ</Typography>
+                          </Box>
+                          <TableContainer
+                            sx={{
+                              height: 480,
+                              borderBottom: '1px solid #eee3dc',
+                              borderRadius: 0,
+                              overflowX: 'auto',
+                            }}
+                          >
+                            <Table
+                              stickyHeader
+                              size="small"
+                              aria-label="รายการที่ใช้ในสาขา"
+                              sx={{ minWidth: 680 }}
+                            >
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell
+                                    sx={{ ...branchTableHeaderSx, width: 76 }}
+                                  >
+                                    รูป
+                                  </TableCell>
+                                  <TableCell sx={branchTableHeaderSx}>
+                                    ชื่อรายการ
+                                  </TableCell>
+                                  <TableCell
+                                    sx={{ ...branchTableHeaderSx, width: 170 }}
+                                  >
+                                    หมวดหมู่
+                                  </TableCell>
+                                  <TableCell
+                                    sx={{ ...branchTableHeaderSx, width: 130 }}
+                                  >
+                                    สถานะ
+                                  </TableCell>
+                                  <TableCell
+                                    align="center"
+                                    sx={{ ...branchTableHeaderSx, width: 94 }}
+                                  >
+                                    เปิดใช้
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                <TableRow>
+                                  <TableCell
+                                    colSpan={5}
+                                    align="center"
+                                    sx={{
+                                      height: 420,
+                                      border: 0,
+                                      color: '#86766c',
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 13,
+                                    }}
+                                  >
+                                    กรุณาเลือกสาขาเพื่อแสดงรายการ
+                                  </TableCell>
+                                </TableRow>
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
                       )}
                       {branchId !== null && isLoadingSelections && (
                         <Typography sx={{ ...sectionMetaSx, mt: 1.5 }}>
@@ -1669,125 +1742,239 @@ export function AdminCentralCatalogPage({
                       {branchId !== null &&
                         !isLoadingSelections &&
                         !selectionError &&
-                        visibleBranchItems.length === 0 && (
-                          <Typography sx={{ ...sectionMetaSx, mt: 1.5 }}>
-                            ไม่พบรายการที่ตรงกับสาขาหรือคำค้นหา
-                          </Typography>
-                        )}
-                      {branchId !== null &&
-                        !isLoadingSelections &&
-                        !selectionError &&
                         template && (
-                          <Stack
-                            spacing={0.75}
-                            sx={{ mt: 1.5, maxHeight: 420, overflowY: 'auto' }}
-                          >
-                            <Typography sx={{ ...sectionMetaSx, fontSize: 12 }}>
-                              สาขาขนาด {branchSize} ·{' '}
-                              {numberFormatter.format(
-                                visibleBranchItems.length,
-                              )}{' '}
-                              รายการ
-                            </Typography>
-                            {visibleBranchItems.map((item) => {
-                              const entityType =
-                                activeTab === 'menu' ? 'menu' : 'inventory';
-                              const enabled = !branchSelections.has(
-                                `${entityType}:${item.id}`,
-                              );
-                              return (
-                                <Stack
-                                  key={item.id}
-                                  direction="row"
-                                  sx={{
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: 1,
-                                    px: 1.5,
-                                    py: 1,
-                                    border: '1px solid #eee3dc',
-                                    borderRadius: 2,
-                                    bgcolor: enabled ? '#fffaf7' : '#faf7f4',
-                                  }}
-                                >
-                                  <Box sx={{ minWidth: 0 }}>
-                                    <Typography
+                          <Box sx={{ borderTop: '1px solid #eee3dc' }}>
+                            <Box
+                              sx={{
+                                px: 2,
+                                py: 1,
+                                bgcolor: '#faf8f6',
+                                borderBottom: '1px solid #eee3dc',
+                              }}
+                            >
+                              <Typography sx={itemMetaSx}>
+                                สาขาขนาด {branchSize} ·{' '}
+                                {numberFormatter.format(
+                                  visibleBranchItems.length,
+                                )}{' '}
+                                รายการ
+                              </Typography>
+                            </Box>
+                            <TableContainer
+                              sx={{
+                                height: 480,
+                                borderBottom: '1px solid #eee3dc',
+                                borderRadius: 0,
+                                overflowX: 'auto',
+                              }}
+                            >
+                              <Table
+                                stickyHeader
+                                size="small"
+                                aria-label="รายการที่ใช้ในสาขา"
+                                sx={{ minWidth: 680 }}
+                              >
+                                <TableHead>
+                                  <TableRow>
+                                    <TableCell
                                       sx={{
-                                        fontFamily: 'Kanit, sans-serif',
-                                        fontSize: 13,
-                                        overflowWrap: 'anywhere',
+                                        ...branchTableHeaderSx,
+                                        width: 76,
                                       }}
                                     >
-                                      {item.name}
-                                    </Typography>
-                                    <Typography
-                                      sx={{ ...sectionMetaSx, fontSize: 11.5 }}
+                                      รูป
+                                    </TableCell>
+                                    <TableCell sx={branchTableHeaderSx}>
+                                      ชื่อรายการ
+                                    </TableCell>
+                                    <TableCell
+                                      sx={{
+                                        ...branchTableHeaderSx,
+                                        width: 170,
+                                      }}
                                     >
-                                      {enabled
-                                        ? 'เปิดใช้ในสาขานี้'
-                                        : 'ปิดใช้ในสาขานี้'}
-                                    </Typography>
-                                  </Box>
-                                  <Switch
-                                    size="small"
-                                    checked={enabled}
-                                    disabled={
-                                      isSavingSelection || isLoadingSelections
-                                    }
-                                    slotProps={{
-                                      input: {
-                                        'aria-label': `${item.name} สำหรับสาขา`,
-                                      },
-                                    }}
-                                    onClick={async () => {
-                                      setIsSavingSelection(true);
-                                      setSelectionError('');
-                                      try {
-                                        await setBranchCatalogSelection(
-                                          branchId,
-                                          entityType,
-                                          item.id,
-                                          !enabled,
-                                        );
-                                        const next =
-                                          await listBranchCatalogSelections(
-                                            branchId,
-                                          );
-                                        setBranchSelections(
-                                          new Set(
-                                            next
-                                              .filter(
-                                                (selection) =>
-                                                  !selection.enabled,
-                                              )
-                                              .map(
-                                                (selection) =>
-                                                  `${selection.entityType}:${selection.sourceKey}`,
-                                              ),
-                                          ),
-                                        );
-                                      } catch (error) {
-                                        setSelectionError(
-                                          error instanceof Error
-                                            ? error.message
-                                            : 'บันทึกรายการสาขาไม่สำเร็จ',
-                                        );
-                                      } finally {
-                                        setIsSavingSelection(false);
-                                      }
-                                    }}
-                                    sx={{
-                                      '& .MuiSwitch-switchBase.Mui-checked': {
-                                        color: '#805637',
-                                      },
-                                      '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':
-                                        { bgcolor: '#805637' },
-                                    }}
-                                  />
-                                </Stack>
-                              );
-                            })}
-                          </Stack>
+                                      หมวดหมู่
+                                    </TableCell>
+                                    <TableCell
+                                      sx={{
+                                        ...branchTableHeaderSx,
+                                        width: 130,
+                                      }}
+                                    >
+                                      สถานะ
+                                    </TableCell>
+                                    <TableCell
+                                      align="center"
+                                      sx={{ ...branchTableHeaderSx, width: 94 }}
+                                    >
+                                      เปิดใช้
+                                    </TableCell>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {visibleBranchItems.length === 0 ? (
+                                    <TableRow>
+                                      <TableCell
+                                        colSpan={5}
+                                        align="center"
+                                        sx={{
+                                          height: 420,
+                                          border: 0,
+                                          color: '#86766c',
+                                          fontFamily: 'Kanit, sans-serif',
+                                          fontSize: 13,
+                                        }}
+                                      >
+                                        ไม่พบรายการที่ตรงกับสาขาหรือคำค้นหา
+                                      </TableCell>
+                                    </TableRow>
+                                  ) : (
+                                    visibleBranchItems.map((item) => {
+                                      const entityType =
+                                        activeTab === 'menu'
+                                          ? 'menu'
+                                          : 'inventory';
+                                      const enabled = !branchSelections.has(
+                                        `${entityType}:${item.id}`,
+                                      );
+                                      return (
+                                        <TableRow key={item.id} hover>
+                                          <TableCell
+                                            sx={{
+                                              width: 76,
+                                              borderColor: '#eee3dc',
+                                              py: 1,
+                                            }}
+                                          >
+                                            <CatalogThumbnail
+                                              name={item.name}
+                                              imageUrl={item.imageUrl}
+                                            />
+                                          </TableCell>
+                                          <TableCell
+                                            sx={{
+                                              borderColor: '#eee3dc',
+                                              py: 1,
+                                            }}
+                                          >
+                                            <Typography
+                                              sx={{
+                                                fontFamily: 'Kanit, sans-serif',
+                                                fontSize: 13,
+                                                overflowWrap: 'anywhere',
+                                              }}
+                                            >
+                                              {item.name}
+                                            </Typography>
+                                            <Typography
+                                              sx={{
+                                                ...itemMetaSx,
+                                                mt: 0.25,
+                                              }}
+                                            >
+                                              ใช้กับขนาด{' '}
+                                              {item.availableSizes.join(' / ')}
+                                            </Typography>
+                                          </TableCell>
+                                          <TableCell
+                                            sx={{
+                                              borderColor: '#eee3dc',
+                                              py: 1,
+                                            }}
+                                          >
+                                            <Typography sx={itemMetaSx}>
+                                              {item.category}
+                                            </Typography>
+                                          </TableCell>
+                                          <TableCell
+                                            sx={{ borderColor: '#eee3dc' }}
+                                          >
+                                            <Typography
+                                              sx={{
+                                                ...sectionMetaSx,
+                                                fontSize: 11.5,
+                                                color: enabled
+                                                  ? '#805637'
+                                                  : '#86766c',
+                                              }}
+                                            >
+                                              {enabled ? 'เปิดใช้' : 'ปิดใช้'}
+                                            </Typography>
+                                          </TableCell>
+                                          <TableCell
+                                            align="center"
+                                            sx={{
+                                              borderColor: '#eee3dc',
+                                              py: 0.25,
+                                            }}
+                                          >
+                                            <Switch
+                                              size="small"
+                                              checked={enabled}
+                                              disabled={
+                                                isSavingSelection ||
+                                                isLoadingSelections
+                                              }
+                                              slotProps={{
+                                                input: {
+                                                  'aria-label': `${item.name} สำหรับสาขา`,
+                                                },
+                                              }}
+                                              onClick={async () => {
+                                                setIsSavingSelection(true);
+                                                setSelectionError('');
+                                                try {
+                                                  await setBranchCatalogSelection(
+                                                    branchId,
+                                                    entityType,
+                                                    item.id,
+                                                    !enabled,
+                                                  );
+                                                  const next =
+                                                    await listBranchCatalogSelections(
+                                                      branchId,
+                                                    );
+                                                  setBranchSelections(
+                                                    new Set(
+                                                      next
+                                                        .filter(
+                                                          (selection) =>
+                                                            !selection.enabled,
+                                                        )
+                                                        .map(
+                                                          (selection) =>
+                                                            `${selection.entityType}:${selection.sourceKey}`,
+                                                        ),
+                                                    ),
+                                                  );
+                                                } catch (error) {
+                                                  setSelectionError(
+                                                    error instanceof Error
+                                                      ? error.message
+                                                      : 'บันทึกรายการสาขาไม่สำเร็จ',
+                                                  );
+                                                } finally {
+                                                  setIsSavingSelection(false);
+                                                }
+                                              }}
+                                              sx={{
+                                                '& .MuiSwitch-switchBase.Mui-checked':
+                                                  {
+                                                    color: '#805637',
+                                                  },
+                                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':
+                                                  { bgcolor: '#805637' },
+                                              }}
+                                            />
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })
+                                  )}
+                                </TableBody>
+                              </Table>
+                            </TableContainer>
+                          </Box>
                         )}
                     </CardContent>
                   </Card>
@@ -1838,7 +2025,7 @@ export function AdminCentralCatalogPage({
                 width: { md: 'calc(100% - 304px)' },
                 height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
                 overflow: 'hidden',
-                borderRadius: '24px 24px 0 0',
+                borderRadius: '16px 16px 0 0',
                 bgcolor: '#fffaf7',
               },
             },
@@ -1953,7 +2140,7 @@ export function AdminCentralCatalogPage({
                     key={label}
                     sx={{
                       border: '1px solid #eadfd7',
-                      borderRadius: 3,
+                      borderRadius: 1.5,
                       bgcolor: '#fff',
                       px: 2,
                       py: 1.5,
@@ -1981,7 +2168,7 @@ export function AdminCentralCatalogPage({
                 sx={{
                   mt: 2,
                   border: '1px solid #eadfd7',
-                  borderRadius: 3,
+                  borderRadius: 1.5,
                   bgcolor: '#fff',
                   p: { xs: 2, sm: 2.5 },
                 }}
@@ -2023,7 +2210,7 @@ export function AdminCentralCatalogPage({
                 sx={{
                   mt: 2,
                   border: '1px solid #eadfd7',
-                  borderRadius: 3,
+                  borderRadius: 1.5,
                   bgcolor: '#fff',
                   p: { xs: 2, sm: 2.5 },
                 }}
@@ -2090,7 +2277,7 @@ export function AdminCentralCatalogPage({
               width: { md: 'calc(100% - 304px)' },
               height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflow: 'hidden',
-              borderRadius: '24px 24px 0 0',
+              borderRadius: '16px 16px 0 0',
               bgcolor: '#fffaf7',
             },
           },
@@ -3006,7 +3193,7 @@ function CentralInventoryEditorDrawer({
             width: { md: 'calc(100% - 304px)' },
             height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
             overflow: 'hidden',
-            borderRadius: '24px 24px 0 0',
+            borderRadius: '16px 16px 0 0',
             bgcolor: '#fffaf7',
           },
         },

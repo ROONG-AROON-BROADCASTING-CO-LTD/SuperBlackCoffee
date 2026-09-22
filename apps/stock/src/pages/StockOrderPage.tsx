@@ -101,6 +101,10 @@ export function StockOrderPage({
   };
   useEffect(() => {
     if (!pendingItem) return;
+    if (!isCountableStockItem(pendingItem)) {
+      onPendingItemAdded?.();
+      return;
+    }
     setError('');
     setOrderItems((current) => {
       const selectedItem = current[pendingItem.id];

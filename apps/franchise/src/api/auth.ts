@@ -12,7 +12,11 @@ export type FranchiseSession = { user: FranchiseUser };
 
 const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 
-async function requestSession(path: string, options: RequestInit = {}) {
+async function requestSession(
+  path: string,
+  options: RequestInit = {},
+  requireUser = true,
+) {
   const response = await fetch(`${baseURL}${path}`, {
     credentials: 'include',
     ...options,
@@ -28,8 +32,15 @@ async function requestSession(path: string, options: RequestInit = {}) {
         : 'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
     );
   }
+  if (!body || typeof body !== 'object')
+    throw new Error('ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง');
   if (!response.ok || !body.success)
     throw new Error(body.message ?? 'ไม่สามารถตรวจสอบเซสชันได้');
+  if (
+    requireUser &&
+    (!body.data?.user || typeof body.data.user.role !== 'string')
+  )
+    throw new Error('ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง');
   return body.data as FranchiseSession;
 }
 
@@ -46,7 +57,11 @@ export const restoreSession = () =>
     headers: { 'X-SBC-Session-Role': 'franchise_owner' },
   });
 export const logout = () =>
-  requestSession('/auth/logout', {
-    method: 'POST',
-    headers: { 'X-SBC-Session-Role': 'franchise_owner' },
-  });
+  requestSession(
+    '/auth/logout',
+    {
+      method: 'POST',
+      headers: { 'X-SBC-Session-Role': 'franchise_owner' },
+    },
+    false,
+  );

@@ -138,6 +138,58 @@ describe('StockOrderPage', () => {
     expect(screen.queryByText('น้ำสกัดกาแฟ')).toBeNull();
   });
 
+  it('does not add a forwarded cost-only item to a branch order', () => {
+    const onPendingItemAdded = vi.fn();
+    render(
+      <StockOrderPage
+        ingredients={[item]}
+        drinkStock={[]}
+        postalStock={[]}
+        isFranchise={false}
+        onCreateRequest={vi.fn()}
+        pendingItem={{
+          ...item,
+          id: 12,
+          name: 'น้ำสกัดกาแฟ',
+          status: 'cost_only',
+        }}
+        onPendingItemAdded={onPendingItemAdded}
+      />,
+    );
+
+    expect(screen.queryByText('น้ำสกัดกาแฟ')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'เปิดรายการสั่งซื้อ' }).textContent,
+    ).toContain('(0)');
+    expect(onPendingItemAdded).toHaveBeenCalledOnce();
+  });
+
+  it('does not add a forwarded item explicitly marked as untracked stock', () => {
+    const onPendingItemAdded = vi.fn();
+    render(
+      <StockOrderPage
+        ingredients={[item]}
+        drinkStock={[]}
+        postalStock={[]}
+        isFranchise={false}
+        onCreateRequest={vi.fn()}
+        pendingItem={{
+          ...item,
+          id: 13,
+          name: 'น้ำกระบวนการ',
+          trackStock: false,
+        }}
+        onPendingItemAdded={onPendingItemAdded}
+      />,
+    );
+
+    expect(screen.queryByText('น้ำกระบวนการ')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'เปิดรายการสั่งซื้อ' }).textContent,
+    ).toContain('(0)');
+    expect(onPendingItemAdded).toHaveBeenCalledOnce();
+  });
+
   it('puts an ingredient selected from its stock card straight into the open order cart', () => {
     const onPendingItemAdded = vi.fn();
     render(

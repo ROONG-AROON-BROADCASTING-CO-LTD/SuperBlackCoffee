@@ -80,7 +80,10 @@ export default function App() {
       'ภาพรวม',
     [page],
   );
-  const attendanceActionDisabled = !status || !status.canRecordAttendance;
+  const attendanceActionDisabled =
+    !status ||
+    !status.canRecordAttendance ||
+    Boolean(status.checkInAt && status.checkOutAt);
   const attendanceActionHint =
     status?.checkInAt && status.checkOutAt
       ? ''
@@ -238,7 +241,7 @@ export default function App() {
     setPage('overview');
   };
   const toggleAttendance = async () => {
-    if (!session || !status?.canRecordAttendance) return;
+    if (!session || attendanceActionDisabled) return;
     setLoading(true);
     try {
       const nextStatus = status?.checkedIn ? await checkOut() : await checkIn();

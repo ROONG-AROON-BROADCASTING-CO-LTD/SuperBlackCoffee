@@ -11,7 +11,7 @@ import (
 
 func TestRequestBranchScopePreventsNonAdminFromSelectingAnotherBranch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	for _, role := range []string{"branch_manager", "cashier"} {
+	for _, role := range []string{"branch_manager", "cashier", "franchise_owner"} {
 		t.Run(role, func(t *testing.T) {
 			claimedBranch := int64(12)
 			requestedBranch := int64(99)

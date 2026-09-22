@@ -413,9 +413,31 @@ describe('AdminCentralCatalogPage', () => {
     await waitFor(() =>
       expect(mockedGetCatalogTemplateImpact).toHaveBeenCalledWith(21),
     );
+    expect(
+      screen.getByRole('combobox', { name: 'สาขา' }).textContent,
+    ).toContain('กรุณาเลือกสาขา');
+    const emptyBranchTable = screen.getByRole('table', {
+      name: 'รายการที่ใช้ในสาขา',
+    });
+    expect(emptyBranchTable.textContent).toContain(
+      'กรุณาเลือกสาขาเพื่อแสดงรายการ',
+    );
+    expect(
+      screen.queryByRole('switch', { name: 'อเมริกาโน่เย็น สำหรับสาขา' }),
+    ).toBeNull();
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'สาขา' }));
     fireEvent.click(
       await screen.findByRole('option', { name: 'อยุธยา · SBC-AYA-001 · S' }),
+    );
+    const branchTable = await screen.findByRole('table', {
+      name: 'รายการที่ใช้ในสาขา',
+    });
+    expect(branchTable.querySelectorAll('thead th')).toHaveLength(5);
+    const menuRow = screen.getByRole('row', { name: /อเมริกาโน่เย็น/ });
+    expect(menuRow.textContent).toContain('ใช้กับขนาด S / M');
+    expect(menuRow.textContent).toContain('กาแฟ');
+    expect(menuRow.querySelector('img')?.getAttribute('src')).toBe(
+      '/images/americano.jpg',
     );
     fireEvent.click(
       await screen.findByRole('switch', {

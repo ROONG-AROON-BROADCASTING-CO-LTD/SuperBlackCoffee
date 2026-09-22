@@ -72,3 +72,20 @@ func TestBranchIDValidatesAdminBranchID(t *testing.T) {
 		t.Fatalf("ok = %t, status = %d", ok, res.Code)
 	}
 }
+
+func TestBranchIDRejectsMissingAndNonPositiveAdminBranchSelectors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, query := range []string{"", "?branchId=0", "?branchId=-4", "?branchId=9223372036854775808"} {
+		t.Run(query, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(response)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/inventory"+query, nil)
+			ctx.Set("claims", &middleware.Claims{Role: "admin"})
+
+			got, ok := BranchID(ctx, nil)
+			if ok || got != 0 || response.Code != http.StatusBadRequest {
+				t.Fatalf("query %q resolved branch %d, ok=%t, status=%d; want bad request", query, got, ok, response.Code)
+			}
+		})
+	}
+}
