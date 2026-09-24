@@ -15,6 +15,7 @@ import {
   restoreAttendanceSession,
 } from '../api/attendance';
 import { ApiRequestError } from '../api/client';
+import { requestAttendanceLocation } from '../lib/attendanceLocation';
 import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
@@ -72,6 +73,13 @@ vi.mock('../api/attendance', () => ({
     },
   }),
   setupAttendancePIN: vi.fn(),
+}));
+vi.mock('../lib/attendanceLocation', () => ({
+  requestAttendanceLocation: vi.fn().mockResolvedValue({
+    latitude: 16.821085,
+    longitude: 100.2694448,
+    accuracyM: 8,
+  }),
 }));
 vi.mock('../features/auth/AttendanceLoginPage', () => ({
   AttendanceLoginPage: () => <div>attendance-login</div>,
@@ -265,6 +273,12 @@ describe('Attendance App session', () => {
     await waitFor(() => {
       expect(screen.getByTestId('attendance-late-count').textContent).toBe('2');
     });
+    expect(requestAttendanceLocation).toHaveBeenCalledOnce();
+    expect(checkIn).toHaveBeenCalledWith({
+      latitude: 16.821085,
+      longitude: 100.2694448,
+      accuracyM: 8,
+    });
   });
 
   it('checks out an already checked-in staff member and prevents another action', async () => {
@@ -302,6 +316,11 @@ describe('Attendance App session', () => {
       );
     });
     expect(checkIn).not.toHaveBeenCalled();
+    expect(checkOut).toHaveBeenCalledWith({
+      latitude: 16.821085,
+      longitude: 100.2694448,
+      accuracyM: 8,
+    });
   });
 
   it('offers checkout for an overnight shift whose work date is yesterday', async () => {

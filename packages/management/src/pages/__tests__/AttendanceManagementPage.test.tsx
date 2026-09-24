@@ -171,6 +171,10 @@ describe('AttendanceManagementPage', () => {
 
     expect(screen.getByLabelText('กำลังโหลดข้อมูลลงเวลาพนักงาน')).toBeTruthy();
     expect(screen.getByLabelText('โครงปฏิทินลงเวลาพนักงาน')).toBeTruthy();
+    expect(screen.getByText('ลงเวลาพนักงาน')).toBeTruthy();
+    expect(
+      screen.getByText('ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'),
+    ).toBeTruthy();
     expect(screen.getAllByRole('button')).toHaveLength(3);
   });
 

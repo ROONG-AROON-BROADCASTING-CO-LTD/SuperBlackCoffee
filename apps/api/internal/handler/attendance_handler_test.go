@@ -30,6 +30,28 @@ func TestCanRecordAttendanceAllowsOnlyWorkingShiftStatuses(t *testing.T) {
 	}
 }
 
+func TestAttendanceLocationValidationAndDistance(t *testing.T) {
+	latitude, longitude, accuracy := 16.821085, 100.2694448, 8.0
+	valid := attendanceLocationInput{Latitude: &latitude, Longitude: &longitude, AccuracyM: &accuracy}
+	if !valid.valid() {
+		t.Fatal("valid location was rejected")
+	}
+	if distance := distanceMeters(latitude, longitude, latitude, longitude); distance != 0 {
+		t.Fatalf("same location distance = %f, want 0", distance)
+	}
+	if distance := distanceMeters(latitude, longitude, 16.822085, longitude); distance < 100 || distance > 120 {
+		t.Fatalf("one-thousandth latitude distance = %f, want about 111 m", distance)
+	}
+	invalidLatitude := 91.0
+	if (attendanceLocationInput{Latitude: &invalidLatitude, Longitude: &longitude}).valid() {
+		t.Fatal("out-of-range latitude was accepted")
+	}
+	negativeAccuracy := -1.0
+	if (attendanceLocationInput{Latitude: &latitude, Longitude: &longitude, AccuracyM: &negativeAccuracy}).valid() {
+		t.Fatal("negative accuracy was accepted")
+	}
+}
+
 func TestAttendanceClaimsRejectsMissingOrUnauthorizedRole(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, test := range []struct {

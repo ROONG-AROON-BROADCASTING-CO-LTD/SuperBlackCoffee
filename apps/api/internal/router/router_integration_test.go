@@ -643,17 +643,50 @@ func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	if session := requestJSONWithCookie(r, http.MethodGet, "/api/v1/attendance/session", "", cookies[0]); session.Code != http.StatusOK {
 		t.Fatalf("attendance session = %d: %s", session.Code, session.Body.String())
 	}
-	if checkIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", "", cookies[0]); checkIn.Code != http.StatusOK {
+	location := `{"latitude":16.821085,"longitude":100.2694448,"accuracyM":8}`
+	if checkIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", location, cookies[0]); checkIn.Code != http.StatusOK {
 		t.Fatalf("check in = %d: %s", checkIn.Code, checkIn.Body.String())
 	}
-	if duplicateCheckIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", "", cookies[0]); duplicateCheckIn.Code != http.StatusBadRequest {
+	if duplicateCheckIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", location, cookies[0]); duplicateCheckIn.Code != http.StatusBadRequest {
 		t.Fatalf("duplicate check in = %d: %s", duplicateCheckIn.Code, duplicateCheckIn.Body.String())
 	}
-	if checkOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", "", cookies[0]); checkOut.Code != http.StatusOK {
+	if checkOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", location, cookies[0]); checkOut.Code != http.StatusOK {
 		t.Fatalf("check out = %d: %s", checkOut.Code, checkOut.Body.String())
 	}
-	if duplicateCheckOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", "", cookies[0]); duplicateCheckOut.Code != http.StatusBadRequest {
+	if duplicateCheckOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", location, cookies[0]); duplicateCheckOut.Code != http.StatusBadRequest {
 		t.Fatalf("duplicate check out = %d: %s", duplicateCheckOut.Code, duplicateCheckOut.Body.String())
+	}
+}
+
+func TestAttendanceGeofenceRejectsOutsideLocationAndStoresAcceptedLocation(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-GEOFENCE")
+	seedUser(t, db, 7, "attendance-geofence", "cashier", branchID, nil)
+	today := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Format("2006-01-02")
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','scheduled')`, branchID, today); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	token := testTokenWithBranch(t, "cashier", branchID)
+
+	outside := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", `{"latitude":16.831085,"longitude":100.2694448,"accuracyM":12}`, token)
+	if outside.Code != http.StatusForbidden || !strings.Contains(outside.Body.String(), "นอกรัศมี") {
+		t.Fatalf("outside geofence check-in = %d: %s", outside.Code, outside.Body.String())
+	}
+	inside := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", `{"latitude":16.821085,"longitude":100.2694448,"accuracyM":8}`, token)
+	if inside.Code != http.StatusOK {
+		t.Fatalf("inside geofence check-in = %d: %s", inside.Code, inside.Body.String())
+	}
+	var latitude, longitude, accuracy float64
+	if err := db.QueryRow(`SELECT check_in_latitude,check_in_longitude,check_in_accuracy_m FROM staff_attendance WHERE user_id=7 AND work_date=$1`, today).Scan(&latitude, &longitude, &accuracy); err != nil {
+		t.Fatal(err)
+	}
+	if latitude != 16.821085 || longitude != 100.2694448 || accuracy != 8 {
+		t.Fatalf("stored attendance location = %f,%f,%f", latitude, longitude, accuracy)
 	}
 }
 
@@ -678,11 +711,11 @@ func TestAttendanceOvernightShiftCanCheckOutNextDay(t *testing.T) {
 	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"checkedIn":true`) || !strings.Contains(status.Body.String(), yesterday) {
 		t.Fatalf("overnight status = %d: %s", status.Code, status.Body.String())
 	}
-	checkOut := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", "", token)
+	checkOut := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", `{"latitude":16.821085,"longitude":100.2694448}`, token)
 	if checkOut.Code != http.StatusOK {
 		t.Fatalf("overnight check out = %d: %s", checkOut.Code, checkOut.Body.String())
 	}
-	if duplicate := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", "", token); duplicate.Code != http.StatusBadRequest {
+	if duplicate := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", `{"latitude":16.821085,"longitude":100.2694448}`, token); duplicate.Code != http.StatusBadRequest {
 		t.Fatalf("duplicate overnight check out = %d: %s", duplicate.Code, duplicate.Body.String())
 	}
 }
@@ -708,7 +741,7 @@ func TestAttendancePreviousDayShiftCannotCheckOutIfNotOvernight(t *testing.T) {
 	if status.Code != http.StatusOK || strings.Contains(status.Body.String(), `"checkedIn":true`) {
 		t.Fatalf("non-overnight status = %d: %s", status.Code, status.Body.String())
 	}
-	checkOut := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", "", token)
+	checkOut := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", `{"latitude":16.821085,"longitude":100.2694448}`, token)
 	if checkOut.Code != http.StatusBadRequest {
 		t.Fatalf("non-overnight check out = %d: %s", checkOut.Code, checkOut.Body.String())
 	}
@@ -769,13 +802,13 @@ func TestAttendanceCheckInRejectsMissingAndNonWorkingShifts(t *testing.T) {
 	token := testTokenWithBranch(t, "cashier", branchID)
 	today := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Format("2006-01-02")
 
-	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", "", token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่พบกะงาน") {
+	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", `{"latitude":16.821085,"longitude":100.2694448}`, token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่พบกะงาน") {
 		t.Fatalf("missing shift check-in = %d: %s", res.Code, res.Body.String())
 	}
 	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','day_off')`, branchID, today); err != nil {
 		t.Fatal(err)
 	}
-	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", "", token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่ใช่วันทำงาน") {
+	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", `{"latitude":16.821085,"longitude":100.2694448}`, token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่ใช่วันทำงาน") {
 		t.Fatalf("day off check-in = %d: %s", res.Code, res.Body.String())
 	}
 }
@@ -1776,7 +1809,7 @@ func responseID(t *testing.T, res *httptest.ResponseRecorder) int64 {
 func seedBranch(t *testing.T, db *sql.DB, code string) int64 {
 	t.Helper()
 	var id int64
-	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, "สาขา "+code, code).Scan(&id); err != nil {
+	if err := db.QueryRow(`INSERT INTO branches(name,code,latitude,longitude,attendance_radius_m) VALUES($1,$2,16.821085,100.2694448,100) RETURNING id`, "สาขา "+code, code).Scan(&id); err != nil {
 		t.Fatalf("สร้างสาขา: %v", err)
 	}
 	return id

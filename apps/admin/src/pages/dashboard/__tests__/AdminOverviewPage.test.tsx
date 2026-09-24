@@ -173,6 +173,24 @@ describe('AdminOverviewPage', () => {
     ).toBeTruthy();
   });
 
+  it('keeps the page title and description visible while overview data loads', () => {
+    vi.mocked(useDashboardSummary).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    } as unknown as ReturnType<typeof useDashboardSummary>);
+
+    renderPage();
+
+    expect(
+      screen.getByRole('heading', { name: 'ภาพรวมการดำเนินงานวันนี้' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ'),
+    ).toBeTruthy();
+    expect(screen.getByText('กำลังโหลดภาพรวม')).toBeTruthy();
+  });
+
   it('changes the branch-sales comparison period without changing its chart layout', async () => {
     renderPage();
 

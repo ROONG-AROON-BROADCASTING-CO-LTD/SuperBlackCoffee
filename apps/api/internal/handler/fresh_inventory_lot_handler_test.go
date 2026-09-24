@@ -15,8 +15,8 @@ func TestFreshLotExpiryStatusBoundaries(t *testing.T) {
 	}{
 		{"expired before today", time.Date(2026, time.September, 16, 0, 0, 0, 0, time.UTC), "expired"},
 		{"expires today", time.Date(2026, time.September, 17, 0, 0, 0, 0, time.UTC), "expiring_soon"},
-		{"three-day warning boundary", time.Date(2026, time.September, 20, 0, 0, 0, 0, time.UTC), "expiring_soon"},
-		{"after warning window", time.Date(2026, time.September, 21, 0, 0, 0, 0, time.UTC), "ready"},
+		{"sixty-day warning boundary", time.Date(2026, time.November, 16, 0, 0, 0, 0, time.UTC), "expiring_soon"},
+		{"after warning window", time.Date(2026, time.November, 17, 0, 0, 0, 0, time.UTC), "ready"},
 	}
 
 	for _, tt := range tests {

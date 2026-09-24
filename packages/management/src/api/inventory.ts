@@ -33,6 +33,7 @@ export type InventoryInput = {
 export type FreshInventoryLot = {
   id: number;
   lotNumber: string;
+  manufacturedAt: string;
   receivedAt: string;
   expiryDate: string;
   quantityReceived: number;
@@ -46,11 +47,54 @@ export type FreshInventoryLot = {
 
 export type FreshInventoryLotReceipt = {
   lotNumber: string;
+  manufacturedAt: string;
   receivedAt: string;
   expiryDate: string;
   quantity: number;
   unitCost: number;
   note: string;
+};
+
+export type ExpiryWarningSettings = { warningDays: number };
+
+export type ExpiryAlert = {
+  lotId: number;
+  inventoryItemId: number;
+  ingredientName: string;
+  lotNumber: string;
+  manufacturedAt: string;
+  expiryDate: string;
+  quantityRemaining: number;
+  unit: string;
+  daysUntilExpiry: number;
+  expiryStatus: 'ready' | 'expiring_soon' | 'expired';
+};
+
+export type ExpiryAlertsResponse = {
+  warningDays: number;
+  alerts: ExpiryAlert[];
+};
+
+export type ExpiryPromotionSuggestion = {
+  menuId: number;
+  menuName: string;
+  category: string;
+  storePrice: number;
+  lotId: number;
+  inventoryItemId: number;
+  ingredientName: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantityRemaining: number;
+  unit: string;
+  daysUntilExpiry: number;
+  suggestedDiscountPercent: number;
+  reason: string;
+};
+
+export type ExpiryPromotionSuggestionsResponse = {
+  warningDays: number;
+  suggestions: ExpiryPromotionSuggestion[];
 };
 
 export const listInventory = (
@@ -123,4 +167,28 @@ export const discardFreshInventoryLot = (
   secured<{ id: number; quantity: number }>(
     `/fresh-inventory-lots/${lotID}${branchQuery(branchCode)}`,
     { method: 'POST', data: { quantity, note } },
+  );
+
+export const getExpiryWarningSettings = (branchCode: string) =>
+  secured<ExpiryWarningSettings>(
+    `/inventory/expiry-settings${branchQuery(branchCode)}`,
+  );
+
+export const updateExpiryWarningSettings = (
+  warningDays: number,
+  branchCode: string,
+) =>
+  secured<ExpiryWarningSettings>(
+    `/inventory/expiry-settings${branchQuery(branchCode)}`,
+    { method: 'PATCH', data: { warningDays } },
+  );
+
+export const listExpiryAlerts = (branchCode: string) =>
+  secured<ExpiryAlertsResponse>(
+    `/inventory/expiry-alerts${branchQuery(branchCode)}`,
+  );
+
+export const listExpiryPromotionSuggestions = (branchCode: string) =>
+  secured<ExpiryPromotionSuggestionsResponse>(
+    `/inventory/expiry-promotion-suggestions${branchQuery(branchCode)}`,
   );

@@ -15,8 +15,11 @@ import {
   adjustInventory,
   createInventory,
   deleteInventory,
+  getExpiryWarningSettings,
+  listExpiryAlerts,
   listFreshInventoryLots,
   listInventory,
+  listExpiryPromotionSuggestions,
   updateInventory,
 } from '../../api/inventory';
 import {
@@ -32,10 +35,14 @@ vi.mock('../../api/inventory', () => ({
   createInventory: vi.fn(),
   deleteInventory: vi.fn(),
   discardFreshInventoryLot: vi.fn(),
+  getExpiryWarningSettings: vi.fn(),
+  listExpiryAlerts: vi.fn(),
+  listExpiryPromotionSuggestions: vi.fn(),
   listFreshInventoryLots: vi.fn(),
   listInventory: vi.fn(),
   receiveFreshInventoryLot: vi.fn(),
   updateInventory: vi.fn(),
+  updateExpiryWarningSettings: vi.fn(),
 }));
 vi.mock('../../api/menu', () => ({
   createMenuItem: vi.fn(),
@@ -49,8 +56,13 @@ const mockedListInventory = vi.mocked(listInventory);
 const mockedAdjustInventory = vi.mocked(adjustInventory);
 const mockedCreateInventory = vi.mocked(createInventory);
 const mockedDeleteInventory = vi.mocked(deleteInventory);
+const mockedGetExpiryWarningSettings = vi.mocked(getExpiryWarningSettings);
+const mockedListExpiryAlerts = vi.mocked(listExpiryAlerts);
 const mockedListFreshInventoryLots = vi.mocked(listFreshInventoryLots);
 const mockedUpdateInventory = vi.mocked(updateInventory);
+const mockedListExpiryPromotionSuggestions = vi.mocked(
+  listExpiryPromotionSuggestions,
+);
 const mockedListMenuItems = vi.mocked(listMenuItems);
 const mockedListMenuSummary = vi.mocked(listMenuSummary);
 const mockedCreateMenuItem = vi.mocked(createMenuItem);
@@ -115,6 +127,12 @@ describe('inventory management pages', () => {
     mockedAdjustInventory.mockResolvedValue({ id: 1, quantity: 0 });
     mockedCreateInventory.mockResolvedValue({ id: 2 });
     mockedDeleteInventory.mockResolvedValue(undefined);
+    mockedGetExpiryWarningSettings.mockResolvedValue({ warningDays: 60 });
+    mockedListExpiryAlerts.mockResolvedValue({ warningDays: 60, alerts: [] });
+    mockedListExpiryPromotionSuggestions.mockResolvedValue({
+      warningDays: 60,
+      suggestions: [],
+    });
     mockedListFreshInventoryLots.mockResolvedValue([]);
     mockedUpdateInventory.mockResolvedValue({ id: 1 });
     mockedCreateMenuItem.mockResolvedValue({ id: 2 });

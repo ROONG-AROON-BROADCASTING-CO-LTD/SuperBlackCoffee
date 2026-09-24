@@ -809,217 +809,255 @@ export function AdminOverviewPage({
 
   return (
     <DashboardMain>
-      {isLoading ? (
-        <AdminOverviewSkeleton />
-      ) : (
-        <Stack spacing={2.25}>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 2,
-              alignItems: { xs: 'flex-start', sm: 'center' },
-              flexDirection: { xs: 'column', sm: 'row' },
-            }}
-          >
-            <PageIntro
-              title="ภาพรวมการดำเนินงานวันนี้"
-              description="ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ"
-            />
-            <Typography sx={{ color: 'text.secondary', fontSize: 12.5 }}>
-              อัปเดตเมื่อ {updatedAt}
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <FormControl size="small" sx={{ minWidth: 220 }}>
-              <InputLabel id="overview-branch-filter-label">
-                เลือกสาขา
-              </InputLabel>
-              <Select
-                labelId="overview-branch-filter-label"
-                id="overview-branch-filter"
-                value={selectedBranch}
-                label="เลือกสาขา"
-                onChange={(event) =>
-                  setSelectedBranch(event.target.value as Branch)
-                }
-                sx={{
-                  borderRadius: '12px',
-                  bgcolor: '#fff',
-                  fontFamily: 'Kanit, sans-serif',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: '#d8c8bd',
-                  },
-                }}
-              >
-                {branches.map((branch) => (
-                  <MenuItem key={branch} value={branch}>
-                    {branch}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-          {hasError ? (
-            <Box
-              role="alert"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 1.5,
-                border: '1px solid #e7b8ae',
-                borderRadius: '12px',
-                bgcolor: '#fff7f5',
-                p: 1.5,
-                color: '#9d3322',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 14,
-              }}
-            >
-              <span>
-                โหลดข้อมูลบางส่วนไม่สำเร็จ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ
-              </span>
-            </Box>
-          ) : null}
-          <SalesSummaryCard sales={overviewSales} />
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                md: 'repeat(2, minmax(0, 1fr))',
-              },
-              gap: 2,
-            }}
-          >
-            <MetricCard
-              label="เมนูที่ตัดสต๊อกวันนี้"
-              value={hasError ? '—' : `${formatCount(stockCuts)} รายการ`}
-              helper={
-                hasError
-                  ? 'โหลดข้อมูลไม่สำเร็จ'
-                  : 'จากการบันทึกขายผ่าน Stock app'
-              }
-              accent={hasError ? '#b63b35' : '#805637'}
-            />
-            <MetricCard
-              label="รอบที่บันทึกตัดสต๊อก"
-              value={hasError ? '—' : `${formatCount(stockEntries)} รอบ`}
-              helper={
-                hasError
-                  ? 'โหลดข้อมูลไม่สำเร็จ'
-                  : 'รายการที่พนักงานยืนยันในวันนี้'
-              }
-              accent={hasError ? '#b63b35' : '#4c8f70'}
-            />
-          </Box>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '1fr',
-              gap: 2,
-            }}
-          >
-            <SalesTrendCard
-              points={salesTrend.data ?? []}
-              period={salesPeriod}
-              onPeriodChange={setSalesPeriod}
-              isError={salesTrend.isError}
-              isLoading={salesTrend.isLoading}
-            />
-            <StockConsumptionTrendCard branchCode={selectedBranchCode} />
-            <BestSellingMenuCard
-              menus={topSellingMenus.data ?? []}
-              isLoading={topSellingMenus.isLoading}
-              isError={topSellingMenus.isError}
-            />
-            <Card variant="outlined" sx={cardSx}>
-              <Box sx={{ p: { xs: 2, md: 2.75 } }}>
-                <Typography
+      <Stack spacing={2.25}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 2,
+            alignItems: { xs: 'flex-start', sm: 'center' },
+            flexDirection: { xs: 'column', sm: 'row' },
+          }}
+        >
+          <PageIntro
+            title="ภาพรวมการดำเนินงานวันนี้"
+            description="ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ"
+          />
+          <Typography sx={{ color: 'text.secondary', fontSize: 12.5 }}>
+            อัปเดตเมื่อ {updatedAt}
+          </Typography>
+        </Box>
+        {isLoading ? (
+          <AdminOverviewSkeleton />
+        ) : (
+          <>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel id="overview-branch-filter-label">
+                  เลือกสาขา
+                </InputLabel>
+                <Select
+                  labelId="overview-branch-filter-label"
+                  id="overview-branch-filter"
+                  value={selectedBranch}
+                  label="เลือกสาขา"
+                  onChange={(event) =>
+                    setSelectedBranch(event.target.value as Branch)
+                  }
                   sx={{
-                    color: '#201914',
+                    borderRadius: '12px',
+                    bgcolor: '#fff',
                     fontFamily: 'Kanit, sans-serif',
-                    fontSize: 19,
-                    fontWeight: 600,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#d8c8bd',
+                    },
                   }}
                 >
-                  สต๊อกแยกตามสาขา
-                </Typography>
-                <Typography
-                  sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
-                >
-                  จำนวนคงเหลือและรายการที่ต้องติดตาม
-                </Typography>
-                <Stack spacing={1.25} sx={{ mt: 2.3 }}>
-                  {branchStock.isError ? (
-                    <Typography sx={{ color: '#a22e2a', fontSize: 13 }}>
-                      ไม่สามารถโหลดข้อมูลสต๊อกได้
-                    </Typography>
-                  ) : (
-                    branchStockRows.map((branch) => (
-                      <Box
-                        key={branch.branch}
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          gap: 2,
-                          p: 1.5,
-                          border: '1px solid #eee4dd',
-                          borderRadius: '12px',
-                        }}
-                      >
-                        <Box>
+                  {branches.map((branch) => (
+                    <MenuItem key={branch} value={branch}>
+                      {branch}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            {hasError ? (
+              <Box
+                role="alert"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  border: '1px solid #e7b8ae',
+                  borderRadius: '12px',
+                  bgcolor: '#fff7f5',
+                  p: 1.5,
+                  color: '#9d3322',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 14,
+                }}
+              >
+                <span>
+                  โหลดข้อมูลบางส่วนไม่สำเร็จ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ
+                </span>
+              </Box>
+            ) : null}
+            <SalesSummaryCard sales={overviewSales} />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  md: 'repeat(2, minmax(0, 1fr))',
+                },
+                gap: 2,
+              }}
+            >
+              <MetricCard
+                label="เมนูที่ตัดสต๊อกวันนี้"
+                value={hasError ? '—' : `${formatCount(stockCuts)} รายการ`}
+                helper={
+                  hasError
+                    ? 'โหลดข้อมูลไม่สำเร็จ'
+                    : 'จากการบันทึกขายผ่าน Stock app'
+                }
+                accent={hasError ? '#b63b35' : '#805637'}
+              />
+              <MetricCard
+                label="รอบที่บันทึกตัดสต๊อก"
+                value={hasError ? '—' : `${formatCount(stockEntries)} รอบ`}
+                helper={
+                  hasError
+                    ? 'โหลดข้อมูลไม่สำเร็จ'
+                    : 'รายการที่พนักงานยืนยันในวันนี้'
+                }
+                accent={hasError ? '#b63b35' : '#4c8f70'}
+              />
+            </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: 2,
+              }}
+            >
+              <SalesTrendCard
+                points={salesTrend.data ?? []}
+                period={salesPeriod}
+                onPeriodChange={setSalesPeriod}
+                isError={salesTrend.isError}
+                isLoading={salesTrend.isLoading}
+              />
+              <StockConsumptionTrendCard branchCode={selectedBranchCode} />
+              <BestSellingMenuCard
+                menus={topSellingMenus.data ?? []}
+                isLoading={topSellingMenus.isLoading}
+                isError={topSellingMenus.isError}
+              />
+              <Card variant="outlined" sx={cardSx}>
+                <Box sx={{ p: { xs: 2, md: 2.75 } }}>
+                  <Typography
+                    sx={{
+                      color: '#201914',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 19,
+                      fontWeight: 600,
+                    }}
+                  >
+                    สต๊อกแยกตามสาขา
+                  </Typography>
+                  <Typography
+                    sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
+                  >
+                    จำนวนคงเหลือและรายการที่ต้องติดตาม
+                  </Typography>
+                  <Stack spacing={1.25} sx={{ mt: 2.3 }}>
+                    {branchStock.isError ? (
+                      <Typography sx={{ color: '#a22e2a', fontSize: 13 }}>
+                        ไม่สามารถโหลดข้อมูลสต๊อกได้
+                      </Typography>
+                    ) : (
+                      branchStockRows.map((branch) => (
+                        <Box
+                          key={branch.branch}
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: 2,
+                            p: 1.5,
+                            border: '1px solid #eee4dd',
+                            borderRadius: '12px',
+                          }}
+                        >
+                          <Box>
+                            <Typography
+                              sx={{
+                                fontFamily: 'Kanit, sans-serif',
+                                fontSize: 15,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {branch.branch}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                mt: 0.1,
+                                color: 'text.secondary',
+                                fontSize: 12,
+                              }}
+                            >
+                              คงเหลือ {branch.quantity.toLocaleString('th-TH')}{' '}
+                              หน่วย
+                            </Typography>
+                          </Box>
                           <Typography
                             sx={{
+                              color: branch.low ? '#a76415' : '#3c5b47',
                               fontFamily: 'Kanit, sans-serif',
-                              fontSize: 15,
+                              fontSize: 12,
                               fontWeight: 600,
                             }}
                           >
-                            {branch.branch}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              mt: 0.1,
-                              color: 'text.secondary',
-                              fontSize: 12,
-                            }}
-                          >
-                            คงเหลือ {branch.quantity.toLocaleString('th-TH')}{' '}
-                            หน่วย
+                            {branch.low
+                              ? `${branch.low} รายการใกล้หมด`
+                              : 'พร้อมใช้งาน'}
                           </Typography>
                         </Box>
-                        <Typography
-                          sx={{
-                            color: branch.low ? '#a76415' : '#3c5b47',
-                            fontFamily: 'Kanit, sans-serif',
-                            fontSize: 12,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {branch.low
-                            ? `${branch.low} รายการใกล้หมด`
-                            : 'พร้อมใช้งาน'}
-                        </Typography>
-                      </Box>
-                    ))
-                  )}
-                </Stack>
-              </Box>
-            </Card>
-          </Box>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                xl: '1fr',
-              },
-              gap: 2,
-            }}
-          >
+                      ))
+                    )}
+                  </Stack>
+                </Box>
+              </Card>
+            </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  xl: '1fr',
+                },
+                gap: 2,
+              }}
+            >
+              <Card variant="outlined" sx={cardSx}>
+                <Box sx={{ p: { xs: 2, md: 2.75 } }}>
+                  <Typography
+                    sx={{
+                      color: '#201914',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 19,
+                      fontWeight: 600,
+                    }}
+                  >
+                    สิ่งที่ต้องติดตาม
+                  </Typography>
+                  <Typography
+                    sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
+                  >
+                    จัดลำดับจากความเสี่ยงของวัตถุดิบในสต๊อก
+                  </Typography>
+                  <Stack spacing={1.25} sx={{ mt: 2.3 }}>
+                    {followUps.length ? (
+                      followUps.map((followUp) => (
+                        <FollowUpRow
+                          key={followUp.title}
+                          {...followUp}
+                          onClick={() => onNavigate('วัตถุดิบ')}
+                        />
+                      ))
+                    ) : (
+                      <Typography
+                        sx={{ color: 'text.secondary', fontSize: 14, py: 2 }}
+                      >
+                        ไม่มีรายการเร่งด่วนที่ต้องติดตาม
+                      </Typography>
+                    )}
+                  </Stack>
+                </Box>
+              </Card>
+            </Box>
             <Card variant="outlined" sx={cardSx}>
               <Box sx={{ p: { xs: 2, md: 2.75 } }}>
                 <Typography
@@ -1030,123 +1068,87 @@ export function AdminOverviewPage({
                     fontWeight: 600,
                   }}
                 >
-                  สิ่งที่ต้องติดตาม
+                  ทางลัด
                 </Typography>
                 <Typography
                   sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
                 >
-                  จัดลำดับจากความเสี่ยงของวัตถุดิบในสต๊อก
+                  ไปยังงานที่ใช้บ่อยของผู้ดูแลระบบ
                 </Typography>
-                <Stack spacing={1.25} sx={{ mt: 2.3 }}>
-                  {followUps.length ? (
-                    followUps.map((followUp) => (
-                      <FollowUpRow
-                        key={followUp.title}
-                        {...followUp}
-                        onClick={() => onNavigate('วัตถุดิบ')}
-                      />
-                    ))
-                  ) : (
-                    <Typography
-                      sx={{ color: 'text.secondary', fontSize: 14, py: 2 }}
+                <Divider sx={{ my: 2.2, borderColor: '#eee4dd' }} />
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'repeat(2, minmax(0, 1fr))',
+                      lg: 'repeat(4, minmax(0, 1fr))',
+                    },
+                    gap: 1.25,
+                  }}
+                >
+                  {overviewActions.map((action) => (
+                    <ButtonBase
+                      key={action.page}
+                      onClick={() => onNavigate(action.page)}
+                      sx={{
+                        display: 'block',
+                        border: '1px solid #eee4dd',
+                        borderRadius: '12px',
+                        p: 1.75,
+                        textAlign: 'left',
+                        transition:
+                          'transform 160ms ease, border-color 160ms ease, background-color 160ms ease',
+                        '&:hover': {
+                          bgcolor: '#fdfaf8',
+                          borderColor: '#c9a78e',
+                          transform: 'translateY(-2px)',
+                        },
+                        '&:focus-visible': {
+                          outline: '3px solid rgba(128,86,55,.28)',
+                          outlineOffset: 2,
+                        },
+                      }}
                     >
-                      ไม่มีรายการเร่งด่วนที่ต้องติดตาม
-                    </Typography>
-                  )}
-                </Stack>
+                      <Typography
+                        sx={{
+                          color: '#b28a6d',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: 1,
+                        }}
+                      >
+                        {action.marker}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          mt: 0.8,
+                          color: '#201914',
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 15,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {action.title}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          mt: 0.35,
+                          color: 'text.secondary',
+                          fontSize: 12.5,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {action.description}
+                      </Typography>
+                    </ButtonBase>
+                  ))}
+                </Box>
               </Box>
             </Card>
-          </Box>
-          <Card variant="outlined" sx={cardSx}>
-            <Box sx={{ p: { xs: 2, md: 2.75 } }}>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 19,
-                  fontWeight: 600,
-                }}
-              >
-                ทางลัด
-              </Typography>
-              <Typography
-                sx={{ mt: 0.35, color: 'text.secondary', fontSize: 13 }}
-              >
-                ไปยังงานที่ใช้บ่อยของผู้ดูแลระบบ
-              </Typography>
-              <Divider sx={{ my: 2.2, borderColor: '#eee4dd' }} />
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: {
-                    xs: '1fr',
-                    sm: 'repeat(2, minmax(0, 1fr))',
-                    lg: 'repeat(4, minmax(0, 1fr))',
-                  },
-                  gap: 1.25,
-                }}
-              >
-                {overviewActions.map((action) => (
-                  <ButtonBase
-                    key={action.page}
-                    onClick={() => onNavigate(action.page)}
-                    sx={{
-                      display: 'block',
-                      border: '1px solid #eee4dd',
-                      borderRadius: '12px',
-                      p: 1.75,
-                      textAlign: 'left',
-                      transition:
-                        'transform 160ms ease, border-color 160ms ease, background-color 160ms ease',
-                      '&:hover': {
-                        bgcolor: '#fdfaf8',
-                        borderColor: '#c9a78e',
-                        transform: 'translateY(-2px)',
-                      },
-                      '&:focus-visible': {
-                        outline: '3px solid rgba(128,86,55,.28)',
-                        outlineOffset: 2,
-                      },
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        color: '#b28a6d',
-                        fontSize: 11,
-                        fontWeight: 800,
-                        letterSpacing: 1,
-                      }}
-                    >
-                      {action.marker}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        mt: 0.8,
-                        color: '#201914',
-                        fontFamily: 'Kanit, sans-serif',
-                        fontSize: 15,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {action.title}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        mt: 0.35,
-                        color: 'text.secondary',
-                        fontSize: 12.5,
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {action.description}
-                    </Typography>
-                  </ButtonBase>
-                ))}
-              </Box>
-            </Box>
-          </Card>
-        </Stack>
-      )}
+          </>
+        )}
+      </Stack>
     </DashboardMain>
   );
 }

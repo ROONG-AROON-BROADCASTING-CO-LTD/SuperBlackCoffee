@@ -186,7 +186,7 @@ func (h *PlatformHandler) CreateInventory(c *gin.Context) {
 	}
 	if item.Category == "fresh" && item.Quantity > 0 {
 		var lotID int64
-		if err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO fresh_inventory_lots(branch_id,inventory_item_id,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost) VALUES($1,$2,CURRENT_DATE,$3,$4,$4,$5) RETURNING id`, branchID, id, item.ExpiryDate, item.Quantity, item.UnitCost).Scan(&lotID); err != nil {
+		if err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO fresh_inventory_lots(branch_id,inventory_item_id,manufactured_at,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost) VALUES($1,$2,CURRENT_DATE,CURRENT_DATE,$3,$4,$4,$5) RETURNING id`, branchID, id, item.ExpiryDate, item.Quantity, item.UnitCost).Scan(&lotID); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างล็อตตั้งต้นของวัตถุดิบสดได้"})
 			return
 		}

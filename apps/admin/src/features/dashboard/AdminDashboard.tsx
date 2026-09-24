@@ -147,6 +147,75 @@ const centralCatalogSkeletonContent: Partial<
   },
 };
 
+const pageSkeletonIntroContent: Partial<
+  Record<AdminPage, { title: string; description: string }>
+> = {
+  ภาพรวม: {
+    title: 'ภาพรวมการดำเนินงานวันนี้',
+    description: 'ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ',
+  },
+  คำสั่งซื้อ: {
+    title: 'คำสั่งซื้อและคำขอจัดส่ง',
+    description: 'แยกการดำเนินการระหว่างสาขา SBC และแฟรนไชส์ให้ชัดเจน',
+  },
+  โปรโมชั่น: {
+    title: 'โปรโมชั่น',
+    description: 'จัดการโปรโมชั่นและเมนูที่ร่วมรายการของทุกสาขา',
+  },
+  ประวัติการทำรายการ: {
+    title: 'ประวัติการทำรายการ',
+    description: 'ตรวจสอบการเปลี่ยนแปลงของสาขา สต็อก เมนู และคำขอได้ในที่เดียว',
+  },
+  เอกสารส่วนกลาง: {
+    title: 'เอกสารส่วนกลาง',
+    description: 'เอกสารสำหรับการทำงานและแฟรนไชส์',
+  },
+  เมนูและสินค้า: {
+    title: 'เมนูและสินค้า',
+    description: 'ดูเมนู ราคา และสูตรของสาขา',
+  },
+  วัตถุดิบ: {
+    title: 'วัตถุดิบ',
+    description: 'ตรวจสอบและแก้ไขวัตถุดิบของสาขา',
+  },
+  วัตถุดิบของสด: {
+    title: 'วัตถุดิบของสด',
+    description: 'ตรวจสอบและแก้ไขวัตถุดิบของสดของสาขา',
+  },
+  สต๊อกอุปกรณ์เครื่องดื่ม: {
+    title: 'สต๊อกอุปกรณ์เครื่องดื่ม',
+    description: 'ตรวจสอบจำนวนคงเหลือของอุปกรณ์รายสาขา',
+  },
+  สต๊อกอุปกรณ์ไปรษณีย์: {
+    title: 'สต๊อกอุปกรณ์ไปรษณีย์',
+    description: 'ตรวจสอบจำนวนคงเหลือของอุปกรณ์รายสาขา',
+  },
+  'สาขา SBC': {
+    title: 'สาขา Super Black Coffee',
+    description: 'จัดการข้อมูลสาขา SBC และกำหนดขนาดบริการของแต่ละสาขา',
+  },
+  สาขาแฟรนไชส์: {
+    title: 'สาขาแฟรนไชส์',
+    description: 'จัดการบัญชีแฟรนไชส์และตรวจสอบสถานะสาขาที่เปิดให้บริการ',
+  },
+  ตารางพนักงาน: {
+    title: 'ตารางงานพนักงาน',
+    description: 'ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน',
+  },
+  ลงเวลาพนักงาน: {
+    title: 'ลงเวลาพนักงาน',
+    description: 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น',
+  },
+  คำขอลาพนักงาน: {
+    title: 'คำขอลาพนักงาน',
+    description: 'พิจารณาคำขอลาของพนักงานบริษัท Super Black Coffee',
+  },
+  ตรวจมาตรฐานและบริการ: {
+    title: 'ตรวจมาตรฐานและบริการสาขา',
+    description: 'สุ่มตรวจ งานช่าง/แจ้งซ่อม ทรัพย์สิน และรายได้บริการ',
+  },
+};
+
 function DashboardPageSkeleton({ page }: { page: AdminPage }) {
   const centralCatalog = centralCatalogSkeletonContent[page];
   if (centralCatalog) {
@@ -160,6 +229,7 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       </DashboardMain>
     );
   }
+  const pageIntro = pageSkeletonIntroContent[page];
   const skeleton =
     page === 'ภาพรวม' ? (
       <AdminOverviewSkeleton />
@@ -168,7 +238,7 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
     ) : page === 'คำสั่งซื้อ' ? (
       <AdminOrdersSkeleton />
     ) : page === 'โปรโมชั่น' ? (
-      <PromotionsSkeleton showHeader />
+      <PromotionsSkeleton />
     ) : page === 'ประวัติการทำรายการ' ? (
       <AdminAuditSkeleton />
     ) : page === 'เอกสารส่วนกลาง' ? (
@@ -181,19 +251,24 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
     ) : page === 'วัตถุดิบ' || page === 'วัตถุดิบของสด' ? (
       <IngredientsSkeleton readOnly cardColumns={5} />
     ) : page === 'ตารางพนักงาน' ? (
-      <EmployeesSkeleton showHeader />
+      <EmployeesSkeleton />
     ) : page === 'ลงเวลาพนักงาน' ? (
       <AttendanceSkeleton />
     ) : page === 'คำขอลาพนักงาน' ? (
       <LeaveRequestsSkeleton />
     ) : page === 'สาขาแฟรนไชส์' ? (
-      <AdminFranchiseBranchesSkeleton />
+      <AdminFranchiseBranchesSkeleton contentOnly />
     ) : page === 'ตรวจมาตรฐานและบริการ' ? (
       <AdminOperationsSkeleton />
     ) : (
       <AdminBranchesSkeleton />
     );
-  return <DashboardMain>{skeleton}</DashboardMain>;
+  return (
+    <DashboardMain>
+      {pageIntro ? <PageIntro {...pageIntro} /> : null}
+      {skeleton}
+    </DashboardMain>
+  );
 }
 
 const centralCatalogPages = {

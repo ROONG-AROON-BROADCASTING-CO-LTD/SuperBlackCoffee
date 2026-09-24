@@ -22,6 +22,7 @@ import { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
 import { AttendanceLoginPage } from './features/auth/AttendanceLoginPage';
 import { useAttendanceClock } from './hooks/useAttendanceClock';
 import { AttendanceAppLayout } from './layouts/AttendanceAppLayout';
+import { requestAttendanceLocation } from './lib/attendanceLocation';
 import { AttendancePageRouter } from './routes/AttendancePageRouter';
 import type { StaffPage } from './types/attendance';
 
@@ -81,17 +82,20 @@ export default function App() {
     [page],
   );
   const attendanceActionDisabled =
+    loading ||
     !status ||
     !status.canRecordAttendance ||
     Boolean(status.checkInAt && status.checkOutAt);
-  const attendanceActionHint =
-    status?.checkInAt && status.checkOutAt
+  const attendanceActionHint = loading
+    ? 'กำลังตรวจสอบตำแหน่งปัจจุบัน'
+    : status?.checkInAt && status.checkOutAt
       ? ''
       : status?.shiftStatus === 'day_off'
         ? 'วันนี้เป็นวันหยุดตามตารางกะ'
         : 'ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบกะงาน';
-  const attendanceActionDisabledLabel =
-    status?.checkInAt && status.checkOutAt
+  const attendanceActionDisabledLabel = loading
+    ? 'กำลังตรวจสอบตำแหน่ง...'
+    : status?.checkInAt && status.checkOutAt
       ? 'ลงเวลาวันนี้ครบแล้ว'
       : status?.shiftStatus === 'day_off'
         ? 'วันนี้เป็นวันหยุด'
@@ -241,10 +245,13 @@ export default function App() {
     setPage('overview');
   };
   const toggleAttendance = async () => {
-    if (!session || attendanceActionDisabled) return;
+    if (!session || attendanceActionDisabled || loading) return;
     setLoading(true);
     try {
-      const nextStatus = status?.checkedIn ? await checkOut() : await checkIn();
+      const location = await requestAttendanceLocation();
+      const nextStatus = status?.checkedIn
+        ? await checkOut(location)
+        : await checkIn(location);
       setStatus((currentStatus) => ({
         ...currentStatus,
         ...nextStatus,
@@ -264,8 +271,11 @@ export default function App() {
         logout();
         return;
       }
-      // Keep the current UI state when the action cannot be completed.
-      // Network implementation details must not be shown to staff.
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : 'ไม่สามารถบันทึกเวลาได้ กรุณาลองใหม่',
+      );
     } finally {
       setLoading(false);
     }

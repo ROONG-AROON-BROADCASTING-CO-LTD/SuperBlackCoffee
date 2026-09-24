@@ -58,10 +58,16 @@ import {
   deleteInventory,
   adjustInventory,
   discardFreshInventoryLot,
+  getExpiryWarningSettings,
+  listExpiryAlerts,
+  listExpiryPromotionSuggestions,
   listFreshInventoryLots,
   listInventory,
   receiveFreshInventoryLot,
   updateInventory,
+  updateExpiryWarningSettings,
+  type ExpiryAlert,
+  type ExpiryPromotionSuggestion,
   type FreshInventoryLot,
   type InventoryInput,
 } from '../api/inventory';
@@ -84,6 +90,11 @@ type Ingredient = {
 type IngredientCartItem = Ingredient & { key: string; quantityToOrder: number };
 type InventoryBranch = string;
 type FreshLotTarget = { ingredient: Ingredient; branch: InventoryBranch };
+type ExpiryInsights = {
+  warningDays: number;
+  alerts: ExpiryAlert[];
+  suggestions: ExpiryPromotionSuggestion[];
+};
 
 const filters = [
   'ทั้งหมด',
@@ -120,6 +131,13 @@ function formatExpiryDate(expiryDate: string | null) {
 
 function inputDateValue(expiryDate: string | null) {
   return expiryDate?.slice(0, 10) ?? '';
+}
+
+function daysUntilExpiry(expiryDate: string) {
+  const date = new Date(`${expiryDate.slice(0, 10)}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((date.getTime() - today.getTime()) / 86_400_000);
 }
 
 export function IngredientsManagementPage({
@@ -180,6 +198,13 @@ export function IngredientsManagementPage({
   const [freshLotDiscardID, setFreshLotDiscardID] = useState<number | null>(
     null,
   );
+  const [expiryInsightsByBranch, setExpiryInsightsByBranch] = useState<
+    Record<string, ExpiryInsights>
+  >({});
+  const [expirySettingsBranch, setExpirySettingsBranch] =
+    useState<InventoryBranch | null>(null);
+  const [expiryWarningDaysDraft, setExpiryWarningDaysDraft] = useState(60);
+  const [isSavingExpirySettings, setIsSavingExpirySettings] = useState(false);
   const [inventoryNotice, setInventoryNotice] = useState<{
     severity: 'success' | 'error';
     message: string;
@@ -317,6 +342,59 @@ export function IngredientsManagementPage({
     };
   }, [activeBranch, availableBranchNames, branchCodes, reloadKey]);
   useEffect(() => {
+    if (!isFreshIngredientsPage) {
+      setExpiryInsightsByBranch({});
+      return undefined;
+    }
+    let active = true;
+    const branchNames: InventoryBranch[] =
+      activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
+    void Promise.all(
+      branchNames.map(async (branch) => {
+        const branchCode = branchCodes[branch];
+        const [settings, alertData, suggestionData] = await Promise.all([
+          getExpiryWarningSettings(branchCode).catch(() => ({
+            warningDays: 60,
+          })),
+          listExpiryAlerts(branchCode).catch(() => ({
+            warningDays: 60,
+            alerts: [],
+          })),
+          listExpiryPromotionSuggestions(branchCode).catch(() => ({
+            warningDays: 60,
+            suggestions: [],
+          })),
+        ]);
+        return [
+          branch,
+          {
+            warningDays: settings.warningDays,
+            alerts: alertData.alerts,
+            suggestions: suggestionData.suggestions,
+          },
+        ] as const;
+      }),
+    )
+      .then((entries) => {
+        if (active)
+          setExpiryInsightsByBranch(
+            Object.fromEntries(entries) as Record<string, ExpiryInsights>,
+          );
+      })
+      .catch(() => {
+        if (active) setExpiryInsightsByBranch({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    activeBranch,
+    availableBranchNames,
+    branchCodes,
+    isFreshIngredientsPage,
+    reloadKey,
+  ]);
+  useEffect(() => {
     if (hasBranchOverview) return undefined;
     if (activeBranch !== 'ทุกสาขา') {
       setVisibleBranchNames(new Set([activeBranch]));
@@ -365,6 +443,52 @@ export function IngredientsManagementPage({
     ? `แก้ไข${ingredientLabel}`
     : `เพิ่ม${ingredientLabel}`;
   const isLimitedEdit = readOnly && allowEditing && editingIngredient !== null;
+  const canManageFreshLots = !readOnly || allowEditing;
+  const canManageExpirySettings = !readOnly || allowEditing;
+  const expirySettingsTarget =
+    expirySettingsBranch ??
+    (activeBranch === 'ทุกสาขา' ? availableBranchNames[0] : activeBranch);
+  const expiryAlerts = useMemo(() => {
+    const alertsFromLots = Object.entries(expiryInsightsByBranch).flatMap(
+      ([branch, insights]) =>
+        insights.alerts.map((alert) => ({ ...alert, branch })),
+    );
+    if (alertsFromLots.length) return alertsFromLots;
+
+    // Old fresh stock may predate lot tracking. Keep the on-screen warning
+    // visible while its first receipt is recorded as a proper lot.
+    return Object.entries(catalogIngredientsByBranch).flatMap(
+      ([branch, ingredients]) =>
+        ingredients
+          .filter(
+            (ingredient) =>
+              ingredient.category === 'fresh' &&
+              ingredient.expiryDate &&
+              (ingredient.expiryStatus === 'expiring_soon' ||
+                ingredient.expiryStatus === 'expired'),
+          )
+          .map((ingredient) => ({
+            lotId: 0,
+            inventoryItemId: ingredient.id,
+            ingredientName: ingredient.name,
+            lotNumber: 'ข้อมูลเดิม',
+            manufacturedAt: '',
+            expiryDate: ingredient.expiryDate as string,
+            quantityRemaining: ingredient.quantity,
+            unit: ingredient.unit,
+            daysUntilExpiry: daysUntilExpiry(ingredient.expiryDate as string),
+            expiryStatus: ingredient.expiryStatus,
+            branch,
+          })),
+    );
+  }, [catalogIngredientsByBranch, expiryInsightsByBranch]);
+  const expirySuggestions = useMemo(
+    () =>
+      Object.entries(expiryInsightsByBranch).flatMap(([branch, insights]) =>
+        insights.suggestions.map((suggestion) => ({ ...suggestion, branch })),
+      ),
+    [expiryInsightsByBranch],
+  );
   const cartQuantity = cartItems.reduce(
     (total, item) => total + item.quantityToOrder,
     0,
@@ -539,16 +663,73 @@ export function IngredientsManagementPage({
     void loadFreshLots(target);
   };
 
+  const openExpirySettings = (branch: InventoryBranch) => {
+    setExpirySettingsBranch(branch);
+    setExpiryWarningDaysDraft(
+      expiryInsightsByBranch[branch]?.warningDays ?? 60,
+    );
+  };
+
+  const saveExpirySettings = async () => {
+    if (!expirySettingsTarget) return;
+    if (expiryWarningDaysDraft < 1 || expiryWarningDaysDraft > 365) {
+      setInventoryNotice({
+        severity: 'error',
+        message: 'จำนวนวันแจ้งเตือนต้องอยู่ระหว่าง 1–365 วัน',
+      });
+      return;
+    }
+    setIsSavingExpirySettings(true);
+    try {
+      const settings = await updateExpiryWarningSettings(
+        expiryWarningDaysDraft,
+        branchCodes[expirySettingsTarget],
+      );
+      setExpiryInsightsByBranch((insights) => ({
+        ...insights,
+        [expirySettingsTarget]: {
+          ...(insights[expirySettingsTarget] ?? {
+            alerts: [],
+            suggestions: [],
+          }),
+          warningDays: settings.warningDays,
+        },
+      }));
+      setExpirySettingsBranch(null);
+      setReloadKey((key) => key + 1);
+      setInventoryNotice({
+        severity: 'success',
+        message: `ตั้งค่าแจ้งเตือนก่อนหมดอายุ ${settings.warningDays} วันแล้ว`,
+      });
+    } catch (error) {
+      setInventoryNotice({
+        severity: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'บันทึกการตั้งค่าแจ้งเตือนไม่สำเร็จ',
+      });
+    } finally {
+      setIsSavingExpirySettings(false);
+    }
+  };
+
   const receiveFreshLot = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!freshLotTarget) return;
     const formData = new FormData(event.currentTarget);
+    const manufacturedAt = String(formData.get('manufacturedAt') ?? '');
     const receivedAt = String(formData.get('receivedAt') ?? '');
     const expiryDate = String(formData.get('expiryDate') ?? '');
-    if (!receivedAt || !expiryDate || expiryDate < receivedAt) {
+    if (
+      !manufacturedAt ||
+      !receivedAt ||
+      !expiryDate ||
+      expiryDate < manufacturedAt
+    ) {
       setInventoryNotice({
         severity: 'error',
-        message: 'กรุณาระบุวันรับเข้าและวันหมดอายุให้ถูกต้อง',
+        message: 'กรุณาระบุวันผลิต วันรับเข้า และวันหมดอายุให้ถูกต้อง',
       });
       return;
     }
@@ -558,6 +739,7 @@ export function IngredientsManagementPage({
         freshLotTarget.ingredient.id,
         {
           lotNumber: String(formData.get('lotNumber') ?? '').trim(),
+          manufacturedAt,
           receivedAt,
           expiryDate,
           quantity: Number(formData.get('quantity') ?? 0),
@@ -664,6 +846,175 @@ export function IngredientsManagementPage({
               : `ตรวจสอบและจัดการ${ingredientLabel}ของสาขา SBC`
         }
       />
+      {isFreshIngredientsPage ? (
+        <Box sx={{ display: 'grid', gap: 1.25, mb: 2 }}>
+          {expiryAlerts.length ? (
+            <Alert
+              severity="warning"
+              sx={{
+                alignItems: 'center',
+                fontFamily: 'Kanit, sans-serif',
+                '& .MuiAlert-message': { width: '100%' },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Box>
+                  <Typography
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                  >
+                    แจ้งเตือนวัตถุดิบใกล้หมดอายุ {expiryAlerts.length} ล็อต
+                  </Typography>
+                  <Typography
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 13 }}
+                  >
+                    {expiryAlerts
+                      .slice(0, 3)
+                      .map(
+                        (alert) =>
+                          `${alert.ingredientName} (${alert.daysUntilExpiry < 0 ? 'หมดอายุแล้ว' : `เหลือ ${alert.daysUntilExpiry} วัน`})`,
+                      )
+                      .join(' · ')}
+                    {expiryAlerts.length > 3 ? ' · …' : ''}
+                  </Typography>
+                </Box>
+                {canManageExpirySettings && expirySettingsTarget ? (
+                  <Button
+                    size="small"
+                    onClick={() => openExpirySettings(expirySettingsTarget)}
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                  >
+                    ตั้งค่าระยะเตือน
+                  </Button>
+                ) : null}
+              </Box>
+            </Alert>
+          ) : (
+            <Alert
+              severity="success"
+              sx={{
+                fontFamily: 'Kanit, sans-serif',
+                '& .MuiAlert-message': { width: '100%' },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                  ยังไม่มีล็อตใกล้หมดอายุตามระยะเวลาที่ตั้งไว้
+                </Typography>
+                {canManageExpirySettings && expirySettingsTarget ? (
+                  <Button
+                    size="small"
+                    onClick={() => openExpirySettings(expirySettingsTarget)}
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                  >
+                    ตั้งค่าระยะเตือน
+                  </Button>
+                ) : null}
+              </Box>
+            </Alert>
+          )}
+          {expirySuggestions.length ? (
+            <Card
+              variant="outlined"
+              sx={{
+                borderColor: '#e8ddd5',
+                borderRadius: '15px',
+                bgcolor: '#fff',
+              }}
+            >
+              <Box sx={{ px: 2, py: 1.5 }}>
+                <Typography
+                  sx={{
+                    color: '#3c2d24',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontWeight: 700,
+                  }}
+                >
+                  แนะนำโปรโมชันเพื่อลดของเสีย
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.25,
+                    color: 'text.secondary',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 13,
+                  }}
+                >
+                  ระบบจับคู่ล็อตใกล้หมดอายุกับสูตรเมนูที่ขายได้
+                  ให้ผู้จัดการตรวจสอบก่อนสร้างโปรโมชัน
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      md: 'repeat(3, minmax(0, 1fr))',
+                    },
+                    gap: 1,
+                    mt: 1.25,
+                  }}
+                >
+                  {expirySuggestions.slice(0, 6).map((suggestion) => (
+                    <Box
+                      key={`${suggestion.menuId}-${suggestion.lotId}`}
+                      sx={{
+                        p: 1.25,
+                        border: '1px solid #eee2d9',
+                        borderRadius: '12px',
+                        bgcolor: '#fffaf7',
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontFamily: 'Kanit, sans-serif',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {suggestion.menuName}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          color: '#805637',
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 13,
+                        }}
+                      >
+                        ลดแนะนำ {suggestion.suggestedDiscountPercent}% ·{' '}
+                        {suggestion.branch}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          mt: 0.25,
+                          color: 'text.secondary',
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 12,
+                        }}
+                      >
+                        {suggestion.reason} · เหลือ {suggestion.daysUntilExpiry}{' '}
+                        วัน
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Card>
+          ) : null}
+        </Box>
+      ) : null}
       <Box
         sx={{
           display: 'flex',
@@ -1230,7 +1581,39 @@ export function IngredientsManagementPage({
                                 />
                               </>
                             ) : allowEditing ? (
-                              <Box sx={{ mt: 'auto', pt: 2 }}>
+                              <Box
+                                sx={{
+                                  mt: 'auto',
+                                  pt: 2,
+                                  display: 'grid',
+                                  gap: 1,
+                                }}
+                              >
+                                {ingredient.category === 'fresh' &&
+                                canManageFreshLots ? (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    fullWidth
+                                    onClick={() =>
+                                      openFreshLots(
+                                        ingredient,
+                                        branch as InventoryBranch,
+                                      )
+                                    }
+                                    sx={{
+                                      minHeight: 34,
+                                      borderRadius: '10px',
+                                      borderColor: '#805637',
+                                      color: '#5f4030',
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    จัดการล็อตของสด
+                                  </Button>
+                                ) : null}
                                 <EditItemButton
                                   fullWidth
                                   onClick={() => {
@@ -1843,6 +2226,109 @@ export function IngredientsManagementPage({
       </Drawer>
       <Drawer
         anchor="bottom"
+        open={expirySettingsBranch !== null}
+        onClose={() => setExpirySettingsBranch(null)}
+        transitionDuration={{ enter: 260, exit: 180 }}
+        sx={{ zIndex: 1302 }}
+        slotProps={{
+          paper: {
+            sx: {
+              left: { md: '280px' },
+              width: { md: 'calc(100% - 304px)' },
+              borderRadius: '18px 18px 0 0',
+              bgcolor: '#fffaf7',
+            },
+          },
+        }}
+      >
+        <Box
+          sx={{
+            width: '100%',
+            maxWidth: 720,
+            mx: 'auto',
+            px: { xs: 2.5, sm: 4 },
+            py: 3,
+          }}
+        >
+          <Box
+            sx={{
+              width: 44,
+              height: 5,
+              mx: 'auto',
+              mb: 2.5,
+              borderRadius: 99,
+              bgcolor: '#d8c8bd',
+            }}
+          />
+          <Typography
+            sx={{
+              color: '#201914',
+              fontFamily: 'Kanit, sans-serif',
+              fontSize: 21,
+              fontWeight: 700,
+            }}
+          >
+            ตั้งค่าการแจ้งเตือนวันหมดอายุ
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.35,
+              color: 'text.secondary',
+              fontFamily: 'Kanit, sans-serif',
+            }}
+          >
+            สาขา{expirySettingsTarget ?? ''} ·
+            ระบบจะแจ้งเตือนล็อตของสดที่ยังเหลือในสต๊อกตามจำนวนวันที่กำหนด
+          </Typography>
+          <TextField
+            fullWidth
+            required
+            label="แจ้งเตือนก่อนหมดอายุ (วัน)"
+            type="number"
+            value={expiryWarningDaysDraft}
+            onChange={(event) =>
+              setExpiryWarningDaysDraft(Number(event.target.value))
+            }
+            slotProps={{ htmlInput: { min: 1, max: 365, step: 1 } }}
+            helperText="ตั้งต้น 60 วัน · ตั้งค่าได้ 1–365 วัน"
+            sx={{
+              mt: 2.25,
+              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+            }}
+          />
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 1,
+              mt: 2.5,
+            }}
+          >
+            <Button
+              onClick={() => setExpirySettingsBranch(null)}
+              sx={{ fontFamily: 'Kanit, sans-serif' }}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="contained"
+              disabled={isSavingExpirySettings}
+              onClick={() => void saveExpirySettings()}
+              sx={{
+                borderRadius: '10px',
+                bgcolor: '#201914',
+                boxShadow: 'none',
+                fontFamily: 'Kanit, sans-serif',
+                '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+              }}
+            >
+              {isSavingExpirySettings ? 'กำลังบันทึก…' : 'บันทึกการตั้งค่า'}
+            </Button>
+          </Box>
+        </Box>
+      </Drawer>
+      <Drawer
+        anchor="bottom"
         open={freshLotTarget !== null}
         onClose={() => setFreshLotTarget(null)}
         transitionDuration={{ enter: 360, exit: 280 }}
@@ -1961,6 +2447,15 @@ export function IngredientsManagementPage({
                 name="lotNumber"
                 label="เลขล็อต (ถ้ามี)"
                 size="small"
+              />
+              <TextField
+                name="manufacturedAt"
+                label="วันผลิต"
+                type="date"
+                required
+                size="small"
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 name="receivedAt"
@@ -2088,7 +2583,8 @@ export function IngredientsManagementPage({
                             fontSize: 13,
                           }}
                         >
-                          รับเข้า {formatExpiryDate(lot.receivedAt)} · หมดอายุ{' '}
+                          ผลิต {formatExpiryDate(lot.manufacturedAt)} · รับเข้า{' '}
+                          {formatExpiryDate(lot.receivedAt)} · หมดอายุ{' '}
                           {formatExpiryDate(lot.expiryDate)}
                         </Typography>
                       </Box>

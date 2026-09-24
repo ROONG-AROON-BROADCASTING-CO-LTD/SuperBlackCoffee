@@ -165,12 +165,17 @@ describe('AdminBranchesPage', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: 'แก้ไขข้อมูลสาขา' }),
     );
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'ละติจูด' }), {
-      target: { value: '16.8211' },
-    });
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'ลองจิจูด' }), {
-      target: { value: '100.2659' },
-    });
+    fireEvent.change(
+      screen.getByRole('textbox', {
+        name: 'วางลิงก์ Google Maps เพื่อบันทึกพิกัด',
+      }),
+      {
+        target: {
+          value:
+            'https://www.google.com/maps/place/SuperBlack+Coffee/@16.8209945,100.2691144,20.14z/data=!4m6!3m5!1s0x30df97e6a3a6f70d:0xbf38a3b13f12b83b!8m2!3d16.821085!4d100.2694448!16s%2Fg%2F11mz055fvc',
+        },
+      },
+    );
     fireEvent.change(
       screen.getByRole('spinbutton', { name: 'รัศมีเช็กอิน (เมตร)' }),
       {
@@ -183,13 +188,13 @@ describe('AdminBranchesPage', () => {
       expect(mockedUpdateCompanyBranchDetails).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          latitude: 16.8211,
-          longitude: 100.2659,
+          latitude: 16.821085,
+          longitude: 100.2694448,
           attendanceRadiusM: 150,
         }),
       ),
     );
     expect(mockedCreateCompanyBranch).not.toHaveBeenCalled();
-    expect(await screen.findByText(/16.8211, 100.2659/)).toBeTruthy();
+    expect(await screen.findByText(/16.821085, 100.2694448/)).toBeTruthy();
   });
 });

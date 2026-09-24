@@ -12,12 +12,13 @@ import (
 )
 
 type freshLotReceiptInput struct {
-	LotNumber  string  `json:"lotNumber" binding:"max=120"`
-	ReceivedAt string  `json:"receivedAt" binding:"required"`
-	ExpiryDate string  `json:"expiryDate" binding:"required"`
-	Quantity   float64 `json:"quantity" binding:"required,gt=0"`
-	UnitCost   float64 `json:"unitCost" binding:"gte=0"`
-	Note       string  `json:"note" binding:"max=500"`
+	LotNumber      string  `json:"lotNumber" binding:"max=120"`
+	ManufacturedAt string  `json:"manufacturedAt" binding:"required"`
+	ReceivedAt     string  `json:"receivedAt" binding:"required"`
+	ExpiryDate     string  `json:"expiryDate" binding:"required"`
+	Quantity       float64 `json:"quantity" binding:"required,gt=0"`
+	UnitCost       float64 `json:"unitCost" binding:"gte=0"`
+	Note           string  `json:"note" binding:"max=500"`
 }
 
 type freshLotDiscardInput struct {
@@ -30,14 +31,7 @@ func freshLotDate(value string) (time.Time, error) {
 }
 
 func freshLotExpiryStatus(expiryDate, now time.Time) string {
-	today := now.UTC().Truncate(24 * time.Hour)
-	if expiryDate.Before(today) {
-		return "expired"
-	}
-	if !expiryDate.After(today.AddDate(0, 0, 3)) {
-		return "expiring_soon"
-	}
-	return "ready"
+	return expiryStatusForDays(expiryDate, now, defaultExpiryWarningDays)
 }
 
 func recordFreshLotMovementTx(ctx *gin.Context, tx *sql.Tx, branchID, lotID, inventoryItemID int64, movementType string, delta, before, after float64, note string, actorID int64) error {
@@ -58,7 +52,11 @@ func (h *PlatformHandler) ListFreshInventoryLots(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสวัตถุดิบไม่ถูกต้อง"})
 		return
 	}
-	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,lot_number,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost,status,discard_reason,created_at FROM fresh_inventory_lots WHERE inventory_item_id=$1 AND branch_id=$2 ORDER BY CASE WHEN status='active' THEN 0 ELSE 1 END, expiry_date, received_at, id`, inventoryID, branchID)
+	warningDays, ok := h.expiryWarningDays(c, branchID)
+	if !ok {
+		return
+	}
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,lot_number,manufactured_at,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost,status,discard_reason,created_at FROM fresh_inventory_lots WHERE inventory_item_id=$1 AND branch_id=$2 ORDER BY CASE WHEN status='active' THEN 0 ELSE 1 END, expiry_date, received_at, id`, inventoryID, branchID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
 		return
@@ -68,14 +66,14 @@ func (h *PlatformHandler) ListFreshInventoryLots(c *gin.Context) {
 	for rows.Next() {
 		var id int64
 		var lotNumber, status, discardReason string
-		var receivedAt, expiryDate, createdAt time.Time
+		var manufacturedAt, receivedAt, expiryDate, createdAt time.Time
 		var quantityReceived, quantityRemaining, unitCost float64
-		if err := rows.Scan(&id, &lotNumber, &receivedAt, &expiryDate, &quantityReceived, &quantityRemaining, &unitCost, &status, &discardReason, &createdAt); err != nil {
+		if err := rows.Scan(&id, &lotNumber, &manufacturedAt, &receivedAt, &expiryDate, &quantityReceived, &quantityRemaining, &unitCost, &status, &discardReason, &createdAt); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
 			return
 		}
-		expiryStatus := freshLotExpiryStatus(expiryDate, time.Now())
-		result = append(result, gin.H{"id": id, "lotNumber": lotNumber, "receivedAt": receivedAt.Format("2006-01-02"), "expiryDate": expiryDate.Format("2006-01-02"), "quantityReceived": quantityReceived, "quantityRemaining": quantityRemaining, "unitCost": unitCost, "status": status, "expiryStatus": expiryStatus, "discardReason": discardReason, "createdAt": createdAt})
+		expiryStatus := expiryStatusForDays(expiryDate, time.Now(), warningDays)
+		result = append(result, gin.H{"id": id, "lotNumber": lotNumber, "manufacturedAt": manufacturedAt.Format("2006-01-02"), "receivedAt": receivedAt.Format("2006-01-02"), "expiryDate": expiryDate.Format("2006-01-02"), "quantityReceived": quantityReceived, "quantityRemaining": quantityRemaining, "unitCost": unitCost, "status": status, "expiryStatus": expiryStatus, "discardReason": discardReason, "createdAt": createdAt})
 	}
 	if err := rows.Err(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านล็อตของสดได้"})
@@ -107,9 +105,14 @@ func (h *PlatformHandler) ReceiveFreshInventoryLot(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันที่รับเข้าต้องอยู่ในรูปแบบ YYYY-MM-DD"})
 		return
 	}
+	manufacturedAt, err := freshLotDate(input.ManufacturedAt)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันผลิตต้องอยู่ในรูปแบบ YYYY-MM-DD"})
+		return
+	}
 	expiryDate, err := freshLotDate(input.ExpiryDate)
-	if err != nil || !expiryDate.After(receivedAt.AddDate(0, 0, -1)) {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันหมดอายุต้องไม่ก่อนวันที่รับเข้า"})
+	if err != nil || expiryDate.Before(manufacturedAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันหมดอายุต้องไม่ก่อนวันผลิต"})
 		return
 	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
@@ -129,7 +132,7 @@ func (h *PlatformHandler) ReceiveFreshInventoryLot(c *gin.Context) {
 		return
 	}
 	var lotID int64
-	if err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO fresh_inventory_lots(branch_id,inventory_item_id,lot_number,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost) VALUES($1,$2,$3,$4,$5,$6,$6,$7) RETURNING id`, branchID, inventoryID, strings.TrimSpace(input.LotNumber), receivedAt, expiryDate, input.Quantity, input.UnitCost).Scan(&lotID); err != nil {
+	if err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO fresh_inventory_lots(branch_id,inventory_item_id,lot_number,manufactured_at,received_at,expiry_date,quantity_received,quantity_remaining,unit_cost) VALUES($1,$2,$3,$4,$5,$6,$7,$7,$8) RETURNING id`, branchID, inventoryID, strings.TrimSpace(input.LotNumber), manufacturedAt, receivedAt, expiryDate, input.Quantity, input.UnitCost).Scan(&lotID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกล็อตของสดได้"})
 		return
 	}
@@ -142,7 +145,7 @@ func (h *PlatformHandler) ReceiveFreshInventoryLot(c *gin.Context) {
 		err = recordStockMovementTx(c.Request.Context(), tx, branchID, inventoryID, "fresh_lot_receipt", input.Quantity, before, after, "fresh_inventory_lot", &lotID, input.Note, claims.UserID)
 	}
 	if err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "fresh_inventory_lot", lotID, "received", gin.H{"inventoryItemId": inventoryID, "name": name, "quantity": input.Quantity, "expiryDate": expiryDate})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "fresh_inventory_lot", lotID, "received", gin.H{"inventoryItemId": inventoryID, "name": name, "quantity": input.Quantity, "manufacturedAt": manufacturedAt, "expiryDate": expiryDate})
 	}
 	if err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถรับของสดเข้าสต๊อกได้"})

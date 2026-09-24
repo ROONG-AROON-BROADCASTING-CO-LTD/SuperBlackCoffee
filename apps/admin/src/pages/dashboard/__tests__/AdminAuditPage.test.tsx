@@ -7,6 +7,18 @@ vi.mock('@stackbuild/ui', () => ({
   DashboardMain: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
+  PageIntro: ({
+    title,
+    description,
+  }: {
+    title: string;
+    description: string;
+  }) => (
+    <header>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </header>
+  ),
   formatDate: () => '15 กันยายน 2569',
   useMinimumLoading: (loading: boolean) => loading,
 }));
@@ -29,6 +41,26 @@ describe('AdminAuditPage', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it('keeps the shared page heading and description visible while audit data loads', () => {
+    vi.mocked(useAuditEvents).mockReturnValue({
+      data: [],
+      error: null,
+      isLoading: true,
+    } as unknown as ReturnType<typeof useAuditEvents>);
+
+    render(<AdminAuditPage />);
+
+    expect(
+      screen.getByRole('heading', { name: 'ประวัติการทำรายการ' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'ตรวจสอบการเปลี่ยนแปลงสต็อกและการดำเนินการต่างของทุกสาขา',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('กำลังโหลดประวัติ')).toBeTruthy();
   });
 
   it('turns an ingredient inspection audit event into a Thai work description', () => {
@@ -71,7 +103,7 @@ describe('AdminAuditPage', () => {
 
     render(<AdminAuditPage />);
 
-    expect(screen.getByText('ตัดสต็อกจากการขายเมนู')).toBeTruthy();
+    expect(screen.getAllByText('ตัดสต็อกจากการขายเมนู')).toHaveLength(2);
     expect(screen.getByText('ตัดวัตถุดิบ 7 รายการ · เมนู 8 แก้ว')).toBeTruthy();
     expect(screen.getByText('ตัดสต็อก')).toBeTruthy();
     expect(screen.queryByText('consumed')).toBeNull();

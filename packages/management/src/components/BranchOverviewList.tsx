@@ -19,12 +19,6 @@ const rowSx = {
   p: { xs: 2.25, md: 2.5 },
   borderRadius: 2,
   borderColor: '#e8ddd5',
-  boxShadow: '0 5px 20px rgba(60, 45, 36, 0.035)',
-  transition: 'border-color 180ms ease, box-shadow 180ms ease',
-  '&:hover': {
-    borderColor: '#cdbbaa',
-    boxShadow: '0 9px 26px rgba(60, 45, 36, 0.08)',
-  },
 } as const;
 
 const identitySx = {

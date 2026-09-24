@@ -1,4 +1,5 @@
 import { API_URL, publicRequest, secured, securedBlob } from './client';
+import type { AttendanceLocation } from '../lib/attendanceLocation';
 
 export type AttendanceSession = {
   user: {
@@ -70,12 +71,16 @@ export const getAttendanceSummary = () =>
 export const getAttendanceHistory = () =>
   secured<AttendanceHistoryItem[]>('/attendance/history');
 
-export const checkIn = () =>
-  secured<AttendanceStatus>('/attendance/check-in', { method: 'POST' });
+export const checkIn = (location: AttendanceLocation) =>
+  secured<AttendanceStatus>('/attendance/check-in', {
+    method: 'POST',
+    body: JSON.stringify(location),
+  });
 
-export const checkOut = () =>
+export const checkOut = (location: AttendanceLocation) =>
   secured<AttendanceStatus>('/attendance/check-out', {
     method: 'POST',
+    body: JSON.stringify(location),
   });
 
 export const createLeaveRequest = (input: {

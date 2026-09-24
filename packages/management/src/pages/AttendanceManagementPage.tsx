@@ -47,6 +47,51 @@ const thaiDate = new Intl.DateTimeFormat('th-TH', {
   year: 'numeric',
 });
 
+function AttendancePageHeader({
+  franchiseMode,
+  onPreviousMonth,
+  onCurrentMonth,
+  onNextMonth,
+}: {
+  franchiseMode: boolean;
+  onPreviousMonth: () => void;
+  onCurrentMonth: () => void;
+  onNextMonth: () => void;
+}) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 2,
+        alignItems: { xs: 'flex-start', md: 'center' },
+        flexDirection: { xs: 'column', md: 'row' },
+        mb: 2.5,
+      }}
+    >
+      <PageIntro
+        title="ลงเวลาพนักงาน"
+        description={
+          franchiseMode
+            ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
+            : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'
+        }
+      />
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Button variant="outlined" size="small" onClick={onPreviousMonth}>
+          เดือนก่อน
+        </Button>
+        <Button variant="outlined" size="small" onClick={onCurrentMonth}>
+          เดือนนี้
+        </Button>
+        <Button variant="outlined" size="small" onClick={onNextMonth}>
+          เดือนถัดไป
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
 function getCalendarDays(month: Date) {
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
   const mondayOffset = (firstDay.getDay() + 6) % 7;
@@ -232,12 +277,15 @@ export function AttendanceManagementPage({
   if (showSkeleton) {
     return (
       <DashboardMain>
-        <AttendanceSkeleton
+        <AttendancePageHeader
           franchiseMode={franchiseMode}
-          calendarWeeks={calendarDays.length / 7}
           onPreviousMonth={() => changeMonth(-1)}
           onCurrentMonth={() => setMonth(currentMonth())}
           onNextMonth={() => changeMonth(1)}
+        />
+        <AttendanceSkeleton
+          franchiseMode={franchiseMode}
+          calendarWeeks={calendarDays.length / 7}
         />
       </DashboardMain>
     );
@@ -245,48 +293,12 @@ export function AttendanceManagementPage({
 
   return (
     <DashboardMain>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 2,
-          alignItems: { xs: 'flex-start', md: 'center' },
-          flexDirection: { xs: 'column', md: 'row' },
-          mb: 2.5,
-        }}
-      >
-        <PageIntro
-          title="ลงเวลาพนักงาน"
-          description={
-            franchiseMode
-              ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
-              : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'
-          }
-        />
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => changeMonth(-1)}
-          >
-            เดือนก่อน
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setMonth(currentMonth())}
-          >
-            เดือนนี้
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => changeMonth(1)}
-          >
-            เดือนถัดไป
-          </Button>
-        </Box>
-      </Box>
+      <AttendancePageHeader
+        franchiseMode={franchiseMode}
+        onPreviousMonth={() => changeMonth(-1)}
+        onCurrentMonth={() => setMonth(currentMonth())}
+        onNextMonth={() => changeMonth(1)}
+      />
       {!franchiseMode ? (
         <Box
           sx={{

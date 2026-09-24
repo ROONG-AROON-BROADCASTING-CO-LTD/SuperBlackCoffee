@@ -22,7 +22,7 @@ func NewPostgresInventoryRepository(db *sql.DB) InventoryRepository {
 }
 
 func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, kind string) ([]model.InventoryItem, error) {
-	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,CASE WHEN i.catalog_template_id IS NOT NULL THEN i.unit_cost ELSE COALESCE(c.unit_cost,i.unit_cost) END,COALESCE(c.image_url,i.image_url),COALESCE(c.track_stock,true),CASE WHEN COALESCE(c.category,i.category)='fresh' AND fresh_lot.has_lots THEN fresh_lot.next_expiry ELSE i.expiry_date END,i.created_at,i.updated_at,COALESCE(last_movement.created_at,i.created_at) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id LEFT JOIN LATERAL (SELECT COUNT(*) > 0 AS has_lots,MIN(expiry_date) FILTER (WHERE status='active' AND quantity_remaining>0 AND expiry_date>=CURRENT_DATE) AS next_expiry FROM fresh_inventory_lots WHERE branch_id=i.branch_id AND inventory_item_id=i.id) fresh_lot ON COALESCE(c.category,i.category)='fresh' LEFT JOIN LATERAL (SELECT MAX(created_at) AS created_at FROM stock_movements WHERE branch_id=i.branch_id AND inventory_item_id=i.id) last_movement ON TRUE WHERE i.branch_id=$1 AND i.template_enabled`
+	query := `SELECT i.id,COALESCE(c.name,i.name),COALESCE(c.category,i.category),COALESCE(c.stock_category,i.stock_category,''),COALESCE(c.kind,i.kind),i.quantity,COALESCE(c.unit,i.unit),i.reorder_level,CASE WHEN i.catalog_template_id IS NOT NULL THEN i.unit_cost ELSE COALESCE(c.unit_cost,i.unit_cost) END,COALESCE(c.image_url,i.image_url),COALESCE(c.track_stock,true),CASE WHEN COALESCE(c.category,i.category)='fresh' AND fresh_lot.has_lots THEN fresh_lot.next_expiry ELSE i.expiry_date END,i.created_at,i.updated_at,COALESCE(last_movement.created_at,i.created_at),b.expiry_warning_days FROM inventory_items i JOIN branches b ON b.id=i.branch_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id LEFT JOIN LATERAL (SELECT COUNT(*) > 0 AS has_lots,MIN(expiry_date) FILTER (WHERE status='active' AND quantity_remaining>0 AND expiry_date>=CURRENT_DATE) AS next_expiry FROM fresh_inventory_lots WHERE branch_id=i.branch_id AND inventory_item_id=i.id) fresh_lot ON COALESCE(c.category,i.category)='fresh' LEFT JOIN LATERAL (SELECT MAX(created_at) AS created_at FROM stock_movements WHERE branch_id=i.branch_id AND inventory_item_id=i.id) last_movement ON TRUE WHERE i.branch_id=$1 AND i.template_enabled`
 	args := []any{branchID}
 	if kind != "" {
 		query += ` AND COALESCE(c.kind,i.kind)=$2`
@@ -38,14 +38,15 @@ func (r *postgresInventoryRepository) List(ctx context.Context, branchID int64, 
 	for rows.Next() {
 		var item model.InventoryItem
 		var trackStock bool
+		var expiryWarningDays int
 		var lastMovementAt time.Time
-		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.StockCategory, &item.Kind, &item.Quantity, &item.Unit, &item.ReorderLevel, &item.UnitCost, &item.ImageURL, &trackStock, &item.ExpiryDate, &item.CreatedAt, &item.UpdatedAt, &lastMovementAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Name, &item.Category, &item.StockCategory, &item.Kind, &item.Quantity, &item.Unit, &item.ReorderLevel, &item.UnitCost, &item.ImageURL, &trackStock, &item.ExpiryDate, &item.CreatedAt, &item.UpdatedAt, &lastMovementAt, &expiryWarningDays); err != nil {
 			return nil, err
 		}
 		item.TrackStock = &trackStock
 		now := time.Now().UTC()
 		item.Status = inventoryStatus(trackStock, item.Quantity, item.ReorderLevel, lastMovementAt, now)
-		item.ExpiryStatus = inventoryExpiryStatus(item.ExpiryDate, now)
+		item.ExpiryStatus = inventoryExpiryStatus(item.ExpiryDate, now, expiryWarningDays)
 		items = append(items, item)
 	}
 	return items, rows.Err()
@@ -108,7 +109,7 @@ func (r *postgresInventoryRepository) Update(ctx context.Context, branchID, id i
 	return true, tx.Commit()
 }
 
-func inventoryExpiryStatus(expiryDate *time.Time, now time.Time) string {
+func inventoryExpiryStatus(expiryDate *time.Time, now time.Time, warningDays int) string {
 	if expiryDate == nil {
 		return "none"
 	}
@@ -117,7 +118,7 @@ func inventoryExpiryStatus(expiryDate *time.Time, now time.Time) string {
 	if expiresOn.Before(today) {
 		return "expired"
 	}
-	if !expiresOn.After(today.AddDate(0, 0, 7)) {
+	if !expiresOn.After(today.AddDate(0, 0, max(1, warningDays))) {
 		return "expiring_soon"
 	}
 	return "none"

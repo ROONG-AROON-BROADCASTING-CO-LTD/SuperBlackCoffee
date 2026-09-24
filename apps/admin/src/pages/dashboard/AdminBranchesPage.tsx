@@ -13,6 +13,7 @@ import {
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 import {
@@ -79,6 +80,30 @@ const statusLabel: Record<string, BranchStatus> = {
   inactive: 'ปิดทำการ',
 };
 
+const coordinateFromGoogleMapsLink = (value: string) => {
+  // Google place links include both the viewport after "@" and the actual place
+  // location in "!3d...!4d...". Always prefer the latter when it is available.
+  const matched =
+    value.match(/!3d(-?\d{1,2}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/i) ??
+    value.match(
+      /(?:@|[?&](?:q|query|ll)=)(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/i,
+    );
+  if (!matched) return null;
+  const latitude = Number(matched[1]);
+  const longitude = Number(matched[2]);
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return null;
+  }
+  return { latitude, longitude };
+};
+
 export function AdminBranchesPage() {
   const [query, setQuery] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -90,7 +115,9 @@ export function AdminBranchesPage() {
   const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false);
   const [editingBranchId, setEditingBranchId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [createError, setCreateError] = useState('');
+  const [googleMapsLink, setGoogleMapsLink] = useState('');
   const [newBranch, setNewBranch] = useState<BranchForm>(emptyBranchForm);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
@@ -135,6 +162,53 @@ export function AdminBranchesPage() {
         .includes(normalizedQuery),
     );
   }, [branches, query]);
+  const coordinates = useMemo(() => {
+    const latitude = Number(newBranch.latitude);
+    const longitude = Number(newBranch.longitude);
+    if (
+      newBranch.latitude === '' ||
+      newBranch.longitude === '' ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      return null;
+    }
+    return { latitude, longitude };
+  }, [newBranch.latitude, newBranch.longitude]);
+  const googleMapsQuery = coordinates
+    ? `${coordinates.latitude},${coordinates.longitude}`
+    : newBranch.address.trim() || newBranch.name.trim() || 'ประเทศไทย';
+  const googleMapsEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(googleMapsQuery)}&z=${coordinates ? 18 : 12}&output=embed`;
+  const googleMapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(googleMapsQuery)}`;
+  const attendanceRadius = Math.min(
+    1000,
+    Math.max(25, Number(newBranch.attendanceRadiusM) || 100),
+  );
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setCreateError('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่งปัจจุบัน');
+      return;
+    }
+    setCreateError('');
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setNewBranch((current) => ({
+          ...current,
+          latitude: position.coords.latitude.toFixed(6),
+          longitude: position.coords.longitude.toFixed(6),
+        }));
+        setIsLocating(false);
+      },
+      () => {
+        setCreateError(
+          'ไม่สามารถรับตำแหน่งได้ กรุณาอนุญาตการใช้ตำแหน่งหรือวางลิงก์ Google Maps',
+        );
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  };
   const changeBranchSize = async (branchId: number, size: Branch['size']) => {
     setUpdatingBranchId(branchId);
     try {
@@ -248,6 +322,7 @@ export function AdminBranchesPage() {
             variant="contained"
             onClick={() => {
               setCreateError('');
+              setGoogleMapsLink('');
               setEditingBranchId(null);
               setNewBranch(emptyBranchForm());
               setIsCreateDrawerOpen(true);
@@ -296,12 +371,6 @@ export function AdminBranchesPage() {
               sx={{
                 borderRadius: '20px',
                 borderColor: '#e8ddd5',
-                boxShadow: '0 8px 30px rgba(57, 34, 19, 0.035)',
-                transition: 'box-shadow 180ms ease, transform 180ms ease',
-                '&:hover': {
-                  boxShadow: '0 14px 36px rgba(57, 34, 19, 0.09)',
-                  transform: 'translateY(-2px)',
-                },
               }}
             >
               <Box sx={{ p: { xs: 2.25, sm: 3 } }}>
@@ -473,6 +542,7 @@ export function AdminBranchesPage() {
                     startIcon={<EditOutlinedIcon sx={{ fontSize: 17 }} />}
                     onClick={() => {
                       setCreateError('');
+                      setGoogleMapsLink('');
                       setEditingBranchId(branch.id);
                       setNewBranch({
                         name: branch.name,
@@ -533,7 +603,11 @@ export function AdminBranchesPage() {
       <Drawer
         anchor="bottom"
         open={isCreateDrawerOpen}
-        onClose={() => !isCreating && setIsCreateDrawerOpen(false)}
+        onClose={() => {
+          if (!isCreating) {
+            setIsCreateDrawerOpen(false);
+          }
+        }}
         transitionDuration={{ enter: 360, exit: 280 }}
         slotProps={{
           paper: {
@@ -749,35 +823,151 @@ export function AdminBranchesPage() {
                 color: '#201914',
               }}
             >
-              พิกัดร้านสำหรับการลงเวลา
+              ตั้งค่าพิกัดร้านสำหรับการลงเวลา
             </Typography>
+            <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+              <Box
+                sx={{
+                  position: 'relative',
+                  height: { xs: 250, sm: 330 },
+                  overflow: 'hidden',
+                  border: '1px solid #e1d2c7',
+                  borderRadius: '16px',
+                  bgcolor: '#f6f0eb',
+                }}
+              >
+                <Box
+                  component="iframe"
+                  title="แผนที่ตำแหน่งสาขา"
+                  src={googleMapsEmbedSrc}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  sx={{ width: '100%', height: '100%', border: 0 }}
+                />
+              </Box>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  mt: 1,
+                  color: 'text.secondary',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 12,
+                }}
+              >
+                <PlaceOutlinedIcon sx={{ fontSize: 16, color: '#805637' }} />
+                หมุดสีแดงบน Google Maps คือพิกัดร้านที่จะบันทึก
+              </Box>
+              <Box
+                aria-label={`รัศมีเช็กอิน ${attendanceRadius} เมตร`}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  mt: 1,
+                  px: 1.25,
+                  py: 1,
+                  border: '1px solid #e8ddd5',
+                  borderRadius: '12px',
+                  bgcolor: '#fff',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                    border: '2px solid rgba(129, 83, 52, 0.72)',
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(137, 88, 53, 0.12)',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: '#805637',
+                    }}
+                  />
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      color: '#3f2e24',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    รัศมีเช็กอิน {attendanceRadius} เมตร
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 11,
+                    }}
+                  >
+                    ใช้ตรวจระยะจากหมุด Google Maps ตอนเช็กอิน/เช็กเอาต์
+                  </Typography>
+                </Box>
+              </Box>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                  mt: 1.25,
+                }}
+              >
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={isLocating}
+                  startIcon={<MyLocationOutlinedIcon sx={{ fontSize: 17 }} />}
+                  onClick={useCurrentLocation}
+                  sx={{ fontFamily: 'Kanit, sans-serif', borderRadius: '10px' }}
+                >
+                  {isLocating ? 'กำลังหาตำแหน่ง...' : 'ใช้ตำแหน่งปัจจุบัน'}
+                </Button>
+                <Button
+                  size="small"
+                  component="a"
+                  href={googleMapsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  variant="outlined"
+                  endIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 16 }} />}
+                  sx={{ fontFamily: 'Kanit, sans-serif', borderRadius: '10px' }}
+                >
+                  เปิด Google Maps เพื่อตรวจสอบตำแหน่ง
+                </Button>
+              </Box>
+            </Box>
             <TextField
-              label="ละติจูด"
-              type="number"
-              value={newBranch.latitude}
-              onChange={(event) =>
-                setNewBranch((current) => ({
-                  ...current,
-                  latitude: event.target.value,
-                }))
-              }
-              slotProps={{ htmlInput: { min: -90, max: 90, step: 'any' } }}
-              helperText="ตัวอย่าง 16.8211"
+              label="วางลิงก์ Google Maps เพื่อบันทึกพิกัด"
+              placeholder="https://www.google.com/maps/@16.8211,100.2659,17z"
+              value={googleMapsLink}
+              onChange={(event) => {
+                const value = event.target.value;
+                setGoogleMapsLink(value);
+                const location = coordinateFromGoogleMapsLink(value);
+                if (location) {
+                  setNewBranch((current) => ({
+                    ...current,
+                    latitude: String(location.latitude),
+                    longitude: String(location.longitude),
+                  }));
+                  setCreateError('');
+                }
+              }}
+              helperText="ค้นหาสถานที่หรือปักหมุดใน Google Maps แล้วคัดลอกลิงก์ที่มีพิกัดมาวาง"
               fullWidth
-            />
-            <TextField
-              label="ลองจิจูด"
-              type="number"
-              value={newBranch.longitude}
-              onChange={(event) =>
-                setNewBranch((current) => ({
-                  ...current,
-                  longitude: event.target.value,
-                }))
-              }
-              slotProps={{ htmlInput: { min: -180, max: 180, step: 'any' } }}
-              helperText="ตัวอย่าง 100.2659"
-              fullWidth
+              sx={{ gridColumn: { sm: '1 / -1' } }}
             />
             <TextField
               label="รัศมีเช็กอิน (เมตร)"
@@ -790,9 +980,43 @@ export function AdminBranchesPage() {
                 }))
               }
               slotProps={{ htmlInput: { min: 25, max: 1000, step: 1 } }}
-              helperText="บันทึกไว้สำหรับการตรวจระยะตอนเช็กอิน/เช็กเอาต์ 25–1,000 เมตร (ยังไม่เปิดใช้การตรวจระยะ)"
+              helperText="วงบนแผนที่แสดงรัศมีที่บันทึกไว้สำหรับเช็กอิน/เช็กเอาต์ 25–1,000 เมตร"
               fullWidth
             />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 1.25,
+              }}
+            >
+              <TextField
+                label="ละติจูด"
+                type="number"
+                value={newBranch.latitude}
+                onChange={(event) =>
+                  setNewBranch((current) => ({
+                    ...current,
+                    latitude: event.target.value,
+                  }))
+                }
+                slotProps={{ htmlInput: { min: -90, max: 90, step: 'any' } }}
+                fullWidth
+              />
+              <TextField
+                label="ลองจิจูด"
+                type="number"
+                value={newBranch.longitude}
+                onChange={(event) =>
+                  setNewBranch((current) => ({
+                    ...current,
+                    longitude: event.target.value,
+                  }))
+                }
+                slotProps={{ htmlInput: { min: -180, max: 180, step: 'any' } }}
+                fullWidth
+              />
+            </Box>
             {createError ? (
               <Typography
                 role="alert"

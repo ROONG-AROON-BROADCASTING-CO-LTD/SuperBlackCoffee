@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -24,6 +25,35 @@ var thailandLocation = time.FixedZone("Asia/Bangkok", 7*60*60)
 const attendancePINLoginLimit = 10
 const attendancePINLoginWindow = 15 * time.Minute
 const attendanceLateGraceMinutes = 10
+const earthRadiusM = 6_371_000.0
+
+type attendanceLocationInput struct {
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+	AccuracyM *float64 `json:"accuracyM"`
+}
+
+func (input attendanceLocationInput) valid() bool {
+	if input.Latitude == nil || input.Longitude == nil ||
+		!isFinite(*input.Latitude) || !isFinite(*input.Longitude) ||
+		*input.Latitude < -90 || *input.Latitude > 90 ||
+		*input.Longitude < -180 || *input.Longitude > 180 {
+		return false
+	}
+	return input.AccuracyM == nil || (isFinite(*input.AccuracyM) && *input.AccuracyM >= 0)
+}
+
+func isFinite(value float64) bool { return !math.IsNaN(value) && !math.IsInf(value, 0) }
+
+func distanceMeters(fromLat, fromLon, toLat, toLon float64) float64 {
+	latitudeDelta := (toLat - fromLat) * math.Pi / 180
+	longitudeDelta := (toLon - fromLon) * math.Pi / 180
+	fromLatitude := fromLat * math.Pi / 180
+	toLatitude := toLat * math.Pi / 180
+	a := math.Sin(latitudeDelta/2)*math.Sin(latitudeDelta/2) +
+		math.Cos(fromLatitude)*math.Cos(toLatitude)*math.Sin(longitudeDelta/2)*math.Sin(longitudeDelta/2)
+	return earthRadiusM * 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+}
 
 type attendanceLoginInput struct {
 	Username string `json:"username" binding:"required"`
@@ -154,6 +184,34 @@ func canRecordAttendance(shiftStatus string) bool {
 	return shiftStatus == "scheduled" || shiftStatus == "compensatory_work"
 }
 
+func (h *PlatformHandler) validateAttendanceLocation(c *gin.Context, branchID int64, input attendanceLocationInput) bool {
+	if !input.valid() {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาอนุญาตตำแหน่งและส่งพิกัดที่ถูกต้องก่อนลงเวลา"})
+		return false
+	}
+	var latitude, longitude sql.NullFloat64
+	var radiusM int
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT latitude,longitude,attendance_radius_m FROM branches WHERE id=$1`, branchID).Scan(&latitude, &longitude, &radiusM)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบข้อมูลสาขาสำหรับลงเวลา"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบพิกัดสาขาได้"})
+		}
+		return false
+	}
+	if !latitude.Valid || !longitude.Valid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "สาขานี้ยังไม่ได้ตั้งพิกัดสำหรับลงเวลา กรุณาแจ้งผู้ดูแลระบบ"})
+		return false
+	}
+	distanceM := distanceMeters(*input.Latitude, *input.Longitude, latitude.Float64, longitude.Float64)
+	if distanceM > float64(radiusM) {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": fmt.Sprintf("คุณอยู่นอกรัศมีลงเวลา (ห่างจากสาขาประมาณ %.0f ม. / อนุญาต %d ม.)", distanceM, radiusM)})
+		return false
+	}
+	return true
+}
+
 func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	claims, ok := attendanceClaims(c)
 	if !ok {
@@ -259,6 +317,18 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if claims.BranchID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "บัญชีพนักงานยังไม่ได้กำหนดสาขา"})
+		return
+	}
+	var location attendanceLocationInput
+	if c.ShouldBindJSON(&location) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาอนุญาตตำแหน่งและส่งพิกัดที่ถูกต้องก่อนลงเวลา"})
+		return
+	}
+	if !h.validateAttendanceLocation(c, *claims.BranchID, location) {
+		return
+	}
 	now := attendanceToday()
 	var shiftStatus string
 	err := h.db.QueryRowContext(c.Request.Context(), `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
@@ -275,7 +345,7 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 		return
 	}
 	var checkIn *time.Time
-	err = h.db.QueryRowContext(c.Request.Context(), `INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES($1,$2,$3,$4) ON CONFLICT(user_id,work_date) DO NOTHING RETURNING check_in_at`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now).Scan(&checkIn)
+	err = h.db.QueryRowContext(c.Request.Context(), `INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at,check_in_latitude,check_in_longitude,check_in_accuracy_m) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(user_id,work_date) DO NOTHING RETURNING check_in_at`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now, location.Latitude, location.Longitude, location.AccuracyM).Scan(&checkIn)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันนี้เช็กอินไปแล้ว"})
 		return
@@ -292,20 +362,32 @@ func (h *PlatformHandler) CheckOut(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if claims.BranchID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "บัญชีพนักงานยังไม่ได้กำหนดสาขา"})
+		return
+	}
+	var location attendanceLocationInput
+	if c.ShouldBindJSON(&location) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาอนุญาตตำแหน่งและส่งพิกัดที่ถูกต้องก่อนลงเวลา"})
+		return
+	}
+	if !h.validateAttendanceLocation(c, *claims.BranchID, location) {
+		return
+	}
 	now := attendanceToday()
 	var checkOut *time.Time
 	err := h.db.QueryRowContext(c.Request.Context(), `
-		UPDATE staff_attendance SET check_out_at=$1,updated_at=now()
-		WHERE branch_id=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL
+		UPDATE staff_attendance SET check_out_at=$1,check_out_latitude=$2,check_out_longitude=$3,check_out_accuracy_m=$4,updated_at=now()
+		WHERE branch_id=$6 AND check_in_at IS NOT NULL AND check_out_at IS NULL
 			AND (user_id, work_date) IN (
 			SELECT user_id, work_date FROM staff_attendance
-			WHERE user_id=$2 AND branch_id=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL
-			AND (work_date=$4 OR (work_date=$5 AND EXISTS (
+			WHERE user_id=$5 AND branch_id=$6 AND check_in_at IS NOT NULL AND check_out_at IS NULL
+			AND (work_date=$7 OR (work_date=$8 AND EXISTS (
 				SELECT 1 FROM staff_shifts s WHERE s.user_id=staff_attendance.user_id
 					AND s.branch_id=staff_attendance.branch_id AND s.shift_date=staff_attendance.work_date
 					AND s.ends_at <= s.starts_at AND s.status IN ('scheduled','compensatory_work')
 			))) ORDER BY work_date DESC LIMIT 1)
-		RETURNING check_out_at`, now, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now.AddDate(0, 0, -1).Format("2006-01-02")).Scan(&checkOut)
+		RETURNING check_out_at`, now, location.Latitude, location.Longitude, location.AccuracyM, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now.AddDate(0, 0, -1).Format("2006-01-02")).Scan(&checkOut)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบรายการเช็กอินที่ยังไม่ได้เช็กเอาต์"})
 		return

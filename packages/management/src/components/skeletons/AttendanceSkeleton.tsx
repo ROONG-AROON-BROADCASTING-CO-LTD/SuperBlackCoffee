@@ -1,19 +1,13 @@
-import { Box, Button, Card, Skeleton, Typography } from '@mui/material';
+import { Box, Card, Skeleton } from '@mui/material';
 
 const weekdayPlaceholders = Array.from({ length: 7 }, (_, index) => index);
 
 export function AttendanceSkeleton({
   franchiseMode = false,
   calendarWeeks = 5,
-  onPreviousMonth,
-  onCurrentMonth,
-  onNextMonth,
 }: {
   franchiseMode?: boolean;
   calendarWeeks?: number;
-  onPreviousMonth?: () => void;
-  onCurrentMonth?: () => void;
-  onNextMonth?: () => void;
 } = {}) {
   const dayPlaceholders = Array.from(
     { length: calendarWeeks * 7 },
@@ -22,49 +16,6 @@ export function AttendanceSkeleton({
 
   return (
     <Box aria-label="กำลังโหลดข้อมูลลงเวลาพนักงาน">
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 2,
-          alignItems: { xs: 'flex-start', md: 'center' },
-          flexDirection: { xs: 'column', md: 'row' },
-          mb: 2.5,
-        }}
-      >
-        <Box>
-          <Typography
-            sx={{
-              color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 24,
-              fontWeight: 700,
-            }}
-          >
-            ลงเวลาพนักงาน
-          </Typography>
-          <Typography
-            color="text.secondary"
-            sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
-          >
-            {franchiseMode
-              ? 'ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'
-              : 'ข้อมูลพนักงานบริษัท Super Black Coffee เท่านั้น'}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button variant="outlined" size="small" onClick={onPreviousMonth}>
-            เดือนก่อน
-          </Button>
-          <Button variant="outlined" size="small" onClick={onCurrentMonth}>
-            เดือนนี้
-          </Button>
-          <Button variant="outlined" size="small" onClick={onNextMonth}>
-            เดือนถัดไป
-          </Button>
-        </Box>
-      </Box>
-
       {!franchiseMode ? (
         <Box
           sx={{

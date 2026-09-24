@@ -86,8 +86,13 @@ describe('attendance API client', () => {
       .mockResolvedValueOnce(successResponse());
 
     await getAttendanceStatus();
-    await checkIn();
-    await checkOut();
+    const location = {
+      latitude: 16.821085,
+      longitude: 100.2694448,
+      accuracyM: 8,
+    };
+    await checkIn(location);
+    await checkOut(location);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
@@ -97,12 +102,20 @@ describe('attendance API client', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining('/attendance/check-in'),
-      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify(location),
+      }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       expect.stringContaining('/attendance/check-out'),
-      expect.objectContaining({ method: 'POST', credentials: 'include' }),
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify(location),
+      }),
     );
   });
 

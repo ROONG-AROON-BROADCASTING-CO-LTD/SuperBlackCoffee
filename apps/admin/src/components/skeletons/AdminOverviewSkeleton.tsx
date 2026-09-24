@@ -11,31 +11,6 @@ export function AdminOverviewSkeleton() {
         },
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: { xs: 'flex-start', sm: 'center' },
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: 2,
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
-          <Skeleton
-            variant="rounded"
-            width="72%"
-            height={32}
-            sx={{ maxWidth: 330 }}
-          />
-          <Skeleton
-            variant="rounded"
-            width="84%"
-            height={14}
-            sx={{ mt: 0.35, maxWidth: 360 }}
-          />
-        </Box>
-        <Skeleton variant="rounded" width={170} height={14} />
-      </Box>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
         {Array.from({ length: 3 }, (_, i) => (
           <Skeleton
