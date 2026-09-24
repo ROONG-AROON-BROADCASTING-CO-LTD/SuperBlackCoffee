@@ -55,9 +55,32 @@ type branchSizeInput struct {
 }
 
 type companyBranchInput struct {
-	Name string `json:"name" binding:"required"`
-	Code string `json:"code" binding:"required"`
-	Size string `json:"size" binding:"required,oneof=S M L"`
+	Name              string   `json:"name" binding:"required"`
+	Code              string   `json:"code" binding:"required"`
+	Size              string   `json:"size" binding:"required,oneof=S M L"`
+	Address           string   `json:"address"`
+	OpensAt           string   `json:"opensAt"`
+	ClosesAt          string   `json:"closesAt"`
+	Latitude          *float64 `json:"latitude"`
+	Longitude         *float64 `json:"longitude"`
+	AttendanceRadiusM int      `json:"attendanceRadiusM"`
+}
+
+func validateCompanyBranchDetails(input companyBranchInput) bool {
+	if (input.Latitude == nil) != (input.Longitude == nil) ||
+		(input.Latitude != nil && (*input.Latitude < -90 || *input.Latitude > 90)) ||
+		(input.Longitude != nil && (*input.Longitude < -180 || *input.Longitude > 180)) ||
+		(input.AttendanceRadiusM != 0 && (input.AttendanceRadiusM < 25 || input.AttendanceRadiusM > 1000)) {
+		return false
+	}
+	for _, value := range []string{input.OpensAt, input.ClosesAt} {
+		if value != "" {
+			if _, err := time.Parse("15:04", value); err != nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // Both ownership types select from the same central catalog by branch size.
@@ -177,7 +200,7 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 		return
 	}
 	claims := middleware.ClaimsFrom(c)
-	query := `SELECT b.id,b.name,b.code,b.size,b.status,b.franchisee_id,f.name FROM branches b LEFT JOIN franchisees f ON f.id=b.franchisee_id`
+	query := `SELECT b.id,b.name,b.code,b.size,b.status,b.franchisee_id,f.name,b.address,COALESCE(to_char(b.opens_at,'HH24:MI'),''),COALESCE(to_char(b.closes_at,'HH24:MI'),''),b.latitude,b.longitude,b.attendance_radius_m FROM branches b LEFT JOIN franchisees f ON f.id=b.franchisee_id`
 	args := []any{}
 	if claims.Role != "admin" {
 		if claims.Role == "branch_manager" && claims.BranchID != nil {
@@ -204,11 +227,18 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 		var name, code, size, status string
 		var franchiseeID sql.NullInt64
 		var franchiseName sql.NullString
-		if err := rows.Scan(&id, &name, &code, &size, &status, &franchiseeID, &franchiseName); err != nil {
+		var address, opensAt, closesAt string
+		var latitude, longitude sql.NullFloat64
+		var attendanceRadiusM int
+		if err := rows.Scan(&id, &name, &code, &size, &status, &franchiseeID, &franchiseName, &address, &opensAt, &closesAt, &latitude, &longitude, &attendanceRadiusM); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลสาขาได้"})
 			return
 		}
-		branch := gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "franchiseeName": franchiseName.String}
+		branch := gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "franchiseeName": franchiseName.String, "address": address, "opensAt": opensAt, "closesAt": closesAt, "attendanceRadiusM": attendanceRadiusM}
+		if latitude.Valid && longitude.Valid {
+			branch["latitude"] = latitude.Float64
+			branch["longitude"] = longitude.Float64
+		}
 		if franchiseeID.Valid {
 			branch["franchiseeId"] = franchiseeID.Int64
 		}
@@ -234,6 +264,14 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุชื่อและรหัสสาขา"})
 		return
 	}
+	if !validateCompanyBranchDetails(input) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "พิกัด เวลาเปิดปิด หรือรัศมีเช็กอินไม่ถูกต้อง"})
+		return
+	}
+	if input.AttendanceRadiusM == 0 {
+		input.AttendanceRadiusM = 100
+	}
+	input.Address = strings.TrimSpace(input.Address)
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างสาขาได้"})
@@ -242,9 +280,9 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 	defer tx.Rollback()
 	var branchID int64
 	err = tx.QueryRowContext(c.Request.Context(), `
-		INSERT INTO branches(name,code,size,status)
-		VALUES($1,$2,$3,'active')
-		RETURNING id`, input.Name, input.Code, input.Size).Scan(&branchID)
+		INSERT INTO branches(name,code,size,status,address,opens_at,closes_at,latitude,longitude,attendance_radius_m)
+		VALUES($1,$2,$3,'active',$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7,$8,$9)
+		RETURNING id`, input.Name, input.Code, input.Size, input.Address, input.OpensAt, input.ClosesAt, input.Latitude, input.Longitude, input.AttendanceRadiusM).Scan(&branchID)
 	if err == nil {
 		err = copyCompanyCatalog(c.Request.Context(), tx, branchID, input.Size)
 	}
@@ -259,7 +297,49 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 	h.invalidateBranchCache(c, branchID)
 	h.invalidateMenuSummaryCache(c)
 	h.recordAudit(c, branchID, "branch", branchID, "created", gin.H{"name": input.Name, "code": input.Code, "size": input.Size})
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": branchID, "name": input.Name, "code": input.Code, "size": input.Size, "status": "active"}})
+	result := gin.H{"id": branchID, "name": input.Name, "code": input.Code, "size": input.Size, "status": "active", "address": input.Address, "opensAt": input.OpensAt, "closesAt": input.ClosesAt, "attendanceRadiusM": input.AttendanceRadiusM}
+	if input.Latitude != nil && input.Longitude != nil {
+		result["latitude"] = *input.Latitude
+		result["longitude"] = *input.Longitude
+	}
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": result})
+}
+
+func (h *PlatformHandler) UpdateCompanyBranchDetails(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	branchID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || branchID < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสสาขาไม่ถูกต้อง"})
+		return
+	}
+	var input companyBranchInput
+	if c.ShouldBindJSON(&input) != nil || !validateCompanyBranchDetails(input) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ข้อมูลสาขาหรือพิกัดไม่ถูกต้อง"})
+		return
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Code = strings.ToUpper(strings.TrimSpace(input.Code))
+	input.Address = strings.TrimSpace(input.Address)
+	if input.Name == "" || input.Code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาระบุชื่อและรหัสสาขา"})
+		return
+	}
+	if input.AttendanceRadiusM == 0 {
+		input.AttendanceRadiusM = 100
+	}
+	result, err := h.db.ExecContext(c.Request.Context(), `UPDATE branches SET name=$1,code=$2,address=$3,opens_at=NULLIF($4,'')::time,closes_at=NULLIF($5,'')::time,latitude=$6,longitude=$7,attendance_radius_m=$8 WHERE id=$9 AND franchisee_id IS NULL`, input.Name, input.Code, input.Address, input.OpensAt, input.ClosesAt, input.Latitude, input.Longitude, input.AttendanceRadiusM, branchID)
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลสาขาได้ กรุณาตรวจสอบรหัสสาขา"})
+		return
+	}
+	if rowsAffected(result) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขา SBC"})
+		return
+	}
+	h.invalidateBranchCache(c, branchID)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": branchID}})
 }
 
 func (h *PlatformHandler) UpdateBranchSize(c *gin.Context) {

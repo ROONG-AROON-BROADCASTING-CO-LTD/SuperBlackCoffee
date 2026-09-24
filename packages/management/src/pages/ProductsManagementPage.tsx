@@ -33,6 +33,10 @@ import {
 } from '../components/sidebar/BranchesSidebar';
 import { ProductsSkeleton } from '../components/skeletons/ProductsSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
+import {
+  BranchOverviewList,
+  BranchOverviewListSkeleton,
+} from '../components/BranchOverviewList';
 import { useAutoRetry } from '../hooks/useAutoRetry';
 import { listInventory, type InventoryItem } from '../api/inventory';
 import {
@@ -754,85 +758,54 @@ export function ProductsManagementPage({
           <DataLoadNotice message="โหลดข้อมูลสรุปเมนูไม่สำเร็จ" />
         )}
         {!summary && !summaryError ? (
-          <ProductsSkeleton readOnly cardColumns={cardColumns} />
+          <BranchOverviewListSkeleton
+            rowCount={Math.min(availableBranchNames.length, 20)}
+          />
         ) : null}
         {summary && (
           <>
-            <Typography sx={{ mb: 2, fontFamily: 'Kanit, sans-serif' }}>
-              {summary.total.toLocaleString('th-TH')} สาขา
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: {
-                  xs: '1fr',
-                  sm: 'repeat(2, minmax(0, 1fr))',
-                  lg: 'repeat(5, minmax(0, 1fr))',
-                },
-                gap: 2,
-              }}
-            >
-              {summary.items.map((branch) => (
-                <Card
-                  key={branch.branchCode}
-                  variant="outlined"
-                  sx={{ p: 2, borderRadius: '15px', borderColor: '#e8ddd5' }}
+            <BranchOverviewList
+              rows={summary.items.map((branch) => ({
+                name: branch.branchName,
+                code: branch.branchCode,
+                total: branch.menuCount,
+                available: branch.availableCount,
+              }))}
+              total={summary.total}
+              totalLabel="เมนูทั้งหมด"
+              availableLabel="เปิดขาย"
+              actionLabel="ดูเมนูและสินค้า"
+              unit="เมนู"
+              onSelectBranch={(name, code) => onSelectBranch?.(name, code)}
+            />
+            {summary.total > summary.pageSize && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2,
+                  mt: 3,
+                }}
+              >
+                <Button
+                  disabled={summaryPage <= 1}
+                  onClick={() => setSummaryPage((page) => page - 1)}
                 >
-                  <Typography
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 600 }}
-                  >
-                    สาขา {branch.branchName}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
-                    }}
-                  >
-                    {branch.menuCount} เมนู · เปิดขาย {branch.availableCount}
-                  </Typography>
-                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
-                    {branch.branchCode}
-                  </Typography>
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    onClick={() =>
-                      onSelectBranch?.(branch.branchName, branch.branchCode)
-                    }
-                    sx={{ mt: 2, fontFamily: 'Kanit, sans-serif' }}
-                  >
-                    ดูเมนูและสินค้า
-                  </Button>
-                </Card>
-              ))}
-            </Box>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 2,
-                mt: 3,
-              }}
-            >
-              <Button
-                disabled={summaryPage <= 1}
-                onClick={() => setSummaryPage((page) => page - 1)}
-              >
-                ก่อนหน้า
-              </Button>
-              <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
-                หน้า {summaryPage} /{' '}
-                {Math.max(1, Math.ceil(summary.total / summary.pageSize))}
-              </Typography>
-              <Button
-                disabled={summaryPage * summary.pageSize >= summary.total}
-                onClick={() => setSummaryPage((page) => page + 1)}
-              >
-                ถัดไป
-              </Button>
-            </Box>
+                  ก่อนหน้า
+                </Button>
+                <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                  หน้า {summaryPage} /{' '}
+                  {Math.max(1, Math.ceil(summary.total / summary.pageSize))}
+                </Typography>
+                <Button
+                  disabled={summaryPage * summary.pageSize >= summary.total}
+                  onClick={() => setSummaryPage((page) => page + 1)}
+                >
+                  ถัดไป
+                </Button>
+              </Box>
+            )}
           </>
         )}
       </DashboardMain>

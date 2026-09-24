@@ -52,6 +52,10 @@ import {
 } from '../api/inventory';
 import { StockSkeleton } from '../components/skeletons/StockSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
+import {
+  BranchOverviewList,
+  BranchOverviewListSkeleton,
+} from '../components/BranchOverviewList';
 import { useAutoRetry } from '../hooks/useAutoRetry';
 import { createStockRequest } from '../api/stock-requests';
 
@@ -82,6 +86,7 @@ export function StockManagementPage({
   stockLabel = 'สต๊อกอุปกรณ์เครื่องดื่ม',
   branchOptions = branches,
   branchCodes = branchCodeByBranch,
+  onSelectBranch,
 }: {
   activeBranch: string;
   readOnly?: boolean;
@@ -93,6 +98,7 @@ export function StockManagementPage({
   stockLabel?: string;
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
+  onSelectBranch?: (branch: string, branchCode: string) => void;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
@@ -334,6 +340,39 @@ export function StockManagementPage({
             item.key === key ? { ...item, quantityToOrder } : item,
           ),
     );
+
+  if (activeBranch === 'ทุกสาขา' && onSelectBranch) {
+    return (
+      <DashboardMain>
+        <PageIntro
+          title={stockLabel}
+          description={`เลือกสาขาเพื่อดูและแก้ไข${stockLabel}ของสาขา`}
+        />
+        {loadError ? <DataLoadNotice /> : null}
+        {showSkeleton ? (
+          <BranchOverviewListSkeleton rowCount={availableBranchNames.length} />
+        ) : !loadError ? (
+          <BranchOverviewList
+            rows={availableBranchNames.map((branch) => {
+              const items = catalogStockItemsByBranch[branch] ?? [];
+              return {
+                name: branch,
+                code: branchCodes[branch],
+                total: items.length,
+                available: items.filter((item) => item.status === 'พร้อมใช้')
+                  .length,
+              };
+            })}
+            total={availableBranchNames.length}
+            totalLabel="รายการทั้งหมด"
+            availableLabel="พร้อมใช้"
+            actionLabel={`ดู${stockLabel}`}
+            onSelectBranch={onSelectBranch}
+          />
+        ) : null}
+      </DashboardMain>
+    );
+  }
 
   return (
     <DashboardMain>

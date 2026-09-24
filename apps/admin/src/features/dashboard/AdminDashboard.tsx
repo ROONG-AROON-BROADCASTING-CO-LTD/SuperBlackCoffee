@@ -240,13 +240,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const activePage = adminPageFromPath(location.pathname);
   const branchParam = searchParams.get('branch');
   const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
-  const firstCompanyBranch = branchDirectory.find(
-    (branch) => !branch.franchiseeId,
-  );
-  const selectedBranch =
-    branchParam ||
-    (activePage === 'เมนูและสินค้า' ? firstCompanyBranch?.name : undefined) ||
-    'ทุกสาขา';
+  const selectedBranch = branchParam || 'ทุกสาขา';
   const activeBranch = (
     selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกสาขา' : selectedBranch
   ) as Branch;
@@ -312,12 +306,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       'fresh-ingredients': 'วัตถุดิบของสด',
     };
     const destinationPage = catalogPageByTarget[nextPage] ?? nextPage;
-    const nextBranch = isFranchiseCatalogTarget
-      ? destinationPage === 'เมนูและสินค้า'
-        ? (branchDirectory.find((branch) => Boolean(branch.franchiseeId))
-            ?.name ?? 'แฟรนไชส์ทั้งหมด')
-        : 'แฟรนไชส์ทั้งหมด'
-      : undefined;
+    const nextBranch = isFranchiseCatalogTarget ? 'แฟรนไชส์ทั้งหมด' : undefined;
     const alreadyAtDestination =
       activePage === destinationPage &&
       (nextBranch
@@ -414,6 +403,13 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
       ingredientScope={isFreshIngredientsPage ? 'fresh' : 'regular'}
+      onSelectBranch={(branch, branchCode) =>
+        setSearchParams((current) => {
+          current.set('branch', branch);
+          current.set('branchCode', branchCode);
+          return current;
+        })
+      }
       readOnly
       allowEditing
       cardColumns={5}
@@ -448,6 +444,13 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       activeBranch={activeBranch}
       stockCategory="drink_equipment"
       stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
+      onSelectBranch={(branch, branchCode) =>
+        setSearchParams((current) => {
+          current.set('branch', branch);
+          current.set('branchCode', branchCode);
+          return current;
+        })
+      }
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
       readOnly
@@ -459,6 +462,13 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       activeBranch={activeBranch}
       stockCategory="postal_equipment"
       stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
+      onSelectBranch={(branch, branchCode) =>
+        setSearchParams((current) => {
+          current.set('branch', branch);
+          current.set('branchCode', branchCode);
+          return current;
+        })
+      }
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
       readOnly

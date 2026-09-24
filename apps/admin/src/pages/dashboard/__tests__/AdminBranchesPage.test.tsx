@@ -11,17 +11,20 @@ import {
   createCompanyBranch,
   listBranches,
   updateBranchSize,
+  updateCompanyBranchDetails,
 } from '../../../api';
 
 vi.mock('../../../api', () => ({
   createCompanyBranch: vi.fn(),
   listBranches: vi.fn(),
   updateBranchSize: vi.fn(),
+  updateCompanyBranchDetails: vi.fn(),
 }));
 
 const mockedCreateCompanyBranch = vi.mocked(createCompanyBranch);
 const mockedListBranches = vi.mocked(listBranches);
 const mockedUpdateBranchSize = vi.mocked(updateBranchSize);
+const mockedUpdateCompanyBranchDetails = vi.mocked(updateCompanyBranchDetails);
 
 describe('AdminBranchesPage', () => {
   beforeEach(() => {
@@ -42,6 +45,7 @@ describe('AdminBranchesPage', () => {
       status: 'active',
     });
     mockedUpdateBranchSize.mockResolvedValue({ id: 1, size: 'M' });
+    mockedUpdateCompanyBranchDetails.mockResolvedValue({ id: 1 });
   });
 
   afterEach(() => {
@@ -63,11 +67,13 @@ describe('AdminBranchesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มสาขา' }));
 
     await waitFor(() =>
-      expect(mockedCreateCompanyBranch).toHaveBeenCalledWith({
-        name: 'สาขาเชียงใหม่',
-        code: 'SBC-CNX-001',
-        size: 'S',
-      }),
+      expect(mockedCreateCompanyBranch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'สาขาเชียงใหม่',
+          code: 'SBC-CNX-001',
+          size: 'S',
+        }),
+      ),
     );
     expect(screen.getByText('สาขาเชียงใหม่')).toBeTruthy();
     expect(screen.getByText('SBC-CNX-001')).toBeTruthy();
@@ -120,11 +126,13 @@ describe('AdminBranchesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มสาขา' }));
 
     await waitFor(() =>
-      expect(mockedCreateCompanyBranch).toHaveBeenCalledWith({
-        name: 'สาขาขนาดกลาง',
-        code: 'SBC-MEDIUM-001',
-        size: 'M',
-      }),
+      expect(mockedCreateCompanyBranch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'สาขาขนาดกลาง',
+          code: 'SBC-MEDIUM-001',
+          size: 'M',
+        }),
+      ),
     );
   });
 
@@ -148,5 +156,40 @@ describe('AdminBranchesPage', () => {
       'รหัสสาขานี้มีอยู่แล้ว',
     );
     expect(screen.getByRole('button', { name: 'เพิ่มสาขา' })).toBeTruthy();
+  });
+
+  it('updates store coordinates and attendance radius without creating another branch', async () => {
+    render(<AdminBranchesPage />);
+    await screen.findByText('สาขาเดิม');
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'แก้ไขข้อมูลสาขา' }),
+    );
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'ละติจูด' }), {
+      target: { value: '16.8211' },
+    });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'ลองจิจูด' }), {
+      target: { value: '100.2659' },
+    });
+    fireEvent.change(
+      screen.getByRole('spinbutton', { name: 'รัศมีเช็กอิน (เมตร)' }),
+      {
+        target: { value: '150' },
+      },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกข้อมูล' }));
+
+    await waitFor(() =>
+      expect(mockedUpdateCompanyBranchDetails).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          latitude: 16.8211,
+          longitude: 100.2659,
+          attendanceRadiusM: 150,
+        }),
+      ),
+    );
+    expect(mockedCreateCompanyBranch).not.toHaveBeenCalled();
+    expect(await screen.findByText(/16.8211, 100.2659/)).toBeTruthy();
   });
 });

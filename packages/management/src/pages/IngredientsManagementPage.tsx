@@ -48,6 +48,10 @@ import {
 } from '../components/sidebar/BranchesSidebar';
 import { IngredientsSkeleton } from '../components/skeletons/IngredientsSkeleton';
 import { DataLoadNotice } from '../components/DataLoadNotice';
+import {
+  BranchOverviewList,
+  BranchOverviewListSkeleton,
+} from '../components/BranchOverviewList';
 import { useAutoRetry } from '../hooks/useAutoRetry';
 import {
   createInventory,
@@ -129,6 +133,7 @@ export function IngredientsManagementPage({
   branchOptions = branches,
   branchCodes = branchCodeByBranch,
   ingredientScope = 'regular',
+  onSelectBranch,
 }: {
   activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
@@ -140,6 +145,7 @@ export function IngredientsManagementPage({
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
   ingredientScope?: 'regular' | 'fresh';
+  onSelectBranch?: (branch: string, branchCode: string) => void;
 }) {
   const isFreshIngredientsPage = ingredientScope === 'fresh';
   const plusIconRef = useRef<PlusIconHandle>(null);
@@ -212,6 +218,8 @@ export function IngredientsManagementPage({
     () => branchOptions.filter((branch) => branch !== 'ทุกสาขา'),
     [branchOptions],
   );
+  const hasBranchOverview =
+    activeBranch === 'ทุกสาขา' && Boolean(onSelectBranch);
   const matchesIngredientFilter = (
     ingredient: Ingredient,
     selectedFilter: IngredientFilter,
@@ -309,6 +317,7 @@ export function IngredientsManagementPage({
     };
   }, [activeBranch, availableBranchNames, branchCodes, reloadKey]);
   useEffect(() => {
+    if (hasBranchOverview) return undefined;
     if (activeBranch !== 'ทุกสาขา') {
       setVisibleBranchNames(new Set([activeBranch]));
       setLoadedBranchNames(new Set([activeBranch]));
@@ -348,7 +357,7 @@ export function IngredientsManagementPage({
       observer.disconnect();
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [activeBranch, availableBranchNames]);
+  }, [activeBranch, availableBranchNames, hasBranchOverview]);
   const displayedBranches =
     activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
   const ingredientLabel = isFreshIngredientsPage ? 'วัตถุดิบของสด' : 'วัตถุดิบ';
@@ -599,6 +608,47 @@ export function IngredientsManagementPage({
       setIsSavingInventory(false);
     }
   };
+
+  if (hasBranchOverview && onSelectBranch) {
+    return (
+      <DashboardMain>
+        <PageIntro
+          title={ingredientLabel}
+          description={`เลือกสาขาเพื่อดูและแก้ไข${ingredientLabel}ของสาขา`}
+        />
+        {loadError ? <DataLoadNotice /> : null}
+        {showSkeleton ? (
+          <BranchOverviewListSkeleton rowCount={availableBranchNames.length} />
+        ) : !loadError ? (
+          <BranchOverviewList
+            rows={availableBranchNames.map((branch) => {
+              const items = (catalogIngredientsByBranch[branch] ?? []).filter(
+                (item) =>
+                  isFreshIngredientsPage
+                    ? item.category === 'fresh'
+                    : item.category !== 'fresh',
+              );
+              return {
+                name: branch,
+                code: branchCodes[branch],
+                total: items.length,
+                available: items.filter(
+                  (item) =>
+                    item.status === 'พร้อมใช้' ||
+                    item.status === 'คิดต้นทุนเท่านั้น',
+                ).length,
+              };
+            })}
+            total={availableBranchNames.length}
+            totalLabel="รายการทั้งหมด"
+            availableLabel="พร้อมใช้"
+            actionLabel={`ดู${ingredientLabel}`}
+            onSelectBranch={onSelectBranch}
+          />
+        ) : null}
+      </DashboardMain>
+    );
+  }
 
   return (
     <DashboardMain>

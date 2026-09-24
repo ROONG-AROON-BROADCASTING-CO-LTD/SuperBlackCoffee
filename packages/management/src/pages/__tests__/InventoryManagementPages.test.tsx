@@ -238,9 +238,8 @@ describe('inventory management pages', () => {
         onSelectBranch={onSelectBranch}
       />,
     );
-    await waitFor(() =>
-      expect(screen.getByText('87 เมนู · เปิดขาย 80')).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText('87')).toBeTruthy());
+    expect(screen.getByText('80')).toBeTruthy();
     expect(mockedListMenuSummary).toHaveBeenCalledWith('sbc', 1);
     expect(mockedListMenuItems).not.toHaveBeenCalled();
     expect(mockedListInventory).not.toHaveBeenCalled();
@@ -248,6 +247,24 @@ describe('inventory management pages', () => {
       screen.getAllByRole('button', { name: 'ดูเมนูและสินค้า' })[0],
     );
     expect(onSelectBranch).toHaveBeenCalledWith('อยุธยา', 'SBC-AYA-001');
+  });
+
+  it('shows branch-shaped placeholders while the menu summary loads', () => {
+    mockedListMenuSummary.mockImplementation(() => new Promise(() => {}));
+    renderPage(
+      <ProductsManagementPage
+        activeBranch="ทุกสาขา"
+        branchOptions={['ทุกสาขา', 'อยุธยา', 'พิษณุโลก']}
+      />,
+    );
+
+    const skeleton = screen.getByRole('status', {
+      name: 'กำลังโหลดสรุปสาขา',
+    });
+    expect(skeleton.querySelectorAll('.MuiCard-root')).toHaveLength(2);
+    expect(
+      screen.queryByRole('button', { name: 'ดูเมนูและสินค้า' }),
+    ).toBeNull();
   });
 
   it('requests only the selected page of branch summaries', async () => {
@@ -265,9 +282,7 @@ describe('inventory management pages', () => {
       pageSize: 20,
     }));
     renderPage(<ProductsManagementPage activeBranch="ทุกสาขา" />);
-    await waitFor(() =>
-      expect(screen.getByText('1 เมนู · เปิดขาย 1')).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText('สาขา สาขา 1')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
     await waitFor(() =>
       expect(mockedListMenuSummary).toHaveBeenCalledWith('sbc', 2),
@@ -287,6 +302,91 @@ describe('inventory management pages', () => {
     expect(mockedListMenuItems).not.toHaveBeenCalled();
     expect(mockedListInventory).not.toHaveBeenCalled();
     expect(await screen.findByText('โหลดข้อมูลสรุปเมนูไม่สำเร็จ')).toBeTruthy();
+  });
+
+  it.each([
+    ['regular', 'ดูวัตถุดิบ'],
+    ['fresh', 'ดูวัตถุดิบของสด'],
+  ] as const)(
+    'opens a branch from the %s ingredient overview',
+    async (scope, action) => {
+      mockedListInventory.mockImplementation(async () => [
+        { ...ingredient, category: scope === 'fresh' ? 'fresh' : 'coffee' },
+      ]);
+      const onSelectBranch = vi.fn();
+      renderPage(
+        <IngredientsManagementPage
+          activeBranch="ทุกสาขา"
+          ingredientScope={scope}
+          branchOptions={['ทุกสาขา', 'อยุธยา', 'พิษณุโลก']}
+          onSelectBranch={onSelectBranch}
+        />,
+      );
+
+      const buttons = await screen.findAllByRole('button', { name: action });
+      expect(buttons).toHaveLength(2);
+      expect(screen.getByText('2 สาขา')).toBeTruthy();
+      fireEvent.click(buttons[0]);
+      expect(onSelectBranch).toHaveBeenCalledWith('อยุธยา', 'SBC-AYA-001');
+    },
+  );
+
+  it('shows the same branch placeholders while ingredients load', () => {
+    mockedListInventory.mockImplementation(() => new Promise(() => {}));
+    renderPage(
+      <IngredientsManagementPage
+        activeBranch="ทุกสาขา"
+        branchOptions={['ทุกสาขา', 'อยุธยา', 'พิษณุโลก']}
+        onSelectBranch={vi.fn()}
+      />,
+    );
+    expect(
+      screen
+        .getByRole('status', { name: 'กำลังโหลดสรุปสาขา' })
+        .querySelectorAll('.MuiCard-root'),
+    ).toHaveLength(2);
+  });
+
+  it.each([
+    ['drink_equipment', 'สต๊อกอุปกรณ์เครื่องดื่ม'],
+    ['postal_equipment', 'สต๊อกอุปกรณ์ไปรษณีย์'],
+  ] as const)(
+    'opens a branch from the %s stock overview',
+    async (category, label) => {
+      const onSelectBranch = vi.fn();
+      renderPage(
+        <StockManagementPage
+          activeBranch="ทุกสาขา"
+          stockCategory={category}
+          stockLabel={label}
+          branchOptions={['ทุกสาขา', 'อยุธยา', 'พิษณุโลก']}
+          onSelectBranch={onSelectBranch}
+        />,
+      );
+
+      const buttons = await screen.findAllByRole('button', {
+        name: `ดู${label}`,
+      });
+      expect(buttons).toHaveLength(2);
+      fireEvent.click(buttons[0]);
+      expect(onSelectBranch).toHaveBeenCalledWith('อยุธยา', 'SBC-AYA-001');
+    },
+  );
+
+  it('shows the same branch placeholders while stock loads', () => {
+    mockedListInventory.mockImplementation(() => new Promise(() => {}));
+    renderPage(
+      <StockManagementPage
+        activeBranch="ทุกสาขา"
+        branchOptions={['ทุกสาขา', 'อยุธยา', 'พิษณุโลก']}
+        onSelectBranch={vi.fn()}
+      />,
+    );
+    expect(
+      screen
+        .getByRole('status', { name: 'กำลังโหลดสรุปสาขา' })
+        .querySelectorAll('.MuiCard-root'),
+    ).toHaveLength(2);
   });
 
   it('shows store and LINE MAN pricing on separate product card views', async () => {
