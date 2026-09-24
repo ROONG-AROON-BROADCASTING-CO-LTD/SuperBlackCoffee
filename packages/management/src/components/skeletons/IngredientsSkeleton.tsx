@@ -3,9 +3,11 @@ import { Box, Card, Skeleton } from '@mui/material';
 export function IngredientsSkeleton({
   readOnly = false,
   allowOrdering = false,
+  cardColumns = 4,
 }: {
   readOnly?: boolean;
   allowOrdering?: boolean;
+  cardColumns?: 4 | 5;
 }) {
   return (
     <Box
@@ -14,13 +16,13 @@ export function IngredientsSkeleton({
         gridTemplateColumns: {
           xs: '1fr',
           sm: 'repeat(2, minmax(0, 1fr))',
-          md: 'repeat(4, minmax(0, 1fr))',
+          md: `repeat(${cardColumns}, minmax(0, 1fr))`,
         },
         gap: '16px',
       }}
       aria-label="กำลังโหลดวัตถุดิบ"
     >
-      {Array.from({ length: 4 }, (_, i) => (
+      {Array.from({ length: cardColumns }, (_, i) => (
         <Card
           key={i}
           variant="outlined"

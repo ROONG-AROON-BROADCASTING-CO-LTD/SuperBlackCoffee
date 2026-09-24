@@ -304,6 +304,36 @@ describe('Attendance App session', () => {
     expect(checkIn).not.toHaveBeenCalled();
   });
 
+  it('offers checkout for an overnight shift whose work date is yesterday', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-23',
+      checkedIn: true,
+      checkInAt: '2026-09-23T16:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkOut).mockResolvedValueOnce({
+      date: '2026-09-23',
+      checkedIn: false,
+      checkInAt: '2026-09-23T16:00:00Z',
+      checkOutAt: '2026-09-24T00:00:00Z',
+      shiftStatus: 'scheduled',
+      canRecordAttendance: false,
+    });
+
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    await waitFor(() => expect(checkOut).toHaveBeenCalledOnce());
+    expect(checkIn).not.toHaveBeenCalled();
+  });
+
   it('rejects another attendance action after a completed checkout even if a stale status says it can record', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',

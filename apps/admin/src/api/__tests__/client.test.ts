@@ -137,6 +137,22 @@ describe('admin API client', () => {
     );
   });
 
+  it('reuses an identical protected GET while it is still pending', async () => {
+    let resolveRequest!: (value: unknown) => void;
+    mocks.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    const first = secured<unknown[]>('/inventory?branchCode=SBC-AYA-001');
+    const second = secured<unknown[]>('/inventory?branchCode=SBC-AYA-001');
+    expect(mocks.request).toHaveBeenCalledOnce();
+
+    resolveRequest({ data: { success: true, data: [] } });
+    await expect(Promise.all([first, second])).resolves.toEqual([[], []]);
+  });
+
   it('shows the API message when a PDF endpoint returns an error blob', async () => {
     mocks.get.mockResolvedValueOnce({
       data: new Blob(

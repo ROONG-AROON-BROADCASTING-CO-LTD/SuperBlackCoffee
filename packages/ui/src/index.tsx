@@ -106,6 +106,10 @@ export {
   type MapPinPlusInsideIconHandle,
 } from './components/icons/MapPinPlusInsideIcon';
 export { SbcThemeProvider } from './theme/SbcThemeProvider';
+export {
+  DEFAULT_SKELETON_MINIMUM_MS,
+  useMinimumLoading,
+} from './hooks/useMinimumLoading';
 export { registerServiceWorker } from './pwa/registerServiceWorker';
 export { DEFAULT_CURRENCY, formatCurrency } from './constants/currency';
 export { DEFAULT_DATE_FORMAT, formatDate } from './constants/date';

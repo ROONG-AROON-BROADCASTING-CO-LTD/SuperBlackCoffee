@@ -72,6 +72,12 @@ func (h *PlatformHandler) invalidateBranchCache(c *gin.Context, branchID int64) 
 	h.cache.DeletePattern(c, fmt.Sprintf("sbc:report:daily:*:%d", branchID))
 	h.cache.DeletePattern(c, "sbc:report:daily:*:all")
 }
+
+func (h *PlatformHandler) invalidateMenuSummaryCache(c *gin.Context) {
+	if h.cache != nil {
+		h.cache.DeletePattern(c, "sbc:menu-summary:*")
+	}
+}
 func (h *PlatformHandler) unavailable(c *gin.Context) bool {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"success": false, "message": "ยังไม่ได้ตั้งค่าฐานข้อมูล"})

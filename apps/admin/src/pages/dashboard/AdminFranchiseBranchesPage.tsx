@@ -15,6 +15,7 @@ import {
   PageIntro,
   PlusIcon,
   SearchField,
+  useMinimumLoading,
   XIcon,
 } from '@stackbuild/ui';
 import {
@@ -126,6 +127,7 @@ export function AdminFranchiseBranchesPage() {
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   const [franchisees, setFranchisees] = useState<FranchiseBranchCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const showSkeleton = useMinimumLoading(isLoading);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
@@ -256,7 +258,7 @@ export function AdminFranchiseBranchesPage() {
       </Box>
       <Box
         sx={{
-          display: isLoading || loadError ? 'none' : 'grid',
+          display: showSkeleton || loadError ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
@@ -377,7 +379,7 @@ export function AdminFranchiseBranchesPage() {
           </Card>
         ))}
       </Box>
-      {isLoading ? <AdminFranchiseBranchesSkeleton contentOnly /> : null}
+      {showSkeleton ? <AdminFranchiseBranchesSkeleton contentOnly /> : null}
       {loadError && (
         <Card
           variant="outlined"
@@ -407,7 +409,7 @@ export function AdminFranchiseBranchesPage() {
           </Typography>
         </Card>
       )}
-      {!isLoading && !loadError && visibleFranchisees.length === 0 && (
+      {!showSkeleton && !loadError && visibleFranchisees.length === 0 && (
         <Typography
           sx={{
             pt: 4,

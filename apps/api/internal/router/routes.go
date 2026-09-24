@@ -64,6 +64,8 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.POST("/staff-schedules/:id/replace", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ReplaceStaffShift)
 	protected.GET("/inventory", deps.platform.ListInventory)
 	protected.GET("/menu-items", deps.platform.ListMenuItems)
+	protected.GET("/menu-items/summary", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListMenuItemSummary)
+	protected.GET("/menu-items/:id/image", deps.platform.GetMenuItemImage)
 	protected.POST("/menu-items", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.CreateMenuItem)
 	protected.PATCH("/menu-items/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.UpdateMenuItem)
 	protected.DELETE("/menu-items/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.DeleteMenuItem)

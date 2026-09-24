@@ -514,6 +514,106 @@ func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	}
 }
 
+func TestAttendanceOvernightShiftCanCheckOutNextDay(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-OVERNIGHT")
+	seedUser(t, db, 7, "attendance-overnight", "cashier", branchID, nil)
+	yesterday := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).AddDate(0, 0, -1).Format("2006-01-02")
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'22:00','06:00','scheduled')`, branchID, yesterday); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES(7,$1,$2,$3)`, branchID, yesterday, time.Now().Add(-8*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	token := testTokenWithBranch(t, "cashier", branchID)
+	status := requestJSON(r, http.MethodGet, "/api/v1/attendance/today", "", token)
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"checkedIn":true`) || !strings.Contains(status.Body.String(), yesterday) {
+		t.Fatalf("overnight status = %d: %s", status.Code, status.Body.String())
+	}
+	checkOut := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", "", token)
+	if checkOut.Code != http.StatusOK {
+		t.Fatalf("overnight check out = %d: %s", checkOut.Code, checkOut.Body.String())
+	}
+	if duplicate := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", "", token); duplicate.Code != http.StatusBadRequest {
+		t.Fatalf("duplicate overnight check out = %d: %s", duplicate.Code, duplicate.Body.String())
+	}
+}
+
+func TestAttendancePreviousDayShiftCannotCheckOutIfNotOvernight(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "ATTENDANCE-DAY-ONLY")
+	seedUser(t, db, 7, "attendance-day-only", "cashier", branchID, nil)
+	yesterday := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).AddDate(0, 0, -1).Format("2006-01-02")
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','scheduled')`, branchID, yesterday); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES(7,$1,$2,$3)`, branchID, yesterday, time.Now().Add(-24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	token := testTokenWithBranch(t, "cashier", branchID)
+	status := requestJSON(r, http.MethodGet, "/api/v1/attendance/today", "", token)
+	if status.Code != http.StatusOK || strings.Contains(status.Body.String(), `"checkedIn":true`) {
+		t.Fatalf("non-overnight status = %d: %s", status.Code, status.Body.String())
+	}
+	checkOut := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-out", "", token)
+	if checkOut.Code != http.StatusBadRequest {
+		t.Fatalf("non-overnight check out = %d: %s", checkOut.Code, checkOut.Body.String())
+	}
+}
+
+func TestMenuSummaryPaginatesAndSeparatesBranchScopes(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	sbcA := seedBranch(t, db, "SUMMARY-A")
+	sbcB := seedBranch(t, db, "SUMMARY-B")
+	var franchiseID, franchiseBranch int64
+	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('Summary Franchise','summary@example.com','S','active') RETURNING id`).Scan(&franchiseID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO branches(franchisee_id,name,code,size,status) VALUES($1,'Summary Franchise Branch','SUMMARY-F','S','active') RETURNING id`, franchiseID).Scan(&franchiseBranch); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO menu_items(branch_id,name,category,store_price,lineman_price,cost_price,status,template_enabled) VALUES
+		($1,'SBC Available','coffee',60,70,18,'available',true),
+		($1,'SBC Hidden','coffee',60,70,18,'available',false),
+		($2,'SBC Unavailable','coffee',60,70,18,'soldout',true),
+		($3,'Franchise Coffee','coffee',60,70,18,'available',true),
+		($3,'Franchise Food','อาหาร',60,70,18,'available',true)`, sbcA, sbcB, franchiseBranch); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	admin := testToken(t, "admin")
+	first := requestJSON(r, http.MethodGet, "/api/v1/menu-items/summary?scope=sbc&page=1&pageSize=1", "", admin)
+	if first.Code != http.StatusOK || !strings.Contains(first.Body.String(), `"total":2`) || !strings.Contains(first.Body.String(), `"menuCount":1`) || strings.Contains(first.Body.String(), "SUMMARY-F") {
+		t.Fatalf("first SBC summary page = %d: %s", first.Code, first.Body.String())
+	}
+	second := requestJSON(r, http.MethodGet, "/api/v1/menu-items/summary?scope=sbc&page=2&pageSize=1", "", admin)
+	if second.Code != http.StatusOK || !strings.Contains(second.Body.String(), `"total":2`) || strings.Contains(second.Body.String(), "SUMMARY-F") || first.Body.String() == second.Body.String() {
+		t.Fatalf("second SBC summary page = %d: %s", second.Code, second.Body.String())
+	}
+	franchise := requestJSON(r, http.MethodGet, "/api/v1/menu-items/summary?scope=franchise", "", admin)
+	if franchise.Code != http.StatusOK || !strings.Contains(franchise.Body.String(), `"total":1`) || !strings.Contains(franchise.Body.String(), `"menuCount":1`) || !strings.Contains(franchise.Body.String(), "SUMMARY-F") || strings.Contains(franchise.Body.String(), "SUMMARY-A") {
+		t.Fatalf("franchise summary = %d: %s", franchise.Code, franchise.Body.String())
+	}
+	denied := requestJSON(r, http.MethodGet, "/api/v1/menu-items/summary", "", testToken(t, "cashier"))
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("non-admin summary = %d: %s", denied.Code, denied.Body.String())
+	}
+}
+
 func TestAttendanceCheckInRejectsMissingAndNonWorkingShifts(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {

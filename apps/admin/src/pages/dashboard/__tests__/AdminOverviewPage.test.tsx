@@ -35,6 +35,7 @@ vi.mock('@stackbuild/ui', () => ({
     </header>
   ),
   formatCurrency: (value: number) => `${value.toLocaleString('th-TH')} บาท`,
+  useMinimumLoading: (loading: boolean) => loading,
 }));
 vi.mock('@stackbuild/management', () => ({
   branches: ['ทุกสาขา', 'อยุธยา', 'พิษณุโลก'],
@@ -154,6 +155,22 @@ describe('AdminOverviewPage', () => {
     expect(screen.getByText('อเมริกาโน่เย็น')).toBeTruthy();
     expect(screen.getByText('สต๊อกแยกตามสาขา')).toBeTruthy();
     expect(screen.queryByText('ยอดเฉลี่ยต่อบิล')).toBeNull();
+  });
+
+  it('shows the sales chart before the stock-consumption trend', async () => {
+    renderPage();
+
+    const salesChart = await screen.findByRole('img', {
+      name: 'กราฟแท่งยอดขายรวมทุกสาขาแบบรายวัน',
+    });
+    const stockTrend = await screen.findByRole('img', {
+      name: 'กราฟแนวโน้มย้อนหลังจำนวนเมนูที่ตัดสต็อกแบบรายวัน จันทร์–อาทิตย์',
+    });
+
+    expect(
+      salesChart.compareDocumentPosition(stockTrend) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('changes the branch-sales comparison period without changing its chart layout', async () => {

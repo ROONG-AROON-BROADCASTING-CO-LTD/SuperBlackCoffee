@@ -155,6 +155,67 @@ describe('AdminCentralCatalogPage', () => {
     vi.clearAllMocks();
   });
 
+  it.each([
+    [
+      'menus',
+      'เมนูและสินค้ากลาง',
+      'จัดการเมนู ราคา และสูตรกลาง พร้อมเลือกขนาดสาขา S / M / L ที่ใช้',
+      'กำลังโหลดข้อมูลกลาง',
+    ],
+    [
+      'ingredients',
+      'วัตถุดิบกลาง',
+      'จัดการวัตถุดิบทั่วไป ต้นทุน และจุดแจ้งเตือนสำหรับแต่ละขนาดสาขา',
+      'กำลังโหลดข้อมูลกลาง',
+    ],
+    [
+      'fresh-ingredients',
+      'วัตถุดิบของสดกลาง',
+      'จัดการวัตถุดิบของสดที่ใช้ในข้อมูลกลาง',
+      'กำลังโหลดข้อมูลกลาง',
+    ],
+    [
+      'drink-equipment',
+      'อุปกรณ์เครื่องดื่มกลาง',
+      'จัดการอุปกรณ์เครื่องดื่มที่ใช้ในข้อมูลกลาง',
+      'กำลังโหลดข้อมูลกลาง',
+    ],
+    [
+      'postal-equipment',
+      'อุปกรณ์ไปรษณีย์กลาง',
+      'จัดการอุปกรณ์ไปรษณีย์ที่ใช้ในข้อมูลกลาง',
+      'กำลังโหลดข้อมูลกลาง',
+    ],
+    [
+      'branches',
+      'รายการสาขาและแฟรนไชส์',
+      'เลือกรายการที่ใช้ในสาขา SBC และแฟรนไชส์ พร้อมตรวจผลกระทบก่อนซิงก์ข้อมูลกลาง',
+      'กำลังโหลดรายการสาขาและแฟรนไชส์',
+    ],
+  ] as const)(
+    'keeps the %s heading and description visible while its matching UI skeleton loads',
+    (section, title, description, skeletonLabel) => {
+      mockedListCatalogTemplates.mockReturnValueOnce(
+        new Promise(() => undefined),
+      );
+
+      render(<AdminCentralCatalogPage section={section} />);
+
+      expect(screen.getByRole('heading', { name: title })).toBeTruthy();
+      expect(screen.getByText(description)).toBeTruthy();
+      expect(screen.getByLabelText(skeletonLabel)).toBeTruthy();
+      expect(screen.queryByRole('progressbar')).toBeNull();
+      if (section === 'branches') {
+        expect(
+          screen.getByRole('heading', { name: 'ข้อมูลกลาง' }),
+        ).toBeTruthy();
+        expect(
+          screen.getByRole('heading', { name: 'รายการที่ใช้รายสาขา' }),
+        ).toBeTruthy();
+      }
+    },
+  );
+
   it('loads a single central catalog and shows its menu data', async () => {
     render(<AdminCentralCatalogPage />);
 
@@ -453,7 +514,7 @@ describe('AdminCentralCatalogPage', () => {
     expect(
       screen.queryByRole('switch', { name: 'อเมริกาโน่เย็น สำหรับสาขา' }),
     ).toBeNull();
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'สาขา' }));
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'สาขา' }));
     fireEvent.click(
       await screen.findByRole('option', { name: 'อยุธยา · SBC-AYA-001 · S' }),
     );
@@ -494,7 +555,7 @@ describe('AdminCentralCatalogPage', () => {
     await waitFor(() =>
       expect(mockedGetCatalogTemplateImpact).toHaveBeenCalledWith(21),
     );
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'สาขา' }));
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'สาขา' }));
     fireEvent.click(
       await screen.findByRole('option', { name: 'อยุธยา · SBC-AYA-001 · S' }),
     );
@@ -516,7 +577,7 @@ describe('AdminCentralCatalogPage', () => {
       .mockResolvedValueOnce([]);
     render(<AdminCentralCatalogPage section="branches" />);
     await screen.findByRole('heading', { name: 'รายการที่ใช้รายสาขา' });
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'สาขา' }));
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'สาขา' }));
     fireEvent.click(
       await screen.findByRole('option', { name: 'อยุธยา · SBC-AYA-001 · S' }),
     );

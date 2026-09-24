@@ -35,6 +35,7 @@ import {
   PageIntro,
   SearchField,
   XIcon,
+  useMinimumLoading,
   type IngredientStatus,
   type CartIconHandle,
   type PlusIconHandle,
@@ -160,6 +161,7 @@ export function IngredientsManagementPage({
     Record<string, Ingredient[]>
   >({});
   const [isLoading, setIsLoading] = useState(true);
+  const showSkeleton = useMinimumLoading(isLoading);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
@@ -800,10 +802,11 @@ export function IngredientsManagementPage({
               )}
               {!isBranchVisible ? (
                 <Box sx={{ minHeight: 420 }} />
-              ) : isLoading || !isBranchLoaded ? (
+              ) : showSkeleton || !isBranchLoaded ? (
                 <IngredientsSkeleton
                   readOnly={readOnly}
                   allowOrdering={allowOrdering}
+                  cardColumns={cardColumns}
                 />
               ) : (
                 <>

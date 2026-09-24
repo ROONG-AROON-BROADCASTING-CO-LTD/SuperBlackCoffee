@@ -18,6 +18,7 @@ import {
   SearchField,
   selectionPillSx,
   XIcon,
+  useMinimumLoading,
   type PlusIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
@@ -37,8 +38,10 @@ import { listInventory, type InventoryItem } from '../api/inventory';
 import {
   createMenuItem,
   listMenuItems,
+  listMenuSummary,
   updateMenuItem,
   type MenuItem as ApiMenuItem,
+  type MenuSummaryPage,
 } from '../api/menu';
 
 type ProductIngredient = {
@@ -94,6 +97,18 @@ const filters = [
 ] as const;
 type ProductFilter = (typeof filters)[number];
 type SalesChannel = 'store' | 'lineman';
+
+async function mapBranchesInBatches<T>(
+  branchCodes: string[],
+  load: (branchCode: string) => Promise<T>,
+): Promise<T[]> {
+  const results: T[] = [];
+  for (let start = 0; start < branchCodes.length; start += 4) {
+    const batch = branchCodes.slice(start, start + 4);
+    results.push(...(await Promise.all(batch.map(load))));
+  }
+  return results;
+}
 
 const filtersForPlan = (plan?: 'S' | 'M' | 'L') =>
   filters.filter(
@@ -224,6 +239,8 @@ export function ProductsManagementPage({
   cardColumns = 4,
   branchOptions = branches,
   branchCodes = branchCodeByBranch,
+  summaryScope = 'sbc',
+  onSelectBranch,
 }: {
   activeBranch: string;
   franchisePlan?: 'S' | 'M' | 'L';
@@ -231,6 +248,8 @@ export function ProductsManagementPage({
   cardColumns?: 4 | 5;
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
+  summaryScope?: 'sbc' | 'franchise';
+  onSelectBranch?: (branch: string, branchCode: string) => void;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
   const closeRef = useRef<XIconHandle>(null);
@@ -252,7 +271,11 @@ export function ProductsManagementPage({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [summaryPage, setSummaryPage] = useState(1);
+  const [summary, setSummary] = useState<MenuSummaryPage | null>(null);
+  const [summaryError, setSummaryError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const showSkeleton = useMinimumLoading(isLoading);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
@@ -527,6 +550,7 @@ export function ProductsManagementPage({
   };
 
   useEffect(() => {
+    if (activeBranch === 'ทุกสาขา') return undefined;
     if (activeBranch !== 'ทุกสาขา') {
       setVisibleBranches(new Set([activeBranch]));
       setLoadedBranches(new Set([activeBranch]));
@@ -570,6 +594,31 @@ export function ProductsManagementPage({
   }, [activeBranch, availableBranchNames]);
 
   useEffect(() => {
+    if (activeBranch !== 'ทุกสาขา') return;
+    let active = true;
+    setSummary(null);
+    setSummaryError(false);
+    void listMenuSummary(summaryScope, summaryPage)
+      .then((result) => {
+        if (active) setSummary(result);
+      })
+      .catch(() => {
+        if (active) setSummaryError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeBranch, summaryScope, summaryPage, reloadKey]);
+
+  useEffect(() => {
+    setSummaryPage(1);
+  }, [summaryScope]);
+
+  useEffect(() => {
+    if (activeBranch === 'ทุกสาขา') {
+      setIsLoading(false);
+      return;
+    }
     let active = true;
     const refresh = reloadKey > 0;
     setLoadError(false);
@@ -582,8 +631,9 @@ export function ProductsManagementPage({
     );
     const loadMenu = async () => {
       try {
-        const items = await Promise.all(
-          validBranchCodes.map(async (branchCode) => {
+        const items = await mapBranchesInBatches(
+          validBranchCodes,
+          async (branchCode) => {
             const cached = refresh
               ? undefined
               : menuCacheRef.current.get(branchCode);
@@ -591,7 +641,7 @@ export function ProductsManagementPage({
             const next = await listMenuItems(branchCode);
             menuCacheRef.current.set(branchCode, next);
             return next;
-          }),
+          },
         );
         if (!active) return;
         const uniqueItems = Array.from(
@@ -648,8 +698,9 @@ export function ProductsManagementPage({
     const loadInventoryOptions = async () => {
       if (readOnly) return;
       try {
-        const inventory = await Promise.all(
-          validBranchCodes.map(async (branchCode) => {
+        const inventory = await mapBranchesInBatches(
+          validBranchCodes,
+          async (branchCode) => {
             const cached = refresh
               ? undefined
               : inventoryCacheRef.current.get(branchCode);
@@ -661,7 +712,7 @@ export function ProductsManagementPage({
             const next = [...ingredients, ...stock];
             inventoryCacheRef.current.set(branchCode, next);
             return next;
-          }),
+          },
         );
         if (active) {
           setAvailableIngredients(
@@ -691,6 +742,102 @@ export function ProductsManagementPage({
       active = false;
     };
   }, [activeBranch, availableBranchNames, branchCodes, readOnly, reloadKey]);
+
+  if (activeBranch === 'ทุกสาขา') {
+    return (
+      <DashboardMain>
+        <PageIntro
+          title="เมนูและสินค้า"
+          description="สรุปเมนูแยกตามสาขา เลือกสาขาเพื่อดูรูป ราคา และสูตร"
+        />
+        {summaryError && (
+          <DataLoadNotice message="โหลดข้อมูลสรุปเมนูไม่สำเร็จ" />
+        )}
+        {!summary && !summaryError ? (
+          <ProductsSkeleton readOnly cardColumns={cardColumns} />
+        ) : null}
+        {summary && (
+          <>
+            <Typography sx={{ mb: 2, fontFamily: 'Kanit, sans-serif' }}>
+              {summary.total.toLocaleString('th-TH')} สาขา
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg: 'repeat(5, minmax(0, 1fr))',
+                },
+                gap: 2,
+              }}
+            >
+              {summary.items.map((branch) => (
+                <Card
+                  key={branch.branchCode}
+                  variant="outlined"
+                  sx={{ p: 2, borderRadius: '15px', borderColor: '#e8ddd5' }}
+                >
+                  <Typography
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 600 }}
+                  >
+                    สาขา {branch.branchName}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      fontFamily: 'Kanit, sans-serif',
+                    }}
+                  >
+                    {branch.menuCount} เมนู · เปิดขาย {branch.availableCount}
+                  </Typography>
+                  <Typography sx={{ color: 'text.secondary', fontSize: 12 }}>
+                    {branch.branchCode}
+                  </Typography>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() =>
+                      onSelectBranch?.(branch.branchName, branch.branchCode)
+                    }
+                    sx={{ mt: 2, fontFamily: 'Kanit, sans-serif' }}
+                  >
+                    ดูเมนูและสินค้า
+                  </Button>
+                </Card>
+              ))}
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                mt: 3,
+              }}
+            >
+              <Button
+                disabled={summaryPage <= 1}
+                onClick={() => setSummaryPage((page) => page - 1)}
+              >
+                ก่อนหน้า
+              </Button>
+              <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                หน้า {summaryPage} /{' '}
+                {Math.max(1, Math.ceil(summary.total / summary.pageSize))}
+              </Typography>
+              <Button
+                disabled={summaryPage * summary.pageSize >= summary.total}
+                onClick={() => setSummaryPage((page) => page + 1)}
+              >
+                ถัดไป
+              </Button>
+            </Box>
+          </>
+        )}
+      </DashboardMain>
+    );
+  }
 
   return (
     <DashboardMain>
@@ -851,8 +998,11 @@ export function ProductsManagementPage({
               )}
               {!visible ? (
                 <Box sx={{ minHeight: 420 }} />
-              ) : isLoading || !loaded ? (
-                <ProductsSkeleton readOnly={readOnly} />
+              ) : showSkeleton || !loaded ? (
+                <ProductsSkeleton
+                  readOnly={readOnly}
+                  cardColumns={cardColumns}
+                />
               ) : (
                 <Box
                   sx={{
@@ -906,6 +1056,8 @@ export function ProductsManagementPage({
                             <Box
                               component="img"
                               src={item.imageUrl}
+                              loading="lazy"
+                              decoding="async"
                               alt={`รูป${item.name}`}
                               sx={{
                                 position: 'absolute',

@@ -19,6 +19,7 @@ export { StockSkeleton } from './components/skeletons/StockSkeleton';
 export { PromotionsSkeleton } from './components/skeletons/PromotionsSkeleton';
 export { AttendanceSkeleton } from './components/skeletons/AttendanceSkeleton';
 export { LeaveRequestsSkeleton } from './components/skeletons/LeaveRequestsSkeleton';
+export { CompanyDocumentsSkeleton } from './components/skeletons/CompanyDocumentsSkeleton';
 export { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
 export { QueryAutoRetrySnackbar } from './components/AutoRetrySnackbar';
 export { ActionSnackbar, type ActionNotice } from './components/ActionSnackbar';

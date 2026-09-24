@@ -42,4 +42,20 @@ describe('management API client', () => {
       secured<void>('/users/96', { method: 'DELETE' }),
     ).resolves.toBeUndefined();
   });
+
+  it('reuses an identical GET while the first request is still pending', async () => {
+    let resolveRequest!: (value: unknown) => void;
+    mocks.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    const first = secured<unknown[]>('/menu-items?branchCode=SBC-AYA-001');
+    const second = secured<unknown[]>('/menu-items?branchCode=SBC-AYA-001');
+    expect(mocks.request).toHaveBeenCalledOnce();
+
+    resolveRequest({ data: { success: true, data: [] } });
+    await expect(Promise.all([first, second])).resolves.toEqual([[], []]);
+  });
 });

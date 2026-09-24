@@ -6,6 +6,7 @@ const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
+const inFlightSecuredGetRequests = new Map<string, Promise<unknown>>();
 
 export type { ApiEnvelope } from '@stackbuild/types';
 
@@ -44,6 +45,28 @@ export async function publicRequest<T>(
 export async function secured<T>(
   path: string,
   options: AxiosRequestConfig = {},
+): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase();
+  if (method === 'GET') {
+    const pending = inFlightSecuredGetRequests.get(path);
+    if (pending) return pending as Promise<T>;
+  }
+
+  const request = performSecuredRequest<T>(path, options);
+  if (method !== 'GET') return request;
+
+  inFlightSecuredGetRequests.set(path, request);
+  const clearPending = () => {
+    if (inFlightSecuredGetRequests.get(path) === request)
+      inFlightSecuredGetRequests.delete(path);
+  };
+  void request.then(clearPending, clearPending);
+  return request;
+}
+
+async function performSecuredRequest<T>(
+  path: string,
+  options: AxiosRequestConfig,
 ): Promise<T> {
   try {
     const response = await apiClient.request<ApiEnvelope<T>>({

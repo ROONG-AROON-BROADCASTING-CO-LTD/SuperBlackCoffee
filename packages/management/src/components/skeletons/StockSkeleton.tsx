@@ -1,6 +1,12 @@
 import { Box, Card, Skeleton } from '@mui/material';
 
-export function StockSkeleton({ readOnly = false }: { readOnly?: boolean }) {
+export function StockSkeleton({
+  readOnly = false,
+  cardColumns = 4,
+}: {
+  readOnly?: boolean;
+  cardColumns?: 4 | 5;
+}) {
   return (
     <Box
       sx={{
@@ -8,13 +14,13 @@ export function StockSkeleton({ readOnly = false }: { readOnly?: boolean }) {
         gridTemplateColumns: {
           xs: '1fr',
           sm: 'repeat(2, minmax(0, 1fr))',
-          md: 'repeat(4, minmax(0, 1fr))',
+          md: `repeat(${cardColumns}, minmax(0, 1fr))`,
         },
         gap: '16px',
       }}
       aria-label="กำลังโหลดสต๊อก"
     >
-      {Array.from({ length: 4 }, (_, i) => (
+      {Array.from({ length: cardColumns }, (_, i) => (
         <Card
           key={i}
           variant="outlined"

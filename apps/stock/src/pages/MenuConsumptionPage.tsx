@@ -446,6 +446,8 @@ export function MenuConsumptionPage({
                     <Box
                       component="img"
                       src={imageUrl}
+                      loading="lazy"
+                      decoding="async"
                       alt={`รูป${menu.name}`}
                       onError={(event) => {
                         if (event.currentTarget.src !== coffeeIngredientsImage)

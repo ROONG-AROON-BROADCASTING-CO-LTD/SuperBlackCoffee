@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Box, Card, Chip, Typography } from '@mui/material';
-import { DashboardMain, formatDate } from '@stackbuild/ui';
+import { DashboardMain, formatDate, useMinimumLoading } from '@stackbuild/ui';
 import type { AuditEvent } from '../../api';
 import { useAuditEvents } from '../../hooks/useAuditEvents';
 import { AdminAuditSkeleton } from '../../components/skeletons/AdminAuditSkeleton';
@@ -103,7 +103,8 @@ function eventPresentation(event: AuditEvent) {
 }
 
 export function AdminAuditPage() {
-  const { data: events = [], error, isLoading } = useAuditEvents();
+  const { data: events = [], error, isLoading: rawLoading } = useAuditEvents();
+  const isLoading = useMinimumLoading(rawLoading);
   const groupedEvents = useMemo(
     () =>
       events.map((event) => ({

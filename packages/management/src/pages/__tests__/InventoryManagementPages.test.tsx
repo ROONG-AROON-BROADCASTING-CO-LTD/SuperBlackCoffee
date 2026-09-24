@@ -19,7 +19,12 @@ import {
   listInventory,
   updateInventory,
 } from '../../api/inventory';
-import { createMenuItem, listMenuItems, updateMenuItem } from '../../api/menu';
+import {
+  createMenuItem,
+  listMenuItems,
+  listMenuSummary,
+  updateMenuItem,
+} from '../../api/menu';
 import { createStockRequest } from '../../api/stock-requests';
 
 vi.mock('../../api/inventory', () => ({
@@ -35,6 +40,7 @@ vi.mock('../../api/inventory', () => ({
 vi.mock('../../api/menu', () => ({
   createMenuItem: vi.fn(),
   listMenuItems: vi.fn(),
+  listMenuSummary: vi.fn(),
   updateMenuItem: vi.fn(),
 }));
 vi.mock('../../api/stock-requests', () => ({ createStockRequest: vi.fn() }));
@@ -46,6 +52,7 @@ const mockedDeleteInventory = vi.mocked(deleteInventory);
 const mockedListFreshInventoryLots = vi.mocked(listFreshInventoryLots);
 const mockedUpdateInventory = vi.mocked(updateInventory);
 const mockedListMenuItems = vi.mocked(listMenuItems);
+const mockedListMenuSummary = vi.mocked(listMenuSummary);
 const mockedCreateMenuItem = vi.mocked(createMenuItem);
 const mockedUpdateMenuItem = vi.mocked(updateMenuItem);
 const mockedCreateStockRequest = vi.mocked(createStockRequest);
@@ -112,6 +119,25 @@ describe('inventory management pages', () => {
     mockedUpdateInventory.mockResolvedValue({ id: 1 });
     mockedCreateMenuItem.mockResolvedValue({ id: 2 });
     mockedUpdateMenuItem.mockResolvedValue({ id: 1 });
+    mockedListMenuSummary.mockResolvedValue({
+      items: [
+        {
+          branchCode: 'SBC-AYA-001',
+          branchName: 'อยุธยา',
+          menuCount: 87,
+          availableCount: 80,
+        },
+        {
+          branchCode: 'SBC-PLK-001',
+          branchName: 'พิษณุโลก',
+          menuCount: 135,
+          availableCount: 120,
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
   });
 
   it('opens lot management for fresh ingredients before allowing stock changes', async () => {
@@ -204,43 +230,63 @@ describe('inventory management pages', () => {
     );
   });
 
-  it('keeps the card branch when saving a product edit from the all-branches view', async () => {
-    vi.stubGlobal(
-      'IntersectionObserver',
-      class {
-        constructor(
-          private readonly callback: (
-            entries: Array<{
-              isIntersecting: boolean;
-              target: Element;
-            }>,
-          ) => void,
-        ) {}
+  it('loads only a paginated summary until a branch is selected', async () => {
+    const onSelectBranch = vi.fn();
+    renderPage(
+      <ProductsManagementPage
+        activeBranch="ทุกสาขา"
+        onSelectBranch={onSelectBranch}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText('87 เมนู · เปิดขาย 80')).toBeTruthy(),
+    );
+    expect(mockedListMenuSummary).toHaveBeenCalledWith('sbc', 1);
+    expect(mockedListMenuItems).not.toHaveBeenCalled();
+    expect(mockedListInventory).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'ดูเมนูและสินค้า' })[0],
+    );
+    expect(onSelectBranch).toHaveBeenCalledWith('อยุธยา', 'SBC-AYA-001');
+  });
 
-        observe(target: Element) {
-          this.callback([{ isIntersecting: true, target }]);
-        }
+  it('requests only the selected page of branch summaries', async () => {
+    mockedListMenuSummary.mockImplementation(async (_scope, page) => ({
+      items: [
+        {
+          branchCode: `SBC-${page}`,
+          branchName: `สาขา ${page}`,
+          menuCount: page,
+          availableCount: page,
+        },
+      ],
+      total: 21,
+      page,
+      pageSize: 20,
+    }));
+    renderPage(<ProductsManagementPage activeBranch="ทุกสาขา" />);
+    await waitFor(() =>
+      expect(screen.getByText('1 เมนู · เปิดขาย 1')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ถัดไป' }));
+    await waitFor(() =>
+      expect(mockedListMenuSummary).toHaveBeenCalledWith('sbc', 2),
+    );
+    expect(mockedListMenuItems).not.toHaveBeenCalled();
+  });
 
-        disconnect() {}
-      },
+  it('shows a summary error without loading all menus when the request fails', async () => {
+    mockedListMenuSummary.mockRejectedValueOnce(
+      new Error('network unavailable'),
     );
     renderPage(<ProductsManagementPage activeBranch="ทุกสาขา" />);
 
     await waitFor(() =>
-      expect(
-        screen.getAllByRole('button', { name: 'แก้ไขสินค้า' }),
-      ).toHaveLength(2),
+      expect(mockedListMenuSummary).toHaveBeenCalledWith('sbc', 1),
     );
-    fireEvent.click(screen.getAllByRole('button', { name: 'แก้ไขสินค้า' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
-
-    await waitFor(() =>
-      expect(mockedUpdateMenuItem).toHaveBeenCalledWith(
-        1,
-        expect.objectContaining({ name: 'อเมริกาโน่ทดสอบ' }),
-        'SBC-AYA-001',
-      ),
-    );
+    expect(mockedListMenuItems).not.toHaveBeenCalled();
+    expect(mockedListInventory).not.toHaveBeenCalled();
+    expect(await screen.findByText('โหลดข้อมูลสรุปเมนูไม่สำเร็จ')).toBeTruthy();
   });
 
   it('shows store and LINE MAN pricing on separate product card views', async () => {
@@ -435,8 +481,7 @@ describe('inventory management pages', () => {
     ]);
     renderPage(<IngredientsManagementPage activeBranch="อยุธยา" />);
 
-    await waitFor(() => expect(screen.getByText('ใกล้หมดอายุ')).toBeTruthy());
-    expect(screen.getByText('มีของ แต่ใกล้หมดอายุ')).toBeTruthy();
+    expect(await screen.findByText('มีของ แต่ใกล้หมดอายุ')).toBeTruthy();
     expect(screen.queryByText('พร้อมใช้')).toBeNull();
     expect(screen.getByText('วันหมดอายุ')).toBeTruthy();
     expect(screen.getByText('31 ธ.ค. 2569')).toBeTruthy();

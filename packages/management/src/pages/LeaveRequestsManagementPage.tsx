@@ -11,7 +11,12 @@ import {
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DashboardMain, PageIntro, ReceiptTextIcon } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  PageIntro,
+  ReceiptTextIcon,
+  useMinimumLoading,
+} from '@stackbuild/ui';
 import {
   listManagedLeaveRequests,
   getManagedLeaveRequestAttachment,
@@ -74,6 +79,7 @@ export function LeaveRequestsManagementPage({
     queryKey: ['attendance-leave-requests'],
     queryFn: listManagedLeaveRequests,
   });
+  const showSkeleton = useMinimumLoading(leaveRequests.isLoading);
   const updateLeave = useMutation({
     mutationFn: ({
       id,
@@ -161,7 +167,7 @@ export function LeaveRequestsManagementPage({
               : 'พิจารณาคำขอลาของพนักงานบริษัท Super Black Coffee'
           }
         />
-        {leaveRequests.isLoading ? (
+        {showSkeleton ? (
           <LeaveRequestsSkeleton />
         ) : leaveRequests.error ? (
           <DataLoadNotice />

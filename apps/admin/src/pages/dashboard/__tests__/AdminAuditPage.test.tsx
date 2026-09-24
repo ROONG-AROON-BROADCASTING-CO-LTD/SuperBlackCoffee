@@ -8,6 +8,7 @@ vi.mock('@stackbuild/ui', () => ({
     <>{children}</>
   ),
   formatDate: () => '15 กันยายน 2569',
+  useMinimumLoading: (loading: boolean) => loading,
 }));
 vi.mock('../../../hooks/useAuditEvents', () => ({ useAuditEvents: vi.fn() }));
 vi.mock('../../../components/skeletons/AdminAuditSkeleton', () => ({

@@ -13,7 +13,12 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardMain, formatCurrency, PageIntro } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  formatCurrency,
+  PageIntro,
+  useMinimumLoading,
+} from '@stackbuild/ui';
 import {
   branchCodeByBranch,
   branches,
@@ -735,12 +740,13 @@ export function AdminOverviewPage({
   const sales = dashboard.data?.todaySales ?? 0;
   const stockCuts = dashboard.data?.todayMenuStockCuts ?? 0;
   const stockEntries = dashboard.data?.todayStockEntries ?? 0;
-  const isLoading =
+  const rawLoading =
     dashboard.isLoading ||
     salesTrend.isLoading ||
     topSellingMenus.isLoading ||
     branchStock.isLoading ||
     inventoryAttention.isLoading;
+  const isLoading = useMinimumLoading(rawLoading);
   const followUps = useMemo(() => {
     const ingredients = (inventoryAttention.data ?? [])
       .filter(
@@ -908,7 +914,6 @@ export function AdminOverviewPage({
               accent={hasError ? '#b63b35' : '#4c8f70'}
             />
           </Box>
-          <StockConsumptionTrendCard branchCode={selectedBranchCode} />
           <Box
             sx={{
               display: 'grid',
@@ -923,6 +928,7 @@ export function AdminOverviewPage({
               isError={salesTrend.isError}
               isLoading={salesTrend.isLoading}
             />
+            <StockConsumptionTrendCard branchCode={selectedBranchCode} />
             <BestSellingMenuCard
               menus={topSellingMenus.data ?? []}
               isLoading={topSellingMenus.isLoading}

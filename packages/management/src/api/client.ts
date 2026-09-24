@@ -10,6 +10,7 @@ const apiClient = axios.create({
 type PlatformSessionRole = 'admin' | 'franchise_owner';
 
 let platformSessionRole: PlatformSessionRole | null = null;
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
 // Each app configures its own module instance before rendering protected pages.
 // This makes requests deterministic when the browser holds both platform cookies.
@@ -26,6 +27,29 @@ function messageFrom(error: unknown) {
 export async function secured<T>(
   path: string,
   options: AxiosRequestConfig = {},
+): Promise<T> {
+  const method = (options.method ?? 'GET').toUpperCase();
+  const requestKey = `${platformSessionRole ?? 'default'}:${path}`;
+  if (method === 'GET') {
+    const pending = inFlightGetRequests.get(requestKey);
+    if (pending) return pending as Promise<T>;
+  }
+
+  const request = performSecuredRequest<T>(path, options);
+  if (method !== 'GET') return request;
+
+  inFlightGetRequests.set(requestKey, request);
+  const clearPending = () => {
+    if (inFlightGetRequests.get(requestKey) === request)
+      inFlightGetRequests.delete(requestKey);
+  };
+  void request.then(clearPending, clearPending);
+  return request;
+}
+
+async function performSecuredRequest<T>(
+  path: string,
+  options: AxiosRequestConfig,
 ): Promise<T> {
   try {
     const response = await apiClient.request<ApiEnvelope<T>>({

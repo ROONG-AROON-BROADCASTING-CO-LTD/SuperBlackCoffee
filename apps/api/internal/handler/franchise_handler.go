@@ -126,6 +126,8 @@ func (h *PlatformHandler) CreateFranchisee(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกแฟรนไชส์ได้"})
 		return
 	}
+	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
 	c.JSON(201, gin.H{"success": true, "data": gin.H{"id": franchiseeID, "status": "invited"}})
 }
 
@@ -255,6 +257,7 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
 	h.recordAudit(c, branchID, "branch", branchID, "created", gin.H{"name": input.Name, "code": input.Code, "size": input.Size})
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": branchID, "name": input.Name, "code": input.Code, "size": input.Size, "status": "active"}})
 }
@@ -310,6 +313,7 @@ func (h *PlatformHandler) UpdateBranchSize(c *gin.Context) {
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": branchID, "size": input.Size}})
 }
 

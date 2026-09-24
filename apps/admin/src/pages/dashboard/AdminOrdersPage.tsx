@@ -14,6 +14,7 @@ import {
   SearchField,
   formatDate,
   selectionPillSx,
+  useMinimumLoading,
 } from '@stackbuild/ui';
 import {
   ActionSnackbar,
@@ -91,10 +92,11 @@ export function AdminOrdersPage({
   const selectedTab = controlledTab ?? activeTab;
   const {
     data: apiRequests = [],
-    isLoading,
+    isLoading: rawLoading,
     error,
     refetch,
   } = useStockRequests();
+  const isLoading = useMinimumLoading(rawLoading);
   const updateStatus = useUpdateStockRequestStatus();
   const [branches, setBranches] = useState<
     Awaited<ReturnType<typeof listBranches>>

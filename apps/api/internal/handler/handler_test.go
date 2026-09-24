@@ -3,6 +3,10 @@ package handler
 import (
 	"bytes"
 	"database/sql"
+	"encoding/base64"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -13,6 +17,45 @@ import (
 	"y/internal/middleware"
 	"y/internal/model"
 )
+
+func TestMenuImageThumbnailKeepsAnImageAndLimitsItsSize(t *testing.T) {
+	source := image.NewRGBA(image.Rect(0, 0, 960, 640))
+	for y := 0; y < 640; y++ {
+		for x := 0; x < 960; x++ {
+			source.Set(x, y, color.RGBA{R: uint8(x * y % 256), G: uint8((x*37 + y*71) % 256), B: uint8((x*113 + y*29) % 256), A: 255})
+		}
+	}
+	var original bytes.Buffer
+	if err := png.Encode(&original, source); err != nil {
+		t.Fatal(err)
+	}
+	thumbnail, err := menuImageThumbnail("data:image/png;base64," + base64.StdEncoding.EncodeToString(original.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, format, err := image.Decode(bytes.NewReader(thumbnail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if format != "jpeg" || decoded.Bounds().Dx() != 480 || decoded.Bounds().Dy() != 320 {
+		t.Fatalf("thumbnail format=%q bounds=%v", format, decoded.Bounds())
+	}
+	if len(thumbnail) >= original.Len() {
+		t.Fatalf("thumbnail size %d should be smaller than original %d", len(thumbnail), original.Len())
+	}
+}
+
+func TestMenuImageURLsUseCurrentRequestOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "https://api.example.test/api/v1/menu-items", nil)
+	items := []model.MenuItem{{ImageURL: "/api/v1/menu-items/7/image?branchId=2"}}
+	setMenuImageOrigins(ctx, items)
+	if items[0].ImageURL != "https://api.example.test/api/v1/menu-items/7/image?branchId=2" {
+		t.Fatalf("image URL = %q", items[0].ImageURL)
+	}
+}
 
 func TestPlatformHandlerRejectsDatabaseDependentRequestsWhenDatabaseIsMissing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -25,6 +68,22 @@ func TestPlatformHandlerRejectsDatabaseDependentRequestsWhenDatabaseIsMissing(t 
 	}
 	if res.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
+	}
+}
+
+func TestMenuSummaryRejectsInvalidPaginationAndScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := &PlatformHandler{db: &sql.DB{}}
+	for _, query := range []string{"page=0", "page=abc", "pageSize=0", "pageSize=51", "scope=other"} {
+		t.Run(query, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(response)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/menu-items/summary?"+query, nil)
+			handler.ListMenuItemSummary(ctx)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+			}
+		})
 	}
 }
 

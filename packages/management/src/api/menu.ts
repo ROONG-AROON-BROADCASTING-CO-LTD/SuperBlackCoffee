@@ -51,6 +51,25 @@ export const listMenuItems = (branchCode = 'SBC-AYA-001') =>
     `/menu-items?branchCode=${encodeURIComponent(branchCode)}`,
   );
 
+export type MenuBranchSummary = {
+  branchCode: string;
+  branchName: string;
+  menuCount: number;
+  availableCount: number;
+};
+
+export type MenuSummaryPage = {
+  items: MenuBranchSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export const listMenuSummary = (scope: 'sbc' | 'franchise', page: number) =>
+  secured<MenuSummaryPage>(
+    `/menu-items/summary?scope=${scope}&page=${page}&pageSize=20`,
+  );
+
 export const createMenuItem = (data: MenuInput, branchCode: string) =>
   secured<{ id: number }>(
     `/menu-items?branchCode=${encodeURIComponent(branchCode)}`,

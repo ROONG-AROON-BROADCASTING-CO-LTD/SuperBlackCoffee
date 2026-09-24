@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { DashboardMain } from '@stackbuild/ui';
+import { DashboardMain, PageIntro } from '@stackbuild/ui';
 import {
   EmployeesSkeleton,
   AttendanceSkeleton,
@@ -8,6 +8,7 @@ import {
   ProductsSkeleton,
   PromotionsSkeleton,
   StockSkeleton,
+  CompanyDocumentsSkeleton,
   CompanyDocumentsPage,
   BranchesSidebar,
   branchCodeByBranch,
@@ -22,6 +23,8 @@ import { AdminAuditSkeleton } from '../../components/skeletons/AdminAuditSkeleto
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
 import { AdminOrdersSkeleton } from '../../components/skeletons/AdminOrdersSkeleton';
 import { AdminFranchiseBranchesSkeleton } from '../../components/skeletons/AdminFranchiseBranchesSkeleton';
+import { AdminCentralCatalogSkeleton } from '../../components/skeletons/AdminCentralCatalogSkeleton';
+import { AdminOperationsSkeleton } from '../../components/skeletons/AdminOperationsSkeleton';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { listBranches, type Branch as ApiBranch } from '../../api/branches';
 import {
@@ -81,7 +84,82 @@ const AdminCentralCatalogPage = lazy(() =>
   })),
 );
 
+const centralCatalogSkeletonContent: Partial<
+  Record<
+    AdminPage,
+    {
+      section:
+        | 'menus'
+        | 'ingredients'
+        | 'fresh-ingredients'
+        | 'drink-equipment'
+        | 'postal-equipment'
+        | 'branches';
+      title: string;
+      description: string;
+    }
+  >
+> = {
+  สินค้าและคลังกลาง: {
+    section: 'menus',
+    title: 'เมนูและสินค้ากลาง',
+    description:
+      'จัดการเมนู ราคา และสูตรกลาง พร้อมเลือกขนาดสาขา S / M / L ที่ใช้',
+  },
+  เมนูและสินค้ากลาง: {
+    section: 'menus',
+    title: 'เมนูและสินค้ากลาง',
+    description:
+      'จัดการเมนู ราคา และสูตรกลาง พร้อมเลือกขนาดสาขา S / M / L ที่ใช้',
+  },
+  วัตถุดิบกลาง: {
+    section: 'ingredients',
+    title: 'วัตถุดิบกลาง',
+    description:
+      'จัดการวัตถุดิบทั่วไป ต้นทุน และจุดแจ้งเตือนสำหรับแต่ละขนาดสาขา',
+  },
+  วัตถุดิบของสดกลาง: {
+    section: 'fresh-ingredients',
+    title: 'วัตถุดิบของสดกลาง',
+    description: 'จัดการวัตถุดิบของสดที่ใช้ในข้อมูลกลาง',
+  },
+  อุปกรณ์เครื่องดื่มกลาง: {
+    section: 'drink-equipment',
+    title: 'อุปกรณ์เครื่องดื่มกลาง',
+    description: 'จัดการอุปกรณ์เครื่องดื่มที่ใช้ในข้อมูลกลาง',
+  },
+  อุปกรณ์ไปรษณีย์กลาง: {
+    section: 'postal-equipment',
+    title: 'อุปกรณ์ไปรษณีย์กลาง',
+    description: 'จัดการอุปกรณ์ไปรษณีย์ที่ใช้ในข้อมูลกลาง',
+  },
+  รายการสาขาและแฟรนไชส์: {
+    section: 'branches',
+    title: 'รายการสาขาและแฟรนไชส์',
+    description:
+      'เลือกรายการที่ใช้ในสาขา SBC และแฟรนไชส์ พร้อมตรวจผลกระทบก่อนซิงก์ข้อมูลกลาง',
+  },
+  กระจายข้อมูลกลาง: {
+    section: 'branches',
+    title: 'รายการสาขาและแฟรนไชส์',
+    description:
+      'เลือกรายการที่ใช้ในสาขา SBC และแฟรนไชส์ พร้อมตรวจผลกระทบก่อนซิงก์ข้อมูลกลาง',
+  },
+};
+
 function DashboardPageSkeleton({ page }: { page: AdminPage }) {
+  const centralCatalog = centralCatalogSkeletonContent[page];
+  if (centralCatalog) {
+    return (
+      <DashboardMain>
+        <PageIntro
+          title={centralCatalog.title}
+          description={centralCatalog.description}
+        />
+        <AdminCentralCatalogSkeleton section={centralCatalog.section} />
+      </DashboardMain>
+    );
+  }
   const skeleton =
     page === 'ภาพรวม' ? (
       <AdminOverviewSkeleton />
@@ -93,13 +171,15 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <PromotionsSkeleton showHeader />
     ) : page === 'ประวัติการทำรายการ' ? (
       <AdminAuditSkeleton />
+    ) : page === 'เอกสารส่วนกลาง' ? (
+      <CompanyDocumentsSkeleton />
     ) : page === 'สต๊อกอุปกรณ์เครื่องดื่ม' ||
       page === 'สต๊อกอุปกรณ์ไปรษณีย์' ? (
-      <StockSkeleton />
+      <StockSkeleton readOnly cardColumns={5} />
     ) : page === 'เมนูและสินค้า' ? (
-      <ProductsSkeleton />
+      <ProductsSkeleton readOnly cardColumns={5} />
     ) : page === 'วัตถุดิบ' || page === 'วัตถุดิบของสด' ? (
-      <IngredientsSkeleton />
+      <IngredientsSkeleton readOnly cardColumns={5} />
     ) : page === 'ตารางพนักงาน' ? (
       <EmployeesSkeleton showHeader />
     ) : page === 'ลงเวลาพนักงาน' ? (
@@ -108,8 +188,8 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
       <LeaveRequestsSkeleton />
     ) : page === 'สาขาแฟรนไชส์' ? (
       <AdminFranchiseBranchesSkeleton />
-    ) : page === 'สินค้าและคลังกลาง' || page in centralCatalogPages ? (
-      <AdminBranchesSkeleton />
+    ) : page === 'ตรวจมาตรฐานและบริการ' ? (
+      <AdminOperationsSkeleton />
     ) : (
       <AdminBranchesSkeleton />
     );
@@ -159,13 +239,19 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const activePage = adminPageFromPath(location.pathname);
   const branchParam = searchParams.get('branch');
-  const selectedBranch = branchParam || 'ทุกสาขา';
+  const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
+  const firstCompanyBranch = branchDirectory.find(
+    (branch) => !branch.franchiseeId,
+  );
+  const selectedBranch =
+    branchParam ||
+    (activePage === 'เมนูและสินค้า' ? firstCompanyBranch?.name : undefined) ||
+    'ทุกสาขา';
   const activeBranch = (
     selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกสาขา' : selectedBranch
   ) as Branch;
   const activeOrderTab =
     searchParams.get('tab') === 'franchise' ? 'franchise' : 'sbc';
-  const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
   const [branchLoadError, setBranchLoadError] = useState(false);
   const [branchReloadKey, setBranchReloadKey] = useState(0);
   const scrollbarTimeoutRef = useRef<number | undefined>(undefined);
@@ -226,7 +312,12 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       'fresh-ingredients': 'วัตถุดิบของสด',
     };
     const destinationPage = catalogPageByTarget[nextPage] ?? nextPage;
-    const nextBranch = isFranchiseCatalogTarget ? 'แฟรนไชส์ทั้งหมด' : undefined;
+    const nextBranch = isFranchiseCatalogTarget
+      ? destinationPage === 'เมนูและสินค้า'
+        ? (branchDirectory.find((branch) => Boolean(branch.franchiseeId))
+            ?.name ?? 'แฟรนไชส์ทั้งหมด')
+        : 'แฟรนไชส์ทั้งหมด'
+      : undefined;
     const alreadyAtDestination =
       activePage === destinationPage &&
       (nextBranch
@@ -290,8 +381,16 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       ...Object.fromEntries(
         branchDirectory.map((branch) => [branch.name, branch.code]),
       ),
+      ...(activePage === 'เมนูและสินค้า' &&
+      branchDirectory.some(
+        (branch) =>
+          branch.name === selectedBranch &&
+          branch.code === searchParams.get('branchCode'),
+      )
+        ? { [selectedBranch]: searchParams.get('branchCode') as string }
+        : {}),
     }),
-    [branchDirectory],
+    [activePage, branchDirectory, searchParams, selectedBranch],
   );
   const sbcBranchOptions = useMemo(
     () =>
@@ -371,6 +470,14 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       activeBranch={activeBranch}
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
+      summaryScope={isFranchiseCatalogSelection ? 'franchise' : 'sbc'}
+      onSelectBranch={(branch, branchCode) =>
+        setSearchParams((current) => {
+          current.set('branch', branch);
+          current.set('branchCode', branchCode);
+          return current;
+        })
+      }
       readOnly
       cardColumns={5}
     />
@@ -430,8 +537,10 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
           onBranchChange={(branch) => {
             setSearchParams(
               (current) => {
-                if (branch === 'ทุกสาขา') current.delete('branch');
+                if (branch === 'ทุกสาขา' && activePage !== 'เมนูและสินค้า')
+                  current.delete('branch');
                 else current.set('branch', branch);
+                current.delete('branchCode');
                 return current;
               },
               { replace: true },

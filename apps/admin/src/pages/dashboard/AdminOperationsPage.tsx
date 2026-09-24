@@ -9,7 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDownIcon, DateField, DashboardMain } from '@stackbuild/ui';
+import { DateField, DashboardMain, useMinimumLoading } from '@stackbuild/ui';
 import {
   ActionSnackbar,
   branchCodeByBranch,
@@ -34,6 +34,7 @@ import {
   type OperationRow,
   type RandomInspection,
 } from '../../api/operations';
+import { AdminOperationsSkeleton } from '../../components/skeletons/AdminOperationsSkeleton';
 
 const labels: Record<string, string> = {
   open: 'รอรับงาน',
@@ -313,7 +314,6 @@ export function AdminOperationsPage() {
     return isOperationsTab(savedTab) ? savedTab : 'maintenance';
   });
   const [notice, setNotice] = useState('');
-  const [branchSizeMenuOpen, setBranchSizeMenuOpen] = useState(false);
   const [assignment, setAssignment] = useState<RandomInspection | null>(null);
   const [assetToTransfer, setAssetToTransfer] = useState<OperationRow | null>(
     null,
@@ -340,6 +340,7 @@ export function AdminOperationsPage() {
       return { maintenance, inspections, assets, invoices };
     },
   });
+  const showSkeleton = useMinimumLoading(data.isLoading);
   const key =
     tab === 'maintenance'
       ? 'maintenance'
@@ -639,18 +640,6 @@ export function AdminOperationsPage() {
                   name="branchSize"
                   label="ขนาดสาขา"
                   defaultValue="all"
-                  slotProps={{
-                    select: {
-                      IconComponent: (iconProps) => (
-                        <ChevronDownIcon
-                          {...iconProps}
-                          animate={branchSizeMenuOpen}
-                        />
-                      ),
-                      onClose: () => setBranchSizeMenuOpen(false),
-                      onOpen: () => setBranchSizeMenuOpen(true),
-                    },
-                  }}
                   sx={inputSx}
                 >
                   <MenuItem value="all">ทุกขนาด</MenuItem>
@@ -814,171 +803,175 @@ export function AdminOperationsPage() {
             )}
           </Card>
         ) : null}
-        <Card
-          variant="outlined"
-          sx={{
-            overflowX: 'auto',
-            borderColor: '#e8ddd5',
-            borderRadius: '15px',
-          }}
-        >
-          <Box
-            component="table"
+        {showSkeleton ? (
+          <AdminOperationsSkeleton columns={columns.length} />
+        ) : (
+          <Card
+            variant="outlined"
             sx={{
-              width: { xs: 820, md: '100%' },
-              tableLayout: { xs: 'auto', md: 'fixed' },
-              borderCollapse: 'collapse',
-              '& th': {
-                p: '12px 14px',
-                bgcolor: '#fcf9f6',
-                borderBottom: '1px solid #eee4dd',
-                textAlign: 'left',
-                whiteSpace: 'nowrap',
-                color: '#5a473a',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 12.5,
-                fontWeight: 600,
-              },
-              '& td': {
-                p: '14px',
-                borderBottom: '1px solid #eee4dd',
-                textAlign: 'left',
-                whiteSpace: 'normal',
-                overflowWrap: 'anywhere',
-                color: '#3c2d24',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 13,
-                lineHeight: 1.5,
-              },
-              '& th:last-child, & td:last-child': {
-                width: '15%',
-                whiteSpace: 'nowrap',
-              },
-              '& tbody tr:last-child td': {
-                borderBottom: 0,
-              },
-              '& tbody tr:hover': {
-                bgcolor: '#fffcfa',
-              },
+              overflowX: 'auto',
+              borderColor: '#e8ddd5',
+              borderRadius: '15px',
             }}
           >
-            <colgroup>
-              {columns.map((column) => (
-                <col
-                  key={column}
-                  style={{ width: tableColumnWidths[column] }}
-                />
-              ))}
-              <col style={{ width: '15%' }} />
-            </colgroup>
-            <thead>
-              <tr>
+            <Box
+              component="table"
+              sx={{
+                width: { xs: 820, md: '100%' },
+                tableLayout: { xs: 'auto', md: 'fixed' },
+                borderCollapse: 'collapse',
+                '& th': {
+                  p: '12px 14px',
+                  bgcolor: '#fcf9f6',
+                  borderBottom: '1px solid #eee4dd',
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap',
+                  color: '#5a473a',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                },
+                '& td': {
+                  p: '14px',
+                  borderBottom: '1px solid #eee4dd',
+                  textAlign: 'left',
+                  whiteSpace: 'normal',
+                  overflowWrap: 'anywhere',
+                  color: '#3c2d24',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                },
+                '& th:last-child, & td:last-child': {
+                  width: '15%',
+                  whiteSpace: 'nowrap',
+                },
+                '& tbody tr:last-child td': {
+                  borderBottom: 0,
+                },
+                '& tbody tr:hover': {
+                  bgcolor: '#fffcfa',
+                },
+              }}
+            >
+              <colgroup>
                 {columns.map((column) => (
-                  <th key={column}>{columnLabels[column] ?? column}</th>
+                  <col
+                    key={column}
+                    style={{ width: tableColumnWidths[column] }}
+                  />
                 ))}
-                <th>จัดการ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
+                <col style={{ width: '15%' }} />
+              </colgroup>
+              <thead>
+                <tr>
                   {columns.map((column) => (
-                    <td key={column}>
-                      {formatOperationValue(column, row[column])}
-                    </td>
+                    <th key={column}>{columnLabels[column] ?? column}</th>
                   ))}
-                  <td>
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      sx={{ flexWrap: 'wrap', minWidth: 'max-content' }}
-                    >
-                      {isInspectionTab && row.status === 'scheduled' ? (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          sx={tableActionSx}
-                          onClick={() =>
-                            void downloadPDF(
-                              row.id,
-                              String(row.branchName ?? ''),
-                              String(row.branchCode ?? ''),
-                              String(row.inspectionType ?? 'technician') as
-                                'technician' | 'ingredients',
-                            )
-                          }
-                        >
-                          ดาวน์โหลด PDF
-                        </Button>
-                      ) : tab !== 'inspection' ? (
-                        <>
-                          {tab === 'maintenance' ? (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              sx={tableActionSx}
-                              onClick={() =>
-                                void downloadMaintenanceWorkOrder(row)
-                              }
-                            >
-                              ใบงาน PDF
-                            </Button>
-                          ) : null}
-                          {tab === 'maintenance' &&
-                          row.status === 'completed' ? null : (
-                            <>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    {columns.map((column) => (
+                      <td key={column}>
+                        {formatOperationValue(column, row[column])}
+                      </td>
+                    ))}
+                    <td>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ flexWrap: 'wrap', minWidth: 'max-content' }}
+                      >
+                        {isInspectionTab && row.status === 'scheduled' ? (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            sx={tableActionSx}
+                            onClick={() =>
+                              void downloadPDF(
+                                row.id,
+                                String(row.branchName ?? ''),
+                                String(row.branchCode ?? ''),
+                                String(row.inspectionType ?? 'technician') as
+                                  'technician' | 'ingredients',
+                              )
+                            }
+                          >
+                            ดาวน์โหลด PDF
+                          </Button>
+                        ) : tab !== 'inspection' ? (
+                          <>
+                            {tab === 'maintenance' ? (
                               <Button
                                 size="small"
                                 variant="outlined"
                                 sx={tableActionSx}
-                                onClick={() => void updateRow(row)}
+                                onClick={() =>
+                                  void downloadMaintenanceWorkOrder(row)
+                                }
                               >
-                                {tab === 'maintenance'
-                                  ? 'ปิดงาน'
-                                  : tab === 'assets'
-                                    ? row.status === 'active'
-                                      ? 'ส่งซ่อม'
-                                      : 'กลับใช้งาน'
-                                    : row.status === 'paid'
-                                      ? 'แก้เป็นส่งแล้ว'
-                                      : 'บันทึกชำระแล้ว'}
+                                ใบงาน PDF
                               </Button>
-                              {tab === 'assets' ? (
-                                <>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    sx={tableActionSx}
-                                    onClick={() => setAssetToTransfer(row)}
-                                  >
-                                    โอนสาขา
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    sx={tableActionSx}
-                                    onClick={() => void loadAssetHistory(row)}
-                                  >
-                                    ประวัติ
-                                  </Button>
-                                </>
-                              ) : null}
-                            </>
-                          )}
-                        </>
-                      ) : null}
-                    </Stack>
-                  </td>
-                </tr>
-              ))}
-              {!data.isLoading && !rows.length ? (
-                <tr>
-                  <td colSpan={columns.length + 1}>ยังไม่มีข้อมูล</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Box>
-        </Card>
+                            ) : null}
+                            {tab === 'maintenance' &&
+                            row.status === 'completed' ? null : (
+                              <>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  sx={tableActionSx}
+                                  onClick={() => void updateRow(row)}
+                                >
+                                  {tab === 'maintenance'
+                                    ? 'ปิดงาน'
+                                    : tab === 'assets'
+                                      ? row.status === 'active'
+                                        ? 'ส่งซ่อม'
+                                        : 'กลับใช้งาน'
+                                      : row.status === 'paid'
+                                        ? 'แก้เป็นส่งแล้ว'
+                                        : 'บันทึกชำระแล้ว'}
+                                </Button>
+                                {tab === 'assets' ? (
+                                  <>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      sx={tableActionSx}
+                                      onClick={() => setAssetToTransfer(row)}
+                                    >
+                                      โอนสาขา
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      sx={tableActionSx}
+                                      onClick={() => void loadAssetHistory(row)}
+                                    >
+                                      ประวัติ
+                                    </Button>
+                                  </>
+                                ) : null}
+                              </>
+                            )}
+                          </>
+                        ) : null}
+                      </Stack>
+                    </td>
+                  </tr>
+                ))}
+                {!showSkeleton && !rows.length ? (
+                  <tr>
+                    <td colSpan={columns.length + 1}>ยังไม่มีข้อมูล</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Box>
+          </Card>
+        )}
       </Stack>
       <ActionSnackbar
         notice={notice ? { message: notice, severity: 'info' } : null}

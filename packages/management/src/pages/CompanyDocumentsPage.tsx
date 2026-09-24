@@ -19,6 +19,7 @@ import {
   DeleteItemButton,
   PlusIcon,
   XIcon,
+  useMinimumLoading,
   type PlusIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
@@ -38,8 +39,6 @@ const categoryLabel: Record<CompanyDocument['category'], string> = {
   other: 'เอกสารอื่น ๆ',
 };
 
-const minimumCompanyDocumentsSkeletonMs = 350;
-
 const fileSize = (bytes: number) =>
   `${(bytes / 1024 / 1024).toLocaleString('th-TH', { maximumFractionDigits: 1 })} MB`;
 
@@ -50,6 +49,7 @@ export function CompanyDocumentsPage({
 }) {
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const showSkeleton = useMinimumLoading(loading);
   const [error, setError] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,7 +62,6 @@ export function CompanyDocumentsPage({
     useState<CompanyDocument['category']>('other');
 
   const load = async () => {
-    const loadingStartedAt = performance.now();
     setLoading(true);
     try {
       setDocuments(await listCompanyDocuments());
@@ -72,16 +71,6 @@ export function CompanyDocumentsPage({
         reason instanceof Error ? reason.message : 'ไม่สามารถโหลดเอกสารได้',
       );
     } finally {
-      const remainingSkeletonTime = Math.max(
-        0,
-        minimumCompanyDocumentsSkeletonMs -
-          (performance.now() - loadingStartedAt),
-      );
-      if (remainingSkeletonTime > 0) {
-        await new Promise<void>((resolve) => {
-          window.setTimeout(resolve, remainingSkeletonTime);
-        });
-      }
       setLoading(false);
     }
   };
@@ -179,7 +168,7 @@ export function CompanyDocumentsPage({
             </Button>
           )}
         </Box>
-        {loading ? (
+        {showSkeleton ? (
           <CompanyDocumentsSkeleton />
         ) : documents.length === 0 ? (
           <Alert severity="info">ยังไม่มีเอกสารส่วนกลาง</Alert>

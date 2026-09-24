@@ -175,9 +175,29 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	if shiftErr == sql.ErrNoRows {
 		shiftStatus = ""
 	}
+	workDate := now.Format("2006-01-02")
+	if err == sql.ErrNoRows {
+		// An overnight shift remains the employee's active shift after midnight.
+		previousDate := now.AddDate(0, 0, -1).Format("2006-01-02")
+		previousErr := h.db.QueryRowContext(c.Request.Context(), `
+			SELECT a.check_in_at, a.check_out_at, s.status
+			FROM staff_attendance a
+			JOIN staff_shifts s ON s.user_id=a.user_id AND s.branch_id=a.branch_id AND s.shift_date=a.work_date
+			WHERE a.user_id=$1 AND a.branch_id=$2 AND a.work_date=$3
+				AND a.check_in_at IS NOT NULL AND a.check_out_at IS NULL
+				AND s.ends_at <= s.starts_at AND s.status IN ('scheduled','compensatory_work')`,
+			claims.UserID, claims.BranchID, previousDate).Scan(&checkIn, &checkOut, &shiftStatus)
+		if previousErr != nil && previousErr != sql.ErrNoRows {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสถานะลงเวลาได้"})
+			return
+		}
+		if previousErr == nil {
+			workDate = previousDate
+		}
+	}
 	canActToday := canRecordAttendance(shiftStatus) && (checkIn == nil || checkOut == nil)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
-		"date":                now.Format("2006-01-02"),
+		"date":                workDate,
 		"checkInAt":           checkIn,
 		"checkOutAt":          checkOut,
 		"checkedIn":           checkIn != nil && checkOut == nil,
@@ -274,7 +294,18 @@ func (h *PlatformHandler) CheckOut(c *gin.Context) {
 	}
 	now := attendanceToday()
 	var checkOut *time.Time
-	err := h.db.QueryRowContext(c.Request.Context(), `UPDATE staff_attendance SET check_out_at=$1,updated_at=now() WHERE user_id=$2 AND work_date=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL RETURNING check_out_at`, now, claims.UserID, now.Format("2006-01-02")).Scan(&checkOut)
+	err := h.db.QueryRowContext(c.Request.Context(), `
+		UPDATE staff_attendance SET check_out_at=$1,updated_at=now()
+		WHERE branch_id=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL
+			AND (user_id, work_date) IN (
+			SELECT user_id, work_date FROM staff_attendance
+			WHERE user_id=$2 AND branch_id=$3 AND check_in_at IS NOT NULL AND check_out_at IS NULL
+			AND (work_date=$4 OR (work_date=$5 AND EXISTS (
+				SELECT 1 FROM staff_shifts s WHERE s.user_id=staff_attendance.user_id
+					AND s.branch_id=staff_attendance.branch_id AND s.shift_date=staff_attendance.work_date
+					AND s.ends_at <= s.starts_at AND s.status IN ('scheduled','compensatory_work')
+			))) ORDER BY work_date DESC LIMIT 1)
+		RETURNING check_out_at`, now, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now.AddDate(0, 0, -1).Format("2006-01-02")).Scan(&checkOut)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบรายการเช็กอินที่ยังไม่ได้เช็กเอาต์"})
 		return

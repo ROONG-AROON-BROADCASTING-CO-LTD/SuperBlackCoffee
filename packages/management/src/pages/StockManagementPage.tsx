@@ -34,6 +34,7 @@ import {
   PageIntro,
   SearchField,
   XIcon,
+  useMinimumLoading,
   type IngredientStatus,
   type CartIconHandle,
   type PlusIconHandle,
@@ -108,6 +109,7 @@ export function StockManagementPage({
     Record<string, StockItem[]>
   >({});
   const [isLoading, setIsLoading] = useState(true);
+  const showSkeleton = useMinimumLoading(isLoading);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [deleteTargetKey, setDeleteTargetKey] = useState<string | null>(null);
@@ -183,7 +185,6 @@ export function StockManagementPage({
   );
   useEffect(() => {
     let active = true;
-    const loadingStartedAt = performance.now();
     setIsLoading(true);
     setLoadError(false);
     const branchNames =
@@ -231,13 +232,7 @@ export function StockManagementPage({
         }
       })
       .finally(() => {
-        const remainingSkeletonTime = Math.max(
-          0,
-          180 - (performance.now() - loadingStartedAt),
-        );
-        window.setTimeout(() => {
-          if (active) setIsLoading(false);
-        }, remainingSkeletonTime);
+        if (active) setIsLoading(false);
       });
     return () => {
       active = false;
@@ -492,8 +487,8 @@ export function StockManagementPage({
                   สาขา {branch}
                 </Typography>
               )}
-              {isLoading ? (
-                <StockSkeleton readOnly={readOnly} />
+              {showSkeleton ? (
+                <StockSkeleton readOnly={readOnly} cardColumns={cardColumns} />
               ) : (
                 <Box
                   sx={{

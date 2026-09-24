@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Card, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardMain, PageIntro, selectionPillSx } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  PageIntro,
+  selectionPillSx,
+  useMinimumLoading,
+} from '@stackbuild/ui';
 import { listManagedAttendance } from '../api/attendance';
 import { listBranches } from '../api/branches';
 import { listPublicHolidays } from '../api/public-holidays';
@@ -214,6 +219,7 @@ export function AttendanceManagementPage({
     schedules.isLoading ||
     holidays.isLoading ||
     branches.isLoading;
+  const showSkeleton = useMinimumLoading(pageLoading);
   const today = new Date();
   const changeMonth = (offset: number) => {
     setMonth((current) => {
@@ -223,7 +229,7 @@ export function AttendanceManagementPage({
     });
   };
 
-  if (pageLoading) {
+  if (showSkeleton) {
     return (
       <DashboardMain>
         <AttendanceSkeleton

@@ -33,6 +33,7 @@ import {
   SearchField,
   selectionPillSx,
   XIcon,
+  useMinimumLoading,
   coffeeIngredientsImage,
 } from '@stackbuild/ui';
 import {
@@ -58,6 +59,7 @@ import {
   type CatalogTemplateSize,
   type CatalogTemplateSummary,
 } from '../../api/catalogTemplates';
+import { AdminCentralCatalogSkeleton } from '../../components/skeletons/AdminCentralCatalogSkeleton';
 
 const sizes: CatalogTemplateSize[] = ['S', 'M', 'L'];
 const menuCategories = [
@@ -981,6 +983,9 @@ export function AdminCentralCatalogPage({
   const [selectionReloadKey, setSelectionReloadKey] = useState(0);
   const [isSavingSelection, setIsSavingSelection] = useState(false);
   const [isLoadingSelections, setIsLoadingSelections] = useState(false);
+  const showCatalogSkeleton = useMinimumLoading(
+    isLoadingTemplates || isLoadingTemplate,
+  );
 
   useEffect(() => {
     setSearch('');
@@ -1475,12 +1480,8 @@ export function AdminCentralCatalogPage({
       />
 
       <Box>
-        {isLoadingTemplates || isLoadingTemplate ? (
-          <Card variant="outlined" sx={templateCardSx}>
-            <CardContent sx={{ py: 10, textAlign: 'center' }}>
-              <CircularProgress size={26} sx={{ color: '#805637' }} />
-            </CardContent>
-          </Card>
+        {showCatalogSkeleton ? (
+          <AdminCentralCatalogSkeleton section={section} />
         ) : template ? (
           <Box
             sx={{

@@ -21,6 +21,7 @@ import {
   PageIntro,
   selectionPillSx,
   XIcon,
+  useMinimumLoading,
 } from '@stackbuild/ui';
 import {
   generateStaffSchedules,
@@ -166,7 +167,6 @@ export function EmployeesManagementPage({
     null,
   );
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
-  const [initialSkeletonVisible, setInitialSkeletonVisible] = useState(true);
   const {
     data: employees = [],
     error,
@@ -189,14 +189,7 @@ export function EmployeesManagementPage({
     schedules.isLoading ||
     holidays.isLoading ||
     branches.isLoading;
-  const showEmployeesSkeleton = pageLoading || initialSkeletonVisible;
-  useEffect(() => {
-    const minimumSkeletonTimer = window.setTimeout(
-      () => setInitialSkeletonVisible(false),
-      350,
-    );
-    return () => window.clearTimeout(minimumSkeletonTimer);
-  }, []);
+  const showEmployeesSkeleton = useMinimumLoading(pageLoading);
   const loadError = error ?? schedules.error ?? branches.error;
   const workspaceBranches = franchiseMode
     ? (branches.data ?? [])

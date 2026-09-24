@@ -769,6 +769,7 @@ func (h *PlatformHandler) SyncCatalogTemplate(c *gin.Context) {
 	for _, branchID := range branchIDs {
 		h.invalidateBranchCache(c, branchID)
 	}
+	h.invalidateMenuSummaryCache(c)
 	summary, err := catalogTemplateSummaryTx(c.Request.Context(), h.db, templateID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "กระจายแม่แบบแล้ว แต่ไม่สามารถอ่านผลลัพธ์ได้"})
@@ -1011,6 +1012,10 @@ func (h *PlatformHandler) SetBranchCatalogSelection(c *gin.Context) {
 	if err := tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถยืนยันการเลือกใช้สินค้าได้"})
 		return
+	}
+	h.invalidateBranchCache(c, branchID)
+	if entityType == "menu" {
+		h.invalidateMenuSummaryCache(c)
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"branchId": branchID, "entityType": entityType, "sourceKey": sourceKey, "enabled": *input.Enabled}})
 }

@@ -1,11 +1,21 @@
 package handler
 
 import (
+	"bytes"
+	"database/sql"
+	"encoding/base64"
+	"fmt"
+	_ "golang.org/x/image/webp"
+	"image"
+	"image/jpeg"
+	_ "image/png"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/image/draw"
 	"y/internal/dto"
 	"y/internal/middleware"
 	"y/internal/model"
@@ -26,6 +36,7 @@ func (h *PlatformHandler) ListMenuItems(c *gin.Context) {
 	cacheKey := "sbc:menu:" + strconv.FormatInt(branchID, 10) + ":" + plan
 	var cached []model.MenuItem
 	if h.cache.GetJSON(c, cacheKey, &cached) {
+		setMenuImageOrigins(c, cached)
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": cached})
 		return
 	}
@@ -40,7 +51,100 @@ func (h *PlatformHandler) ListMenuItems(c *gin.Context) {
 	}
 	result = h.filterMenuForPlan(plan, result)
 	h.cache.SetJSON(c, cacheKey, result, 30*time.Second)
+	setMenuImageOrigins(c, result)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+}
+
+func setMenuImageOrigins(c *gin.Context, items []model.MenuItem) {
+	for index := range items {
+		if items[index].ImageURL != "" && strings.HasPrefix(items[index].ImageURL, "/") {
+			items[index].ImageURL = menuImageOrigin(c) + items[index].ImageURL
+		}
+	}
+}
+
+func menuImageOrigin(c *gin.Context) string {
+	scheme := "http"
+	if c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	return scheme + "://" + c.Request.Host
+}
+
+// GetMenuItemImage delivers the original stored image separately from the menu list.
+// Branch scope is checked before reading the image to prevent cross-branch access.
+func (h *PlatformHandler) GetMenuItemImage(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	branchID, ok := h.branchScope(c)
+	if !ok {
+		return
+	}
+	plan, ok := h.requestPlan(c, branchID)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id < 1 {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	var imageURL, category string
+	err = h.db.QueryRowContext(c.Request.Context(), `SELECT image_url,category FROM menu_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, id, branchID).Scan(&imageURL, &category)
+	if err == sql.ErrNoRows || imageURL == "" {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	if !menuAllowedForPlan(plan, category) {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	thumbnail, err := menuImageThumbnail(imageURL)
+	if err != nil {
+		c.Status(http.StatusUnsupportedMediaType)
+		return
+	}
+	c.Header("Content-Type", "image/jpeg")
+	c.Header("Cache-Control", "private, max-age=30")
+	c.Data(http.StatusOK, "image/jpeg", thumbnail)
+}
+
+func menuImageThumbnail(imageURL string) ([]byte, error) {
+	header, encoded, found := strings.Cut(imageURL, ",")
+	contentType := strings.TrimPrefix(strings.TrimSuffix(header, ";base64"), "data:")
+	if !found || !strings.HasSuffix(header, ";base64") ||
+		(contentType != "image/png" && contentType != "image/jpeg" && contentType != "image/webp") {
+		return nil, fmt.Errorf("unsupported image type")
+	}
+	source, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(encoded)))
+	if err != nil {
+		return nil, err
+	}
+	bounds := source.Bounds()
+	width, height := bounds.Dx(), bounds.Dy()
+	if width < 1 || height < 1 {
+		return nil, fmt.Errorf("empty image")
+	}
+	const maxSide = 480
+	if width > height && width > maxSide {
+		height = max(1, height*maxSide/width)
+		width = maxSide
+	} else if height > maxSide {
+		width = max(1, width*maxSide/height)
+		height = maxSide
+	}
+	thumbnail := image.NewRGBA(image.Rect(0, 0, width, height))
+	draw.ApproxBiLinear.Scale(thumbnail, thumbnail.Bounds(), source, bounds, draw.Over, nil)
+	var output bytes.Buffer
+	if err := jpeg.Encode(&output, thumbnail, &jpeg.Options{Quality: 78}); err != nil {
+		return nil, err
+	}
+	return output.Bytes(), nil
 }
 
 // CreateMenuItem creates a menu item and its recipe atomically for the selected branch.
@@ -106,6 +210,7 @@ func (h *PlatformHandler) CreateMenuItem(c *gin.Context) {
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
 	c.JSON(201, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -181,6 +286,7 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
 	c.JSON(200, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -223,5 +329,6 @@ func (h *PlatformHandler) DeleteMenuItem(c *gin.Context) {
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
 	c.Status(http.StatusNoContent)
 }

@@ -43,7 +43,12 @@ export default function App() {
   }, []);
   if (checkingSession) return null;
   return (
-    <SbcThemeProvider secondary="#8f6040" background="#fbfaf8">
+    <SbcThemeProvider
+      secondary="#8f6040"
+      background="#fbfaf8"
+      skeletonAnimation="wave"
+      skeletonColor="#eee5df"
+    >
       {loggedIn ? (
         <AdminDashboard logout={logout} />
       ) : (

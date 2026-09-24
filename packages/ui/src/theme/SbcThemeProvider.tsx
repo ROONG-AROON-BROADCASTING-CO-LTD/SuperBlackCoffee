@@ -10,11 +10,15 @@ export function SbcThemeProvider({
   secondary = '#8e5f3c',
   background = '#faf8f5',
   borderRadius = 12,
+  skeletonAnimation = 'pulse',
+  skeletonColor,
 }: {
   children: ReactNode;
   secondary?: string;
   background?: string;
   borderRadius?: number;
+  skeletonAnimation?: 'pulse' | 'wave' | false;
+  skeletonColor?: string;
 }) {
   const theme = createTheme({
     palette: {
@@ -25,6 +29,12 @@ export function SbcThemeProvider({
     shape: { borderRadius },
     shadows: shadowlessTheme,
     components: {
+      MuiSkeleton: {
+        defaultProps: { animation: skeletonAnimation },
+        styleOverrides: skeletonColor
+          ? { root: { backgroundColor: skeletonColor } }
+          : undefined,
+      },
       MuiButton: {
         styleOverrides: {
           root: {

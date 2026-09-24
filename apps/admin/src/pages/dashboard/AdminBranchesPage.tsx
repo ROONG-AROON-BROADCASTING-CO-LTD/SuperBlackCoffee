@@ -16,6 +16,7 @@ import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
   SearchField,
+  useMinimumLoading,
   type BranchStatus,
 } from '@stackbuild/ui';
 import { createCompanyBranch, listBranches, updateBranchSize } from '../../api';
@@ -44,6 +45,7 @@ export function AdminBranchesPage() {
   const [query, setQuery] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const showSkeleton = useMinimumLoading(isLoading);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [updatingBranchId, setUpdatingBranchId] = useState<number | null>(null);
@@ -201,11 +203,11 @@ export function AdminBranchesPage() {
           ไม่สามารถโหลดข้อมูลสาขาได้ กำลังลองเชื่อมต่อใหม่อัตโนมัติ
         </Typography>
       ) : null}
-      {isLoading ? <AdminBranchesSkeleton /> : null}
+      {showSkeleton ? <AdminBranchesSkeleton /> : null}
 
       <Box
         sx={{
-          display: isLoading || loadError ? 'none' : 'grid',
+          display: showSkeleton || loadError ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
@@ -301,7 +303,7 @@ export function AdminBranchesPage() {
           );
         })}
       </Box>
-      {!isLoading && !loadError && visibleBranches.length === 0 && (
+      {!showSkeleton && !loadError && visibleBranches.length === 0 && (
         <Typography
           sx={{
             pt: 4,
