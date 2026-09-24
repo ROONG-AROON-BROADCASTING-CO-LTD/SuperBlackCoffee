@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -138,6 +139,33 @@ func TestPostgresInventoryRepositorySharesCatalogueButKeepsBranchStockSeparate(t
 	}
 	if firstItems[0].Quantity != 2 || firstItems[0].ReorderLevel != 1 {
 		t.Fatalf("ยอดสต๊อกสาขาแรกต้องไม่ถูกเขียนทับ: %#v", firstItems[0])
+	}
+}
+
+func TestPostgresInventoryRepositoryReturnsTemplateSyncedUnitCost(t *testing.T) {
+	db := openRepositoryTestDB(t)
+	branchID := seedTestBranch(t, db)
+	itemName := fmt.Sprintf("ต้นทุนซิงก์ทดสอบ-%d", time.Now().UnixNano())
+	var templateID, catalogItemID int64
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='central' AND branch_size='ALL'`).Scan(&templateID); err != nil {
+		t.Fatalf("อ่านแม่แบบกลาง: %v", err)
+	}
+	if err := db.QueryRow(`INSERT INTO inventory_catalog_items(name,category,kind,unit,unit_cost) VALUES($1,'other','ingredient','ชิ้น',99.99) RETURNING id`, itemName).Scan(&catalogItemID); err != nil {
+		t.Fatalf("สร้างรายการกลาง: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,kind,unit,unit_cost,reorder_level,track_stock,image_url,available_sizes) VALUES($1,$2,'other','ingredient','ชิ้น',12.3456,0,true,'',ARRAY['S','M','L'])`, templateID, catalogItemID); err != nil {
+		t.Fatalf("สร้างรายการแม่แบบกลาง: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO inventory_items(branch_id,catalog_item_id,name,category,kind,quantity,unit,reorder_level,unit_cost,catalog_template_id,template_enabled) VALUES($1,$2,$3,'other','ingredient',4,'ชิ้น',0,12.3456,$4,true)`, branchID, catalogItemID, itemName, templateID); err != nil {
+		t.Fatalf("สร้างรายการสาขาที่ซิงก์แล้ว: %v", err)
+	}
+
+	items, err := NewPostgresInventoryRepository(db).List(context.Background(), branchID, "ingredient")
+	if err != nil || len(items) != 1 {
+		t.Fatalf("รายการสาขา = %#v, err = %v", items, err)
+	}
+	if items[0].UnitCost != 12.3456 {
+		t.Fatalf("unit cost = %v, want synced branch cost 12.3456", items[0].UnitCost)
 	}
 }
 
