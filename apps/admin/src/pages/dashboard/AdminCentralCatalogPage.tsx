@@ -41,12 +41,15 @@ import {
   createCatalogTemplateMenuItem,
   getCatalogTemplate,
   getCatalogTemplateImpact,
+  getCatalogSyncJob,
+  getLatestCatalogSyncJob,
   listBranchCatalogSelections,
   setBranchCatalogSelection,
   listCatalogTemplates,
   retireCatalogTemplateInventoryItem,
   retireCatalogTemplateMenuItem,
   replaceCatalogTemplateMenuRecipes,
+  retryCatalogSyncJob,
   syncCatalogTemplate,
   updateCatalogTemplateInventoryItem,
   updateCatalogTemplateMenuItem,
@@ -58,8 +61,10 @@ import {
   type CatalogTemplateMenuPatch,
   type CatalogTemplateSize,
   type CatalogTemplateSummary,
+  type CatalogSyncJob,
 } from '../../api/catalogTemplates';
 import { AdminCentralCatalogSkeleton } from '../../components/skeletons/AdminCentralCatalogSkeleton';
+import { LoaderIcon } from '../../components/LoaderIcon';
 
 const sizes: CatalogTemplateSize[] = ['S', 'M', 'L'];
 const menuCategories = [
@@ -77,7 +82,8 @@ const menuCategories = [
 
 const catalogTabs = [
   { value: 'menu', label: 'เมนูและสินค้า' },
-  { value: 'inventory', label: 'วัตถุดิบและอุปกรณ์' },
+  { value: 'ingredient', label: 'วัตถุดิบ' },
+  { value: 'equipment', label: 'อุปกรณ์' },
 ] as const;
 
 type CatalogTab = (typeof catalogTabs)[number]['value'];
@@ -963,9 +969,18 @@ export function AdminCentralCatalogPage({
   const [impactError, setImpactError] = useState('');
   const [impactDialogMode, setImpactDialogMode] =
     useState<ImpactDialogMode>(null);
+  const [showDrawerImpact, setShowDrawerImpact] = useState(false);
   const [isCentralCatalogDrawerOpen, setIsCentralCatalogDrawerOpen] =
     useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRetryingSync, setIsRetryingSync] = useState(false);
+  const [syncJob, setSyncJob] = useState<CatalogSyncJob | null>(null);
+  const [displayedSyncJobId, setDisplayedSyncJobId] = useState<number | null>(
+    null,
+  );
+  const [displayedCompletedBranches, setDisplayedCompletedBranches] =
+    useState(0);
+  const [syncStatusError, setSyncStatusError] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [editor, setEditor] = useState<TemplateEditorState | null>(null);
   const [retireTarget, setRetireTarget] = useState<RetireTarget | null>(null);
@@ -976,6 +991,7 @@ export function AdminCentralCatalogPage({
   );
   const [branchId, setBranchId] = useState<number | null>(null);
   const [branchSearch, setBranchSearch] = useState('');
+  const [branchPage, setBranchPage] = useState(0);
   const [branchSelections, setBranchSelections] = useState<Set<string>>(
     new Set(),
   );
@@ -1091,6 +1107,98 @@ export function AdminCentralCatalogPage({
     [selectedTemplateId, templates],
   );
 
+  useEffect(() => {
+    if (
+      selectedTemplateId === null ||
+      (section !== 'branches' && section !== 'sync')
+    )
+      return;
+    let active = true;
+    setSyncJob(null);
+    setSyncStatusError('');
+    void getLatestCatalogSyncJob(selectedTemplateId)
+      .then((job) => {
+        if (
+          active &&
+          job &&
+          (job.status === 'pending' || job.status === 'processing')
+        ) {
+          setSyncJob(job);
+        }
+      })
+      .catch(() => {
+        if (active) setSyncStatusError('ไม่สามารถอ่านสถานะงานซิงก์ได้');
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedTemplateId, section]);
+
+  useEffect(() => {
+    if (
+      selectedTemplateId === null ||
+      !syncJob ||
+      (syncJob.status !== 'pending' && syncJob.status !== 'processing')
+    )
+      return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      void getCatalogSyncJob(selectedTemplateId, syncJob.id)
+        .then((job) => {
+          if (!active) return;
+          setSyncStatusError('');
+          setSyncJob(job);
+          if (
+            job.status === 'completed' ||
+            job.status === 'partial_failed' ||
+            job.status === 'failed'
+          ) {
+            setReloadKey((current) => current + 1);
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setSyncStatusError('อัปเดตสถานะงานซิงก์ไม่สำเร็จ กำลังลองใหม่');
+            setSyncJob((current) =>
+              current?.id === syncJob.id ? { ...current } : current,
+            );
+          }
+        });
+    }, 2000);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [selectedTemplateId, syncJob]);
+
+  useEffect(() => {
+    if (!syncJob) {
+      setDisplayedSyncJobId(null);
+      setDisplayedCompletedBranches(0);
+      return;
+    }
+    if (displayedSyncJobId !== syncJob.id) {
+      setDisplayedSyncJobId(syncJob.id);
+      setDisplayedCompletedBranches(0);
+    }
+  }, [displayedSyncJobId, syncJob]);
+
+  useEffect(() => {
+    if (
+      !syncJob ||
+      displayedSyncJobId !== syncJob.id ||
+      displayedCompletedBranches >= syncJob.completedBranches
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDisplayedCompletedBranches((current) =>
+        Math.min(current + 1, syncJob.completedBranches),
+      );
+    }, 260);
+    return () => window.clearTimeout(timer);
+  }, [displayedCompletedBranches, displayedSyncJobId, syncJob]);
+
   const previewImpact = async (dialogMode: Exclude<ImpactDialogMode, null>) => {
     if (selectedTemplateId === null) return;
     setImpactError('');
@@ -1098,7 +1206,7 @@ export function AdminCentralCatalogPage({
     try {
       const nextImpact = await getCatalogTemplateImpact(selectedTemplateId);
       setImpact(nextImpact);
-      setImpactDialogMode(dialogMode);
+      if (dialogMode === 'sync') setImpactDialogMode('sync');
     } catch (error) {
       setImpactError(
         error instanceof Error
@@ -1113,12 +1221,18 @@ export function AdminCentralCatalogPage({
   useEffect(() => {
     if (selectedTemplateId === null) return;
     let active = true;
+    setImpact(null);
+    setIsLoadingImpact(true);
+    setImpactError('');
     void getCatalogTemplateImpact(selectedTemplateId)
       .then((result) => {
         if (active) setImpact(result);
       })
       .catch(() => {
-        /* The explicit preview action shows fetch errors. */
+        if (active) setImpactError('ไม่สามารถโหลดผลกระทบของข้อมูลกลางได้');
+      })
+      .finally(() => {
+        if (active) setIsLoadingImpact(false);
       });
     return () => {
       active = false;
@@ -1139,10 +1253,8 @@ export function AdminCentralCatalogPage({
     try {
       const result = await syncCatalogTemplate(selectedTemplateId);
       setImpactDialogMode(null);
-      setNotice(
-        `อัปเดตข้อมูลกลางไปยัง ${numberFormatter.format(result.syncedBranches)} สาขาแล้ว`,
-      );
-      setReloadKey((current) => current + 1);
+      setSyncJob(result);
+      setSyncStatusError('');
     } catch (error) {
       setImpactError(
         error instanceof Error
@@ -1153,6 +1265,93 @@ export function AdminCentralCatalogPage({
       setIsSyncing(false);
     }
   };
+
+  const retryFailedSync = async () => {
+    if (selectedTemplateId === null || !syncJob) return;
+    setIsRetryingSync(true);
+    try {
+      const job = await retryCatalogSyncJob(selectedTemplateId, syncJob.id);
+      setSyncJob(job);
+      setSyncStatusError('');
+    } catch (error) {
+      setSyncStatusError(
+        error instanceof Error ? error.message : 'ไม่สามารถลองซิงก์ใหม่ได้',
+      );
+    } finally {
+      setIsRetryingSync(false);
+    }
+  };
+
+  const visibleCompletedBranches =
+    syncJob?.id === displayedSyncJobId ? displayedCompletedBranches : 0;
+  const hasUnrenderedSyncProgress =
+    syncJob !== null && visibleCompletedBranches < syncJob.completedBranches;
+
+  const syncNotice = syncJob
+    ? {
+        message:
+          syncJob.status === 'completed'
+            ? `ซิงก์ข้อมูลกลางครบ ${numberFormatter.format(visibleCompletedBranches)}/${numberFormatter.format(syncJob.totalBranches)} สาขาแล้ว`
+            : syncJob.status === 'partial_failed' || syncJob.status === 'failed'
+              ? `ซิงก์ข้อมูลกลาง ${numberFormatter.format(visibleCompletedBranches)}/${numberFormatter.format(syncJob.totalBranches)} สาขา · ล้มเหลว ${numberFormatter.format(syncJob.failedBranches)} สาขา`
+              : `กำลังซิงก์ข้อมูลกลาง ${numberFormatter.format(visibleCompletedBranches)}/${numberFormatter.format(syncJob.totalBranches)} สาขา`,
+        severity:
+          syncJob.status === 'completed'
+            ? ('success' as const)
+            : syncJob.status === 'partial_failed' || syncJob.status === 'failed'
+              ? ('error' as const)
+              : ('info' as const),
+      }
+    : syncStatusError
+      ? { message: syncStatusError, severity: 'warning' as const }
+      : null;
+
+  const canDismissSyncNotice =
+    !hasUnrenderedSyncProgress &&
+    (syncJob?.status === 'completed' ||
+      syncJob?.status === 'partial_failed' ||
+      syncJob?.status === 'failed');
+
+  const isSyncInProgress =
+    syncJob?.status === 'pending' ||
+    syncJob?.status === 'processing' ||
+    hasUnrenderedSyncProgress;
+
+  const syncNoticeContent = syncJob ? (
+    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+      <Typography
+        component="span"
+        sx={{
+          color: 'inherit',
+          fontFamily: 'Kanit, sans-serif',
+          fontSize: 13,
+          fontWeight: 500,
+          lineHeight: 1.2,
+        }}
+      >
+        {syncJob.status === 'completed' && !hasUnrenderedSyncProgress
+          ? 'ซิงก์ข้อมูลกลางสำเร็จ'
+          : syncJob.status === 'partial_failed' || syncJob.status === 'failed'
+            ? `ซิงก์ไม่ครบ · ล้มเหลว ${numberFormatter.format(syncJob.failedBranches)} สาขา`
+            : 'กำลังซิงก์ข้อมูลกลาง'}
+      </Typography>
+      <Typography
+        component="span"
+        sx={{
+          color: '#fff',
+          fontFamily: 'Kanit, sans-serif',
+          fontSize: 20,
+          fontVariantNumeric: 'tabular-nums',
+          fontWeight: 700,
+          letterSpacing: 0.2,
+          lineHeight: 1.2,
+        }}
+      >
+        {numberFormatter.format(visibleCompletedBranches)}/
+        {numberFormatter.format(syncJob.totalBranches)} สาขา
+      </Typography>
+    </Stack>
+  ) : undefined;
 
   const openInventoryEditor = (item: CatalogTemplateInventoryItem) => {
     setEditorError('');
@@ -1459,18 +1658,38 @@ export function AdminCentralCatalogPage({
   const branchSize = impact?.branches.find(
     (branch) => branch.id === branchId,
   )?.size;
+  const normalizedBranchSearch = branchSearch.trim().toLocaleLowerCase('th-TH');
   const visibleBranchItems =
-    (activeTab === 'menu'
-      ? template?.menuItems
-      : template?.inventoryItems
-    )?.filter(
-      (item) =>
-        branchSize &&
-        item.availableSizes.includes(branchSize) &&
-        item.name
-          .toLocaleLowerCase('th-TH')
-          .includes(branchSearch.trim().toLocaleLowerCase('th-TH')),
-    ) ?? [];
+    activeTab === 'menu'
+      ? (template?.menuItems ?? []).filter(
+          (item) =>
+            branchSize &&
+            item.availableSizes.includes(branchSize) &&
+            item.name
+              .toLocaleLowerCase('th-TH')
+              .includes(normalizedBranchSearch),
+        )
+      : (template?.inventoryItems ?? []).filter(
+          (item) =>
+            branchSize &&
+            item.kind ===
+              (activeTab === 'ingredient' ? 'ingredient' : 'stock') &&
+            item.availableSizes.includes(branchSize) &&
+            item.name
+              .toLocaleLowerCase('th-TH')
+              .includes(normalizedBranchSearch),
+        );
+  const branchPageSize = 10;
+  const branchPageCount = Math.max(
+    1,
+    Math.ceil(visibleBranchItems.length / branchPageSize),
+  );
+  const currentBranchPage = Math.min(branchPage, branchPageCount - 1);
+  const branchPageStart = currentBranchPage * branchPageSize;
+  const pagedBranchItems = visibleBranchItems.slice(
+    branchPageStart,
+    branchPageStart + branchPageSize,
+  );
 
   return (
     <DashboardMain>
@@ -1580,7 +1799,10 @@ export function AdminCentralCatalogPage({
                           ) : null}
                           <Button
                             variant="contained"
-                            onClick={() => setIsCentralCatalogDrawerOpen(true)}
+                            onClick={() => {
+                              setShowDrawerImpact(false);
+                              setIsCentralCatalogDrawerOpen(true);
+                            }}
                             sx={{ ...tabButtonSx(true), whiteSpace: 'nowrap' }}
                           >
                             เปิดข้อมูลกลาง
@@ -1631,9 +1853,10 @@ export function AdminCentralCatalogPage({
                           onClick={() => {
                             if (!impact) void previewImpact('preview');
                           }}
-                          onChange={(event) =>
-                            setBranchId(Number(event.target.value))
-                          }
+                          onChange={(event) => {
+                            setBranchPage(0);
+                            setBranchId(Number(event.target.value));
+                          }}
                           sx={{ mt: 2, maxWidth: 440 }}
                         >
                           <MenuItem disabled value="">
@@ -1661,8 +1884,11 @@ export function AdminCentralCatalogPage({
                                     ? 'contained'
                                     : 'outlined'
                                 }
-                                onClick={() => setActiveTab(item.value)}
-                                sx={tabButtonSx(activeTab === item.value)}
+                                onClick={() => {
+                                  setBranchPage(0);
+                                  setActiveTab(item.value);
+                                }}
+                                sx={selectionPillSx(activeTab === item.value)}
                               >
                                 {item.label}
                               </Button>
@@ -1675,9 +1901,10 @@ export function AdminCentralCatalogPage({
                             placeholder="ค้นหารายการในสาขา"
                             aria-label="ค้นหารายการในสาขา"
                             value={branchSearch}
-                            onChange={(event) =>
-                              setBranchSearch(event.target.value)
-                            }
+                            onChange={(event) => {
+                              setBranchPage(0);
+                              setBranchSearch(event.target.value);
+                            }}
                             sx={{ mt: 1.25 }}
                           />
                         )}
@@ -1799,8 +2026,6 @@ export function AdminCentralCatalogPage({
                             </Box>
                             <TableContainer
                               sx={{
-                                height: 480,
-                                borderBottom: '1px solid #eee3dc',
                                 borderRadius: 0,
                                 overflowX: 'auto',
                               }}
@@ -1866,7 +2091,7 @@ export function AdminCentralCatalogPage({
                                       </TableCell>
                                     </TableRow>
                                   ) : (
-                                    visibleBranchItems.map((item) => {
+                                    pagedBranchItems.map((item) => {
                                       const entityType =
                                         activeTab === 'menu'
                                           ? 'menu'
@@ -1875,12 +2100,20 @@ export function AdminCentralCatalogPage({
                                         `${entityType}:${item.id}`,
                                       );
                                       return (
-                                        <TableRow key={item.id} hover>
+                                        <TableRow
+                                          key={item.id}
+                                          hover
+                                          sx={{
+                                            '&:nth-of-type(even)': {
+                                              bgcolor: '#faf8f6',
+                                            },
+                                          }}
+                                        >
                                           <TableCell
                                             sx={{
                                               width: 76,
                                               borderColor: '#eee3dc',
-                                              py: 1,
+                                              py: 1.25,
                                             }}
                                           >
                                             <CatalogThumbnail
@@ -1891,13 +2124,12 @@ export function AdminCentralCatalogPage({
                                           <TableCell
                                             sx={{
                                               borderColor: '#eee3dc',
-                                              py: 1,
+                                              py: 1.25,
                                             }}
                                           >
                                             <Typography
                                               sx={{
-                                                fontFamily: 'Kanit, sans-serif',
-                                                fontSize: 13,
+                                                ...itemTitleSx,
                                                 overflowWrap: 'anywhere',
                                               }}
                                             >
@@ -1916,7 +2148,7 @@ export function AdminCentralCatalogPage({
                                           <TableCell
                                             sx={{
                                               borderColor: '#eee3dc',
-                                              py: 1,
+                                              py: 1.25,
                                             }}
                                           >
                                             <Typography sx={itemMetaSx}>
@@ -2011,6 +2243,56 @@ export function AdminCentralCatalogPage({
                                 </TableBody>
                               </Table>
                             </TableContainer>
+                            <Stack
+                              direction="row"
+                              sx={{
+                                px: 2,
+                                py: 1.5,
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: 1,
+                              }}
+                            >
+                              <Typography sx={itemMetaSx}>
+                                {visibleBranchItems.length === 0
+                                  ? '0 รายการ'
+                                  : `แสดง ${numberFormatter.format(branchPageStart + 1)}–${numberFormatter.format(Math.min(branchPageStart + branchPageSize, visibleBranchItems.length))} จาก ${numberFormatter.format(visibleBranchItems.length)} รายการ`}
+                              </Typography>
+                              <Stack direction="row" spacing={0.5}>
+                                <Button
+                                  size="small"
+                                  disabled={currentBranchPage === 0}
+                                  onClick={() =>
+                                    setBranchPage(currentBranchPage - 1)
+                                  }
+                                  sx={editButtonSx}
+                                >
+                                  ก่อนหน้า
+                                </Button>
+                                <Typography
+                                  sx={{
+                                    ...itemMetaSx,
+                                    alignSelf: 'center',
+                                    minWidth: 35,
+                                    textAlign: 'center',
+                                  }}
+                                >
+                                  {currentBranchPage + 1}/{branchPageCount}
+                                </Typography>
+                                <Button
+                                  size="small"
+                                  disabled={
+                                    currentBranchPage + 1 >= branchPageCount
+                                  }
+                                  onClick={() =>
+                                    setBranchPage(currentBranchPage + 1)
+                                  }
+                                  sx={editButtonSx}
+                                >
+                                  ถัดไป
+                                </Button>
+                              </Stack>
+                            </Stack>
                           </Box>
                         )}
                     </CardContent>
@@ -2221,7 +2503,7 @@ export function AdminCentralCatalogPage({
                   <Button
                     variant="outlined"
                     onClick={() => {
-                      setIsCentralCatalogDrawerOpen(false);
+                      setShowDrawerImpact(true);
                       void previewImpact('preview');
                     }}
                     disabled={isLoadingImpact}
@@ -2235,7 +2517,11 @@ export function AdminCentralCatalogPage({
                       setIsCentralCatalogDrawerOpen(false);
                       openSyncDialog();
                     }}
-                    disabled={isLoadingImpact}
+                    disabled={
+                      isLoadingImpact ||
+                      syncJob?.status === 'pending' ||
+                      syncJob?.status === 'processing'
+                    }
                     sx={tabButtonSx(true)}
                   >
                     ซิงก์ไปยังสาขา
@@ -2243,43 +2529,62 @@ export function AdminCentralCatalogPage({
                 </Stack>
               </Box>
 
-              <Box
-                sx={{
-                  mt: 2,
-                  border: '1px solid #eadfd7',
-                  borderRadius: 1.5,
-                  bgcolor: '#fff',
-                  p: { xs: 2, sm: 2.5 },
-                }}
-              >
-                <Typography component="h3" sx={sectionTitleSx}>
-                  รายการเมนูจากข้อมูลกลาง
-                </Typography>
-                <Stack spacing={0.75} sx={{ mt: 1.25 }}>
-                  {template.menuItems.slice(0, 6).map((item) => (
-                    <Box
-                      key={item.id}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 2,
-                        borderBottom: '1px solid #f0e7e1',
-                        pb: 0.75,
-                      }}
-                    >
-                      <Typography sx={itemTitleSx}>{item.name}</Typography>
-                      <Typography sx={itemMetaSx}>
-                        {item.availableSizes.join(' / ')}
+              {showDrawerImpact ? (
+                <Box
+                  sx={{
+                    mt: 2,
+                    border: '1px solid #eadfd7',
+                    borderRadius: 1.5,
+                    bgcolor: '#fff',
+                    p: { xs: 2, sm: 2.5 },
+                  }}
+                >
+                  <Typography component="h3" sx={sectionTitleSx}>
+                    ผลกระทบของข้อมูลกลาง
+                  </Typography>
+                  <Typography sx={{ ...sectionMetaSx, mt: 0.5, fontSize: 13 }}>
+                    {impact
+                      ? `ข้อมูลกลางนี้ถูกใช้อยู่ใน ${numberFormatter.format(impact.count)} สาขา`
+                      : 'ตรวจสอบรายชื่อสาขาที่ใช้ข้อมูลกลางก่อนกระจายการเปลี่ยนแปลง'}
+                  </Typography>
+                  <Stack
+                    spacing={0.75}
+                    sx={{ mt: 1.25, maxHeight: 280, overflowY: 'auto' }}
+                  >
+                    {(impact?.branches ?? []).map((branch) => (
+                      <Box
+                        key={branch.id}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 1,
+                          px: 1.25,
+                          py: 1,
+                          border: '1px solid #f0e7e1',
+                          borderRadius: 2,
+                        }}
+                      >
+                        <Typography sx={itemTitleSx}>{branch.name}</Typography>
+                        <Typography sx={itemMetaSx}>
+                          {branch.code} · {branch.size}
+                        </Typography>
+                      </Box>
+                    ))}
+                    {isLoadingImpact && !impact ? (
+                      <Typography sx={sectionMetaSx}>
+                        กำลังโหลดรายชื่อสาขา...
                       </Typography>
-                    </Box>
-                  ))}
-                  {template.menuItems.length === 0 ? (
-                    <Typography sx={sectionMetaSx}>
-                      ยังไม่มีเมนูในข้อมูลกลาง
-                    </Typography>
-                  ) : null}
-                </Stack>
-              </Box>
+                    ) : impactError ? (
+                      <Alert severity="error">{impactError}</Alert>
+                    ) : impact && impact.count === 0 ? (
+                      <Typography sx={sectionMetaSx}>
+                        ยังไม่มีสาขาที่ใช้ข้อมูลกลาง
+                      </Typography>
+                    ) : null}
+                  </Stack>
+                </Box>
+              ) : null}
             </Box>
 
             <Box
@@ -3114,6 +3419,49 @@ export function AdminCentralCatalogPage({
           ) : null}
         </DialogActions>
       </Dialog>
+
+      <ActionSnackbar
+        notice={syncNotice}
+        icon={
+          isSyncInProgress ? (
+            <LoaderIcon animate size={20} aria-label="กำลังซิงก์ข้อมูลกลาง" />
+          ) : undefined
+        }
+        content={syncNoticeContent}
+        onClose={() => {
+          if (canDismissSyncNotice) {
+            setSyncJob(null);
+            setSyncStatusError('');
+          }
+        }}
+        action={
+          syncJob?.status === 'partial_failed' ||
+          syncJob?.status === 'failed' ? (
+            <Button
+              color="inherit"
+              size="small"
+              disabled={isRetryingSync}
+              onClick={() => void retryFailedSync()}
+            >
+              {isRetryingSync ? 'กำลังลองใหม่…' : 'ลองใหม่'}
+            </Button>
+          ) : undefined
+        }
+        autoHideDuration={
+          canDismissSyncNotice && !syncStatusError ? 3_500 : null
+        }
+        alertSx={{
+          minHeight: 42,
+          px: 1,
+          py: 0.5,
+          '& .MuiAlert-icon': { alignItems: 'center', mr: 0.75, py: 0 },
+          '& .MuiAlert-message': {
+            alignItems: 'center',
+            display: 'flex',
+            py: 0,
+          },
+        }}
+      />
 
       <ActionSnackbar
         notice={

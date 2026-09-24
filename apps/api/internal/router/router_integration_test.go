@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"y/internal/config"
 	"y/internal/database"
+	"y/internal/handler"
 	"y/internal/middleware"
 )
 
@@ -77,6 +78,9 @@ func TestCentralCatalogTemplateRoutesAreAdminOnly(t *testing.T) {
 		{name: "branch manager cannot change another branch selection", method: http.MethodPut, path: "/api/v1/branches/999/catalog-selections/menu/2", role: "branch_manager", want: http.StatusForbidden},
 		{name: "admin selection reaches unavailable handler", method: http.MethodPut, path: "/api/v1/branches/1/catalog-selections/menu/2", role: "admin", want: http.StatusServiceUnavailable},
 		{name: "admin sync reaches the unavailable handler", method: http.MethodPost, path: "/api/v1/catalog-templates/1/sync", role: "admin", want: http.StatusServiceUnavailable},
+		{name: "cashier cannot read sync progress", method: http.MethodGet, path: "/api/v1/catalog-templates/1/sync-jobs/2", role: "cashier", want: http.StatusForbidden},
+		{name: "franchise owner cannot retry sync", method: http.MethodPost, path: "/api/v1/catalog-templates/1/sync-jobs/2/retry", role: "franchise_owner", want: http.StatusForbidden},
+		{name: "admin status reaches unavailable handler", method: http.MethodGet, path: "/api/v1/catalog-templates/1/sync-jobs/latest", role: "admin", want: http.StatusServiceUnavailable},
 		{name: "cashier cannot create central inventory", method: http.MethodPost, path: "/api/v1/catalog-templates/1/inventory", role: "cashier", want: http.StatusForbidden},
 		{name: "admin create menu reaches unavailable handler", method: http.MethodPost, path: "/api/v1/catalog-templates/1/menu-items", role: "admin", want: http.StatusServiceUnavailable},
 		{name: "franchise owner cannot retire a central item", method: http.MethodDelete, path: "/api/v1/catalog-templates/1/inventory/2", role: "franchise_owner", want: http.StatusForbidden},
@@ -187,8 +191,17 @@ func TestCentralTemplateProvisioningAndSyncPreserveBranchPhysicalStock(t *testin
 		t.Fatalf("edit central inventory default = %d: %s", updated.Code, updated.Body.String())
 	}
 	synced := requestJSON(r, http.MethodPost, "/api/v1/catalog-templates/"+strconv.FormatInt(templateID, 10)+"/sync", fmt.Sprintf(`{"branchIds":[%d]}`, branchID), token)
-	if synced.Code != http.StatusOK || !strings.Contains(synced.Body.String(), `"syncedBranches"`) {
+	if synced.Code != http.StatusAccepted || !strings.Contains(synced.Body.String(), `"status":"pending"`) {
 		t.Fatalf("sync central template = %d: %s", synced.Code, synced.Body.String())
+	}
+	jobID := responseID(t, synced)
+	worked, err := handler.ProcessCatalogSyncBranch(context.Background(), db, nil)
+	if err != nil || !worked {
+		t.Fatalf("process branch sync: worked=%t err=%v", worked, err)
+	}
+	status := requestJSON(r, http.MethodGet, fmt.Sprintf("/api/v1/catalog-templates/%d/sync-jobs/%d", templateID, jobID), "", token)
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"status":"completed"`) {
+		t.Fatalf("completed sync job = %d: %s", status.Code, status.Body.String())
 	}
 	if err := db.QueryRow(`SELECT quantity,reorder_level,expiry_date FROM inventory_items WHERE id=$1`, inventoryID).Scan(&quantity, &reorderLevel, &expiryDate); err != nil {
 		t.Fatalf("read branch state after sync: %v", err)
@@ -200,6 +213,136 @@ func TestCentralTemplateProvisioningAndSyncPreserveBranchPhysicalStock(t *testin
 	if err := db.QueryRow(`SELECT COUNT(*) FROM catalog_template_sync_events WHERE template_id=$1 AND branch_id=$2`, templateID, branchID).Scan(&syncEvents); err != nil || syncEvents != 1 {
 		t.Fatalf("manual sync event = %d, err=%v", syncEvents, err)
 	}
+}
+
+func TestCatalogSyncJobRetriesOnlyFailedBranch(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	var templateID int64
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='central' AND branch_size='ALL'`).Scan(&templateID); err != nil {
+		t.Fatal(err)
+	}
+	first := seedBranch(t, db, "SYNC-FIRST")
+	second := seedBranch(t, db, "SYNC-SECOND")
+	seedUser(t, db, 7, "sync-admin", "admin", first, nil)
+	if _, err := db.Exec(`INSERT INTO branch_catalog_template_assignments(branch_id,template_id) VALUES($1,$3),($2,$3)`, first, second, templateID); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	token := testToken(t, "admin")
+	path := fmt.Sprintf("/api/v1/catalog-templates/%d/sync", templateID)
+	queued := requestJSON(r, http.MethodPost, path, "{}", token)
+	if queued.Code != http.StatusAccepted {
+		t.Fatalf("queue status = %d: %s", queued.Code, queued.Body.String())
+	}
+	jobID := responseID(t, queued)
+	duplicate := requestJSON(r, http.MethodPost, path, "{}", token)
+	if duplicate.Code != http.StatusAccepted || responseID(t, duplicate) != jobID {
+		t.Fatalf("duplicate queue = %d: %s", duplicate.Code, duplicate.Body.String())
+	}
+	if _, err := db.Exec(`DELETE FROM branch_catalog_template_assignments WHERE branch_id=$1`, second); err != nil {
+		t.Fatal(err)
+	}
+	for attempt := 0; attempt < 4; attempt++ {
+		if _, err := db.Exec(`UPDATE catalog_sync_job_branches SET next_attempt_at=now() WHERE job_id=$1 AND status='pending'`, jobID); err != nil {
+			t.Fatal(err)
+		}
+		worked, err := handler.ProcessCatalogSyncBranch(context.Background(), db, nil)
+		if err != nil || !worked {
+			t.Fatalf("job step %d: worked=%t err=%v", attempt, worked, err)
+		}
+	}
+	statusPath := fmt.Sprintf("/api/v1/catalog-templates/%d/sync-jobs/%d", templateID, jobID)
+	status := requestJSON(r, http.MethodGet, statusPath, "", token)
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"status":"partial_failed"`) || !strings.Contains(status.Body.String(), `"completedBranches":1`) || !strings.Contains(status.Body.String(), `"failedBranches":1`) {
+		t.Fatalf("partial failure status = %d: %s", status.Code, status.Body.String())
+	}
+	if _, err := db.Exec(`INSERT INTO branch_catalog_template_assignments(branch_id,template_id) VALUES($1,$2)`, second, templateID); err != nil {
+		t.Fatal(err)
+	}
+	retried := requestJSON(r, http.MethodPost, statusPath+"/retry", "", token)
+	if retried.Code != http.StatusAccepted || !strings.Contains(retried.Body.String(), `"status":"pending"`) {
+		t.Fatalf("retry status = %d: %s", retried.Code, retried.Body.String())
+	}
+	worked, err := handler.ProcessCatalogSyncBranch(context.Background(), db, nil)
+	if err != nil || !worked {
+		t.Fatalf("retried branch: worked=%t err=%v", worked, err)
+	}
+	status = requestJSON(r, http.MethodGet, statusPath, "", token)
+	if status.Code != http.StatusOK || !strings.Contains(status.Body.String(), `"status":"completed"`) || !strings.Contains(status.Body.String(), `"completedBranches":2`) {
+		t.Fatalf("completed retry = %d: %s", status.Code, status.Body.String())
+	}
+	var firstEvents, secondEvents int
+	if err := db.QueryRow(`SELECT count(*) FROM catalog_template_sync_events WHERE template_id=$1 AND branch_id=$2`, templateID, first).Scan(&firstEvents); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM catalog_template_sync_events WHERE template_id=$1 AND branch_id=$2`, templateID, second).Scan(&secondEvents); err != nil {
+		t.Fatal(err)
+	}
+	if firstEvents != 1 || secondEvents != 1 {
+		t.Fatalf("sync events duplicated: first=%d second=%d", firstEvents, secondEvents)
+	}
+}
+
+func TestCatalogSyncEnqueuesTwoHundredBranchesWithinRequestTimeout(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	var templateID, franchiseID int64
+	if err := db.QueryRow(`SELECT id FROM catalog_templates WHERE scope='central' AND branch_size='ALL'`).Scan(&templateID); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`INSERT INTO franchisees(name,email,plan,status) VALUES('Load Test','load-test@example.com','S','active') RETURNING id`).Scan(&franchiseID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO branches(name,code,size,status,franchisee_id)
+		SELECT 'Load branch '||n,'SYNC-LOAD-'||n,'S','active',
+			CASE WHEN n<=100 THEN NULL::bigint ELSE $1::bigint END
+		FROM generate_series(1,200) n`, franchiseID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO branch_catalog_template_assignments(branch_id,template_id)
+		SELECT id,$1 FROM branches WHERE code LIKE 'SYNC-LOAD-%'`, templateID); err != nil {
+		t.Fatal(err)
+	}
+	var adminBranchID int64
+	if err := db.QueryRow(`SELECT id FROM branches WHERE code='SYNC-LOAD-1'`).Scan(&adminBranchID); err != nil {
+		t.Fatal(err)
+	}
+	seedUser(t, db, 7, "sync-load-admin", "admin", adminBranchID, nil)
+	started := time.Now()
+	res := requestJSON(New(db, nil), http.MethodPost, fmt.Sprintf("/api/v1/catalog-templates/%d/sync", templateID), "{}", testToken(t, "admin"))
+	if res.Code != http.StatusAccepted || !strings.Contains(res.Body.String(), `"totalBranches":200`) {
+		t.Fatalf("large sync queue = %d: %s", res.Code, res.Body.String())
+	}
+	queueDuration := time.Since(started)
+	if queueDuration >= 15*time.Second {
+		t.Fatalf("queue exceeded HTTP timeout: %s", queueDuration)
+	}
+	processingStarted := time.Now()
+	for range 200 {
+		worked, err := handler.ProcessCatalogSyncBranch(context.Background(), db, nil)
+		if err != nil || !worked {
+			t.Fatalf("processing branch: worked=%v err=%v", worked, err)
+		}
+	}
+	var status string
+	var completed int
+	if err := db.QueryRow(`SELECT job.status,COUNT(branch.branch_id) FILTER (WHERE branch.status='completed')
+		FROM catalog_sync_jobs job JOIN catalog_sync_job_branches branch ON branch.job_id=job.id
+		WHERE job.template_id=$1 GROUP BY job.id`, templateID).Scan(&status, &completed); err != nil {
+		t.Fatal(err)
+	}
+	if status != "completed" || completed != 200 {
+		t.Fatalf("200-branch sync status=%s completed=%d", status, completed)
+	}
+	t.Logf("queued 200 branches in %s; processed in %s", queueDuration, time.Since(processingStarted))
 }
 
 func TestMaintenanceTicketRoutesRejectInvalidInputBeforeDatabaseAccess(t *testing.T) {

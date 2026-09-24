@@ -799,7 +799,7 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 		return
 	}
 	requestID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
+	if err != nil || requestID < 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสคำขอลาไม่ถูกต้อง"})
 		return
 	}

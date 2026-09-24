@@ -273,6 +273,32 @@ describe('sales workbook import', () => {
     expect(result.unsupportedChannelMenuNames).toEqual(['ชาเขียวปั่น']);
   });
 
+  it('does not turn zero, negative, or non-finite workbook quantities into stock deductions', () => {
+    const result = matchWorkbookSales(
+      [
+        { 'Menu Name': 'ชาเขียวปั่น', Quantity: 0, Channel: 'หน้าร้าน' },
+        { 'Menu Name': 'ชาเขียวปั่น', Quantity: -2, Channel: 'หน้าร้าน' },
+        {
+          'Menu Name': 'ชาเขียวปั่น',
+          Quantity: 'Infinity',
+          Channel: 'หน้าร้าน',
+        },
+        { 'Menu Name': 'ชาเขียวปั่น', Quantity: 2, Channel: 'หน้าร้าน' },
+      ],
+      menus,
+    );
+
+    expect(result.sales).toEqual([
+      {
+        menuItemId: 1,
+        menuName: 'ชาเขียวปั่น',
+        quantity: 2,
+        channel: 'storefront',
+      },
+    ]);
+    expect(result.rowCount).toBe(1);
+  });
+
   it('recognizes the channel values exported by FoodStory', () => {
     expect(channelFromWorkbook('หน้าร้าน (Storefront)')).toBe('storefront');
     expect(channelFromWorkbook('LINE MAN Delivery')).toBe('lineman');

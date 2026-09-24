@@ -12,10 +12,13 @@ import {
   createCatalogTemplateMenuItem,
   getCatalogTemplate,
   getCatalogTemplateImpact,
+  getCatalogSyncJob,
+  getLatestCatalogSyncJob,
   listCatalogTemplates,
   listBranchCatalogSelections,
   setBranchCatalogSelection,
   replaceCatalogTemplateMenuRecipes,
+  retryCatalogSyncJob,
   retireCatalogTemplateInventoryItem,
   retireCatalogTemplateMenuItem,
   syncCatalogTemplate,
@@ -28,10 +31,13 @@ vi.mock('../../../api/catalogTemplates', () => ({
   createCatalogTemplateMenuItem: vi.fn(),
   getCatalogTemplate: vi.fn(),
   getCatalogTemplateImpact: vi.fn(),
+  getCatalogSyncJob: vi.fn(),
+  getLatestCatalogSyncJob: vi.fn(),
   listCatalogTemplates: vi.fn(),
   listBranchCatalogSelections: vi.fn(),
   setBranchCatalogSelection: vi.fn(),
   replaceCatalogTemplateMenuRecipes: vi.fn(),
+  retryCatalogSyncJob: vi.fn(),
   retireCatalogTemplateInventoryItem: vi.fn(),
   retireCatalogTemplateMenuItem: vi.fn(),
   syncCatalogTemplate: vi.fn(),
@@ -128,9 +134,24 @@ describe('AdminCentralCatalogPage', () => {
       sourceKey: 9,
       enabled: false,
     });
+    vi.mocked(getLatestCatalogSyncJob).mockResolvedValue(null);
+    vi.mocked(getCatalogSyncJob).mockResolvedValue({
+      id: 1,
+      templateId: 21,
+      status: 'completed',
+      totalBranches: 2,
+      completedBranches: 2,
+      failedBranches: 0,
+      branches: [],
+    });
     mockedSyncCatalogTemplate.mockResolvedValue({
-      syncedBranches: 2,
-      template,
+      id: 1,
+      templateId: 21,
+      status: 'pending',
+      totalBranches: 2,
+      completedBranches: 0,
+      failedBranches: 0,
+      branches: [],
     });
     mockedUpdateCatalogTemplateInventoryItem.mockResolvedValue({ id: 1 });
     mockedUpdateCatalogTemplateMenuItem.mockResolvedValue({ id: 9 });
@@ -620,9 +641,117 @@ describe('AdminCentralCatalogPage', () => {
     await waitFor(() =>
       expect(mockedSyncCatalogTemplate).toHaveBeenCalledWith(21),
     );
+    expect(await screen.findByText('กำลังซิงก์ข้อมูลกลาง')).toBeTruthy();
+    expect(screen.getByText(/0\/2\s*สาขา/)).toBeTruthy();
+    expect(screen.queryByText('เริ่มซิงก์ข้อมูลกลาง 2 สาขาแล้ว')).toBeNull();
+  });
+
+  it('shows failed branches and retries only that job', async () => {
+    vi.mocked(getLatestCatalogSyncJob).mockResolvedValueOnce({
+      id: 8,
+      templateId: 21,
+      status: 'processing',
+      totalBranches: 2,
+      completedBranches: 1,
+      failedBranches: 0,
+      branches: [],
+    });
+    vi.mocked(getCatalogSyncJob).mockResolvedValueOnce({
+      id: 8,
+      templateId: 21,
+      status: 'partial_failed',
+      totalBranches: 2,
+      completedBranches: 1,
+      failedBranches: 1,
+      branches: [
+        {
+          branchId: 6,
+          branchName: 'พิษณุโลก',
+          status: 'failed',
+          attempts: 3,
+          error: 'ซิงก์สาขานี้ไม่สำเร็จ',
+        },
+      ],
+    });
+    vi.mocked(retryCatalogSyncJob).mockResolvedValueOnce({
+      id: 8,
+      templateId: 21,
+      status: 'pending',
+      totalBranches: 2,
+      completedBranches: 1,
+      failedBranches: 0,
+      branches: [],
+    });
+    render(<AdminCentralCatalogPage section="sync" />);
+
     expect(
-      await screen.findByText('อัปเดตข้อมูลกลางไปยัง 2 สาขาแล้ว'),
+      await screen.findByText(
+        'ซิงก์ไม่ครบ · ล้มเหลว 1 สาขา',
+        {},
+        { timeout: 4_000 },
+      ),
     ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'ลองใหม่' }));
+
+    await waitFor(() =>
+      expect(retryCatalogSyncJob).toHaveBeenCalledWith(21, 8),
+    );
+    expect(await screen.findByText('กำลังซิงก์ข้อมูลกลาง')).toBeTruthy();
+    expect(screen.getByText(/1\/2\s*สาขา/)).toBeTruthy();
+  });
+
+  it.each(['completed', 'failed', 'partial_failed'] as const)(
+    'does not reopen a finished %s sync notice after page refresh',
+    async (status) => {
+      vi.mocked(getLatestCatalogSyncJob).mockResolvedValueOnce({
+        id: 18,
+        templateId: 21,
+        status,
+        totalBranches: 2,
+        completedBranches: status === 'completed' ? 2 : 1,
+        failedBranches: status === 'completed' ? 0 : 1,
+        branches: [],
+      });
+
+      render(<AdminCentralCatalogPage section="branches" />);
+
+      await waitFor(() =>
+        expect(getLatestCatalogSyncJob).toHaveBeenCalledWith(21),
+      );
+      expect(screen.queryByText('กำลังซิงก์ข้อมูลกลาง')).toBeNull();
+      expect(screen.queryByText('ซิงก์ข้อมูลกลางสำเร็จ')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'ลองใหม่' })).toBeNull();
+    },
+  );
+
+  it('advances sync progress one branch at a time when the server completes two branches together', async () => {
+    vi.mocked(getLatestCatalogSyncJob).mockResolvedValueOnce({
+      id: 19,
+      templateId: 21,
+      status: 'processing',
+      totalBranches: 2,
+      completedBranches: 0,
+      failedBranches: 0,
+      branches: [],
+    });
+    vi.mocked(getCatalogSyncJob).mockResolvedValueOnce({
+      id: 19,
+      templateId: 21,
+      status: 'completed',
+      totalBranches: 2,
+      completedBranches: 2,
+      failedBranches: 0,
+      branches: [],
+    });
+
+    render(<AdminCentralCatalogPage section="branches" />);
+
+    expect(await screen.findByText(/0\/2\s*สาขา/)).toBeTruthy();
+    expect(
+      await screen.findByText(/1\/2\s*สาขา/, {}, { timeout: 4_000 }),
+    ).toBeTruthy();
+    expect(await screen.findByText(/2\/2\s*สาขา/)).toBeTruthy();
+    expect(getCatalogSyncJob).toHaveBeenCalledWith(21, 19);
   });
 
   it('opens an impact overlay without starting a sync', async () => {
@@ -630,8 +759,8 @@ describe('AdminCentralCatalogPage', () => {
     await screen.findByRole('button', { name: 'เปิดข้อมูลกลาง' });
 
     fireEvent.click(screen.getByRole('button', { name: 'เปิดข้อมูลกลาง' }));
-    expect(await screen.findByText('รายการเมนูจากข้อมูลกลาง')).toBeTruthy();
     await screen.findByRole('button', { name: 'ดูผลกระทบ' });
+    expect(screen.queryByText('รายการเมนูจากข้อมูลกลาง')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'ดูผลกระทบ' }));
 

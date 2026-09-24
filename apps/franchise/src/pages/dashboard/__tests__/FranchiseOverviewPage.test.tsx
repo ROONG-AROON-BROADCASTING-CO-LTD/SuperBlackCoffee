@@ -117,4 +117,30 @@ describe('FranchiseOverviewPage', () => {
       }),
     ).toBeTruthy();
   });
+
+  it('excludes cost-only recipe inputs from branch stock totals and alerts', async () => {
+    api.listInventory.mockImplementation((kind: string) =>
+      Promise.resolve(
+        kind === 'ingredient'
+          ? [
+              { id: 1, status: 'ready', trackStock: true },
+              { id: 2, status: 'cost_only', trackStock: false },
+            ]
+          : [{ id: 3, status: 'ready' }],
+      ),
+    );
+
+    renderPage();
+
+    expect(await screen.findAllByText('1/1 พร้อมใช้งาน')).toHaveLength(2);
+    expect(
+      screen.getByRole('button', {
+        name: /วัตถุดิบใกล้หมด\/หมด\s*0 รายการ/u,
+      }),
+    ).toBeTruthy();
+    expect(api.listInventory).toHaveBeenCalledWith(
+      'ingredient',
+      'FR-SUP-001-M',
+    );
+  });
 });

@@ -11,6 +11,7 @@ import (
 	"y/internal/cache"
 	"y/internal/config"
 	"y/internal/database"
+	"y/internal/handler"
 	"y/internal/router"
 )
 
@@ -42,6 +43,9 @@ func main() {
 	if redisCache != nil {
 		defer redisCache.Close()
 	}
+	workerCtx, stopWorker := context.WithCancel(context.Background())
+	defer stopWorker()
+	handler.RunCatalogSyncWorker(workerCtx, db, redisCache)
 	r := router.New(db, redisCache)
 	server := &http.Server{Addr: ":" + port, Handler: r}
 	go func() {
@@ -54,6 +58,7 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	<-signals
+	stopWorker()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = server.Shutdown(ctx)

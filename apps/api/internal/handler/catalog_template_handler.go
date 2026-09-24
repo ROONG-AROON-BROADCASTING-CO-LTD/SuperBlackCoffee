@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -697,18 +698,10 @@ func (h *PlatformHandler) SyncCatalogTemplate(c *gin.Context) {
 	}
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเริ่มกระจายแม่แบบกลางได้"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างงานซิงก์ได้"})
 		return
 	}
 	defer tx.Rollback()
-	if _, err := catalogTemplateSummaryTx(c.Request.Context(), tx, templateID); err == sql.ErrNoRows {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบแม่แบบกลาง"})
-		return
-	} else if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านแม่แบบกลางได้"})
-		return
-	}
-
 	branchIDs := make([]int64, 0)
 	if len(input.BranchIDs) == 0 {
 		rows, err := tx.QueryContext(c.Request.Context(), `SELECT branch_id FROM branch_catalog_template_assignments WHERE template_id=$1 ORDER BY branch_id`, templateID)
@@ -742,40 +735,63 @@ func (h *PlatformHandler) SyncCatalogTemplate(c *gin.Context) {
 				continue
 			}
 			seen[branchID] = struct{}{}
-			var assigned bool
-			if err := tx.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM branch_catalog_template_assignments WHERE branch_id=$1 AND template_id=$2)`, branchID, templateID).Scan(&assigned); err != nil || !assigned {
-				c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "พบสาขาที่ไม่ได้ใช้แม่แบบที่เลือก"})
-				return
-			}
 			branchIDs = append(branchIDs, branchID)
 		}
+		encoded, _ := json.Marshal(branchIDs)
+		var assignedCount int
+		if err := tx.QueryRowContext(c.Request.Context(), `
+			SELECT COUNT(*) FROM branch_catalog_template_assignments
+			WHERE template_id=$1 AND branch_id IN
+			  (SELECT value::bigint FROM jsonb_array_elements_text($2::jsonb))`, templateID, string(encoded)).Scan(&assignedCount); err != nil || assignedCount != len(branchIDs) {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "พบสาขาที่ไม่ได้ใช้แม่แบบที่เลือก"})
+			return
+		}
 	}
-
-	actorID := middleware.ClaimsFrom(c).UserID
-	for _, branchID := range branchIDs {
-		if err := syncCatalogTemplateToBranchTx(c.Request.Context(), tx, templateID, branchID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถกระจายแม่แบบกลางได้"})
+	if len(branchIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ยังไม่มีสาขาที่ต้องซิงก์"})
+		return
+	}
+	var jobID int64
+	err = tx.QueryRowContext(c.Request.Context(), `
+		INSERT INTO catalog_sync_jobs(template_id,actor_id,total_branches)
+		VALUES($1,$2,$3)
+		ON CONFLICT (template_id) WHERE status IN ('pending','processing') DO NOTHING
+		RETURNING id`, templateID, middleware.ClaimsFrom(c).UserID, len(branchIDs)).Scan(&jobID)
+	if err == sql.ErrNoRows {
+		_ = tx.Rollback()
+		if err := h.db.QueryRowContext(c.Request.Context(), `SELECT id FROM catalog_sync_jobs WHERE template_id=$1 AND status IN ('pending','processing') ORDER BY id DESC LIMIT 1`, templateID).Scan(&jobID); err != nil {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": "มีงานซิงก์กำลังทำงานอยู่ กรุณาลองใหม่"})
 			return
 		}
-		if _, err := tx.ExecContext(c.Request.Context(), `INSERT INTO catalog_template_sync_events(template_id,branch_id,actor_id,reason) VALUES($1,$2,$3,'manual')`, templateID, branchID, actorID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติการกระจายแม่แบบได้"})
+		job, err := readCatalogSyncJob(c.Request.Context(), h.db, templateID, jobID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านสถานะงานซิงก์ได้"})
 			return
 		}
+		c.JSON(http.StatusAccepted, gin.H{"success": true, "data": job})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างงานซิงก์ได้"})
+		return
+	}
+	encoded, _ := json.Marshal(branchIDs)
+	if _, err := tx.ExecContext(c.Request.Context(), `
+		INSERT INTO catalog_sync_job_branches(job_id,branch_id)
+		SELECT $1,value::bigint FROM jsonb_array_elements_text($2::jsonb)`, jobID, string(encoded)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเพิ่มสาขาในงานซิงก์ได้"})
+		return
 	}
 	if err := tx.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถยืนยันการกระจายแม่แบบกลางได้"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถยืนยันงานซิงก์ได้"})
 		return
 	}
-	for _, branchID := range branchIDs {
-		h.invalidateBranchCache(c, branchID)
-	}
-	h.invalidateMenuSummaryCache(c)
-	summary, err := catalogTemplateSummaryTx(c.Request.Context(), h.db, templateID)
+	job, err := readCatalogSyncJob(c.Request.Context(), h.db, templateID, jobID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "กระจายแม่แบบแล้ว แต่ไม่สามารถอ่านผลลัพธ์ได้"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "สร้างงานซิงก์แล้ว แต่ไม่สามารถอ่านสถานะได้"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"syncedBranches": len(branchIDs), "template": summary}})
+	c.JSON(http.StatusAccepted, gin.H{"success": true, "data": job})
 }
 
 // SetCatalogTemplateException provides a deliberate escape hatch for a

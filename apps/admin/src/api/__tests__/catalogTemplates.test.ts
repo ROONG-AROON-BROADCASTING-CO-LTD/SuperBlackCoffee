@@ -9,10 +9,13 @@ import {
   createCatalogTemplateMenuItem,
   getCatalogTemplate,
   getCatalogTemplateImpact,
+  getCatalogSyncJob,
+  getLatestCatalogSyncJob,
   listCatalogTemplates,
   listBranchCatalogSelections,
   setBranchCatalogSelection,
   replaceCatalogTemplateMenuRecipes,
+  retryCatalogSyncJob,
   retireCatalogTemplateInventoryItem,
   retireCatalogTemplateMenuItem,
   syncCatalogTemplate,
@@ -34,7 +37,7 @@ describe('admin central catalog API', () => {
     secured
       .mockResolvedValueOnce({ id: 7 })
       .mockResolvedValueOnce({ count: 2, branches: [] })
-      .mockResolvedValueOnce({ syncedBranches: 2 });
+      .mockResolvedValueOnce({ id: 9, status: 'pending' });
 
     await getCatalogTemplate(7);
     await getCatalogTemplateImpact(7);
@@ -46,6 +49,26 @@ describe('admin central catalog API', () => {
       method: 'POST',
       data: { branchIds: [11, 12] },
     });
+  });
+
+  it('reads job progress and retries only failed branches', async () => {
+    secured.mockResolvedValue(null);
+    await getLatestCatalogSyncJob(7);
+    await getCatalogSyncJob(7, 9);
+    await retryCatalogSyncJob(7, 9);
+    expect(secured).toHaveBeenNthCalledWith(
+      1,
+      '/catalog-templates/7/sync-jobs/latest',
+    );
+    expect(secured).toHaveBeenNthCalledWith(
+      2,
+      '/catalog-templates/7/sync-jobs/9',
+    );
+    expect(secured).toHaveBeenNthCalledWith(
+      3,
+      '/catalog-templates/7/sync-jobs/9/retry',
+      { method: 'POST' },
+    );
   });
 
   it('keeps central edits scoped to a single template item before an explicit sync', async () => {

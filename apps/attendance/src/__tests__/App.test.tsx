@@ -418,6 +418,33 @@ describe('Attendance App session', () => {
     expect(logoutAttendance).toHaveBeenCalledOnce();
   });
 
+  it('ends the local session when checkout is forbidden after the session changes', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: true,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkOut).mockRejectedValueOnce(
+      new ApiRequestError('เซสชันใช้งานไม่ได้', 403),
+    );
+
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+
+    expect(await screen.findByText('attendance-login')).toBeTruthy();
+    expect(checkOut).toHaveBeenCalledOnce();
+    expect(checkIn).not.toHaveBeenCalled();
+    expect(logoutAttendance).toHaveBeenCalledOnce();
+  });
+
   it('keeps the staff session and attendance action available when check-in has a recoverable error', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',
@@ -459,6 +486,7 @@ describe('Attendance App session', () => {
   });
 
   it('keeps the session and reloads attendance data when the connection returns', async () => {
+    const onlineListenerSpy = vi.spyOn(window, 'addEventListener');
     vi.mocked(getAttendanceStatus)
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({
@@ -477,6 +505,12 @@ describe('Attendance App session', () => {
         'true',
       ),
     );
+    await waitFor(() =>
+      expect(onlineListenerSpy).toHaveBeenCalledWith(
+        'online',
+        expect.any(Function),
+      ),
+    );
 
     fireEvent(window, new Event('online'));
 
@@ -489,5 +523,6 @@ describe('Attendance App session', () => {
         'false',
       );
     });
+    onlineListenerSpy.mockRestore();
   });
 });

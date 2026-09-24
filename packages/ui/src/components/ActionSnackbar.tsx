@@ -20,14 +20,20 @@ export function ActionSnackbar({
   topOnTablet = true,
   autoHideDuration = 3_500,
   action,
+  icon,
+  content,
   desktopSx,
+  alertSx,
 }: {
   notice: ActionNotice | null;
   onClose: () => void;
   topOnTablet?: boolean;
   autoHideDuration?: number | null;
   action?: ReactNode;
+  icon?: ReactNode;
+  content?: ReactNode;
   desktopSx?: Record<string, string | number | undefined>;
+  alertSx?: Record<string, unknown>;
 }) {
   const [displayedNotice, setDisplayedNotice] = useState<ActionNotice | null>(
     notice,
@@ -48,7 +54,6 @@ export function ActionSnackbar({
 
   return (
     <Snackbar
-      key={activeNotice?.message ?? 'action-notice'}
       open={notice !== null}
       autoHideDuration={autoHideDuration}
       anchorOrigin={snackbarAnchorOrigin(showBelowTopbar)}
@@ -70,20 +75,22 @@ export function ActionSnackbar({
         variant="filled"
         severity={severity}
         icon={
-          isSuccess ? (
+          icon ??
+          (isSuccess ? (
             <CircleCheckIcon animate={shouldAnimateIcon} />
           ) : (
             <BadgeAlertIcon animate={shouldAnimateIcon} />
-          )
+          ))
         }
         action={action}
         sx={{
           fontFamily: 'Kanit, sans-serif',
           fontWeight: 500,
           fontSize: '14px',
+          ...alertSx,
         }}
       >
-        {activeNotice?.message}
+        {content ?? activeNotice?.message}
       </Alert>
     </Snackbar>
   );

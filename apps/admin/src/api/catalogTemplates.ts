@@ -68,9 +68,20 @@ export type CatalogTemplateImpact = {
   count: number;
 };
 
-export type CatalogTemplateSyncResult = {
-  syncedBranches: number;
-  template: CatalogTemplateSummary;
+export type CatalogSyncJob = {
+  id: number;
+  templateId: number;
+  status: 'pending' | 'processing' | 'completed' | 'partial_failed' | 'failed';
+  totalBranches: number;
+  completedBranches: number;
+  failedBranches: number;
+  branches: {
+    branchId: number;
+    branchName: string;
+    status: 'failed';
+    attempts: number;
+    error: string;
+  }[];
 };
 
 export type CatalogTemplateInventoryPatch = {
@@ -140,10 +151,26 @@ export const getCatalogTemplateImpact = (templateId: number) =>
   secured<CatalogTemplateImpact>(`${templatePath(templateId)}/impact`);
 
 export const syncCatalogTemplate = (templateId: number, branchIds?: number[]) =>
-  secured<CatalogTemplateSyncResult>(`${templatePath(templateId)}/sync`, {
+  secured<CatalogSyncJob>(`${templatePath(templateId)}/sync`, {
     method: 'POST',
     data: branchIds?.length ? { branchIds } : {},
   });
+
+export const getLatestCatalogSyncJob = (templateId: number) =>
+  secured<CatalogSyncJob | null>(
+    `${templatePath(templateId)}/sync-jobs/latest`,
+  );
+
+export const getCatalogSyncJob = (templateId: number, jobId: number) =>
+  secured<CatalogSyncJob>(`${templatePath(templateId)}/sync-jobs/${jobId}`);
+
+export const retryCatalogSyncJob = (templateId: number, jobId: number) =>
+  secured<CatalogSyncJob>(
+    `${templatePath(templateId)}/sync-jobs/${jobId}/retry`,
+    {
+      method: 'POST',
+    },
+  );
 
 export const updateCatalogTemplateInventoryItem = (
   templateId: number,

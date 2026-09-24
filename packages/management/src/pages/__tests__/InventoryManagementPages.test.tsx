@@ -600,8 +600,14 @@ describe('inventory management pages', () => {
     );
     renderPage(<IngredientsManagementPage activeBranch="ทุกสาขา" />);
 
+    const phitsanulokSection = document.querySelector(
+      '[data-branch="พิษณุโลก"]',
+    );
+    expect(phitsanulokSection).not.toBeNull();
     fireEvent.click(
-      await screen.findByRole('button', { name: 'แก้ไขวัตถุดิบ' }),
+      await within(phitsanulokSection as HTMLElement).findByRole('button', {
+        name: 'แก้ไขวัตถุดิบ',
+      }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
 

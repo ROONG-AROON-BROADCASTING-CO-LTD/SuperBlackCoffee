@@ -78,3 +78,36 @@ func TestCreateLeaveRequestRejectsInvalidInputBeforeStorage(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateLeaveRequestStatusRejectsInvalidInputBeforeStorage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name        string
+		id          string
+		body        string
+		wantMessage string
+	}{
+		{name: "malformed JSON", id: "12", body: "{", wantMessage: "สถานะคำขอลาไม่ถูกต้อง"},
+		{name: "unsupported status", id: "12", body: `{"status":"pending"}`, wantMessage: "สถานะคำขอลาไม่ถูกต้อง"},
+		{name: "missing status", id: "12", body: `{}`, wantMessage: "สถานะคำขอลาไม่ถูกต้อง"},
+		{name: "non-numeric id", id: "abc", body: `{"status":"approved"}`, wantMessage: "รหัสคำขอลาไม่ถูกต้อง"},
+		{name: "zero id", id: "0", body: `{"status":"approved"}`, wantMessage: "รหัสคำขอลาไม่ถูกต้อง"},
+		{name: "negative id", id: "-4", body: `{"status":"rejected"}`, wantMessage: "รหัสคำขอลาไม่ถูกต้อง"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(response)
+			context.Request = httptest.NewRequest(http.MethodPatch, "/attendance/leave-requests/"+test.id, strings.NewReader(test.body))
+			context.Request.Header.Set("Content-Type", "application/json")
+			context.Params = gin.Params{{Key: "id", Value: test.id}}
+			context.Set("claims", &middleware.Claims{Role: "admin"})
+
+			(&PlatformHandler{}).UpdateLeaveRequestStatus(context)
+
+			if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), test.wantMessage) {
+				t.Fatalf("status = %d, body = %q; want 400 with %q", response.Code, response.Body.String(), test.wantMessage)
+			}
+		})
+	}
+}
