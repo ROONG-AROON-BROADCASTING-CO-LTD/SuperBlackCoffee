@@ -669,6 +669,10 @@ export function DashboardSidebar({
       <Box
         sx={{
           mt: 'auto',
+          // Match the navigation list's extra reach into the drawer padding.
+          // This keeps the logout surface aligned with a menu row on hover.
+          width: 'calc(100% + 20px)',
+          mr: -2.5,
           px: 0,
           pt: 1.5,
           pb: 0,
