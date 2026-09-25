@@ -574,7 +574,8 @@ function SalesSummaryCard({
                 sm: 'repeat(3, minmax(0, 1fr))',
               },
               mt: 2,
-              pt: 2,
+              mx: { xs: -2, md: -2.75 },
+              mb: { xs: -2, md: -2.75 },
               borderTop: '1px solid rgba(255,255,255,.16)',
             }}
           >
@@ -587,8 +588,9 @@ function SalesSummaryCard({
                 key={label}
                 sx={{
                   minWidth: 0,
-                  px: { xs: 0, sm: 1.75 },
-                  py: { xs: index === 0 ? 0 : 1.25, sm: 0 },
+                  px: { xs: 2, sm: 1.75, md: 2.75 },
+                  pt: { xs: index === 0 ? 2 : 1.25, sm: 2 },
+                  pb: { xs: 1.25, sm: 2.5 },
                   borderTop: {
                     xs:
                       index === 0 ? 'none' : '1px solid rgba(255,255,255,.12)',
