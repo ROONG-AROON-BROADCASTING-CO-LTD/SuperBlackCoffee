@@ -1,5 +1,6 @@
 export const adminPagePaths = {
-  ภาพรวม: '/',
+  'ภาพรวมสาขา SBC': '/',
+  ภาพรวมแฟรนไชส์: '/franchise-overview',
   คำสั่งซื้อ: '/orders',
   โปรโมชั่น: '/promotions',
   สินค้าและคลังกลาง: '/central-catalog',
@@ -33,6 +34,6 @@ export function adminPageFromPath(pathname: string): AdminPage {
   return (
     (Object.entries(adminPagePaths).find(
       ([, path]) => path === normalizedPath,
-    )?.[0] as AdminPage | undefined) ?? 'ภาพรวม'
+    )?.[0] as AdminPage | undefined) ?? 'ภาพรวมสาขา SBC'
   );
 }

@@ -76,6 +76,9 @@ func (h *PlatformHandler) ListAuditEvents(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านรายละเอียดประวัติได้"})
 			return
 		}
+		if eventMetadata == nil {
+			eventMetadata = make(map[string]any)
+		}
 		var stockDetails, lotDetails []any
 		if err := json.Unmarshal(stockMovements, &stockDetails); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านรายละเอียดความเคลื่อนไหวสต็อกได้"})

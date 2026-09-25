@@ -972,6 +972,38 @@ func TestAttendancePINSetupValidatesAndCannotOverwriteExistingPIN(t *testing.T) 
 	}
 }
 
+func TestStockPINSetupChallengesNewStaffAndIssuesStockSession(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "STOCK-PIN")
+	seedUser(t, db, 81, "stock-pin", "cashier", branchID, nil)
+	r := New(db, nil)
+
+	challenge := requestJSON(r, http.MethodPost, "/api/v1/stock/login", `{"username":"stock-pin"}`, "")
+	if challenge.Code != http.StatusOK || !strings.Contains(challenge.Body.String(), `"requiresPINSetup":true`) || len(challenge.Result().Cookies()) != 0 {
+		t.Fatalf("stock PIN setup challenge = %d: %s", challenge.Code, challenge.Body.String())
+	}
+	setup := requestJSON(r, http.MethodPost, "/api/v1/stock/setup-pin", `{"username":"stock-pin","pin":"123456"}`, "")
+	if setup.Code != http.StatusOK || strings.Contains(setup.Body.String(), "accessToken") {
+		t.Fatalf("stock PIN setup = %d: %s", setup.Code, setup.Body.String())
+	}
+	cookies := setup.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "sbc_stock_session" || !cookies[0].HttpOnly {
+		t.Fatalf("stock PIN setup did not issue an HttpOnly session cookie: %#v", cookies)
+	}
+	repeated := requestJSON(r, http.MethodPost, "/api/v1/stock/setup-pin", `{"username":"stock-pin","pin":"654321"}`, "")
+	if repeated.Code != http.StatusConflict {
+		t.Fatalf("repeated stock PIN setup = %d: %s", repeated.Code, repeated.Body.String())
+	}
+	login := requestJSON(r, http.MethodPost, "/api/v1/stock/login", `{"username":"stock-pin","pin":"123456"}`, "")
+	if login.Code != http.StatusOK {
+		t.Fatalf("stock PIN login = %d: %s", login.Code, login.Body.String())
+	}
+}
+
 func TestAttendancePINLoginRateLimitResetsAfterSuccessfulLogin(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {

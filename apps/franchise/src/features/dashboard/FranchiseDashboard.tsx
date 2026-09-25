@@ -149,6 +149,7 @@ export function FranchiseDashboard({
             branchCodes={{ [branchName]: branchCode }}
             franchisePlan={plan}
             readOnly
+            cardColumns={5}
           />
         ) : activePage === 'วัตถุดิบ' || activePage === 'วัตถุดิบของสด' ? (
           <IngredientsManagementPage
@@ -157,6 +158,7 @@ export function FranchiseDashboard({
             franchisePlan={plan}
             readOnly
             allowOrdering
+            cardColumns={5}
             ingredientScope={
               activePage === 'วัตถุดิบของสด' ? 'fresh' : 'regular'
             }
@@ -174,6 +176,7 @@ export function FranchiseDashboard({
             branchCodes={{ [branchName]: branchCode }}
             readOnly
             allowOrdering
+            cardColumns={5}
             stockCategory="drink_equipment"
             stockLabel="สต๊อกอุปกรณ์เครื่องดื่ม"
             onRequestCreated={() => navigate('คำขอวัตถุดิบ')}

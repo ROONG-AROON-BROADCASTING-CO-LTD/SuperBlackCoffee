@@ -13,19 +13,18 @@ import (
 	"y/internal/middleware"
 )
 
-// StockLogin starts a dedicated stock-taking session for a branch employee.
-// It intentionally uses its own cookie so opening the stock app never logs the
-// employee out of the attendance app.
+// StockLogin checks whether the employee needs to create a PIN or authenticate
+// with an existing PIN before starting the dedicated stock-taking session.
 func (h *PlatformHandler) StockLogin(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
 	var input attendanceLoginInput
-	if c.ShouldBindJSON(&input) != nil || strings.TrimSpace(input.Username) == "" || input.PIN == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ต้องระบุชื่อผู้ใช้และ PIN"})
+	if c.ShouldBindJSON(&input) != nil || strings.TrimSpace(input.Username) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ต้องระบุชื่อผู้ใช้"})
 		return
 	}
-	if len(input.PIN) != 6 {
+	if input.PIN != "" && len(input.PIN) != 6 {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
 		return
 	}
@@ -38,12 +37,62 @@ func (h *PlatformHandler) StockLogin(c *gin.Context) {
 		SELECT u.id,u.name,u.role,u.branch_id,b.name,b.franchisee_id IS NOT NULL,u.attendance_pin_hash
 		FROM users u JOIN branches b ON b.id=u.branch_id
 		WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &isFranchise, &pinHash)
-	if err == sql.ErrNoRows || pinHash == nil || *pinHash == "" || bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(input.PIN)) != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง"})
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเข้าสู่ระบบได้"})
+		return
+	}
+	if pinHash == nil || *pinHash == "" {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"requiresPINSetup": true, "user": gin.H{"name": name}}})
+		return
+	}
+	if input.PIN == "" {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"requiresPIN": true, "user": gin.H{"name": name}}})
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(input.PIN)) != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ชื่อผู้ใช้หรือ PIN ไม่ถูกต้อง"})
+		return
+	}
+	h.respondStockSession(c, userID, branchID, name, role, branchName, isFranchise)
+}
+
+// SetupStockPIN stores a first-time PIN and immediately issues the stock
+// session cookie, so new staff can continue directly into stock operations.
+func (h *PlatformHandler) SetupStockPIN(c *gin.Context) {
+	var input attendanceLoginInput
+	if c.ShouldBindJSON(&input) != nil || strings.TrimSpace(input.Username) == "" || len(input.PIN) != 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
+		return
+	}
+	for _, value := range input.PIN {
+		if value < '0' || value > '9' {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
+			return
+		}
+	}
+	var userID, branchID int64
+	var name, role, branchName string
+	var isFranchise bool
+	var existing *string
+	err := h.db.QueryRowContext(c.Request.Context(), `
+		SELECT u.id,u.name,u.role,u.branch_id,b.name,b.franchisee_id IS NOT NULL,u.attendance_pin_hash
+		FROM users u JOIN branches b ON b.id=u.branch_id
+		WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &isFranchise, &existing)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
+		return
+	}
+	if existing != nil && *existing != "" {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ตั้ง PIN แล้ว กรุณาเข้าสู่ระบบด้วย PIN"})
+		return
+	}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(input.PIN), bcrypt.DefaultCost)
+	if _, err = h.db.ExecContext(c.Request.Context(), `UPDATE users SET attendance_pin_hash=$1 WHERE id=$2`, string(hash), userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตั้ง PIN ได้"})
 		return
 	}
 	h.respondStockSession(c, userID, branchID, name, role, branchName, isFranchise)

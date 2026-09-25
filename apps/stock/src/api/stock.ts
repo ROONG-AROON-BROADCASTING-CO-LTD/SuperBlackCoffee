@@ -11,6 +11,21 @@ export type StockSession = {
   };
 };
 
+export type StockPINChallenge = {
+  requiresPIN?: true;
+  requiresPINSetup?: true;
+  user: { name: string };
+};
+
+export type StockLoginResult = StockSession | StockPINChallenge;
+
+export const isStockSession = (
+  result: StockLoginResult,
+): result is StockSession =>
+  'id' in result.user &&
+  'branchId' in result.user &&
+  'branchName' in result.user;
+
 export type InventoryItem = {
   id: number;
   name: string;
@@ -69,8 +84,13 @@ export type MenuItem = {
   linemanIngredients?: MenuItem['ingredients'];
 };
 
-export const loginStock = (username: string, pin: string) =>
-  request<StockSession>('/stock/login', {
+export const loginStock = (username: string, pin = '') =>
+  request<StockLoginResult>('/stock/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, pin }),
+  });
+export const setupStockPIN = (username: string, pin: string) =>
+  request<StockSession>('/stock/setup-pin', {
     method: 'POST',
     body: JSON.stringify({ username, pin }),
   });

@@ -47,7 +47,7 @@ func TestInspectionPDFDownloadFilenameIncludesWorkAndBranchIdentity(t *testing.T
 		BranchName: "พิษณุโลก",
 		BranchCode: "SBC-PLK-001",
 	})
-	const want = "ใบงานตรวจช่าง_งานที่-17_สาขา-พิษณุโลก_SBC-PLK-001.pdf"
+	const want = "ใบงานตรวจสภาพอุปกรณ์_งานที่-17_สาขา-พิษณุโลก_SBC-PLK-001.pdf"
 	if got != want {
 		t.Fatalf("filename = %q, want %q", got, want)
 	}
@@ -150,7 +150,44 @@ func TestIngredientInspectionChecklistIsSeparateAndActionable(t *testing.T) {
 	if got := inspectionTypeFromChecklist(ingredientInspectionChecklist); got != "ingredients" {
 		t.Fatalf("ingredient checklist type = %q", got)
 	}
-	if got := inspectionPDFTitle(ingredientInspectionChecklist); got != "ใบงานสุ่มตรวจวัตถุดิบ" {
+	if got := inspectionPDFTitle(ingredientInspectionChecklist); got != "ใบงานตรวจคุณภาพวัตถุดิบ" {
 		t.Fatalf("ingredient PDF title = %q", got)
+	}
+}
+
+func TestCafeStandardInspectionChecklistReflectsCoffeeShopServiceAreas(t *testing.T) {
+	groups := groupInspectionChecklist(cafeStandardInspectionChecklist)
+	minimumItems := map[string]int{
+		"พื้นที่ภายนอกร้าน:":          6,
+		"พื้นที่ภายในร้านและบริการ:":  6,
+		"โซนบาร์และสุขอนามัย:":        4,
+		"การจัดการขยะและความปลอดภัย:": 3,
+	}
+	for area, minimum := range minimumItems {
+		if len(groups[area]) < minimum {
+			t.Fatalf("%s must contain at least %d actionable checks, got %d", area, minimum, len(groups[area]))
+		}
+	}
+	items := strings.Join(cafeStandardInspectionChecklist, "\n")
+	for _, expected := range []string{"เมนูหน้าร้าน", "ระบบขายหน้าร้าน", "เครื่องชงกาแฟ", "ห้องน้ำลูกค้า", "แยกขยะ"} {
+		if !strings.Contains(items, expected) {
+			t.Fatalf("cafe standard checklist must include %q", expected)
+		}
+	}
+	if got := inspectionTypeFromChecklist(cafeStandardInspectionChecklist); got != "cafe_standard" {
+		t.Fatalf("cafe standard checklist type = %q", got)
+	}
+	if got := inspectionPDFTitle(cafeStandardInspectionChecklist); got != "ใบงานตรวจมาตรฐานและบริการร้านกาแฟ" {
+		t.Fatalf("cafe standard PDF title = %q", got)
+	}
+}
+
+func TestCafeStandardInspectionPDFCreatesSeparateWorkOrder(t *testing.T) {
+	pdf, err := inspectionPDF(inspectionPDFData{
+		ID: 3, BranchCode: "SBC-STD-001", BranchName: "สาขาทดสอบ", InspectorName: "ผู้ตรวจมาตรฐาน", Status: "scheduled",
+		Checklist: cafeStandardInspectionChecklist,
+	})
+	if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF-")) {
+		t.Fatalf("cafe standard inspectionPDF() error=%v bytes=%d", err, len(pdf))
 	}
 }

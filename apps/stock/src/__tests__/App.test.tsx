@@ -43,6 +43,8 @@ vi.mock('../api/stock', () => ({
   listInventory: vi.fn().mockResolvedValue([]),
   listMenuItems: vi.fn().mockResolvedValue([]),
   listMyStockMovements: vi.fn().mockResolvedValue([]),
+  isStockSession: (value: { user?: { id?: number } }) =>
+    typeof value.user?.id === 'number',
   loginStock: vi.fn(),
   logoutStock: vi.fn().mockResolvedValue(undefined),
   restoreStockSession: vi.fn().mockResolvedValue({
@@ -55,6 +57,7 @@ vi.mock('../api/stock', () => ({
       isFranchise: false,
     },
   }),
+  setupStockPIN: vi.fn(),
 }));
 vi.mock('../features/auth/StockLoginPage', () => ({
   StockLoginPage: () => <div>stock-login</div>,

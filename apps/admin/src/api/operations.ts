@@ -56,7 +56,7 @@ export type RandomInspection = {
   inspectorName: string;
   templateId: number;
   templateName: string;
-  inspectionType?: 'technician' | 'ingredients';
+  inspectionType?: 'technician' | 'ingredients' | 'cafe_standard';
   checklist: string[];
   dueAt: string;
 };
@@ -89,11 +89,21 @@ export const randomizeIngredientInspection = (data: {
     method: 'POST',
     data,
   });
+export const randomizeCafeStandardInspection = (data: {
+  inspectorName: string;
+  branchSize: InspectionTemplate['branchSize'];
+  dueAt: string;
+  excludeDays: number;
+}) =>
+  secured<RandomInspection>('/inspections/randomize-cafe-standard', {
+    method: 'POST',
+    data,
+  });
 export const downloadInspectionPDF = (
   id: number,
   branchName?: string,
   branchCode?: string,
-  inspectionType: 'technician' | 'ingredients' = 'technician',
+  inspectionType: 'technician' | 'ingredients' | 'cafe_standard' = 'technician',
 ) => {
   const clean = (value: string | undefined) =>
     (value ?? '').trim().replace(/[\\/:*?"<>|\s]+/g, '-');
@@ -103,8 +113,10 @@ export const downloadInspectionPDF = (
   const suffix = branch ? `_สาขา-${branch}` : '';
   const filename =
     inspectionType === 'ingredients'
-      ? 'ใบงานสุ่มตรวจวัตถุดิบ'
-      : 'ใบงานตรวจช่าง';
+      ? 'ใบงานตรวจคุณภาพวัตถุดิบ'
+      : inspectionType === 'cafe_standard'
+        ? 'ใบงานตรวจมาตรฐานและบริการร้านกาแฟ'
+        : 'ใบงานตรวจสภาพอุปกรณ์';
   return downloadSecuredPDF(
     `/inspections/${id}/pdf`,
     `${filename}_งานที่-${id}${suffix}.pdf`,

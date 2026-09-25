@@ -55,3 +55,12 @@ func TestDefaultStringUsesFallbackOnlyForWhitespace(t *testing.T) {
 		t.Fatalf("blank value = %q, want fallback", got)
 	}
 }
+
+func TestCafeStandardInspectionExcludesHeadquartersFromRandomization(t *testing.T) {
+	if got := randomInspectionBranchScope("cafe_standard"); got != " AND b.code <> 'SBC-HQ'" {
+		t.Fatalf("cafe standard branch scope = %q", got)
+	}
+	if got := randomInspectionBranchScope("technician"); got != "" {
+		t.Fatalf("technician branch scope = %q, want empty", got)
+	}
+}

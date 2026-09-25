@@ -687,8 +687,10 @@ function BestSellingMenuCard({
 
 export function AdminOverviewPage({
   onNavigate,
+  scope = 'sbc',
 }: {
   onNavigate: (page: AdminPage) => void;
+  scope?: 'sbc' | 'franchise';
 }) {
   const [selectedBranch, setSelectedBranch] = useState<Branch>('ทุกสาขา');
   const [salesPeriod, setSalesPeriod] = useState<SalesPeriod>('day');
@@ -820,8 +822,16 @@ export function AdminOverviewPage({
           }}
         >
           <PageIntro
-            title="ภาพรวมการดำเนินงานวันนี้"
-            description="ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ"
+            title={
+              scope === 'franchise'
+                ? 'ภาพรวมการดำเนินงานแฟรนไชส์วันนี้'
+                : 'ภาพรวมการดำเนินงานวันนี้'
+            }
+            description={
+              scope === 'franchise'
+                ? 'ดูยอดขายและงานที่ควรติดตามจากข้อมูลแฟรนไชส์'
+                : 'ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ'
+            }
           />
           <Typography sx={{ color: 'text.secondary', fontSize: 12.5 }}>
             อัปเดตเมื่อ {updatedAt}

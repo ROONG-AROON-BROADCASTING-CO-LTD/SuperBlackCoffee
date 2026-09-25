@@ -178,48 +178,61 @@ export function AdminOrdersPage({
       ),
     [branches],
   );
+  const headquartersBranchIds = useMemo(
+    () =>
+      new Set(
+        branches
+          .filter((branch) => branch.isHeadquarters)
+          .map((branch) => branch.id),
+      ),
+    [branches],
+  );
   const requestStates = useMemo<SupplyRequest[]>(
     () =>
-      apiRequests.map((request) => ({
-        id: `REQ-${request.id}`,
-        branch: request.branch.name as Exclude<Branch, 'ทุกสาขา'>,
-        source:
-          request.branch.isFranchise ||
-          franchiseBranchIds.has(request.branch.id)
-            ? 'franchise'
-            : 'sbc',
-        type: 'วัตถุดิบ',
-        items: request.items.map((item) => ({
-          name: item.name,
-          quantity: `${item.quantity} ${item.unit}`,
+      apiRequests
+        .filter((request) => !headquartersBranchIds.has(request.branch.id))
+        .map((request) => ({
+          id: `REQ-${request.id}`,
+          branch: request.branch.name as Exclude<Branch, 'ทุกสาขา'>,
+          source:
+            request.branch.isFranchise ||
+            franchiseBranchIds.has(request.branch.id)
+              ? 'franchise'
+              : 'sbc',
+          type: 'วัตถุดิบ',
+          items: request.items.map((item) => ({
+            name: item.name,
+            quantity: `${item.quantity} ${item.unit}`,
+          })),
+          requestedAt: formatDate(request.createdAt),
+          status: request.status,
+          kind: 'stock' as const,
         })),
-        requestedAt: formatDate(request.createdAt),
-        status: request.status,
-        kind: 'stock' as const,
-      })),
-    [apiRequests, franchiseBranchIds],
+    [apiRequests, franchiseBranchIds, headquartersBranchIds],
   );
   const expenseStates = useMemo<SupplyRequest[]>(
     () =>
-      apiExpenses.map((request) => ({
-        id: `EXP-${request.id}`,
-        branch: request.branch.name as Exclude<Branch, 'ทุกสาขา'>,
-        source: 'sbc' as const,
-        type: expenseCategoryLabels[request.category],
-        items: [
-          {
-            name: request.title,
-            quantity: `${request.estimatedAmount.toLocaleString('th-TH')} บาท`,
-          },
-        ],
-        requestedAt: formatDate(request.createdAt),
-        status: request.status,
-        kind: 'expense' as const,
-        note: request.note,
-        requester: request.requestedByName,
-        estimatedAmount: request.estimatedAmount,
-      })),
-    [apiExpenses],
+      apiExpenses
+        .filter((request) => !headquartersBranchIds.has(request.branch.id))
+        .map((request) => ({
+          id: `EXP-${request.id}`,
+          branch: request.branch.name as Exclude<Branch, 'ทุกสาขา'>,
+          source: 'sbc' as const,
+          type: expenseCategoryLabels[request.category],
+          items: [
+            {
+              name: request.title,
+              quantity: `${request.estimatedAmount.toLocaleString('th-TH')} บาท`,
+            },
+          ],
+          requestedAt: formatDate(request.createdAt),
+          status: request.status,
+          kind: 'expense' as const,
+          note: request.note,
+          requester: request.requestedByName,
+          estimatedAmount: request.estimatedAmount,
+        })),
+    [apiExpenses, headquartersBranchIds],
   );
   const visibleRequestStates =
     selectedTab === 'expense' ? expenseStates : requestStates;

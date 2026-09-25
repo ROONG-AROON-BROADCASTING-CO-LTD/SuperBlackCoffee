@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -6,7 +6,6 @@ import {
   Card,
   CardActions,
   CardContent,
-  Chip,
   Divider,
   Drawer,
   MenuItem,
@@ -17,12 +16,17 @@ import {
   ActionSnackbar,
   DashboardMain,
   DeleteItemButton,
+  FilterPill,
   PlusIcon,
+  SearchField,
   XIcon,
   useMinimumLoading,
   type PlusIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
+import documentExcelIcon from '../assets/document-excel.svg';
+import documentPdfIcon from '../assets/document-pdf.svg';
+import documentWordIcon from '../assets/document-word.svg';
 import {
   createCompanyDocument,
   deleteCompanyDocument,
@@ -60,6 +64,28 @@ export function CompanyDocumentsPage({
   const [title, setTitle] = useState('');
   const [category, setCategory] =
     useState<CompanyDocument['category']>('other');
+  const [query, setQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<
+    CompanyDocument['category'] | 'all'
+  >('all');
+  const [deleteTarget, setDeleteTarget] = useState<CompanyDocument | null>(
+    null,
+  );
+
+  const visibleDocuments = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('th-TH');
+    return documents.filter((document) => {
+      const matchesCategory =
+        categoryFilter === 'all' || document.category === categoryFilter;
+      const matchesQuery =
+        !normalizedQuery ||
+        [document.title, document.fileName, categoryLabel[document.category]]
+          .join(' ')
+          .toLocaleLowerCase('th-TH')
+          .includes(normalizedQuery);
+      return matchesCategory && matchesQuery;
+    });
+  }, [categoryFilter, documents, query]);
 
   const load = async () => {
     setLoading(true);
@@ -102,15 +128,37 @@ export function CompanyDocumentsPage({
     }
   };
   const remove = async (document: CompanyDocument) => {
-    if (!window.confirm(`ลบ “${document.title}” ใช่หรือไม่`)) return;
     try {
       await deleteCompanyDocument(document.id);
       setDocuments((items) => items.filter((item) => item.id !== document.id));
+      setDeleteTarget(null);
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : 'ไม่สามารถลบเอกสารได้',
       );
     }
+  };
+  const documentExtension = (document: CompanyDocument) => {
+    const extension = document.fileName.split('.').pop()?.toUpperCase();
+    return extension && extension.length <= 5 ? extension : 'FILE';
+  };
+  const typeColor = (document: CompanyDocument) => {
+    const extension = documentExtension(document);
+    if (extension === 'PDF') return { bg: '#fff0ef', text: '#ba2d24' };
+    if (['XLS', 'XLSX', 'CSV'].includes(extension)) {
+      return { bg: '#edf8f0', text: '#287748' };
+    }
+    if (['DOC', 'DOCX'].includes(extension)) {
+      return { bg: '#eef4ff', text: '#3266ae' };
+    }
+    return { bg: '#f7eee8', text: '#805637' };
+  };
+  const documentIcon = (document: CompanyDocument) => {
+    const extension = documentExtension(document);
+    if (extension === 'PDF') return documentPdfIcon;
+    if (['XLS', 'XLSX', 'CSV'].includes(extension)) return documentExcelIcon;
+    if (['DOC', 'DOCX'].includes(extension)) return documentWordIcon;
+    return null;
   };
   return (
     <DashboardMain>
@@ -171,70 +219,371 @@ export function CompanyDocumentsPage({
         {showSkeleton ? (
           <CompanyDocumentsSkeleton />
         ) : documents.length === 0 ? (
-          <Alert severity="info">ยังไม่มีเอกสารส่วนกลาง</Alert>
+          <Alert severity="info" sx={{ borderRadius: '14px' }}>
+            ยังไม่มีเอกสารส่วนกลาง
+          </Alert>
         ) : (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(235px, 1fr))',
-              gap: 2,
-            }}
-          >
-            {documents.map((document) => (
-              <Card
-                key={document.id}
-                variant="outlined"
+          <Box>
+            <Box
+              sx={{
+                alignItems: { xs: 'stretch', md: 'center' },
+                bgcolor: '#fbf8f5',
+                border: '1px solid #eee5df',
+                borderRadius: '16px',
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: 2,
+                justifyContent: 'space-between',
+                mb: 2,
+                px: { xs: 2, sm: 2.5 },
+                py: 2,
+              }}
+            >
+              <Box sx={{ alignItems: 'center', display: 'flex', gap: 1.5 }}>
+                <Box
+                  sx={{
+                    alignItems: 'center',
+                    bgcolor: '#f1e6dd',
+                    borderRadius: '12px',
+                    color: '#805637',
+                    display: 'flex',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    height: 44,
+                    justifyContent: 'center',
+                    width: 44,
+                  }}
+                >
+                  DOC
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 13 }}
+                  >
+                    เอกสารทั้งหมด
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: '#3c2d24',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 24,
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {documents.length} ไฟล์
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography
                 sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: 210,
-                  borderRadius: '15px',
-                  borderColor: '#e8ddd5',
+                  alignSelf: { xs: 'auto', md: 'center' },
+                  color: 'text.secondary',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 13,
                 }}
               >
-                <CardContent sx={{ flex: 1 }}>
-                  <Chip
-                    label={categoryLabel[document.category]}
-                    size="small"
-                    sx={{ mb: 1.5 }}
-                  />
-                  <Typography
-                    sx={{ fontWeight: 700, fontSize: 18, lineHeight: 1.35 }}
+                {readOnly
+                  ? 'เลือกเอกสารที่ต้องการ แล้วดาวน์โหลดไปใช้งาน'
+                  : 'จัดการเอกสารที่ทีมงานและแฟรนไชส์ใช้ร่วมกัน'}
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                alignItems: { xs: 'stretch', lg: 'center' },
+                display: 'flex',
+                flexDirection: { xs: 'column', lg: 'row' },
+                gap: 1.25,
+                mb: 2,
+              }}
+            >
+              <SearchField
+                placeholder="ค้นหาชื่อเอกสาร ชื่อไฟล์ หรือประเภทเอกสาร"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                size="small"
+                sx={{
+                  maxWidth: { lg: 390 },
+                  minWidth: 0,
+                  width: '100%',
+                }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 0.75,
+                }}
+              >
+                {(
+                  [
+                    ['all', 'ทั้งหมด'],
+                    ...Object.entries(categoryLabel),
+                  ] as Array<[CompanyDocument['category'] | 'all', string]>
+                ).map(([value, label]) => (
+                  <FilterPill
+                    key={value}
+                    selected={categoryFilter === value}
+                    onClick={() => setCategoryFilter(value)}
                   >
-                    {document.title}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mt: 1, overflowWrap: 'anywhere' }}
-                  >
-                    {document.fileName}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {fileSize(document.sizeBytes)} ·{' '}
-                    {new Date(document.createdAt).toLocaleDateString('th-TH')}
-                  </Typography>
-                </CardContent>
-                <CardActions sx={{ px: 2, pb: 2 }}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => void downloadCompanyDocument(document)}
-                  >
-                    ดาวน์โหลด
-                  </Button>
-                  {!readOnly && (
-                    <DeleteItemButton
-                      size="small"
-                      onClick={() => void remove(document)}
-                      sx={{ flex: 0, minHeight: 36, px: 1.5 }}
+                    {label}
+                  </FilterPill>
+                ))}
+              </Box>
+            </Box>
+            {visibleDocuments.length === 0 ? (
+              <Alert severity="info" sx={{ borderRadius: '14px' }}>
+                ไม่พบเอกสารที่ตรงกับการค้นหา
+              </Alert>
+            ) : (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gap: 1.25,
+                }}
+              >
+                {visibleDocuments.map((document) => {
+                  const color = typeColor(document);
+                  const icon = documentIcon(document);
+                  return (
+                    <Card
+                      key={document.id}
+                      variant="outlined"
+                      sx={{
+                        borderColor: '#e8ddd5',
+                        borderRadius: '15px',
+                        position: 'relative',
+                        boxShadow: 'none',
+                      }}
                     >
-                      ลบ
-                    </DeleteItemButton>
-                  )}
-                </CardActions>
-              </Card>
-            ))}
+                      <CardContent
+                        sx={{
+                          alignItems: { xs: 'flex-start', sm: 'center' },
+                          display: 'flex',
+                          gap: { xs: 1.25, sm: 1.75 },
+                          p: { xs: 1.5, sm: 2 },
+                          '&:last-child': { pb: { xs: 1.5, sm: 2 } },
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            alignItems: 'center',
+                            bgcolor: icon ? 'transparent' : color.bg,
+                            borderRadius: '12px',
+                            color: color.text,
+                            display: 'flex',
+                            flex: '0 0 auto',
+                            fontFamily: 'Kanit, sans-serif',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            height: { xs: 48, sm: 56 },
+                            justifyContent: 'center',
+                            width: { xs: 48, sm: 56 },
+                          }}
+                        >
+                          {icon ? (
+                            <Box
+                              component="img"
+                              src={icon}
+                              alt={`${documentExtension(document)} file`}
+                              sx={{
+                                display: 'block',
+                                height: { xs: 40, sm: 48 },
+                                objectFit: 'contain',
+                                width: { xs: 40, sm: 48 },
+                              }}
+                            />
+                          ) : (
+                            documentExtension(document)
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              color: '#3c2d24',
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: { xs: 16, sm: 17 },
+                              fontWeight: 600,
+                              lineHeight: 1.35,
+                              overflowWrap: 'anywhere',
+                            }}
+                          >
+                            {document.title}
+                          </Typography>
+                          <Box
+                            sx={{
+                              color: 'text.secondary',
+                              display: 'grid',
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: 12,
+                              gap: 0.25,
+                              gridTemplateColumns: {
+                                xs: '1fr',
+                                sm: 'minmax(0, 1fr) auto auto',
+                              },
+                              mt: 0.75,
+                            }}
+                          >
+                            <Box
+                              component="span"
+                              sx={{ overflowWrap: 'anywhere', minWidth: 0 }}
+                            >
+                              ไฟล์: {document.fileName}
+                            </Box>
+                            <Box component="span">
+                              ขนาด: {fileSize(document.sizeBytes)}
+                            </Box>
+                            <Box component="span">
+                              อัปโหลด:{' '}
+                              {new Date(document.createdAt).toLocaleDateString(
+                                'th-TH',
+                              )}
+                            </Box>
+                          </Box>
+                        </Box>
+                        <CardActions
+                          sx={{
+                            alignItems: 'center',
+                            flex: '0 0 auto',
+                            gap: 0.75,
+                            p: 0,
+                            pt: { xs: 0.25, sm: 0 },
+                          }}
+                        >
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() =>
+                              void downloadCompanyDocument(document)
+                            }
+                            sx={{
+                              borderColor: '#bfa99a',
+                              borderRadius: '10px',
+                              color: '#5f4b3d',
+                              fontFamily: 'Kanit, sans-serif',
+                              minHeight: 36,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            ดาวน์โหลด
+                          </Button>
+                          {!readOnly && (
+                            <DeleteItemButton
+                              aria-label={`ลบ ${document.title}`}
+                              size="small"
+                              onClick={() => setDeleteTarget(document)}
+                              sx={{
+                                flex: 0,
+                                flexShrink: 0,
+                                minHeight: 36,
+                                minWidth: { xs: 88, sm: 96 },
+                                px: 1.25,
+                                width: { xs: 88, sm: 96 },
+                              }}
+                            >
+                              ลบเอกสาร
+                            </DeleteItemButton>
+                          )}
+                        </CardActions>
+                      </CardContent>
+                      {!readOnly && deleteTarget?.id === document.id && (
+                        <Box
+                          sx={{
+                            alignItems: 'center',
+                            bgcolor: 'rgba(32, 25, 20, .94)',
+                            color: '#fff',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 1.5,
+                            inset: 0,
+                            justifyContent: 'center',
+                            p: 2.5,
+                            position: 'absolute',
+                            textAlign: 'center',
+                            zIndex: 2,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: 18,
+                              fontWeight: 600,
+                            }}
+                          >
+                            ยืนยันการลบเอกสาร?
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: 'rgba(255,255,255,.75)',
+                              fontFamily: 'Kanit, sans-serif',
+                              fontSize: 13,
+                              textAlign: 'center',
+                            }}
+                          >
+                            “{document.title}” จะถูกลบออกจากเอกสารส่วนกลาง
+                          </Typography>
+                          <Box
+                            sx={{
+                              alignItems: 'center',
+                              display: 'flex',
+                              gap: 1,
+                              position: 'absolute',
+                              right: 16,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              width: { xs: 'calc(100% - 32px)', sm: 'auto' },
+                            }}
+                          >
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => setDeleteTarget(null)}
+                              sx={{
+                                borderColor: 'rgba(255,255,255,.45)',
+                                borderRadius: '10px',
+                                color: '#fff',
+                                fontFamily: 'Kanit, sans-serif',
+                                height: 36,
+                                minWidth: { xs: 0, sm: 112 },
+                                px: 2,
+                                width: { xs: '50%', sm: 112 },
+                              }}
+                            >
+                              ยกเลิก
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="error"
+                              onClick={() => void remove(document)}
+                              sx={{
+                                bgcolor: '#df2c31',
+                                borderRadius: '12px',
+                                boxShadow: 'none',
+                                fontFamily: 'Kanit, sans-serif',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                height: 36,
+                                minWidth: { xs: 0, sm: 96 },
+                                px: 1.25,
+                                width: { xs: '50%', sm: 96 },
+                                '&:hover': {
+                                  bgcolor: '#bd2026',
+                                  boxShadow: 'none',
+                                },
+                              }}
+                            >
+                              ยืนยันลบ
+                            </Button>
+                          </Box>
+                        </Box>
+                      )}
+                    </Card>
+                  );
+                })}
+              </Box>
+            )}
           </Box>
         )}
         <Drawer

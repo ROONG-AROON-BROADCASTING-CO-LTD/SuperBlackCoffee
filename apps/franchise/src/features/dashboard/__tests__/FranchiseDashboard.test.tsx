@@ -42,6 +42,7 @@ vi.mock('@stackbuild/management/pages/ingredients', () => ({
     allowOrdering,
     ingredientScope,
     branchCodes,
+    cardColumns,
   }: {
     activeBranch: string;
     franchisePlan: string;
@@ -49,9 +50,10 @@ vi.mock('@stackbuild/management/pages/ingredients', () => ({
     allowOrdering: boolean;
     ingredientScope: string;
     branchCodes: Record<string, string>;
+    cardColumns?: number;
   }) => (
     <output data-testid="ingredients-page">
-      {`${activeBranch}:${branchCodes[activeBranch]}:${franchisePlan}:${String(readOnly)}:${String(allowOrdering)}:${ingredientScope}`}
+      {`${activeBranch}:${branchCodes[activeBranch]}:${franchisePlan}:${String(readOnly)}:${String(allowOrdering)}:${ingredientScope}:${cardColumns}`}
     </output>
   ),
 }));
@@ -61,14 +63,16 @@ vi.mock('@stackbuild/management/pages/products', () => ({
     franchisePlan,
     readOnly,
     branchCodes,
+    cardColumns,
   }: {
     activeBranch: string;
     franchisePlan: string;
     readOnly: boolean;
     branchCodes: Record<string, string>;
+    cardColumns?: number;
   }) => (
     <output data-testid="products-page">
-      {`${activeBranch}:${branchCodes[activeBranch]}:${franchisePlan}:${String(readOnly)}`}
+      {`${activeBranch}:${branchCodes[activeBranch]}:${franchisePlan}:${String(readOnly)}:${cardColumns}`}
     </output>
   ),
 }));
@@ -79,15 +83,17 @@ vi.mock('@stackbuild/management/pages/stock', () => ({
     allowOrdering,
     stockCategory,
     branchCodes,
+    cardColumns,
   }: {
     activeBranch: string;
     readOnly: boolean;
     allowOrdering?: boolean;
     stockCategory: string;
     branchCodes: Record<string, string>;
+    cardColumns?: number;
   }) => (
     <output data-testid="stock-page">
-      {`${activeBranch}:${branchCodes[activeBranch]}:${String(readOnly)}:${String(allowOrdering ?? false)}:${stockCategory}`}
+      {`${activeBranch}:${branchCodes[activeBranch]}:${String(readOnly)}:${String(allowOrdering ?? false)}:${stockCategory}:${cardColumns}`}
     </output>
   ),
 }));
@@ -205,31 +211,31 @@ describe('FranchiseDashboard plan restrictions', () => {
       path: '/products',
       plan: 'L' as const,
       page: 'products-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:L:true',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:L:true:5',
     },
     {
       path: '/ingredients',
       plan: 'M' as const,
       page: 'ingredients-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:M:true:true:regular',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:M:true:true:regular:5',
     },
     {
       path: '/fresh-ingredients',
       plan: 'S' as const,
       page: 'ingredients-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:S:true:true:fresh',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:S:true:true:fresh:5',
     },
     {
       path: '/stock',
       plan: 'M' as const,
       page: 'stock-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:true:drink_equipment',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:true:drink_equipment:5',
     },
     {
       path: '/postal-stock',
       plan: 'L' as const,
       page: 'stock-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:false:postal_equipment',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:false:postal_equipment:undefined',
     },
   ])(
     'keeps $path branch-scoped and read-only for a franchise workspace',

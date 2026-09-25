@@ -269,10 +269,11 @@ export function AdminFranchiseBranchesPage() {
       <Box
         sx={{
           display: showSkeleton || loadError ? 'none' : 'grid',
+          maxWidth: 1180,
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
-            md: 'repeat(4, minmax(0, 1fr))',
+            md: 'repeat(3, minmax(0, 1fr))',
           },
           gap: '16px',
         }}
@@ -537,6 +538,9 @@ export function AdminFranchiseBranchesPage() {
           />
           <Box
             sx={{
+              maxWidth: 1180,
+              mx: 'auto',
+              width: '100%',
               flex: 1,
               minHeight: 0,
               overflowY: 'auto',
@@ -547,7 +551,7 @@ export function AdminFranchiseBranchesPage() {
                 xs: '1fr',
                 sm: 'repeat(2, minmax(0, 1fr))',
               },
-              gap: 2,
+              gap: { xs: 1.5, sm: 2 },
               mt: 0,
             }}
           >

@@ -9,9 +9,11 @@ import {
   listInventory,
   listMenuItems,
   listMyStockMovements,
+  isStockSession,
   loginStock,
   logoutStock,
   restoreStockSession,
+  setupStockPIN,
   type InventoryItem,
   type MenuItem,
   type StockSession,
@@ -180,14 +182,47 @@ export default function App() {
     setSession(nextSession);
     navigate('sales');
   };
-  const submitLogin = async (username: string, pin: string) => {
+  const startLogin = async (username: string): Promise<'pin' | 'setup-pin'> => {
     setLoginLoading(true);
     setLoginError('');
     try {
-      startSession(await loginStock(username, pin));
+      const result = await loginStock(username);
+      if ('requiresPINSetup' in result) return 'setup-pin';
+      if ('requiresPIN' in result) return 'pin';
+      if (isStockSession(result)) startSession(result);
+      return 'pin';
     } catch (error) {
       setLoginError(
         error instanceof Error ? error.message : 'ไม่สามารถเข้าสู่ระบบได้',
+      );
+      throw error;
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+  const loginWithPIN = async (username: string, pin: string) => {
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      const result = await loginStock(username, pin);
+      if (isStockSession(result)) startSession(result);
+    } catch (error) {
+      setLoginError(
+        error instanceof Error ? error.message : 'ไม่สามารถเข้าสู่ระบบได้',
+      );
+      throw error;
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+  const createPIN = async (username: string, pin: string) => {
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      startSession(await setupStockPIN(username, pin));
+    } catch (error) {
+      setLoginError(
+        error instanceof Error ? error.message : 'ไม่สามารถตั้ง PIN ได้',
       );
       throw error;
     } finally {
@@ -332,7 +367,9 @@ export default function App() {
         </StockAppLayout>
       ) : (
         <StockLoginPage
-          onLogin={submitLogin}
+          onUsername={startLogin}
+          onPIN={loginWithPIN}
+          onSetupPIN={createPIN}
           onClearError={() => setLoginError('')}
           error={loginError}
           loading={loginLoading}

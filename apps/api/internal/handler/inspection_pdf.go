@@ -47,10 +47,15 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 	assigneeLabel := "ช่างผู้รับงาน"
 	guidanceTitle := "คำแนะนำสำหรับช่าง"
 	guidanceText := "ทำเครื่องหมายสถานะของแต่ละรายการ และบันทึกอาการหรือรายการซ่อมในระบบหลังตรวจเสร็จ"
-	if inspectionTypeFromChecklist(data.Checklist) == "ingredients" {
+	inspectionType := inspectionTypeFromChecklist(data.Checklist)
+	if inspectionType == "ingredients" {
 		assigneeLabel = "ผู้รับงานตรวจ"
 		guidanceTitle = "คำแนะนำสำหรับผู้ตรวจ"
 		guidanceText = "ทำเครื่องหมายสถานะของแต่ละรายการ และบันทึกสิ่งที่พบหรือรายการที่ต้องแก้ไขในระบบหลังตรวจเสร็จ"
+	} else if inspectionType == "cafe_standard" {
+		assigneeLabel = "ผู้ตรวจมาตรฐาน"
+		guidanceTitle = "คำแนะนำสำหรับผู้ตรวจมาตรฐาน"
+		guidanceText = "ตรวจความพร้อมก่อนเปิดร้าน ระหว่างวัน หรือก่อนปิดร้าน แล้วบันทึกสิ่งที่ต้องแก้ไขและผู้รับผิดชอบในระบบ"
 	}
 	doc := pdfkit.New(pdfkit.WithPageSize(pdfkit.A4), pdfkit.WithMargins(0), pdfkit.WithInfo(pdfkit.Info{
 		Title: documentTitle, Author: "Super Black Coffee",
@@ -113,8 +118,10 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 		y -= 20
 	}
 	statusNeedsAction, statusUnavailable, noteLabel, noteLineX := "ต้องซ่อม", "ใช้งานไม่ได้", "หมายเหตุ/อาการ:", left+78
-	if inspectionTypeFromChecklist(data.Checklist) == "ingredients" {
+	if inspectionType == "ingredients" {
 		statusNeedsAction, statusUnavailable, noteLabel, noteLineX = "ต้องแก้ไข", "ห้ามใช้", "หมายเหตุ/สิ่งที่พบ:", left+94
+	} else if inspectionType == "cafe_standard" {
+		statusNeedsAction, statusUnavailable, noteLabel, noteLineX = "ต้องแก้ไข", "ไม่ผ่าน", "หมายเหตุ/สิ่งที่พบ:", left+94
 	}
 	drawCheckbox := func(x, baseline float64, label string) {
 		doc.StrokeColor(border).LineWidth(0.6).Rect(x, baseline-3, 10, 10).Stroke()
@@ -144,6 +151,10 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 	}
 
 	groups := []struct{ title, prefix string }{
+		{"พื้นที่ภายนอกร้าน", "พื้นที่ภายนอกร้าน:"},
+		{"พื้นที่ภายในร้านและบริการ", "พื้นที่ภายในร้านและบริการ:"},
+		{"โซนบาร์และสุขอนามัย", "โซนบาร์และสุขอนามัย:"},
+		{"การจัดการขยะและความปลอดภัย", "การจัดการขยะและความปลอดภัย:"},
 		{"ร้านคาเฟ่", "ร้านคาเฟ่:"},
 		{"ตู้ชาร์จรถ EV", "ตู้ชาร์จรถ EV:"},
 		{"ห้องน้ำ", "ห้องน้ำ:"},
@@ -187,10 +198,13 @@ func inspectionPDFWithShaping(data inspectionPDFData) ([]byte, error) {
 }
 
 func inspectionPDFTitle(checklist []string) string {
-	if inspectionTypeFromChecklist(checklist) == "ingredients" {
-		return "ใบงานสุ่มตรวจวัตถุดิบ"
+	switch inspectionTypeFromChecklist(checklist) {
+	case "ingredients":
+		return "ใบงานตรวจคุณภาพวัตถุดิบ"
+	case "cafe_standard":
+		return "ใบงานตรวจมาตรฐานและบริการร้านกาแฟ"
 	}
-	return "ใบงานตรวจช่างประจำสาขา"
+	return "ใบงานตรวจสภาพอุปกรณ์"
 }
 
 func legacyInspectionPDF(data inspectionPDFData) ([]byte, error) {
@@ -341,10 +355,14 @@ func renderInspectionCheckbox(pdf *gofpdf.Fpdf, label string, width float64) {
 
 func groupInspectionChecklist(checklist []string) map[string][]string {
 	groups := map[string][]string{
-		"ร้านคาเฟ่:":     {},
-		"ตู้ชาร์จรถ EV:": {},
-		"ห้องน้ำ:":       {},
-		"วัตถุดิบ:":      {},
+		"พื้นที่ภายนอกร้าน:":          {},
+		"พื้นที่ภายในร้านและบริการ:":  {},
+		"โซนบาร์และสุขอนามัย:":        {},
+		"การจัดการขยะและความปลอดภัย:": {},
+		"ร้านคาเฟ่:":                  {},
+		"ตู้ชาร์จรถ EV:":              {},
+		"ห้องน้ำ:":                    {},
+		"วัตถุดิบ:":                   {},
 	}
 	for _, item := range checklist {
 		matched := false
@@ -366,6 +384,19 @@ func groupInspectionChecklist(checklist []string) map[string][]string {
 func inspectionTypeFromChecklist(checklist []string) string {
 	if len(checklist) == 0 {
 		return "technician"
+	}
+	cafeStandard := true
+	for _, item := range checklist {
+		if !strings.HasPrefix(strings.TrimSpace(item), "พื้นที่ภายนอกร้าน:") &&
+			!strings.HasPrefix(strings.TrimSpace(item), "พื้นที่ภายในร้านและบริการ:") &&
+			!strings.HasPrefix(strings.TrimSpace(item), "โซนบาร์และสุขอนามัย:") &&
+			!strings.HasPrefix(strings.TrimSpace(item), "การจัดการขยะและความปลอดภัย:") {
+			cafeStandard = false
+			break
+		}
+	}
+	if cafeStandard {
+		return "cafe_standard"
 	}
 	for _, item := range checklist {
 		if !strings.HasPrefix(strings.TrimSpace(item), "วัตถุดิบ:") {

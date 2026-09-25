@@ -15,6 +15,7 @@ import {
   listMaintenanceTickets,
   listServiceInvoices,
   updateMaintenanceStatus,
+  randomizeCafeStandardInspection,
   randomizeIngredientInspection,
   randomizeInspection,
 } from '../../../api/operations';
@@ -32,6 +33,7 @@ vi.mock('../../../api/operations', () => ({
   updateServiceInvoiceStatus: vi.fn(),
   randomizeInspection: vi.fn(),
   randomizeIngredientInspection: vi.fn(),
+  randomizeCafeStandardInspection: vi.fn(),
 }));
 const renderPage = () =>
   render(
@@ -91,7 +93,7 @@ describe('AdminOperationsPage', () => {
     vi.mocked(listServiceInvoices).mockResolvedValue([]);
     renderPage();
     fireEvent.click(
-      await screen.findByRole('button', { name: 'สุ่มตรวจช่าง' }),
+      await screen.findByRole('button', { name: 'ตรวจสภาพอุปกรณ์' }),
     );
     expect(screen.queryByText('แจ้งงานซ่อมบำรุง')).toBeNull();
     expect(await screen.findByText('ช่างเอก')).toBeTruthy();
@@ -189,14 +191,14 @@ describe('AdminOperationsPage', () => {
       branchSize: 'S',
       inspectorName: 'QA Team',
       templateId: 4,
-      templateName: 'ใบงานตรวจช่างมาตรฐาน',
+      templateName: 'ใบงานตรวจสภาพอุปกรณ์',
       checklist: ['ร้านคาเฟ่: เครื่องชงกาแฟ', 'ตู้ชาร์จรถ EV: หัวชาร์จ'],
       dueAt: '',
     });
     renderPage();
 
     fireEvent.click(
-      await screen.findByRole('button', { name: 'สุ่มตรวจช่าง' }),
+      await screen.findByRole('button', { name: 'ตรวจสภาพอุปกรณ์' }),
     );
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'QA Team' },
@@ -204,14 +206,18 @@ describe('AdminOperationsPage', () => {
     fireEvent.change(document.querySelector('input[name="dueAt"]')!, {
       target: { value: '2026-09-20' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงานให้ช่าง' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจสภาพอุปกรณ์' }),
+    );
 
     await waitFor(() =>
       expect(randomizeInspection).toHaveBeenCalledWith(
         expect.objectContaining({ inspectorName: 'QA Team', excludeDays: 30 }),
       ),
     );
-    expect(await screen.findByText('ใบงานช่าง: อยุธยา')).toBeTruthy();
+    expect(
+      await screen.findByText('ใบงานตรวจสภาพอุปกรณ์: อยุธยา'),
+    ).toBeTruthy();
     expect(document.querySelector('ol li')?.textContent).toBe(
       'ร้านคาเฟ่: เครื่องชงกาแฟ',
     );
@@ -230,7 +236,7 @@ describe('AdminOperationsPage', () => {
       branchSize: 'S',
       inspectorName: 'ฝ่ายควบคุมคุณภาพ',
       templateId: 0,
-      templateName: 'ใบงานสุ่มตรวจวัตถุดิบ',
+      templateName: 'ใบงานตรวจคุณภาพวัตถุดิบ',
       inspectionType: 'ingredients',
       checklist: ['วัตถุดิบ: ตรวจวันหมดอายุ'],
       dueAt: '',
@@ -238,7 +244,7 @@ describe('AdminOperationsPage', () => {
     renderPage();
 
     fireEvent.click(
-      await screen.findByRole('button', { name: 'สุ่มตรวจวัตถุดิบ' }),
+      await screen.findByRole('button', { name: 'ตรวจคุณภาพวัตถุดิบ' }),
     );
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'ฝ่ายควบคุมคุณภาพ' },
@@ -247,7 +253,7 @@ describe('AdminOperationsPage', () => {
       target: { value: '2026-09-20' },
     });
     fireEvent.click(
-      screen.getByRole('button', { name: 'สร้างใบงานตรวจวัตถุดิบ' }),
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจคุณภาพวัตถุดิบ' }),
     );
 
     await waitFor(() =>
@@ -255,8 +261,55 @@ describe('AdminOperationsPage', () => {
         expect.objectContaining({ inspectorName: 'ฝ่ายควบคุมคุณภาพ' }),
       ),
     );
-    expect(await screen.findByText('ใบงานตรวจวัตถุดิบ: อยุธยา')).toBeTruthy();
+    expect(
+      await screen.findByText('ใบงานตรวจคุณภาพวัตถุดิบ: อยุธยา'),
+    ).toBeTruthy();
     expect(screen.getByText('วัตถุดิบ: ตรวจวันหมดอายุ')).toBeTruthy();
+  });
+
+  it('creates a coffee shop standard inspection from its own tab', async () => {
+    vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
+    vi.mocked(listInspections).mockResolvedValue([]);
+    vi.mocked(listAssets).mockResolvedValue([]);
+    vi.mocked(listServiceInvoices).mockResolvedValue([]);
+    vi.mocked(randomizeCafeStandardInspection).mockResolvedValue({
+      id: 15,
+      branchCode: 'SBC-AYA-001',
+      branchName: 'อยุธยา',
+      branchSize: 'S',
+      inspectorName: 'ฝ่ายควบคุมมาตรฐาน',
+      templateId: 0,
+      templateName: 'ใบงานตรวจมาตรฐานและบริการร้านกาแฟ',
+      inspectionType: 'cafe_standard',
+      checklist: ['พื้นที่ภายนอกร้าน: ป้ายร้านและไฟส่องสว่างพร้อมใช้งาน'],
+      dueAt: '',
+    });
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'ตรวจมาตรฐานและบริการ' }),
+    );
+    fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
+      target: { value: 'ฝ่ายควบคุมมาตรฐาน' },
+    });
+    fireEvent.change(document.querySelector('input[name="dueAt"]')!, {
+      target: { value: '2026-09-20' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจมาตรฐาน' }),
+    );
+
+    await waitFor(() =>
+      expect(randomizeCafeStandardInspection).toHaveBeenCalledWith(
+        expect.objectContaining({ inspectorName: 'ฝ่ายควบคุมมาตรฐาน' }),
+      ),
+    );
+    expect(
+      await screen.findByText('ใบงานตรวจมาตรฐานและบริการ: อยุธยา'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('พื้นที่ภายนอกร้าน: ป้ายร้านและไฟส่องสว่างพร้อมใช้งาน'),
+    ).toBeTruthy();
   });
 
   it('requires a due date before creating either inspection work order', async () => {
@@ -267,17 +320,19 @@ describe('AdminOperationsPage', () => {
     renderPage();
 
     fireEvent.click(
-      await screen.findByRole('button', { name: 'สุ่มตรวจช่าง' }),
+      await screen.findByRole('button', { name: 'ตรวจสภาพอุปกรณ์' }),
     );
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'QA Team' },
     });
     const dueDateInput = document.querySelector('input[name="dueAt"]')!;
     expect(dueDateInput.hasAttribute('required')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'สร้างใบงานให้ช่าง' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจสภาพอุปกรณ์' }),
+    );
     expect(randomizeInspection).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'สุ่มตรวจวัตถุดิบ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ตรวจคุณภาพวัตถุดิบ' }));
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'ฝ่ายควบคุมคุณภาพ' },
     });
@@ -285,7 +340,7 @@ describe('AdminOperationsPage', () => {
       document.querySelector('input[name="dueAt"]')?.hasAttribute('required'),
     ).toBe(true);
     fireEvent.click(
-      screen.getByRole('button', { name: 'สร้างใบงานตรวจวัตถุดิบ' }),
+      screen.getByRole('button', { name: 'สร้างใบงานตรวจคุณภาพวัตถุดิบ' }),
     );
     expect(randomizeIngredientInspection).not.toHaveBeenCalled();
   });

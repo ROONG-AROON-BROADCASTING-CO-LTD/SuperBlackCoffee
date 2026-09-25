@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Card,
+  Chip,
   MenuItem,
   Stack,
   TextField,
@@ -18,6 +19,7 @@ import {
 import {
   createAsset,
   createServiceInvoice,
+  completeInspection,
   downloadInspectionPDF,
   downloadMaintenancePDF,
   listAssets,
@@ -25,6 +27,7 @@ import {
   listInspections,
   listMaintenanceTickets,
   listServiceInvoices,
+  randomizeCafeStandardInspection,
   randomizeIngredientInspection,
   randomizeInspection,
   updateAsset,
@@ -42,7 +45,7 @@ const labels: Record<string, string> = {
   waiting_parts: 'รออะไหล่',
   completed: 'เสร็จแล้ว',
   scheduled: 'รอตรวจ',
-  passed: 'ผ่าน',
+  passed: 'ตรวจเสร็จ',
   needs_action: 'ต้องแก้ไข',
   failed: 'ไม่ผ่าน',
   draft: 'ร่าง',
@@ -80,8 +83,9 @@ const valueLabels: Record<string, string> = {
 };
 const tabs = [
   ['maintenance', 'งานช่าง / แจ้งซ่อม'],
-  ['inspection', 'สุ่มตรวจช่าง'],
-  ['ingredientInspection', 'สุ่มตรวจวัตถุดิบ'],
+  ['cafeStandardInspection', 'ตรวจมาตรฐานและบริการ'],
+  ['inspection', 'ตรวจสภาพอุปกรณ์'],
+  ['ingredientInspection', 'ตรวจคุณภาพวัตถุดิบ'],
 ] as const;
 type Tab = (typeof tabs)[number][0] | 'assets' | 'billing';
 const operationsTabStorageKey = 'admin.operations.active-tab';
@@ -125,11 +129,17 @@ const formActionSx = {
   minHeight: 40,
   px: 2,
   borderRadius: '12px',
+  color: '#fff',
   bgcolor: '#201914',
   fontFamily: 'Kanit, sans-serif',
   fontWeight: 500,
   boxShadow: 'none',
   '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+  '&.Mui-disabled': {
+    bgcolor: '#eadfd7',
+    color: '#8b7567',
+    boxShadow: 'none',
+  },
 };
 const tableColumnWidths: Record<string, string> = {
   title: '28%',
@@ -151,6 +161,7 @@ const tableActionSx = {
   px: 2,
   border: '1px solid rgba(23, 20, 17, 0.35)',
   borderRadius: '12px',
+  color: '#3c2d24',
   fontFamily: 'Kanit, sans-serif',
   fontSize: 14,
   fontWeight: 500,
@@ -192,6 +203,18 @@ function formatOperationValue(column: string, value: unknown) {
   }
   return String(value);
 }
+
+const statusChipSx = (status: string) => ({
+  height: 28,
+  borderRadius: '999px',
+  px: 0.5,
+  bgcolor:
+    status === 'passed' || status === 'completed' ? '#e4f3e8' : '#f7efe5',
+  color: status === 'passed' || status === 'completed' ? '#287342' : '#805b32',
+  fontFamily: 'Kanit, sans-serif',
+  fontSize: 12,
+  fontWeight: 500,
+});
 
 function BranchField() {
   return (
@@ -323,8 +346,11 @@ export function AdminOperationsPage() {
     events: AssetEvent[];
   } | null>(null);
   const isInspectionTab =
-    tab === 'inspection' || tab === 'ingredientInspection';
+    tab === 'inspection' ||
+    tab === 'ingredientInspection' ||
+    tab === 'cafeStandardInspection';
   const isIngredientInspectionTab = tab === 'ingredientInspection';
+  const isCafeStandardInspectionTab = tab === 'cafeStandardInspection';
   useEffect(() => {
     window.sessionStorage.setItem(operationsTabStorageKey, tab);
   }, [tab]);
@@ -353,9 +379,13 @@ export function AdminOperationsPage() {
   const rows = isInspectionTab
     ? sourceRows.filter(
         (row) =>
-          row.status === 'scheduled' &&
+          (row.status === 'scheduled' || row.status === 'passed') &&
           String(row.inspectionType ?? 'technician') ===
-            (isIngredientInspectionTab ? 'ingredients' : 'technician'),
+            (isIngredientInspectionTab
+              ? 'ingredients'
+              : isCafeStandardInspectionTab
+                ? 'cafe_standard'
+                : 'technician'),
       )
     : sourceRows;
   const columns = useMemo(
@@ -436,10 +466,12 @@ export function AdminOperationsPage() {
       };
       const nextAssignment = await (isIngredientInspectionTab
         ? randomizeIngredientInspection(request)
-        : randomizeInspection(request));
+        : isCafeStandardInspectionTab
+          ? randomizeCafeStandardInspection(request)
+          : randomizeInspection(request));
       setAssignment(nextAssignment);
       setNotice(
-        `มอบหมายงาน${isIngredientInspectionTab ? 'สุ่มตรวจวัตถุดิบ' : 'สุ่มตรวจช่าง'}ให้สาขา ${nextAssignment.branchName} แล้ว`,
+        `มอบหมายงาน${isIngredientInspectionTab ? 'ตรวจคุณภาพวัตถุดิบ' : isCafeStandardInspectionTab ? 'ตรวจมาตรฐานและบริการ' : 'ตรวจสภาพอุปกรณ์'}ให้สาขา ${nextAssignment.branchName} แล้ว`,
       );
       void client.invalidateQueries({ queryKey: ['operations'] });
     } catch (error) {
@@ -510,7 +542,8 @@ export function AdminOperationsPage() {
     inspectionID: number,
     branchName?: string,
     branchCode?: string,
-    inspectionType: 'technician' | 'ingredients' = 'technician',
+    inspectionType:
+      'technician' | 'ingredients' | 'cafe_standard' = 'technician',
   ) => {
     try {
       await downloadInspectionPDF(
@@ -522,6 +555,33 @@ export function AdminOperationsPage() {
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : 'ไม่สามารถดาวน์โหลด PDF ได้',
+      );
+    }
+  };
+  const markInspectionComplete = async (row: OperationRow) => {
+    try {
+      // Keep the original checklist/evidence so completing an inspection does
+      // not erase the data used to identify its inspection tab.
+      const checklistResults = Array.isArray(row.checklistResults)
+        ? row.checklistResults.map(String)
+        : [];
+      const evidenceURLs = Array.isArray(row.evidenceURLs)
+        ? row.evidenceURLs.map(String)
+        : [];
+      await completeInspection(row.id, {
+        status: 'passed',
+        score: 100,
+        findings: '',
+        dueAt: String(row.dueAt ?? ''),
+        actionOwner: '',
+        checklistResults,
+        evidenceURLs,
+      });
+      setNotice('บันทึกผลตรวจเสร็จแล้ว');
+      await client.invalidateQueries({ queryKey: ['operations'] });
+    } catch (error) {
+      setNotice(
+        error instanceof Error ? error.message : 'ไม่สามารถบันทึกผลตรวจได้',
       );
     }
   };
@@ -554,7 +614,8 @@ export function AdminOperationsPage() {
             ตรวจมาตรฐานและบริการสาขา
           </Typography>
           <Typography sx={sectionDescriptionSx}>
-            สุ่มตรวจ งานช่าง/แจ้งซ่อม ทรัพย์สิน และรายได้บริการ
+            จัดการตรวจมาตรฐานและบริการร้านกาแฟ งานช่าง วัตถุดิบ ทรัพย์สิน
+            และรายได้บริการ
           </Typography>
         </Box>
         <Stack
@@ -610,19 +671,23 @@ export function AdminOperationsPage() {
             >
               <Typography sx={sectionTitleSx}>
                 {isIngredientInspectionTab
-                  ? 'สุ่มงานตรวจวัตถุดิบ'
-                  : 'สุ่มงานตรวจช่าง'}
+                  ? 'สร้างงานตรวจคุณภาพวัตถุดิบ'
+                  : isCafeStandardInspectionTab
+                    ? 'สุ่มงานตรวจมาตรฐานและบริการร้านกาแฟ'
+                    : 'สร้างงานตรวจสภาพอุปกรณ์'}
               </Typography>
               <Typography sx={{ ...sectionDescriptionSx, mt: 0.4, mb: 2 }}>
                 {isIngredientInspectionTab
-                  ? 'กรอกชื่อผู้ตรวจ แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจวัตถุดิบแยกต่างหาก'
-                  : 'กรอกชื่อช่าง แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจพื้นที่ร้าน ระบบ EV และห้องน้ำ'}
+                  ? 'กรอกชื่อผู้ตรวจ แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจคุณภาพวัตถุดิบแยกต่างหาก'
+                  : isCafeStandardInspectionTab
+                    ? 'ใช้ตรวจความพร้อมของพื้นที่บริการ บาร์ สุขอนามัย และความสะอาดตามมาตรฐานร้านกาแฟ'
+                    : 'กรอกชื่อช่าง แล้วให้ระบบเลือกสาขาและสร้างใบงานตรวจพื้นที่ร้าน ระบบ EV และห้องน้ำ'}
               </Typography>
               <Box sx={inspectionFormGridSx}>
                 <TextField
                   name="inspectorName"
                   label={
-                    isIngredientInspectionTab
+                    isIngredientInspectionTab || isCafeStandardInspectionTab
                       ? 'ผู้รับงานตรวจ'
                       : 'ช่างผู้รับงาน'
                   }
@@ -659,8 +724,10 @@ export function AdminOperationsPage() {
               <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button type="submit" variant="contained" sx={formActionSx}>
                   {isIngredientInspectionTab
-                    ? 'สร้างใบงานตรวจวัตถุดิบ'
-                    : 'สร้างใบงานให้ช่าง'}
+                    ? 'สร้างใบงานตรวจคุณภาพวัตถุดิบ'
+                    : isCafeStandardInspectionTab
+                      ? 'สร้างใบงานตรวจมาตรฐาน'
+                      : 'สร้างใบงานตรวจสภาพอุปกรณ์'}
                 </Button>
               </Box>
             </Card>
@@ -675,13 +742,17 @@ export function AdminOperationsPage() {
               >
                 <Typography sx={sectionTitleSx}>
                   {isIngredientInspectionTab
-                    ? 'ใบงานตรวจวัตถุดิบ'
-                    : 'ใบงานช่าง'}
+                    ? 'ใบงานตรวจคุณภาพวัตถุดิบ'
+                    : isCafeStandardInspectionTab
+                      ? 'ใบงานตรวจมาตรฐานและบริการ'
+                      : 'ใบงานตรวจสภาพอุปกรณ์'}
                   : {assignment.branchName}
                 </Typography>
                 <Typography sx={{ ...sectionDescriptionSx, mt: 0.4, mb: 1.5 }}>
                   ขนาด {assignment.branchSize} · พร้อมส่งให้
-                  {isIngredientInspectionTab ? 'ผู้ตรวจ' : 'ช่าง'}
+                  {isIngredientInspectionTab || isCafeStandardInspectionTab
+                    ? 'ผู้ตรวจ'
+                    : 'ช่าง'}
                 </Typography>
                 <Box
                   component="ol"
@@ -711,7 +782,9 @@ export function AdminOperationsPage() {
                       assignment.inspectionType ??
                         (isIngredientInspectionTab
                           ? 'ingredients'
-                          : 'technician'),
+                          : isCafeStandardInspectionTab
+                            ? 'cafe_standard'
+                            : 'technician'),
                     )
                   }
                 >
@@ -876,7 +949,15 @@ export function AdminOperationsPage() {
                   <tr key={row.id}>
                     {columns.map((column) => (
                       <td key={column}>
-                        {formatOperationValue(column, row[column])}
+                        {column === 'status' && row.status ? (
+                          <Chip
+                            size="small"
+                            label={formatOperationValue(column, row[column])}
+                            sx={statusChipSx(String(row.status))}
+                          />
+                        ) : (
+                          formatOperationValue(column, row[column])
+                        )}
                       </td>
                     ))}
                     <td>
@@ -885,24 +966,42 @@ export function AdminOperationsPage() {
                         spacing={0.5}
                         sx={{ flexWrap: 'wrap', minWidth: 'max-content' }}
                       >
-                        {isInspectionTab && row.status === 'scheduled' ? (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            sx={tableActionSx}
-                            onClick={() =>
-                              void downloadPDF(
-                                row.id,
-                                String(row.branchName ?? ''),
-                                String(row.branchCode ?? ''),
-                                String(row.inspectionType ?? 'technician') as
-                                  'technician' | 'ingredients',
-                              )
-                            }
-                          >
-                            ดาวน์โหลด PDF
-                          </Button>
-                        ) : tab !== 'inspection' ? (
+                        {isInspectionTab ? (
+                          <>
+                            {row.status === 'scheduled' ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                sx={tableActionSx}
+                                onClick={() => void markInspectionComplete(row)}
+                              >
+                                ทำเครื่องหมายตรวจเสร็จ
+                              </Button>
+                            ) : null}
+                            {row.status === 'passed' ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                sx={tableActionSx}
+                                onClick={() =>
+                                  void downloadPDF(
+                                    row.id,
+                                    String(row.branchName ?? ''),
+                                    String(row.branchCode ?? ''),
+                                    String(
+                                      row.inspectionType ?? 'technician',
+                                    ) as
+                                      | 'technician'
+                                      | 'ingredients'
+                                      | 'cafe_standard',
+                                  )
+                                }
+                              >
+                                ดาวน์โหลด PDF
+                              </Button>
+                            ) : null}
+                          </>
+                        ) : !isInspectionTab ? (
                           <>
                             {tab === 'maintenance' ? (
                               <Button

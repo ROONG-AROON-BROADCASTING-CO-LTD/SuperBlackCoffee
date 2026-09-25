@@ -19,7 +19,8 @@ import {
 } from '@stackbuild/ui';
 
 export const adminSidebarNavigation = [
-  { label: 'ภาพรวม', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
+  { label: 'ภาพรวมสาขา SBC', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
+  { label: 'ภาพรวมแฟรนไชส์', icon: <LayoutGridIcon />, group: 'ภาพรวม' },
   { label: 'คำสั่งซื้อ', icon: <ReceiptIcon />, group: 'การขายและคำสั่งซื้อ' },
   { label: 'โปรโมชั่น', icon: <BadgeIcon />, group: 'การขายและคำสั่งซื้อ' },
   {

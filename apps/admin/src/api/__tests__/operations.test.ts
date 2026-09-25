@@ -17,7 +17,7 @@ describe('inspection PDF download', () => {
 
     expect(downloadSecuredPDF).toHaveBeenCalledWith(
       '/inspections/17/pdf',
-      'ใบงานตรวจช่าง_งานที่-17_สาขา-พิษณุโลก-กลาง_SBC-PLK-001.pdf',
+      'ใบงานตรวจสภาพอุปกรณ์_งานที่-17_สาขา-พิษณุโลก-กลาง_SBC-PLK-001.pdf',
     );
   });
 
@@ -28,7 +28,7 @@ describe('inspection PDF download', () => {
 
     expect(downloadSecuredPDF).toHaveBeenCalledWith(
       '/inspections/18/pdf',
-      'ใบงานตรวจช่าง_งานที่-18.pdf',
+      'ใบงานตรวจสภาพอุปกรณ์_งานที่-18.pdf',
     );
   });
 
@@ -39,7 +39,18 @@ describe('inspection PDF download', () => {
 
     expect(downloadSecuredPDF).toHaveBeenCalledWith(
       '/inspections/19/pdf',
-      'ใบงานสุ่มตรวจวัตถุดิบ_งานที่-19_สาขา-อยุธยา_SBC-AYT-001.pdf',
+      'ใบงานตรวจคุณภาพวัตถุดิบ_งานที่-19_สาขา-อยุธยา_SBC-AYT-001.pdf',
+    );
+  });
+
+  it('uses the coffee shop standard name for service-standard work orders', async () => {
+    downloadSecuredPDF.mockResolvedValueOnce(undefined);
+
+    await downloadInspectionPDF(20, 'อยุธยา', 'SBC-AYT-001', 'cafe_standard');
+
+    expect(downloadSecuredPDF).toHaveBeenCalledWith(
+      '/inspections/20/pdf',
+      'ใบงานตรวจมาตรฐานและบริการร้านกาแฟ_งานที่-20_สาขา-อยุธยา_SBC-AYT-001.pdf',
     );
   });
 

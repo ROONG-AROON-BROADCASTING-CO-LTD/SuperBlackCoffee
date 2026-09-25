@@ -11,18 +11,22 @@ import {
   superBlackLogo,
 } from '@stackbuild/ui';
 
-type LoginStep = 'username' | 'pin';
+type LoginStep = 'username' | 'pin' | 'setup-pin' | 'confirm-pin';
 
 const pinKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const isValidPIN = (value: string) => /^\d{6}$/.test(value);
 
 export function StockLoginPage({
-  onLogin,
+  onUsername,
+  onPIN,
+  onSetupPIN,
   onClearError,
   error,
   loading,
 }: {
-  onLogin: (username: string, pin: string) => Promise<void>;
+  onUsername: (username: string) => Promise<'pin' | 'setup-pin'>;
+  onPIN: (username: string, pin: string) => Promise<void>;
+  onSetupPIN: (username: string, pin: string) => Promise<void>;
   onClearError?: () => void;
   error: string;
   loading: boolean;
@@ -31,31 +35,58 @@ export function StockLoginPage({
     () => window.sessionStorage.getItem('sbc-stock-username') ?? '',
   );
   const [pin, setPIN] = useState('');
+  const [firstPIN, setFirstPIN] = useState('');
   const [step, setStep] = useState<LoginStep>(() =>
     window.sessionStorage.getItem('sbc-stock-username') ? 'pin' : 'username',
   );
   const [validationError, setValidationError] = useState('');
+  const [isPINSubmitting, setIsPINSubmitting] = useState(false);
   const [pinHasError, setPinHasError] = useState(false);
   const deleteIconRef = useRef<DeleteIconHandle>(null);
   const loginIconRef = useRef<LogInIconHandle>(null);
 
   useEffect(() => {
-    if (error && step === 'pin') setPinHasError(true);
+    if (error && step !== 'username') setPinHasError(true);
   }, [error, step]);
+
+  const submitPIN = async (value: string) => {
+    if (!isValidPIN(value) || isPINSubmitting) return;
+    setValidationError('');
+    setPinHasError(false);
+    setIsPINSubmitting(true);
+    const name = username.trim();
+    try {
+      if (step === 'pin') {
+        await onPIN(name, value);
+        window.sessionStorage.setItem('sbc-stock-username', name);
+        return;
+      }
+      if (step === 'setup-pin') {
+        setFirstPIN(value);
+        setPIN('');
+        setStep('confirm-pin');
+        return;
+      }
+      if (value !== firstPIN) {
+        setValidationError('PIN ทั้งสองครั้งไม่ตรงกัน');
+        setPinHasError(true);
+        return;
+      }
+      await onSetupPIN(name, value);
+      window.sessionStorage.setItem('sbc-stock-username', name);
+    } catch {
+      // Parent displays the API error in the shared error slot.
+    } finally {
+      setIsPINSubmitting(false);
+    }
+  };
 
   const updatePIN = (value: string) => {
     const nextPIN = value.replace(/\D/g, '').slice(0, 6);
     setPIN(nextPIN);
     setValidationError('');
     setPinHasError(false);
-    onClearError?.();
-    if (nextPIN.length === 6 && !loading) {
-      void onLogin(username.trim(), nextPIN)
-        .then(() => {
-          window.sessionStorage.setItem('sbc-stock-username', username.trim());
-        })
-        .catch(() => undefined);
-    }
+    if (nextPIN.length === 6) void submitPIN(nextPIN);
   };
 
   const removeLastPINCharacter = () => {
@@ -69,12 +100,26 @@ export function StockLoginPage({
     onClearError?.();
   };
 
-  const submit = (event: React.FormEvent) => {
+  const changeUsername = () => {
+    window.sessionStorage.removeItem('sbc-stock-username');
+    setUsername('');
+    setPIN('');
+    setFirstPIN('');
+    setValidationError('');
+    setPinHasError(false);
+    onClearError?.();
+    setStep('username');
+  };
+
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = username.trim();
-    if (step === 'username') {
-      if (!name) return;
-      setStep('pin');
+    if (step === 'username' && name) {
+      try {
+        setStep(await onUsername(name));
+      } catch {
+        // Parent displays the API error in the shared error slot.
+      }
       return;
     }
     if (!isValidPIN(pin)) {
@@ -82,20 +127,23 @@ export function StockLoginPage({
       setPinHasError(true);
       return;
     }
-    void onLogin(name, pin)
-      .then(() => {
-        window.sessionStorage.setItem('sbc-stock-username', name);
-      })
-      .catch(() => undefined);
+    void submitPIN(pin);
   };
 
   const isUsernameStep = step === 'username';
+  const isPINSetup = step === 'setup-pin' || step === 'confirm-pin';
   const heading = isUsernameStep
     ? 'พร้อมตรวจนับสต๊อก'
-    : 'กรอก PIN เพื่อเข้าใช้งาน';
+    : isPINSetup
+      ? step === 'setup-pin'
+        ? 'ตั้ง PIN ของคุณ'
+        : 'ยืนยัน PIN อีกครั้ง'
+      : 'กรอก PIN เพื่อเข้าใช้งาน';
   const description = isUsernameStep
     ? 'ใช้ชื่อผู้ใช้ของคุณเพื่อบันทึกยอดคงเหลือ\nและตัดวัตถุดิบตามเมนูที่ขาย'
-    : `สวัสดี ${username.trim()} กรุณากรอก PIN 6 หลัก`;
+    : isPINSetup
+      ? 'ตั้งรหัส PIN ตัวเลข 6 หลักสำหรับใช้เข้า Stock ในครั้งถัดไป'
+      : `สวัสดี ${username.trim()} กรุณากรอก PIN 6 หลัก`;
 
   return (
     <Box
@@ -141,12 +189,14 @@ export function StockLoginPage({
         >
           {heading}
         </Typography>
-        <Typography
-          color="text.secondary"
-          sx={{ textAlign: 'center', whiteSpace: 'pre-line' }}
-        >
-          {description}
-        </Typography>
+        {(isUsernameStep || isPINSetup) && (
+          <Typography
+            color="text.secondary"
+            sx={{ textAlign: 'center', whiteSpace: 'pre-line' }}
+          >
+            {description}
+          </Typography>
+        )}
         {isUsernameStep ? (
           <TextField
             autoFocus
@@ -177,7 +227,9 @@ export function StockLoginPage({
                 htmlInput: {
                   inputMode: 'numeric',
                   maxLength: 6,
-                  autoComplete: 'current-password',
+                  autoComplete: isPINSetup
+                    ? 'new-password'
+                    : 'current-password',
                   'aria-label': 'PIN 6 หลัก',
                 },
               }}
@@ -260,7 +312,7 @@ export function StockLoginPage({
                   variant="outlined"
                   aria-label={`เลข ${digit}`}
                   onClick={() => updatePIN(`${pin}${digit}`)}
-                  disabled={loading}
+                  disabled={isPINSubmitting || loading}
                   sx={{
                     minHeight: '56px !important',
                     py: '12px !important',
@@ -277,7 +329,7 @@ export function StockLoginPage({
                 variant="outlined"
                 aria-label="เลข 0"
                 onClick={() => updatePIN(`${pin}0`)}
-                disabled={loading}
+                disabled={isPINSubmitting || loading}
                 sx={{
                   minHeight: '56px !important',
                   py: '12px !important',
@@ -296,7 +348,7 @@ export function StockLoginPage({
                     : 'ลบตัวเลข'
                 }
                 onClick={removeLastPINCharacter}
-                disabled={!pin || loading}
+                disabled={!pin || isPINSubmitting || loading}
                 sx={{
                   minHeight: '56px !important',
                   py: '12px !important',
@@ -351,14 +403,9 @@ export function StockLoginPage({
           </Button>
         ) : (
           <Button
+            type="button"
             variant="outlined"
-            onClick={() => {
-              setPIN('');
-              setValidationError('');
-              setPinHasError(false);
-              onClearError?.();
-              setStep('username');
-            }}
+            onClick={changeUsername}
             sx={{
               width: '100%',
               mt: 0.5,

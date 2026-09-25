@@ -267,6 +267,38 @@ describe('inventory management pages', () => {
     expect(onSelectBranch).toHaveBeenCalledWith('อยุธยา', 'SBC-AYA-001');
   });
 
+  it('omits branches outside the selected sales workspace from the menu summary', async () => {
+    mockedListMenuSummary.mockResolvedValueOnce({
+      items: [
+        {
+          branchCode: 'SBC-AYA-001',
+          branchName: 'อยุธยา',
+          menuCount: 87,
+          availableCount: 80,
+        },
+        {
+          branchCode: 'SBC-HQ',
+          branchName: 'สำนักงานใหญ่',
+          menuCount: 0,
+          availableCount: 0,
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    });
+    renderPage(
+      <ProductsManagementPage
+        activeBranch="ทุกสาขา"
+        excludedSummaryBranchCodes={['SBC-HQ']}
+      />,
+    );
+
+    expect(await screen.findByText('สาขา อยุธยา')).toBeTruthy();
+    expect(screen.getByText('1 สาขา')).toBeTruthy();
+    expect(screen.queryByText('สาขา สำนักงานใหญ่')).toBeNull();
+  });
+
   it('shows branch-shaped placeholders while the menu summary loads', () => {
     mockedListMenuSummary.mockImplementation(() => new Promise(() => {}));
     renderPage(

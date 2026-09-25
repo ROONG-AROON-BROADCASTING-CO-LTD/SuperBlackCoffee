@@ -11,6 +11,6 @@ describe('admin attendance route', () => {
   );
 
   it('falls back to the overview for an unknown route', () => {
-    expect(adminPageFromPath('/not-found')).toBe('ภาพรวม');
+    expect(adminPageFromPath('/not-found')).toBe('ภาพรวมสาขา SBC');
   });
 });

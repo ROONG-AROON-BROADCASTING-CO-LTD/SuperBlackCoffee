@@ -67,6 +67,31 @@ var ingredientInspectionChecklist = []string{
 	"วัตถุดิบ: แยกกักวัตถุดิบเสียหาย หมดอายุ หรือรอทำลายออกจากของพร้อมใช้",
 }
 
+// cafeStandardInspectionChecklist is based on the operational checklist used
+// by coffee shops. It intentionally covers customer-facing service standards,
+// while technician and ingredient inspections remain separate work orders.
+var cafeStandardInspectionChecklist = []string{
+	"พื้นที่ภายนอกร้าน: ป้ายร้าน เมนูหน้าร้าน และไฟส่องสว่างสะอาด อ่านชัด และทำงานครบ",
+	"พื้นที่ภายนอกร้าน: พื้นที่หน้าร้านและทางเดินสะอาด ไม่มีขยะ คราบ หรือสิ่งกีดขวาง",
+	"พื้นที่ภายนอกร้าน: โต๊ะเก้าอี้ภายนอกสะอาด มั่นคง และไม่มีส่วนชำรุด",
+	"พื้นที่ภายนอกร้าน: กระจก ประตูทางเข้า ม่าน และมูลี่สะอาด เปิดปิดเรียบร้อย",
+	"พื้นที่ภายนอกร้าน: ต้นไม้หรือสวนกระถางได้รับการดูแล ไม่มีใบเหี่ยวหรือขยะสะสม",
+	"พื้นที่ภายนอกร้าน: ถังขยะภายนอกสะอาด มีฝาปิด และขยะไม่ล้น",
+	"พื้นที่ภายในร้านและบริการ: โต๊ะเก้าอี้ พื้น ผนัง และปลั๊กบริเวณลูกค้าสะอาดและพร้อมใช้",
+	"พื้นที่ภายในร้านและบริการ: อุณหภูมิภายในร้าน แสงสว่าง เพลง และกลิ่นอยู่ในระดับเหมาะสม",
+	"พื้นที่ภายในร้านและบริการ: เคาน์เตอร์รับออเดอร์ ระบบขายหน้าร้าน และเงินทอนพร้อมให้บริการ",
+	"พื้นที่ภายในร้านและบริการ: ตู้โชว์สินค้าและเบเกอรี่สะอาด จัดวางเป็นระเบียบ และป้ายราคาชัดเจน",
+	"พื้นที่ภายในร้านและบริการ: เมนู โปรโมชั่น และสื่อสื่อสารลูกค้าเป็นปัจจุบันและอ่านง่าย",
+	"พื้นที่ภายในร้านและบริการ: ห้องน้ำลูกค้าแห้ง สะอาด มีกระดาษ สบู่ และถังขยะพร้อมใช้",
+	"โซนบาร์และสุขอนามัย: เครื่องชงกาแฟและเครื่องบดสะอาด อุ่นเครื่อง และทดสอบช็อตก่อนเปิดบริการ",
+	"โซนบาร์และสุขอนามัย: เครื่องปั่น เครื่องซีล และอุปกรณ์บาร์สะอาด ปลอดภัย และพร้อมใช้งาน",
+	"โซนบาร์และสุขอนามัย: แก้ว ภาชนะ และอุปกรณ์ชงสะอาด แห้ง ไม่มีคราบหรือรอยชำรุด",
+	"โซนบาร์และสุขอนามัย: จุดบริการน้ำดื่ม ทิชชู่ หลอด และอุปกรณ์ลูกค้ามีครบและสะอาด",
+	"การจัดการขยะและความปลอดภัย: แยกขยะอย่างถูกต้อง พื้นที่ทิ้งขยะสะอาด และไม่มีขยะตกค้าง",
+	"การจัดการขยะและความปลอดภัย: ซิงก์ ท่อน้ำทิ้ง และจุดดักไขมันสะอาด ไม่มีน้ำรั่ว กลิ่น หรือการอุดตัน",
+	"การจัดการขยะและความปลอดภัย: ทางเดิน จุดเสี่ยงลื่นล้ม และอุปกรณ์ฉุกเฉินไม่มีสิ่งกีดขวาง",
+}
+
 func (h *PlatformHandler) operationsBranchID(c *gin.Context, code string) (int64, bool) {
 	var id int64
 	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT id FROM branches WHERE code=$1`, code).Scan(&id); err != nil {
@@ -482,13 +507,28 @@ func (h *PlatformHandler) CreateInspectionTemplate(c *gin.Context) {
 }
 
 func (h *PlatformHandler) RandomizeInspection(c *gin.Context) {
-	h.randomizeInspection(c, technicianInspectionChecklist, "ใบงานตรวจช่างมาตรฐาน", "technician")
+	h.randomizeInspection(c, technicianInspectionChecklist, "ใบงานตรวจสภาพอุปกรณ์", "technician")
 }
 
 // RandomizeIngredientInspection creates a separate material quality and stock
 // work order. The checklist identifies its type, so no schema change is needed.
 func (h *PlatformHandler) RandomizeIngredientInspection(c *gin.Context) {
-	h.randomizeInspection(c, ingredientInspectionChecklist, "ใบงานสุ่มตรวจวัตถุดิบ", "ingredients")
+	h.randomizeInspection(c, ingredientInspectionChecklist, "ใบงานตรวจคุณภาพวัตถุดิบ", "ingredients")
+}
+
+// RandomizeCafeStandardInspection creates a customer-service and cleanliness
+// work order from the coffee shop checklist, separate from repair work orders.
+func (h *PlatformHandler) RandomizeCafeStandardInspection(c *gin.Context) {
+	h.randomizeInspection(c, cafeStandardInspectionChecklist, "ใบงานตรวจมาตรฐานและบริการร้านกาแฟ", "cafe_standard")
+}
+
+func randomInspectionBranchScope(inspectionType string) string {
+	if inspectionType == "cafe_standard" {
+		// Headquarters is an administrative office and does not provide the
+		// customer-facing coffee-shop service covered by this checklist.
+		return " AND b.code <> 'SBC-HQ'"
+	}
+	return ""
 }
 
 func (h *PlatformHandler) randomizeInspection(c *gin.Context, items []string, templateName, inspectionType string) {
@@ -520,7 +560,7 @@ func (h *PlatformHandler) randomizeInspection(c *gin.Context, items []string, te
 		code, name, size string
 	}
 	findBranch := func(ignoreRecent bool) (branchCandidate, error) {
-		base := `SELECT b.id,b.code,b.name,b.size FROM branches b WHERE b.status='active' AND ($1='all' OR b.size=$1)`
+		base := `SELECT b.id,b.code,b.name,b.size FROM branches b WHERE b.status='active' AND ($1='all' OR b.size=$1)` + randomInspectionBranchScope(inspectionType)
 		arguments := []any{in.BranchSize}
 		if !ignoreRecent {
 			base += ` AND NOT EXISTS (SELECT 1 FROM inspections i WHERE i.branch_id=b.id AND i.created_at >= now()-make_interval(days => $2))`
@@ -706,7 +746,7 @@ func (h *PlatformHandler) DownloadInspectionPDF(c *gin.Context) {
 // inspectionPDFDownloadFilename keeps downloaded inspection reports identifiable
 // when several branches and work orders are stored in the same folder.
 func inspectionPDFDownloadFilename(data inspectionPDFData) string {
-	return "ใบงานตรวจช่าง_งานที่-" + strconv.FormatInt(data.ID, 10) + "_สาขา-" + data.BranchName + "_" + data.BranchCode + ".pdf"
+	return inspectionPDFTitle(data.Checklist) + "_งานที่-" + strconv.FormatInt(data.ID, 10) + "_สาขา-" + data.BranchName + "_" + data.BranchCode + ".pdf"
 }
 
 func (h *PlatformHandler) CreateAsset(c *gin.Context) {

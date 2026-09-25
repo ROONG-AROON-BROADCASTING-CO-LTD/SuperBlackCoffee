@@ -66,6 +66,7 @@ type IngredientOption = {
   unit: string;
   quantity: number;
   branchCode: string;
+  imageUrl?: string;
 };
 type ProductAvailability =
   'พร้อมขาย' | 'หมดชั่วคราว' | 'ต้องเพิ่มสูตร' | 'วัตถุดิบไม่พอ';
@@ -244,6 +245,7 @@ export function ProductsManagementPage({
   branchOptions = branches,
   branchCodes = branchCodeByBranch,
   summaryScope = 'sbc',
+  excludedSummaryBranchCodes = [],
   onSelectBranch,
 }: {
   activeBranch: string;
@@ -253,6 +255,7 @@ export function ProductsManagementPage({
   branchOptions?: readonly string[];
   branchCodes?: BranchCodeMap;
   summaryScope?: 'sbc' | 'franchise';
+  excludedSummaryBranchCodes?: readonly string[];
   onSelectBranch?: (branch: string, branchCode: string) => void;
 }) {
   const plusRef = useRef<PlusIconHandle>(null);
@@ -316,6 +319,18 @@ export function ProductsManagementPage({
   );
   const displayedBranches =
     activeBranch === 'ทุกสาขา' ? availableBranchNames : [activeBranch];
+  const visibleSummaryItems = useMemo(
+    () =>
+      (summary?.items ?? []).filter(
+        (branch) => !excludedSummaryBranchCodes.includes(branch.branchCode),
+      ),
+    [excludedSummaryBranchCodes, summary?.items],
+  );
+  const visibleSummaryTotal = summary
+    ? summary.total === summary.items.length
+      ? visibleSummaryItems.length
+      : summary.total
+    : 0;
   const recipeIngredientOptions = recipeProduct
     ? availableIngredients.filter(
         (item) => item.branchCode === recipeProduct.branchCode,
@@ -727,6 +742,7 @@ export function ProductsManagementPage({
                 unit: item.unit,
                 quantity: item.quantity,
                 branchCode: validBranchCodes[index],
+                imageUrl: item.imageUrl,
               })),
             ),
           );
@@ -765,13 +781,13 @@ export function ProductsManagementPage({
         {summary && (
           <>
             <BranchOverviewList
-              rows={summary.items.map((branch) => ({
+              rows={visibleSummaryItems.map((branch) => ({
                 name: branch.branchName,
                 code: branch.branchCode,
                 total: branch.menuCount,
                 available: branch.availableCount,
               }))}
-              total={summary.total}
+              total={visibleSummaryTotal}
               totalLabel="เมนูทั้งหมด"
               availableLabel="เปิดขาย"
               actionLabel="ดูเมนูและสินค้า"
@@ -1325,9 +1341,9 @@ export function ProductsManagementPage({
               height: '100%',
               display: 'flex',
               flexDirection: 'column',
-              px: { xs: 2.5, sm: 4 },
-              pt: 1.5,
-              pb: 3,
+              px: { xs: 1.5, sm: 2.5 },
+              pt: 1,
+              pb: 1.5,
             }}
           >
             <Box
@@ -1335,7 +1351,7 @@ export function ProductsManagementPage({
                 width: 44,
                 height: 5,
                 mx: 'auto',
-                mb: 2,
+                mb: 1.25,
                 borderRadius: 99,
                 bgcolor: '#d8c8bd',
               }}
@@ -1352,7 +1368,7 @@ export function ProductsManagementPage({
                 <Typography
                   sx={{
                     fontFamily: 'Kanit, sans-serif',
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: 600,
                   }}
                 >
@@ -1362,7 +1378,7 @@ export function ProductsManagementPage({
                   sx={{
                     color: 'text.secondary',
                     fontFamily: 'Kanit, sans-serif',
-                    fontSize: 14,
+                    fontSize: 13,
                   }}
                 >
                   {recipeProduct.name}· สูตร
@@ -1386,52 +1402,87 @@ export function ProductsManagementPage({
                 <XIcon size={20} />
               </Button>
             </Box>
-            <Divider sx={{ mt: 2, borderColor: '#e8ddd5' }} />
-            <Box sx={{ flex: 1, overflowY: 'auto', py: 2.5 }}>
+            <Divider sx={{ mt: 1.25, borderColor: '#e8ddd5' }} />
+            <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
               {readOnly ? (
                 recipeProduct.ingredients.length > 0 ||
                 recipeProduct.preparationSteps.trim() ? (
-                  <Box sx={{ display: 'grid', gap: 2 }}>
+                  <Box sx={{ display: 'grid', gap: 1.25 }}>
                     {recipeProduct.ingredients.length > 0 ? (
-                      <Box sx={{ display: 'grid', gap: 1 }}>
-                        {recipeProduct.ingredients.map((ingredient, index) => (
-                          <Box
-                            key={ingredient.inventoryItemId}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: 2,
-                              px: 2,
-                              py: 1.25,
-                              border: '1px solid #e8ddd5',
-                              borderRadius: '12px',
-                              bgcolor: '#fff',
-                            }}
-                          >
-                            <Typography
-                              sx={{ fontFamily: 'Kanit, sans-serif' }}
-                            >
-                              {index + 1}. {ingredient.name}
-                            </Typography>
-                            <Typography
-                              sx={{
-                                color: '#805637',
-                                fontFamily: 'Kanit, sans-serif',
-                                fontWeight: 600,
-                              }}
-                            >
-                              {ingredient.quantity} {ingredient.unit}
-                            </Typography>
-                          </Box>
-                        ))}
+                      <Box sx={{ display: 'grid', gap: 0.65 }}>
+                        {recipeProduct.ingredients.map((ingredient, index) =>
+                          (() => {
+                            const ingredientImage =
+                              recipeIngredientOptions.find(
+                                (option) =>
+                                  option.id === ingredient.inventoryItemId,
+                              )?.imageUrl;
+                            return (
+                              <Box
+                                key={ingredient.inventoryItemId}
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: 2,
+                                  px: 1.25,
+                                  py: 0.8,
+                                  border: '1px solid #e8ddd5',
+                                  borderRadius: '12px',
+                                  bgcolor: '#fff',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                  }}
+                                >
+                                  {ingredientImage ? (
+                                    <Box
+                                      component="img"
+                                      src={ingredientImage}
+                                      alt=""
+                                      sx={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: '8px',
+                                        objectFit: 'cover',
+                                        bgcolor: '#f7eee8',
+                                      }}
+                                    />
+                                  ) : null}
+                                  <Typography
+                                    sx={{
+                                      fontFamily: 'Kanit, sans-serif',
+                                      fontSize: 13,
+                                    }}
+                                  >
+                                    {index + 1}. {ingredient.name}
+                                  </Typography>
+                                </Box>
+                                <Typography
+                                  sx={{
+                                    color: '#805637',
+                                    fontFamily: 'Kanit, sans-serif',
+                                    fontWeight: 600,
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {ingredient.quantity} {ingredient.unit}
+                                </Typography>
+                              </Box>
+                            );
+                          })(),
+                        )}
                       </Box>
                     ) : null}
                     {recipeProduct.preparationSteps.trim() ? (
                       <Box
                         sx={{
-                          px: 2,
-                          py: 1.5,
+                          px: 1.25,
+                          py: 1,
                           border: '1px solid #e8ddd5',
                           borderRadius: '12px',
                           bgcolor: '#fff',
@@ -1439,7 +1490,7 @@ export function ProductsManagementPage({
                       >
                         <Typography
                           sx={{
-                            mb: 0.75,
+                            mb: 0.5,
                             color: '#805637',
                             fontFamily: 'Kanit, sans-serif',
                             fontWeight: 600,
@@ -1450,6 +1501,9 @@ export function ProductsManagementPage({
                         <Typography
                           sx={{
                             whiteSpace: 'pre-line',
+                            maxHeight: 120,
+                            overflowY: 'auto',
+                            fontSize: 13,
                             fontFamily: 'Kanit, sans-serif',
                           }}
                         >

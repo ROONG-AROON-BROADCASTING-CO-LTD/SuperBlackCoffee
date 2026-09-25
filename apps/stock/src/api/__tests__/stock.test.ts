@@ -10,6 +10,7 @@ import {
   loginStock,
   logoutStock,
   restoreStockSession,
+  setupStockPIN,
 } from '../stock';
 
 describe('stock mutation API contracts', () => {
@@ -243,5 +244,24 @@ describe('stock mutation API contracts', () => {
         'stock',
       );
     }
+  });
+
+  it('uses the dedicated endpoint to set a first-time Stock PIN', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true, data: {} }), {
+        status: 200,
+      }),
+    );
+
+    await setupStockPIN('new_stock_user', '123456');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/stock/setup-pin'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ username: 'new_stock_user', pin: '123456' }),
+        credentials: 'include',
+      }),
+    );
   });
 });

@@ -150,9 +150,13 @@ const centralCatalogSkeletonContent: Partial<
 const pageSkeletonIntroContent: Partial<
   Record<AdminPage, { title: string; description: string }>
 > = {
-  ภาพรวม: {
+  'ภาพรวมสาขา SBC': {
     title: 'ภาพรวมการดำเนินงานวันนี้',
     description: 'ดูยอดขายและงานที่ควรติดตามจากข้อมูลในระบบ',
+  },
+  ภาพรวมแฟรนไชส์: {
+    title: 'ภาพรวมการดำเนินงานแฟรนไชส์วันนี้',
+    description: 'ดูยอดขายและงานที่ควรติดตามจากข้อมูลแฟรนไชส์',
   },
   คำสั่งซื้อ: {
     title: 'คำสั่งซื้อและคำขอจัดส่ง',
@@ -213,7 +217,8 @@ const pageSkeletonIntroContent: Partial<
   },
   ตรวจมาตรฐานและบริการ: {
     title: 'ตรวจมาตรฐานและบริการสาขา',
-    description: 'สุ่มตรวจ งานช่าง/แจ้งซ่อม ทรัพย์สิน และรายได้บริการ',
+    description:
+      'ตรวจมาตรฐานและบริการร้านกาแฟ งานช่าง วัตถุดิบ ทรัพย์สิน และรายได้บริการ',
   },
 };
 
@@ -232,7 +237,7 @@ function DashboardPageSkeleton({ page }: { page: AdminPage }) {
   }
   const pageIntro = pageSkeletonIntroContent[page];
   const skeleton =
-    page === 'ภาพรวม' ? (
+    page === 'ภาพรวมสาขา SBC' || page === 'ภาพรวมแฟรนไชส์' ? (
       <AdminOverviewSkeleton />
     ) : page === 'สาขา SBC' ? (
       <AdminBranchesSkeleton />
@@ -317,9 +322,6 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const branchParam = searchParams.get('branch');
   const [branchDirectory, setBranchDirectory] = useState<ApiBranch[]>([]);
   const selectedBranch = branchParam || 'ทุกสาขา';
-  const activeBranch = (
-    selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกสาขา' : selectedBranch
-  ) as Branch;
   const activeOrderTab =
     searchParams.get('tab') === 'franchise'
       ? 'franchise'
@@ -349,6 +351,22 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       active = false;
     };
   }, [branchReloadKey]);
+  useEffect(() => {
+    if (activePage !== 'คำสั่งซื้อ' || selectedBranch === 'ทุกสาขา') return;
+    const selected = branchDirectory.find(
+      (branch) => branch.name === selectedBranch,
+    );
+    if (selected?.isHeadquarters) {
+      setSearchParams(
+        (current) => {
+          current.delete('branch');
+          current.delete('branchCode');
+          return current;
+        },
+        { replace: true },
+      );
+    }
+  }, [activePage, branchDirectory, selectedBranch, setSearchParams]);
   useEffect(() => {
     const revealScrollbars = () => {
       document.documentElement.classList.add('sbc-is-scrolling');
@@ -423,6 +441,30 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     isStockPage ||
     isPostalStockPage ||
     activePage === 'เมนูและสินค้า';
+  const isHeadquartersCatalogSelection =
+    isCatalogPage &&
+    branchDirectory.some(
+      (branch) => branch.name === selectedBranch && branch.isHeadquarters,
+    );
+  const catalogSelectedBranch = isHeadquartersCatalogSelection
+    ? 'ทุกสาขา'
+    : selectedBranch;
+  const activeBranch = (
+    catalogSelectedBranch === 'แฟรนไชส์ทั้งหมด'
+      ? 'ทุกสาขา'
+      : catalogSelectedBranch
+  ) as Branch;
+  useEffect(() => {
+    if (!isHeadquartersCatalogSelection) return;
+    setSearchParams(
+      (current) => {
+        current.delete('branch');
+        current.delete('branchCode');
+        return current;
+      },
+      { replace: true },
+    );
+  }, [isHeadquartersCatalogSelection, setSearchParams]);
   const isFranchiseCatalogSelection =
     isCatalogPage &&
     (selectedBranch === 'แฟรนไชส์ทั้งหมด' ||
@@ -464,7 +506,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
   const sbcBranchOptions = useMemo(
     () =>
       branchDirectory
-        .filter((branch) => !branch.franchiseeId)
+        .filter((branch) => !branch.franchiseeId && !branch.isHeadquarters)
         .map((branch) => branch.name),
     [branchDirectory],
   );
@@ -494,8 +536,10 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       allowEditing
       cardColumns={5}
     />
-  ) : activePage === 'ภาพรวม' ? (
-    <AdminOverviewPage onNavigate={navigate} />
+  ) : activePage === 'ภาพรวมสาขา SBC' ? (
+    <AdminOverviewPage onNavigate={navigate} scope="sbc" />
+  ) : activePage === 'ภาพรวมแฟรนไชส์' ? (
+    <AdminOverviewPage onNavigate={navigate} scope="franchise" />
   ) : activePage === 'คำสั่งซื้อ' ? (
     <AdminOrdersPage
       activeBranch={activeBranch}
@@ -561,6 +605,9 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       branchOptions={catalogBranchOptions}
       branchCodes={catalogBranchCodes}
       summaryScope={isFranchiseCatalogSelection ? 'franchise' : 'sbc'}
+      excludedSummaryBranchCodes={branchDirectory
+        .filter((branch) => branch.isHeadquarters)
+        .map((branch) => branch.code)}
       onSelectBranch={(branch, branchCode) =>
         setSearchParams((current) => {
           current.set('branch', branch);
@@ -643,12 +690,13 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
               ? [
                   'ทุกสาขา',
                   ...branchDirectory
-                    .filter((branch) =>
-                      activeOrderTab === 'expense'
-                        ? true
-                        : activeOrderTab === 'franchise'
+                    .filter(
+                      (branch) =>
+                        !branch.isHeadquarters &&
+                        (activeOrderTab === 'franchise'
                           ? Boolean(branch.franchiseeId)
-                          : !branch.franchiseeId,
+                          : activeOrderTab === 'expense' ||
+                            !branch.franchiseeId),
                     )
                     .map((branch) => branch.name),
                 ]
