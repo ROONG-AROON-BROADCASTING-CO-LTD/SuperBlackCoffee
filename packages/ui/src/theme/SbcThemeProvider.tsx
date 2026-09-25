@@ -58,6 +58,9 @@ export function SbcThemeProvider({
         styleOverrides: {
           root: {
             borderBottom: '1px solid #eee3dc',
+            '&:nth-of-type(even):not(.Mui-selected)': {
+              backgroundColor: '#fffaf7',
+            },
             '&:last-of-type': { borderBottom: 'none' },
           },
         },
