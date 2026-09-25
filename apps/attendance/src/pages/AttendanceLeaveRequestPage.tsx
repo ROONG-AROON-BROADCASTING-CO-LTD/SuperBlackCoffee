@@ -291,6 +291,24 @@ export function AttendanceLeaveRequestPage({
                   }}
                 />
               </Button>
+              <Button
+                component="label"
+                variant="outlined"
+                disabled={attachments.length >= 5}
+                sx={{ flexShrink: 0 }}
+              >
+                ถ่ายรูป
+                <input
+                  hidden
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(event) => {
+                    addAttachments(event.target.files);
+                    event.target.value = '';
+                  }}
+                />
+              </Button>
             </Box>
             {attachments.length ? (
               <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
