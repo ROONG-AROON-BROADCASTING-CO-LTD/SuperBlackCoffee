@@ -172,6 +172,9 @@ function formatAuditValue(key: string, value: unknown): string {
     cancelled: 'ยกเลิก',
     active: 'ใช้งาน',
     discarded: 'ตัดทิ้ง',
+    passed: 'ตรวจเสร็จ',
+    needs_action: 'ต้องแก้ไข',
+    failed: 'ไม่ผ่าน',
   };
   if (key.toLowerCase().includes('status') && statusNames[value]) {
     return statusNames[value];
