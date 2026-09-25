@@ -14,7 +14,6 @@ import {
   DateField,
   PlusIcon,
   ReceiptTextIcon,
-  SendIcon,
   UsersIcon,
 } from '@stackbuild/ui';
 import {
@@ -310,7 +309,6 @@ export function AttendanceLeaveRequestPage({
             variant="contained"
             disabled={!reason.trim() || leaveEndDate < leaveDate}
             onClick={() => void submit()}
-            endIcon={<SendIcon size={24} />}
             sx={{
               width: '100%',
               height: 58,
