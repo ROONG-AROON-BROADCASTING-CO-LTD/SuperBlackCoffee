@@ -267,7 +267,10 @@ export function AttendanceLeaveRequestPage({
                   เอกสารแนบ (ถ้ามี)
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  รองรับ JPG, PNG, WEBP และ PDF · สูงสุด 5 ไฟล์ ไฟล์ละ 5 MB
+                  รองรับ JPG, PNG, WEBP และ PDF
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  สูงสุด 5 ไฟล์ ไฟล์ละ 5 MB
                 </Typography>
               </Box>
               <Button
