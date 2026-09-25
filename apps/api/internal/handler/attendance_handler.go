@@ -75,10 +75,10 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 		return
 	}
 	var userID, branchID int64
-	var name, role, branchName, startsAt, endsAt string
+	var name, role, jobTitle, branchName, startsAt, endsAt string
 	var isHeadquarters bool
 	var pinHash *string
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters,u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &isHeadquarters, &pinHash)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,COALESCE(u.job_title,''),u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters,u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &jobTitle, &branchID, &branchName, &startsAt, &endsAt, &isHeadquarters, &pinHash)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -100,7 +100,7 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 		return
 	}
 	h.cache.Reset(c, loginKey)
-	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt, isHeadquarters)
+	h.respondAttendanceSession(c, userID, branchID, name, role, jobTitle, branchName, startsAt, endsAt, isHeadquarters)
 }
 
 func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
@@ -116,10 +116,10 @@ func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
 		}
 	}
 	var userID, branchID int64
-	var name, role, branchName, startsAt, endsAt string
+	var name, role, jobTitle, branchName, startsAt, endsAt string
 	var isHeadquarters bool
 	var existing *string
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters,u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &isHeadquarters, &existing)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,COALESCE(u.job_title,''),u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters,u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &jobTitle, &branchID, &branchName, &startsAt, &endsAt, &isHeadquarters, &existing)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -133,10 +133,10 @@ func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตั้ง PIN ได้"})
 		return
 	}
-	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt, isHeadquarters)
+	h.respondAttendanceSession(c, userID, branchID, name, role, jobTitle, branchName, startsAt, endsAt, isHeadquarters)
 }
 
-func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branchID int64, name, role, branchName, startsAt, endsAt string, isHeadquarters bool) {
+func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branchID int64, name, role, jobTitle, branchName, startsAt, endsAt string, isHeadquarters bool) {
 	claims := middleware.Claims{UserID: userID, Role: role, BranchID: &branchID, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)), IssuedAt: jwt.NewNumericDate(time.Now())}}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(h.jwtSecret))
 	if err != nil {
@@ -145,7 +145,7 @@ func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branc
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("sbc_attendance_session", token, 30*24*60*60, "/api/v1", "", os.Getenv("APP_ENV") == "production", true)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": userID, "name": name, "role": role, "branchId": branchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt, "isHeadquarters": isHeadquarters}}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": userID, "name": name, "role": role, "jobTitle": jobTitle, "branchId": branchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt, "isHeadquarters": isHeadquarters}}})
 }
 
 func (h *PlatformHandler) AttendanceSession(c *gin.Context) {
@@ -156,14 +156,14 @@ func (h *PlatformHandler) AttendanceSession(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var name, role, branchName, startsAt, endsAt string
+	var name, role, jobTitle, branchName, startsAt, endsAt string
 	var isHeadquarters bool
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &branchName, &startsAt, &endsAt, &isHeadquarters)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,COALESCE(u.job_title,''),b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &jobTitle, &branchName, &startsAt, &endsAt, &isHeadquarters)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "name": name, "role": role, "branchId": claims.BranchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt, "isHeadquarters": isHeadquarters}}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "name": name, "role": role, "jobTitle": jobTitle, "branchId": claims.BranchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt, "isHeadquarters": isHeadquarters}}})
 }
 
 func (h *PlatformHandler) AttendanceLogout(c *gin.Context) {

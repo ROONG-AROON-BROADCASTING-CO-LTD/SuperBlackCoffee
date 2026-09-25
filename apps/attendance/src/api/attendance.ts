@@ -6,6 +6,7 @@ export type AttendanceSession = {
     id: number;
     name: string;
     role: string;
+    jobTitle?: string;
     branchId: number;
     branchName: string;
     startsAt: string;

@@ -4,6 +4,7 @@ import { TimeCard, TodayCard } from './AttendanceCards';
 
 const staff = {
   role: 'cashier',
+  jobTitle: 'แคชเชียร์',
   branchName: 'อยุธยา',
   startsAt: '08:00',
   endsAt: '17:00',
@@ -23,6 +24,7 @@ describe('TodayCard', () => {
     );
 
     expect(screen.getByText('วันนี้เช็กอินและเช็กเอาต์ครบแล้ว')).toBeTruthy();
+    expect(screen.getByText(/ตำแหน่ง แคชเชียร์/u)).toBeTruthy();
   });
 
   it('shows an active check-in without incorrectly marking the shift complete', () => {
@@ -31,7 +33,7 @@ describe('TodayCard', () => {
         checkedIn
         checkInAt="2026-09-07T08:05:00+07:00"
         checkOutAt={null}
-        staff={{ ...staff, role: 'branch_manager' }}
+        staff={{ ...staff, role: 'branch_manager', jobTitle: '' }}
       />,
     );
 

@@ -139,6 +139,7 @@ export function TodayCard({
   checkOutAt: string | null;
   staff: {
     role: string;
+    jobTitle?: string;
     branchName: string;
     startsAt: string;
     endsAt: string;
@@ -238,7 +239,8 @@ export function TodayCard({
         </Typography>
         <Typography>
           <CoffeeIcon size={19} /> ตำแหน่ง{' '}
-          {staff.role === 'branch_manager' ? 'ผู้จัดการสาขา' : 'บาริสต้า'}
+          {staff.jobTitle?.trim() ||
+            (staff.role === 'branch_manager' ? 'ผู้จัดการสาขา' : 'บาริสต้า')}
         </Typography>
         <Typography>
           <MapPinHouseIcon size={19} /> สาขา{staff.branchName}
