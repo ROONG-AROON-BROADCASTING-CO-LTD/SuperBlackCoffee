@@ -1045,5 +1045,6 @@ const summaryPanelStyles = {
   overflow: 'hidden',
   borderRadius: '12px',
   bgcolor: '#faf9f8',
-  boxShadow: '0 3px 14px rgba(51, 42, 36, 0.045)',
+  border: '1px solid #e5dfdb',
+  boxShadow: 'none',
 };
