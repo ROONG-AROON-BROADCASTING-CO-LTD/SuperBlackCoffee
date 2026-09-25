@@ -15,6 +15,7 @@ import {
 import {
   ActionSnackbar,
   DashboardMain,
+  DrawerActionBar,
   DeleteItemButton,
   FilterPill,
   PlusIcon,
@@ -789,12 +790,8 @@ export function CompanyDocumentsPage({
                       </MenuItem>
                     ))}
                   </TextField>
-                  <Box
+                  <DrawerActionBar
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      gap: 1.25,
-                      mt: 1,
                       alignSelf: 'start',
                       gridColumn: { sm: '1 / -1' },
                     }}
@@ -826,7 +823,7 @@ export function CompanyDocumentsPage({
                     >
                       {saving ? 'กำลังอัปโหลด…' : 'บันทึกเอกสาร'}
                     </Button>
-                  </Box>
+                  </DrawerActionBar>
                 </Box>
               </Box>
             </Box>

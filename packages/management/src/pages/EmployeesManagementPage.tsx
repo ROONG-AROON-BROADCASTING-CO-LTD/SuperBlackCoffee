@@ -17,6 +17,7 @@ import {
   ClockIcon,
   DateField,
   DashboardMain,
+  DrawerActionBar,
   ItemActionButtons,
   PageIntro,
   selectionPillSx,
@@ -1391,11 +1392,8 @@ export function EmployeesManagementPage({
                   {updateShift.error.message}
                 </Typography>
               ) : null}
-              <Box
+              <DrawerActionBar
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 1.25,
                   gridColumn: '1 / -1',
                 }}
               >
@@ -1408,7 +1406,7 @@ export function EmployeesManagementPage({
                 >
                   {updateShift.isPending ? 'กำลังบันทึก...' : 'บันทึกกะงาน'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             </Box>
           </Box>
         </Box>
@@ -1938,11 +1936,8 @@ export function EmployeesManagementPage({
                   {createEmployeeMutation.error.message}
                 </Typography>
               ) : null}
-              <Box
+              <DrawerActionBar
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 1.25,
                   gridColumn: '1 / -1',
                 }}
               >
@@ -1964,7 +1959,7 @@ export function EmployeesManagementPage({
                       ? 'กำลังเพิ่ม...'
                       : 'เพิ่มพนักงาน'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             </Box>
           </Box>
         </Box>

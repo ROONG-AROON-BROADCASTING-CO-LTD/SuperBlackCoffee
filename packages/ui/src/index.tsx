@@ -12,6 +12,10 @@ export { PageIntro } from './components/PageIntro';
 export { ActionSnackbar, type ActionNotice } from './components/ActionSnackbar';
 export { ConnectionRetrySnackbar } from './components/ConnectionRetrySnackbar';
 export { DateField, type DateFieldProps } from './components/DateField';
+export {
+  DrawerActionBar,
+  type DrawerActionBarProps,
+} from './components/DrawerActionBar';
 export { FilterPill, selectionPillSx } from './components/selectionPill';
 export {
   DeleteItemButton,

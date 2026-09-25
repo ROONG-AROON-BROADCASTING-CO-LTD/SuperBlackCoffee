@@ -22,6 +22,7 @@ import {
 import {
   ActionSnackbar,
   DashboardMain,
+  DrawerActionBar,
   EditItemButton,
   ItemActionButtons,
   CartIcon,
@@ -2178,12 +2179,8 @@ export function IngredientsManagementPage({
                     ))}
                   </TextField>
                 ) : null}
-                <Box
+                <DrawerActionBar
                   sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: 1.25,
-                    mt: 1,
                     gridColumn: { sm: '1 / -1' },
                   }}
                 >
@@ -2218,7 +2215,7 @@ export function IngredientsManagementPage({
                         ? 'บันทึกการแก้ไข'
                         : 'บันทึกวัตถุดิบ'}
                   </Button>
-                </Box>
+                </DrawerActionBar>
               </Box>
             </Box>
           </Box>
@@ -2296,14 +2293,7 @@ export function IngredientsManagementPage({
               '& .MuiOutlinedInput-root': { borderRadius: '12px' },
             }}
           />
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 1,
-              mt: 2.5,
-            }}
-          >
+          <DrawerActionBar sx={{ mt: 2.5 }}>
             <Button
               onClick={() => setExpirySettingsBranch(null)}
               sx={{ fontFamily: 'Kanit, sans-serif' }}
@@ -2324,7 +2314,7 @@ export function IngredientsManagementPage({
             >
               {isSavingExpirySettings ? 'กำลังบันทึก…' : 'บันทึกการตั้งค่า'}
             </Button>
-          </Box>
+          </DrawerActionBar>
         </Box>
       </Drawer>
       <Drawer
@@ -2492,10 +2482,8 @@ export function IngredientsManagementPage({
                 slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
               />
               <TextField name="note" label="หมายเหตุ" size="small" />
-              <Box
+              <DrawerActionBar
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
                   gridColumn: { md: '1 / -1' },
                 }}
               >
@@ -2514,7 +2502,7 @@ export function IngredientsManagementPage({
                 >
                   {isSavingInventory ? 'กำลังบันทึก…' : 'รับล็อตเข้าสต๊อก'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             </Box>
             <Typography
               sx={{

@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   FilterPill,
   PlusIcon,
   XIcon,
@@ -1267,20 +1268,9 @@ export function PromotionsManagementPage({
                   ))}
                 </Stack>
               </Box>
-              <Stack
-                direction="row"
-                spacing={1.25}
+              <DrawerActionBar
                 sx={{
                   gridColumn: { sm: '1 / -1' },
-                  justifyContent: 'flex-end',
-                  pt: 1.5,
-                  mt: 1,
-                  pb: 0.5,
-                  position: 'sticky',
-                  bottom: 0,
-                  zIndex: 2,
-                  bgcolor: '#fffaf7',
-                  borderTop: '1px solid #e8ddd5',
                 }}
               >
                 <Button
@@ -1320,7 +1310,7 @@ export function PromotionsManagementPage({
                 >
                   บันทึกโปรโมชั่น
                 </Button>
-              </Stack>
+              </DrawerActionBar>
             </Box>
           </Box>
         </Box>

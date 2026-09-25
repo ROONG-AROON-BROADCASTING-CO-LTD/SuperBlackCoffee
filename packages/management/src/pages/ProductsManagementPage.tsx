@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   PageIntro,
   ItemActionButtons,
   PlusIcon,
@@ -1663,7 +1664,7 @@ export function ProductsManagementPage({
               )}
             </Box>
             {!readOnly ? (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <DrawerActionBar>
                 <Button
                   onClick={() => setRecipeProduct(null)}
                   sx={{
@@ -1689,7 +1690,7 @@ export function ProductsManagementPage({
                 >
                   {isSavingRecipe ? 'กำลังบันทึก...' : 'บันทึกสูตรการทำ'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             ) : null}
           </Box>
         ) : null}
@@ -2226,12 +2227,8 @@ export function ProductsManagementPage({
                     ))}
                   </Box>
                 </Box>
-                <Box
+                <DrawerActionBar
                   sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: 1.25,
-                    mt: 1,
                     gridColumn: { sm: '1 / -1' },
                   }}
                 >
@@ -2264,7 +2261,7 @@ export function ProductsManagementPage({
                         ? 'บันทึกการแก้ไข'
                         : 'บันทึกสินค้า'}
                   </Button>
-                </Box>
+                </DrawerActionBar>
               </Box>
             </Box>
           </Box>
