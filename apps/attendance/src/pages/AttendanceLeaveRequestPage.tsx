@@ -93,7 +93,7 @@ export function AttendanceLeaveRequestPage({
   };
 
   return (
-    <Stack spacing={{ xs: 1.5, md: 2.5 }}>
+    <Stack spacing={{ xs: 0, md: 2.5 }}>
       <Typography
         sx={{
           display: { xs: 'none', md: 'block' },

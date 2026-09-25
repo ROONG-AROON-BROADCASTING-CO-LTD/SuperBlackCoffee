@@ -14,7 +14,7 @@ export function AttendanceWorkHistoryPage({
   );
 
   return (
-    <Stack spacing={{ xs: 1.5, md: 2.5 }}>
+    <Stack spacing={{ xs: 0, md: 2.5 }}>
       <Typography
         sx={{
           display: { xs: 'none', md: 'block' },
@@ -51,11 +51,13 @@ export function AttendanceWorkHistoryPage({
           <Tab value="leave" label="ใบลา" />
         </Tabs>
       </Box>
-      {activeTab === 'attendance' ? (
-        <AttendanceHistoryList history={history} />
-      ) : (
-        <MyLeaveRequests />
-      )}
+      <Box sx={{ mt: { xs: 1.5, md: 0 } }}>
+        {activeTab === 'attendance' ? (
+          <AttendanceHistoryList history={history} />
+        ) : (
+          <MyLeaveRequests />
+        )}
+      </Box>
     </Stack>
   );
 }
