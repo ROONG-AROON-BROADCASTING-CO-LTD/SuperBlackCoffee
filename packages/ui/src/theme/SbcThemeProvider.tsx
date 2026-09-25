@@ -54,6 +54,14 @@ export function SbcThemeProvider({
           root: { borderRadius },
         },
       },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            borderBottom: '1px solid #eee3dc',
+            '&:last-of-type': { borderBottom: 'none' },
+          },
+        },
+      },
       MuiChip: {
         styleOverrides: {
           root: { borderRadius },
