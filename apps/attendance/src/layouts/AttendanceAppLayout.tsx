@@ -100,7 +100,7 @@ export function AttendanceAppLayout({
           sx={{
             maxWidth: 1260,
             mt: '72px',
-            p: { xs: 16, md: '32px 40px 48px' },
+            p: { xs: '20px 16px 28px', md: '32px 40px 48px' },
             mx: 'auto',
           }}
         >
