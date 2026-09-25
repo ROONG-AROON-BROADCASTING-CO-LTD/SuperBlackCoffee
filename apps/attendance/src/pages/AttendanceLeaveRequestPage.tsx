@@ -273,42 +273,42 @@ export function AttendanceLeaveRequestPage({
                   สูงสุด 5 ไฟล์ ไฟล์ละ 5 MB
                 </Typography>
               </Box>
-              <Button
-                component="label"
-                variant="outlined"
-                disabled={attachments.length >= 5}
-                sx={{ ml: 'auto', flexShrink: 0 }}
-              >
-                เลือกไฟล์
-                <input
-                  hidden
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  multiple
-                  onChange={(event) => {
-                    addAttachments(event.target.files);
-                    event.target.value = '';
-                  }}
-                />
-              </Button>
-              <Button
-                component="label"
-                variant="outlined"
-                disabled={attachments.length >= 5}
-                sx={{ flexShrink: 0 }}
-              >
-                ถ่ายรูป
-                <input
-                  hidden
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={(event) => {
-                    addAttachments(event.target.files);
-                    event.target.value = '';
-                  }}
-                />
-              </Button>
+              <Stack spacing={1} sx={{ ml: 'auto', flexShrink: 0 }}>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  disabled={attachments.length >= 5}
+                >
+                  เลือกไฟล์
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    multiple
+                    onChange={(event) => {
+                      addAttachments(event.target.files);
+                      event.target.value = '';
+                    }}
+                  />
+                </Button>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  disabled={attachments.length >= 5}
+                >
+                  ถ่ายรูป
+                  <input
+                    hidden
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => {
+                      addAttachments(event.target.files);
+                      event.target.value = '';
+                    }}
+                  />
+                </Button>
+              </Stack>
             </Box>
             {attachments.length ? (
               <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
