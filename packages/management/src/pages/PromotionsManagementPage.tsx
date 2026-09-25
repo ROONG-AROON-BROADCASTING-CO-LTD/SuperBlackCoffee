@@ -972,12 +972,14 @@ export function PromotionsManagementPage({
                     onClick={() => setSelected(null)}
                     sx={{
                       minHeight: 40,
-                      borderRadius: '10px',
-                      borderColor: '#805637',
-                      color: '#805637',
+                      px: 2.5,
+                      borderRadius: '12px',
+                      borderColor: '#d8c8bd',
+                      color: '#5f4b3d',
                       fontFamily: 'Kanit, sans-serif',
                       fontWeight: 700,
-                      '&:hover': { borderColor: '#805637', bgcolor: '#f8f0eb' },
+                      bgcolor: '#fffaf7',
+                      '&:hover': { borderColor: '#cbb8aa', bgcolor: '#f7eee8' },
                     }}
                   >
                     ปิดรายละเอียด
@@ -1000,6 +1002,8 @@ export function PromotionsManagementPage({
               width: { md: 'calc(100% - 304px)' },
               height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
               overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
               borderRadius: '22px 22px 0 0',
               bgcolor: '#fffaf7',
             },
@@ -1269,16 +1273,27 @@ export function PromotionsManagementPage({
                 sx={{
                   gridColumn: { sm: '1 / -1' },
                   justifyContent: 'flex-end',
-                  pt: 0.5,
+                  pt: 1.5,
+                  mt: 1,
+                  pb: 0.5,
+                  position: 'sticky',
+                  bottom: 0,
+                  zIndex: 2,
+                  bgcolor: '#fffaf7',
+                  borderTop: '1px solid #e8ddd5',
                 }}
               >
                 <Button
                   variant="outlined"
                   onClick={() => setCreateOpen(false)}
                   sx={{
-                    borderColor: '#cfc2b8',
-                    color: '#66574e',
-                    borderRadius: '10px',
+                    minHeight: 40,
+                    px: 2.5,
+                    borderColor: '#d8c8bd',
+                    color: '#5f4b3d',
+                    borderRadius: '12px',
+                    bgcolor: '#fffaf7',
+                    '&:hover': { borderColor: '#cbb8aa', bgcolor: '#f7eee8' },
                   }}
                 >
                   ยกเลิก
@@ -1292,11 +1307,15 @@ export function PromotionsManagementPage({
                     !draft.period.trim()
                   }
                   sx={{
+                    minHeight: 40,
+                    px: 2.5,
+                    color: '#fff',
                     bgcolor: '#3c2d24',
-                    borderRadius: '10px',
+                    borderRadius: '12px',
                     boxShadow: 'none',
                     fontFamily: 'Kanit, sans-serif',
                     '&:hover': { bgcolor: '#201914', boxShadow: 'none' },
+                    '&.Mui-disabled': { bgcolor: '#eadfd7', color: '#8b7567' },
                   }}
                 >
                   บันทึกโปรโมชั่น
