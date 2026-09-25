@@ -31,7 +31,7 @@ export function ActionSnackbar({
   autoHideDuration?: number | null;
   action?: ReactNode;
   icon?: ReactNode;
-  content?: ReactNode;
+  content?: ReactNode | ((notice: ActionNotice) => ReactNode);
   desktopSx?: Record<string, string | number | undefined>;
   alertSx?: Record<string, unknown>;
 }) {
@@ -44,6 +44,11 @@ export function ActionSnackbar({
   }, [notice]);
 
   const activeNotice = displayedNotice ?? notice;
+  const renderedContent = activeNotice
+    ? typeof content === 'function'
+      ? content(activeNotice)
+      : (content ?? activeNotice.message)
+    : null;
   const severity = activeNotice?.severity ?? 'success';
   const isSuccess = severity === 'success';
   // Keep the notice state alive until the exit transition completes so the
@@ -90,7 +95,7 @@ export function ActionSnackbar({
           ...alertSx,
         }}
       >
-        {content ?? activeNotice?.message}
+        {renderedContent}
       </Alert>
     </Snackbar>
   );

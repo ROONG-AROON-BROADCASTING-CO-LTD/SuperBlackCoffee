@@ -25,10 +25,14 @@ vi.mock('@stackbuild/ui', () => ({
     content,
   }: {
     notice: { message: string; severity?: string } | null;
-    content?: React.ReactNode;
+    content?:
+      | React.ReactNode
+      | ((notice: { message: string; severity?: string }) => React.ReactNode);
   }) => (
     <output data-testid="attendance-notice" data-severity={notice?.severity}>
-      {content ?? notice?.message}
+      {typeof content === 'function'
+        ? content(notice ?? { message: '' })
+        : (content ?? notice?.message)}
     </output>
   ),
   ConnectionRetrySnackbar: () => null,

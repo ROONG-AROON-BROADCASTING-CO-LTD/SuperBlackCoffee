@@ -350,21 +350,25 @@ export default function App() {
             }
             autoHideDuration={4_000}
             onClose={() => setNotice('')}
-            content={
-              outsideAttendanceRadiusNotice ? (
+            content={(activeNotice) => {
+              const match = activeNotice.message.match(
+                outsideAttendanceRadiusPattern,
+              );
+              if (!match) return activeNotice.message;
+              return (
                 <Stack spacing={0.25}>
                   <Typography component="span" sx={{ font: 'inherit' }}>
-                    {outsideAttendanceRadiusNotice[1]}
+                    {match[1]}
                   </Typography>
                   <Typography
                     component="span"
                     sx={{ font: 'inherit', opacity: 0.9 }}
                   >
-                    ({outsideAttendanceRadiusNotice[2]})
+                    ({match[2]})
                   </Typography>
                 </Stack>
-              ) : undefined
-            }
+              );
+            }}
           />
           <AutoRetrySnackbar open={connectionError} />
         </AttendanceAppLayout>
