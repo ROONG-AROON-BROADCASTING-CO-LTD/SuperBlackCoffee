@@ -22,8 +22,6 @@ export function AttendanceAction({
 }) {
   const timerIconRef = useRef<TimerIconHandle>(null);
   const handleAction = () => {
-    timerIconRef.current?.startAnimation();
-    window.setTimeout(() => timerIconRef.current?.stopAnimation(), 750);
     onAction();
   };
 
