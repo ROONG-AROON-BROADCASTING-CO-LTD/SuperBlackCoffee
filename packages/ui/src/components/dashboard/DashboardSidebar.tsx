@@ -669,11 +669,6 @@ export function DashboardSidebar({
       <Box
         sx={{
           mt: 'auto',
-          // Match the *visible* navigation surface. The list itself extends
-          // 4px under its clipped edge, while the logout action is not
-          // clipped; keep this action flush with the drawer instead.
-          width: 'calc(100% + 16px)',
-          mr: -2,
           px: 0,
           pt: 1.5,
           pb: 0,
