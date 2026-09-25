@@ -266,7 +266,11 @@ export function AttendanceLeaveRequestPage({
                 <Typography sx={{ fontWeight: 600 }}>
                   เอกสารแนบ (ถ้ามี)
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
                   รองรับ JPG, PNG, WEBP และ PDF
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
