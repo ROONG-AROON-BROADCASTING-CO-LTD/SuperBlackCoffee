@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Stack, Typography } from '@mui/material';
 import { ActionSnackbar, SbcThemeProvider } from '@stackbuild/ui';
 import { attendanceNavigation } from './components/AttendanceNavigation';
 import {
@@ -45,6 +46,8 @@ const staffPagePaths: Record<StaffPage, string> = {
   leave: '/leave',
   history: '/history',
 };
+
+const outsideAttendanceRadiusPattern = /^(คุณอยู่นอกรัศมีลงเวลา) \((.+)\)$/;
 
 function staffPageFromPath(pathname: string): StaffPage {
   switch (pathname.replace(/\/+$/, '') || '/') {
@@ -103,6 +106,9 @@ export default function App() {
       : status?.shiftStatus === 'day_off'
         ? 'วันนี้เป็นวันหยุด'
         : 'ยังไม่สามารถลงเวลาได้';
+  const outsideAttendanceRadiusNotice = notice.match(
+    outsideAttendanceRadiusPattern,
+  );
 
   useEffect(() => {
     let active = true;
@@ -332,9 +338,33 @@ export default function App() {
             isInitialLoading={initialDataLoading}
           />
           <ActionSnackbar
-            notice={notice ? { message: notice } : null}
+            notice={
+              notice
+                ? {
+                    message: notice,
+                    severity: outsideAttendanceRadiusNotice
+                      ? 'error'
+                      : undefined,
+                  }
+                : null
+            }
             autoHideDuration={4_000}
             onClose={() => setNotice('')}
+            content={
+              outsideAttendanceRadiusNotice ? (
+                <Stack spacing={0.25}>
+                  <Typography component="span" sx={{ font: 'inherit' }}>
+                    {outsideAttendanceRadiusNotice[1]}
+                  </Typography>
+                  <Typography
+                    component="span"
+                    sx={{ font: 'inherit', opacity: 0.9 }}
+                  >
+                    ({outsideAttendanceRadiusNotice[2]})
+                  </Typography>
+                </Stack>
+              ) : undefined
+            }
           />
           <AutoRetrySnackbar open={connectionError} />
         </AttendanceAppLayout>

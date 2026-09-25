@@ -20,8 +20,16 @@ import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
-  ActionSnackbar: ({ notice }: { notice: { message: string } | null }) => (
-    <output>{notice?.message}</output>
+  ActionSnackbar: ({
+    notice,
+    content,
+  }: {
+    notice: { message: string; severity?: string } | null;
+    content?: React.ReactNode;
+  }) => (
+    <output data-testid="attendance-notice" data-severity={notice?.severity}>
+      {content ?? notice?.message}
+    </output>
   ),
   ConnectionRetrySnackbar: () => null,
   BadgeAlertIcon: () => <span aria-hidden="true" />,
@@ -434,7 +442,10 @@ describe('Attendance App session', () => {
       canRecordAttendance: true,
     });
     vi.mocked(checkIn).mockRejectedValueOnce(
-      new ApiRequestError('คุณอยู่นอกรัศมีลงเวลา', 403),
+      new ApiRequestError(
+        'คุณอยู่นอกรัศมีลงเวลา (ห่างจากสาขาประมาณ 29607 ม. / อนุญาต 100 ม.)',
+        403,
+      ),
     );
 
     render(<App />);
@@ -449,6 +460,12 @@ describe('Attendance App session', () => {
 
     expect(await screen.findByText('attendance-router')).toBeTruthy();
     expect(await screen.findByText('คุณอยู่นอกรัศมีลงเวลา')).toBeTruthy();
+    expect(
+      await screen.findByText('(ห่างจากสาขาประมาณ 29607 ม. / อนุญาต 100 ม.)'),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('attendance-notice').getAttribute('data-severity'),
+    ).toBe('error');
     expect(logoutAttendance).not.toHaveBeenCalled();
   });
 
