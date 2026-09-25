@@ -252,7 +252,7 @@ export function AttendanceLeaveRequestPage({
             onChange={(event) => setAdditionalDetails(event.target.value)}
             fullWidth
           />
-          <Stack spacing={1}>
+          <Stack spacing={1} sx={{ mt: -2.25 }}>
             <Box
               sx={{
                 display: 'flex',
