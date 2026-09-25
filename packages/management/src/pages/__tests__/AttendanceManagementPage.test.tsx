@@ -1,11 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AttendanceManagementPage } from '../AttendanceManagementPage';
 import { listManagedAttendance } from '../../api/attendance';
 import { listBranches } from '../../api/branches';
 import { listPublicHolidays } from '../../api/public-holidays';
 import { listStaffSchedules } from '../../api/staff-schedules';
+import { listEmployees } from '../../api/users';
 import { exportDailyReportAsPdf } from '../../utils/exportCalendarPdf';
 
 vi.mock('../../api/attendance', () => ({
@@ -20,6 +27,9 @@ vi.mock('../../api/branches', () => ({
 vi.mock('../../api/public-holidays', () => ({
   listPublicHolidays: vi.fn(),
 }));
+vi.mock('../../api/users', () => ({
+  listEmployees: vi.fn(),
+}));
 vi.mock('../../utils/exportCalendarPdf', () => ({
   exportDailyReportAsPdf: vi.fn(),
 }));
@@ -28,6 +38,7 @@ const attendance = vi.mocked(listManagedAttendance);
 const schedules = vi.mocked(listStaffSchedules);
 const branches = vi.mocked(listBranches);
 const holidays = vi.mocked(listPublicHolidays);
+const employees = vi.mocked(listEmployees);
 const exportPdf = vi.mocked(exportDailyReportAsPdf);
 
 const renderPage = (franchiseMode = false) =>
@@ -103,6 +114,7 @@ describe('AttendanceManagementPage', () => {
         status: 'scheduled',
       },
     ]);
+    employees.mockResolvedValue([]);
   });
   afterEach(() => {
     cleanup();
@@ -129,8 +141,8 @@ describe('AttendanceManagementPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'อยุธยา' })).toBeTruthy(),
     );
-    expect(screen.getByText('แสดงตารางของสาขา')).toBeTruthy();
-    expect(screen.getByText('สาขา')).toBeTruthy();
+    expect(screen.getByText('สาขา SBC')).toBeTruthy();
+    expect(screen.getByText('หน่วยงาน')).toBeTruthy();
     expect(screen.getByLabelText('พิมพ์ชนก ตรงเวลา')).toBeTruthy();
 
     await screen.getByRole('button', { name: 'พิษณุโลก' }).click();
@@ -162,6 +174,68 @@ describe('AttendanceManagementPage', () => {
         ]),
       }),
     );
+  });
+
+  it('shows headquarters staff in the same daily attendance calendar', async () => {
+    branches.mockResolvedValue([
+      {
+        id: 1,
+        name: 'สำนักงานใหญ่',
+        code: 'SBC-HQ',
+        isHeadquarters: true,
+        workDays: [1, 2, 3, 4, 5, 6],
+        opensAt: '09:00',
+        closesAt: '18:00',
+      },
+    ]);
+    employees.mockResolvedValue([
+      {
+        id: 7,
+        name: 'พชร (ออม)',
+        username: 'hq-001',
+        email: '',
+        role: 'cashier',
+        branchId: 1,
+      },
+    ]);
+    attendance.mockResolvedValue([
+      {
+        id: 9,
+        userId: 7,
+        name: 'พชร (ออม)',
+        branchId: 1,
+        branchName: 'สำนักงานใหญ่',
+        date: '2026-09-25',
+        checkInAt: '2026-09-25T06:14:00Z',
+        checkOutAt: null,
+      },
+    ]);
+    window.history.replaceState({}, '', '/attendance?scheduleBranch=SBC-HQ');
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('พชร (ออม) มาสาย')).toBeTruthy(),
+    );
+    expect(screen.getByText('เวลางานมาตรฐาน 09:00–18:00 น.')).toBeTruthy();
+    expect(screen.getByText('เข้า 13:14 · ออก -')).toBeTruthy();
+    expect(screen.getAllByText('เวลางาน 09:00 - 18:00').length).toBeGreaterThan(
+      0,
+    );
+    const holidayCell = screen.getByTitle('วันหยุดทดสอบ').parentElement;
+    expect(holidayCell).toBeTruthy();
+    expect(
+      within(holidayCell as HTMLElement).queryByLabelText(
+        'พชร (ออม) ยังไม่เช็กอิน',
+      ),
+    ).toBeNull();
+
+    await screen.getByRole('button', { name: 'เดือนถัดไป' }).click();
+
+    await waitFor(() =>
+      expect(screen.getAllByText('ไม่มีพนักงานเข้ากะ')).not.toHaveLength(0),
+    );
+    expect(screen.queryByLabelText('พชร (ออม) ยังไม่เช็กอิน')).toBeNull();
   });
 
   it('keeps the attendance card layout while the initial data is loading', () => {

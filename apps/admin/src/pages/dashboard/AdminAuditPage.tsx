@@ -1,14 +1,12 @@
 import {
   AddCircleOutlineRounded as CreateIcon,
   BusinessOutlined as BranchIcon,
-  CalendarMonthOutlined as CalendarIcon,
   DeleteOutlineRounded as DeleteIcon,
   EditRounded as EditIcon,
-  FormatListBulletedRounded as ActionFilterIcon,
+  ExpandMoreRounded as ExpandMoreIcon,
   Inventory2Outlined as StockIcon,
   LocalShippingOutlined as ReceiveIcon,
   ReceiptLongOutlined as TotalIcon,
-  SearchRounded as SearchIcon,
 } from '@mui/icons-material';
 import {
   Avatar,
@@ -16,14 +14,20 @@ import {
   Button,
   Card,
   Chip,
-  InputAdornment,
+  Collapse,
   MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
 import { useDeferredValue, useMemo, useState, type ComponentType } from 'react';
-import { DashboardMain, formatDate, useMinimumLoading } from '@stackbuild/ui';
+import {
+  DashboardMain,
+  formatDate,
+  SearchField,
+  useMinimumLoading,
+} from '@stackbuild/ui';
 import type { AuditEvent } from '../../api';
+import { AdminPageIntro } from '../../components/AdminPageIntro';
 import { useAuditEvents } from '../../hooks/useAuditEvents';
 import { AdminAuditSkeleton } from '../../components/skeletons/AdminAuditSkeleton';
 
@@ -52,6 +56,68 @@ type AuditRowData = AuditEvent & {
   time: string;
 };
 
+type AuditDetail = { label: string; value: string };
+
+const auditDetailLabels: Record<string, string> = {
+  name: 'ชื่อรายการ',
+  title: 'หัวข้อ',
+  quantity: 'จำนวน',
+  unit: 'หน่วย',
+  expiryDate: 'วันหมดอายุ',
+  manufacturedAt: 'วันผลิต',
+  receivedAt: 'วันที่รับเข้า',
+  lotNumber: 'เลขล็อต',
+  before: 'ก่อนปรับ',
+  after: 'หลังปรับ',
+  note: 'หมายเหตุ',
+  itemCount: 'จำนวนรายการ',
+  inventoryItemCount: 'จำนวนวัตถุดิบ',
+  menuQuantity: 'จำนวนเมนู',
+  channel: 'ช่องทาง',
+  score: 'คะแนน',
+  status: 'สถานะ',
+  inspectionType: 'ประเภทการตรวจ',
+  templateName: 'แบบตรวจ',
+  invoiceNumber: 'เลขที่ใบแจ้งหนี้',
+  amount: 'ยอดเงิน',
+  source: 'แหล่งที่มา',
+  warningDays: 'แจ้งเตือนล่วงหน้า (วัน)',
+  decisionNote: 'หมายเหตุการพิจารณา',
+  category: 'หมวดหมู่',
+  storePrice: 'ราคาหน้าร้าน',
+  linemanPrice: 'ราคา LINE MAN',
+  costPrice: 'ต้นทุนหน้าร้าน',
+  linemanCostPrice: 'ต้นทุน LINE MAN',
+  preparationSteps: 'วิธีเตรียม',
+  reorderLevel: 'จุดสั่งซื้อ',
+  discardReason: 'เหตุผลที่ตัดทิ้ง',
+  lotId: 'รหัสล็อต',
+  id: 'รหัสรายการ',
+  inventoryItemId: 'รหัสวัตถุดิบ',
+  supplierId: 'รหัสผู้จำหน่าย',
+  menus: 'เมนูที่ขาย',
+  items: 'วัตถุดิบที่ตัด',
+  lots: 'ล็อตที่ใช้',
+  menuItemId: 'รหัสเมนู',
+  quantityUsed: 'จำนวนที่ใช้',
+  quantityBefore: 'ยอดก่อนตัด',
+  quantityAfter: 'ยอดหลังตัด',
+  unitPrice: 'ราคาต่อหน่วย',
+  supplierName: 'ผู้จำหน่าย',
+  beforeStatus: 'สถานะเดิม',
+  afterStatus: 'สถานะใหม่',
+  quantityOrdered: 'จำนวนที่สั่ง',
+  quantityReceived: 'จำนวนที่รับ',
+  unitCost: 'ต้นทุนต่อหน่วย',
+  purchaseOrderItemId: 'รหัสรายการสั่งซื้อ',
+  inventoryQuantityBefore: 'สต็อกวัตถุดิบก่อนตัด',
+  inventoryQuantityAfter: 'สต็อกวัตถุดิบหลังตัด',
+  stockMovements: 'ความเคลื่อนไหวสต็อก',
+  lotMovements: 'ความเคลื่อนไหวล็อต',
+  movementType: 'ประเภทความเคลื่อนไหว',
+  quantityDelta: 'จำนวนที่เปลี่ยน',
+};
+
 const toneStyles: Record<
   ActionTone,
   {
@@ -67,8 +133,8 @@ const toneStyles: Record<
   default: { color: '#795234', background: '#f5eee8', Icon: CreateIcon },
 };
 
-const auditGridColumns =
-  '40px 64px minmax(170px, 1.1fr) minmax(250px, 2.5fr) minmax(140px, .8fr) minmax(160px, 1fr) 104px';
+const auditDetailGridColumns =
+  '64px minmax(132px, .9fr) minmax(300px, 2.4fr) minmax(128px, 1fr) minmax(148px, 1.1fr) minmax(84px, .65fr) minmax(152px, .95fr)';
 
 function stringMetadata(event: AuditEvent, key: string) {
   const value = event.metadata?.[key];
@@ -78,6 +144,120 @@ function stringMetadata(event: AuditEvent, key: string) {
 function numberMetadata(event: AuditEvent, key: string) {
   const value = event.metadata?.[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function formatAuditValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return 'ไม่ระบุ';
+  if (typeof value === 'boolean') return value ? 'ใช่' : 'ไม่ใช่';
+  if (typeof value === 'number')
+    return new Intl.NumberFormat('th-TH').format(value);
+  if (typeof value !== 'string') return String(value);
+
+  const channelNames: Record<string, string> = {
+    storefront: 'หน้าร้าน',
+    lineman: 'LINE MAN',
+    mixed: 'หลายช่องทาง',
+  };
+  if (key === 'channel' && channelNames[value]) return channelNames[value];
+  const statusNames: Record<string, string> = {
+    pending: 'รอดำเนินการ',
+    submitted: 'ส่งอนุมัติ',
+    approved: 'อนุมัติแล้ว',
+    preparing: 'กำลังจัดเตรียม',
+    ordered: 'สั่งซื้อแล้ว',
+    partially_received: 'รับสินค้าแล้วบางส่วน',
+    received: 'รับสินค้าครบแล้ว',
+    completed: 'เสร็จสิ้น',
+    rejected: 'ปฏิเสธ',
+    cancelled: 'ยกเลิก',
+    active: 'ใช้งาน',
+    discarded: 'ตัดทิ้ง',
+  };
+  if (key.toLowerCase().includes('status') && statusNames[value]) {
+    return statusNames[value];
+  }
+  const movementNames: Record<string, string> = {
+    menu_consumption: 'ใช้ทำเมนู',
+    purchase_receipt: 'รับจากใบสั่งซื้อ',
+    stock_request_receipt: 'รับตามคำขอเติมของ',
+    fresh_lot_receipt: 'รับล็อตวัตถุดิบสด',
+    fresh_lot_discard: 'ตัดทิ้งล็อตวัตถุดิบสด',
+    adjustment: 'ปรับสต็อก',
+    consumed: 'เบิกใช้จากล็อต',
+    received: 'รับเข้าล็อต',
+    discarded: 'ตัดทิ้งจากล็อต',
+  };
+  if (key === 'movementType' && movementNames[value]) {
+    return movementNames[value];
+  }
+  if (/^(\d{4}-\d{2}-\d{2})/.test(value)) {
+    const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+    if (!Number.isNaN(date.getTime())) return formatDate(date);
+  }
+  return value;
+}
+
+function auditDetails(metadata: Record<string, unknown> | null | undefined) {
+  const details: AuditDetail[] = [];
+  const visit = (key: string, value: unknown, prefix = '') => {
+    if (value === null || value === undefined || value === '') return;
+    if (Array.isArray(value)) {
+      value.forEach((item, index) =>
+        visit(
+          key,
+          item,
+          `${prefix}${auditDetailLabels[key] ?? key} ${index + 1} · `,
+        ),
+      );
+      return;
+    }
+    if (typeof value === 'object') {
+      Object.entries(value as Record<string, unknown>).forEach(
+        ([childKey, childValue]) => {
+          const section = ['before', 'after'].includes(key)
+            ? `${prefix}${auditDetailLabels[key]} · `
+            : prefix;
+          visit(childKey, childValue, section);
+        },
+      );
+      return;
+    }
+    const label = auditDetailLabels[key] ?? key;
+    details.push({
+      label: `${prefix}${label}`,
+      value: formatAuditValue(key, value),
+    });
+  };
+  Object.entries(metadata ?? {}).forEach(([key, value]) => visit(key, value));
+  return details;
+}
+
+function metadataSummary(event: AuditEvent) {
+  const metadata = event.metadata ?? {};
+  const unit = stringMetadata(event, 'unit');
+  const before = metadata.before;
+  const after = metadata.after;
+  if (
+    before &&
+    after &&
+    typeof before === 'object' &&
+    typeof after === 'object' &&
+    'quantity' in before &&
+    'quantity' in after
+  ) {
+    const oldQuantity = formatAuditValue('quantity', before.quantity);
+    const newQuantity = formatAuditValue('quantity', after.quantity);
+    return `จำนวน ${oldQuantity} → ${newQuantity}${unit ? ` ${unit}` : ''}`;
+  }
+  const quantity = numberMetadata(event, 'quantity');
+  const expiryDate = stringMetadata(event, 'expiryDate');
+  const summary = [
+    quantity === null
+      ? null
+      : `จำนวน ${formatAuditValue('quantity', quantity)}${unit ? ` ${unit}` : ''}`,
+    expiryDate ? `หมดอายุ ${formatAuditValue('expiryDate', expiryDate)}` : null,
+  ].filter(Boolean);
+  return summary.length ? summary.join(' · ') : null;
 }
 
 function eventPresentation(event: AuditEvent) {
@@ -94,13 +274,24 @@ function eventPresentation(event: AuditEvent) {
     case 'inventory_item':
       return {
         title: `${actionLabels[event.action] ?? 'อัปเดตรายการ'} วัตถุดิบ ${itemReference}`,
-        detail: null,
+        detail: metadataSummary(event),
         category: 'วัตถุดิบ',
       };
     case 'menu_item':
       return {
         title: `${actionLabels[event.action] ?? 'อัปเดตรายการ'} เมนู ${itemReference}`,
-        detail: null,
+        detail:
+          [
+            stringMetadata(event, 'category'),
+            numberMetadata(event, 'storePrice') === null
+              ? null
+              : `หน้าร้าน ${formatAuditValue('storePrice', numberMetadata(event, 'storePrice'))} บาท`,
+            numberMetadata(event, 'linemanPrice') === null
+              ? null
+              : `LINE MAN ${formatAuditValue('linemanPrice', numberMetadata(event, 'linemanPrice'))} บาท`,
+          ]
+            .filter(Boolean)
+            .join(' · ') || null,
         category: 'เมนู',
       };
     case 'stock_request':
@@ -109,14 +300,23 @@ function eventPresentation(event: AuditEvent) {
         detail: itemCount === null ? null : `จำนวน ${itemCount} รายการ`,
         category: 'คำขอสต็อก',
       };
-    case 'stock_consumption':
+    case 'stock_consumption': {
+      const consumedCount =
+        numberMetadata(event, 'inventoryItemCount') ?? itemCount;
       return {
         title: 'ตัดสต็อกจากการขายเมนู',
         detail:
-          itemCount === null
+          consumedCount === null
             ? null
-            : `ตัดวัตถุดิบ ${itemCount} รายการ${menuQuantity === null ? '' : ` · เมนู ${menuQuantity} แก้ว`}`,
+            : `ตัดวัตถุดิบ ${consumedCount} รายการ${menuQuantity === null ? '' : ` · เมนู ${menuQuantity} แก้ว`}`,
         category: 'ขายเมนู',
+      };
+    }
+    case 'fresh_inventory_lot':
+      return {
+        title: `${event.action === 'discarded' ? 'ตัดทิ้งล็อต' : 'รับล็อต'} วัตถุดิบ ${itemReference}`,
+        detail: metadataSummary(event),
+        category: 'วัตถุดิบของสด',
       };
     case 'maintenance_ticket':
       return {
@@ -151,6 +351,18 @@ function eventPresentation(event: AuditEvent) {
         detail: itemCount === null ? null : `จำนวน ${itemCount} รายการ`,
         category: 'ใบสั่งซื้อ',
       };
+    case 'branch_expiry_settings':
+      return {
+        title: 'ปรับการแจ้งเตือนวันหมดอายุ',
+        detail: metadataSummary(event),
+        category: 'ตั้งค่า',
+      };
+    case 'staff_leave_request':
+      return {
+        title: `${actionLabels[event.action] ?? 'อัปเดต'} คำขอลาพนักงาน ${reference}`,
+        detail: metadataSummary(event),
+        category: 'บุคลากร',
+      };
     default:
       return {
         title: `${actionLabels[event.action] ?? 'อัปเดตรายการ'} ${reference}`,
@@ -175,6 +387,15 @@ function eventTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: 'Asia/Bangkok',
+  }).format(date);
+}
+
+function formatAuditDay(value: string) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('th-TH', {
+    weekday: 'long',
     timeZone: 'Asia/Bangkok',
   }).format(date);
 }
@@ -277,32 +498,10 @@ export function AdminAuditPage() {
 
   return (
     <DashboardMain>
-      <Box sx={{ mb: 2.25 }}>
-        <Typography
-          component="h1"
-          sx={{
-            color: '#2e2723',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: { xs: 22, md: 25 },
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            lineHeight: 1.32,
-          }}
-        >
-          ประวัติการทำรายการ
-        </Typography>
-        <Typography
-          sx={{
-            mt: 0.2,
-            color: '#746d68',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: 14,
-            lineHeight: 1.5,
-          }}
-        >
-          ตรวจสอบการเปลี่ยนแปลงสต็อกและการดำเนินการต่างของทุกสาขา
-        </Typography>
-      </Box>
+      <AdminPageIntro
+        title="ประวัติการทำรายการ"
+        description="ตรวจสอบการเปลี่ยนแปลงสต็อกและการดำเนินการต่างของทุกสาขา"
+      />
       {error ? (
         <Card
           variant="outlined"
@@ -324,27 +523,16 @@ export function AdminAuditPage() {
             display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
-              lg: 'minmax(270px, 1.65fr) repeat(3, minmax(155px, .86fr)) auto auto',
+              lg: 'minmax(270px, 1.65fr) repeat(3, minmax(155px, .86fr))',
             },
             gap: 1,
           }}
         >
-          <TextField
-            aria-label="ค้นหาการทำรายการ"
+          <SearchField
             placeholder="ค้นหาการทำรายการ"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            size="small"
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#806f65', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-            sx={filterFieldStyles}
+            sx={searchFieldStyles}
           />
           <TextField
             select
@@ -353,15 +541,6 @@ export function AdminAuditPage() {
             onChange={(event) => setBranchFilter(event.target.value)}
             size="small"
             sx={filterFieldStyles}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <BranchIcon sx={{ color: '#403630', fontSize: 19 }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
           >
             <MenuItem value="all">ทุกสาขา</MenuItem>
             {branches.map((branch) => (
@@ -377,15 +556,6 @@ export function AdminAuditPage() {
             onChange={(event) => setActionFilter(event.target.value)}
             size="small"
             sx={filterFieldStyles}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <ActionFilterIcon sx={{ color: '#403630', fontSize: 20 }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
           >
             <MenuItem value="all">ทุกประเภท</MenuItem>
             {actions.map((action) => (
@@ -403,34 +573,11 @@ export function AdminAuditPage() {
             }
             size="small"
             sx={filterFieldStyles}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <CalendarIcon sx={{ color: '#403630', fontSize: 19 }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
           >
             <MenuItem value="all">ช่วงเวลา</MenuItem>
             <MenuItem value="today">วันนี้</MenuItem>
             <MenuItem value="week">7 วันล่าสุด</MenuItem>
           </TextField>
-          <Button
-            onClick={() => setPeriodFilter('today')}
-            variant={periodFilter === 'today' ? 'contained' : 'outlined'}
-            sx={periodFilterButtonStyles(periodFilter === 'today')}
-          >
-            วันนี้
-          </Button>
-          <Button
-            onClick={() => setPeriodFilter('week')}
-            variant={periodFilter === 'week' ? 'contained' : 'outlined'}
-            sx={periodFilterButtonStyles(periodFilter === 'week')}
-          >
-            7 วันล่าสุด
-          </Button>
         </Box>
         <Box aria-label="สรุปประวัติที่กำลังแสดง" sx={summaryPanelStyles}>
           <SummaryStat label="ทั้งหมด" value={summary.all} tone="default" />
@@ -471,42 +618,32 @@ export function AdminAuditPage() {
                     },
                   }}
                 >
-                  {formatDate(`${date}T00:00:00Z`)}
+                  {formatAuditDay(date)} {formatDate(`${date}T00:00:00Z`)}
                 </Typography>
                 <Box
                   sx={{
                     display: { xs: 'none', md: 'grid' },
-                    gridTemplateColumns: auditGridColumns,
+                    gridTemplateColumns: auditDetailGridColumns,
                     gap: 1.5,
                     px: 1.5,
                     py: 0.55,
                     borderRadius: '9px',
-                    bgcolor: '#f7f7f7',
+                    bgcolor: '#eeeeed',
                     color: '#88817b',
                     fontFamily: 'Kanit, sans-serif',
                     fontSize: 11,
                     fontWeight: 600,
                   }}
                 >
-                  <span aria-hidden="true" />
                   <span>เวลา</span>
                   <span>การดำเนินการ</span>
                   <span>รายการ</span>
                   <span>สาขา</span>
                   <span>ผู้ดำเนินการ</span>
                   <span>หมวด</span>
+                  <span>รายละเอียด</span>
                 </Box>
                 <Box sx={{ position: 'relative' }}>
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      bottom: 0,
-                      left: { xs: 14, md: 20 },
-                      width: '1px',
-                      bgcolor: '#e7ddd7',
-                    }}
-                  />
                   {dateEvents.map((event) => (
                     <AuditRow key={event.id} event={event} />
                   ))}
@@ -623,17 +760,19 @@ function AuditRow({ event }: { event: AuditRowData }) {
   const style = toneStyles[event.tone];
   const Icon = style.Icon;
   const actorName = event.actorName || 'ระบบ';
+  const [expanded, setExpanded] = useState(false);
+  const details = auditDetails(event.metadata);
   return (
     <Box
       sx={{
         position: 'relative',
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: auditGridColumns },
+        gridTemplateColumns: { xs: '1fr', md: auditDetailGridColumns },
         gap: { xs: 0.6, md: 1.5 },
         alignItems: 'center',
         minHeight: { xs: 112, md: 43 },
-        ml: { xs: 3.5, md: 0 },
-        pl: { xs: 2, md: 1.25 },
+        ml: 0,
+        pl: { xs: 1.25, md: 1.25 },
         pr: 1.25,
         py: { xs: 1.25, md: 0.45 },
         borderBottom: '1px solid #f0e9e5',
@@ -641,26 +780,6 @@ function AuditRow({ event }: { event: AuditRowData }) {
         '&:hover': { bgcolor: '#fcfaf9' },
       }}
     >
-      <Box
-        sx={{
-          position: { xs: 'absolute', md: 'relative' },
-          left: { xs: -28, md: 'auto' },
-          top: { xs: 19, md: 'auto' },
-          transform: { xs: 'none', md: 'none' },
-          justifySelf: { md: 'center' },
-          zIndex: 1,
-          display: 'grid',
-          placeItems: 'center',
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          bgcolor: style.background,
-          color: style.color,
-          boxShadow: '0 0 0 3px #fff',
-        }}
-      >
-        <Icon sx={{ fontSize: 17 }} />
-      </Box>
       <Typography
         sx={{ color: '#776f69', fontFamily: 'Kanit, sans-serif', fontSize: 13 }}
       >
@@ -676,29 +795,47 @@ function AuditRow({ event }: { event: AuditRowData }) {
       >
         {event.actionLabel}
       </Typography>
-      <Box>
-        <Typography
+      <Box
+        sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}
+      >
+        <Box
           sx={{
-            color: '#30251f',
-            fontFamily: 'Kanit, sans-serif',
-            fontSize: 13.5,
-            fontWeight: 600,
+            display: 'grid',
+            placeItems: 'center',
+            width: 28,
+            height: 28,
+            flexShrink: 0,
+            borderRadius: '50%',
+            bgcolor: style.background,
+            color: style.color,
           }}
         >
-          {event.presentation.title}
-        </Typography>
-        {event.presentation.detail ? (
+          <Icon sx={{ fontSize: 16 }} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography
             sx={{
-              mt: 0.1,
-              color: '#837770',
+              color: '#30251f',
               fontFamily: 'Kanit, sans-serif',
-              fontSize: 11.5,
+              fontSize: 13.5,
+              fontWeight: 600,
             }}
           >
-            {event.presentation.detail}
+            {event.presentation.title}
           </Typography>
-        ) : null}
+          {event.presentation.detail ? (
+            <Typography
+              sx={{
+                mt: 0.1,
+                color: '#837770',
+                fontFamily: 'Kanit, sans-serif',
+                fontSize: 11.5,
+              }}
+            >
+              {event.presentation.detail}
+            </Typography>
+          ) : null}
+        </Box>
       </Box>
       <Box
         sx={{
@@ -762,6 +899,88 @@ function AuditRow({ event }: { event: AuditRowData }) {
           fontWeight: 600,
         }}
       />
+      {details.length > 0 ? (
+        <Button
+          size="small"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          sx={{
+            gridColumn: { xs: '1', md: '7' },
+            justifySelf: { xs: 'start', md: 'end' },
+            alignSelf: 'center',
+            mt: { xs: 0.15, md: 0 },
+            px: 0.75,
+            minWidth: { xs: 112, md: 132 },
+            minHeight: { xs: 30, md: 28 },
+            height: { xs: 30, md: 28 },
+            color: '#805637',
+            fontFamily: 'Kanit, sans-serif',
+            fontSize: 12,
+            lineHeight: 1.4,
+            whiteSpace: 'nowrap',
+            textTransform: 'none',
+            '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+          }}
+          endIcon={
+            <ExpandMoreIcon
+              sx={{
+                fontSize: 17,
+                transform: expanded ? 'rotate(180deg)' : 'none',
+                transition: 'transform 160ms ease',
+              }}
+            />
+          }
+        >
+          {expanded ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
+        </Button>
+      ) : null}
+      {details.length > 0 ? (
+        <Collapse
+          in={expanded}
+          sx={{ gridColumn: '1 / -1', minWidth: 0, width: '100%' }}
+        >
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                lg: 'repeat(3, minmax(0, 1fr))',
+              },
+              gap: 1,
+              p: 1.25,
+              borderRadius: '10px',
+              bgcolor: '#f7f5f3',
+            }}
+          >
+            {details.map((detail, index) => (
+              <Box key={`${detail.label}-${index}`} sx={{ minWidth: 0 }}>
+                <Typography
+                  sx={{
+                    color: '#877b72',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 10.5,
+                    lineHeight: 1.35,
+                  }}
+                >
+                  {detail.label}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: '#3d3029',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 12,
+                    fontWeight: 500,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {detail.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Collapse>
+      ) : null}
     </Box>
   );
 }
@@ -790,6 +1009,14 @@ const filterFieldStyles = {
   '& .MuiInputLabel-root': { fontFamily: 'Kanit, sans-serif', fontSize: 13 },
 };
 
+const searchFieldStyles = {
+  width: '100%',
+  '& .MuiOutlinedInput-root': {
+    height: 41,
+    borderRadius: '9px',
+  },
+};
+
 const summaryPanelStyles = {
   display: 'grid',
   gridTemplateColumns: {
@@ -802,23 +1029,3 @@ const summaryPanelStyles = {
   bgcolor: '#faf9f8',
   boxShadow: '0 3px 14px rgba(51, 42, 36, 0.045)',
 };
-
-function periodFilterButtonStyles(selected: boolean) {
-  return {
-    minWidth: selected ? 84 : 108,
-    height: 41,
-    borderRadius: '9px',
-    borderColor: '#ded6d1',
-    bgcolor: selected ? '#744b36' : '#fff',
-    color: selected ? '#fff' : '#5d463c',
-    boxShadow: 'none',
-    fontFamily: 'Kanit, sans-serif',
-    fontSize: 13,
-    fontWeight: 600,
-    '&:hover': {
-      borderColor: selected ? '#603b2a' : '#b8a79b',
-      bgcolor: selected ? '#603b2a' : '#faf8f7',
-      boxShadow: 'none',
-    },
-  };
-}

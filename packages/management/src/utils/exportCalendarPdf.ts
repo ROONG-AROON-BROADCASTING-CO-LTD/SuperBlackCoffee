@@ -81,21 +81,21 @@ export function exportDailyReportAsPdf({
     <title>${escapeHtml(title)}</title>
     ${styles}
     <style>
-      @page { size: A4 portrait; margin: 12mm; }
+      @page { size: A4 landscape; margin: 9mm; }
       * { box-sizing: border-box; }
       body { margin: 0; color: #201914; background: #fff; font-family: Kanit, sans-serif; }
-      .report-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #3c2d24; }
-      .report-title { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 700; }
-      .report-meta { margin: 5px 0 0; color: #60493b; font-size: 14px; }
-      .report-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-      .report-day { break-inside: avoid; border: 1px solid #e8ddd5; border-radius: 9px; overflow: hidden; }
-      .report-day__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 9px 11px; background: #fbf7f4; border-bottom: 1px solid #eee4dd; }
-      .report-day__header h2 { margin: 0; font-size: 15px; line-height: 1.35; font-weight: 700; }
-      .report-holiday { color: #b94136; font-size: 12px; font-weight: 700; text-align: right; }
+      .report-header { margin-bottom: 9px; padding-bottom: 7px; border-bottom: 2px solid #3c2d24; }
+      .report-title { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; }
+      .report-meta { margin: 3px 0 0; color: #60493b; font-size: 11px; }
+      .report-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+      .report-day { break-inside: avoid; border: 1px solid #e8ddd5; border-radius: 6px; overflow: hidden; }
+      .report-day__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 5px 7px; background: #3c2d24; border-bottom: 1px solid #3c2d24; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .report-day__header h2 { margin: 0; color: #fff; font-size: 11px; line-height: 1.3; font-weight: 700; }
+      .report-holiday { color: #ffe7d6; font-size: 9px; line-height: 1.3; font-weight: 700; text-align: right; }
       .report-entries { margin: 0; padding: 0; list-style: none; }
-      .report-entry { display: flex; flex-direction: column; gap: 2px; padding: 8px 11px; border-bottom: 1px solid #f0e8e2; font-size: 13px; line-height: 1.35; }
+      .report-entry { display: flex; flex-direction: column; gap: 1px; padding: 5px 7px; border-bottom: 1px solid #f0e8e2; font-size: 9px; line-height: 1.3; }
       .report-entry:last-child { border-bottom: 0; }
-      .report-entry strong { font-size: 14px; }
+      .report-entry strong { font-size: 10px; }
       .report-entry span { color: #60493b; }
       .report-entry--success { background: #edf8f0; color: #256c45; }
       .report-entry--success span { color: #256c45; }
@@ -103,9 +103,9 @@ export function exportDailyReportAsPdf({
       .report-entry--danger span { color: #b94136; }
       .report-entry--warning { background: #fff8eb; color: #8a5b12; }
       .report-entry--warning span { color: #8a5b12; }
-      .report-empty { margin: 0; padding: 12px; color: #766f6a; font-size: 13px; }
-      .report-empty--page { border: 1px solid #e8ddd5; border-radius: 9px; }
-      @media print { .report-days { gap: 8px; } }
+      .report-empty { margin: 0; padding: 7px; color: #766f6a; font-size: 9px; }
+      .report-empty--page { border: 1px solid #e8ddd5; border-radius: 6px; }
+      @media print { .report-days { gap: 6px; } }
     </style>
   </head>
   <body>

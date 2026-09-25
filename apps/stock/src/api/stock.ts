@@ -105,6 +105,16 @@ export const createStockRequest = (data: {
     method: 'POST',
     body: JSON.stringify(data),
   });
+export const createExpenseRequest = (data: {
+  title: string;
+  category: 'maintenance' | 'office' | 'transport' | 'service' | 'other';
+  estimatedAmount: number;
+  note: string;
+}) =>
+  request<{ id: number; status: 'pending' }>('/expense-requests', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 export const listMenuItems = () => request<MenuItem[]>('/menu-items');
 export const consumeStockFromMenus = (
   items: Array<{

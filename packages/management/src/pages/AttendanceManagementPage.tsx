@@ -10,7 +10,8 @@ import {
 import { listManagedAttendance } from '../api/attendance';
 import { listBranches } from '../api/branches';
 import { listPublicHolidays } from '../api/public-holidays';
-import { listStaffSchedules } from '../api/staff-schedules';
+import { listStaffSchedules, type StaffShift } from '../api/staff-schedules';
+import { listEmployees } from '../api/users';
 import { DataLoadNotice } from '../components/DataLoadNotice';
 import { AttendanceSkeleton } from '../components/skeletons/AttendanceSkeleton';
 import { usePersistedScheduleBranch } from '../hooks/usePersistedScheduleBranch';
@@ -36,6 +37,28 @@ const thaiWeekday = [
   'วันเสาร์',
   'วันอาทิตย์',
 ];
+
+function headquartersWorkDaysLabel(days?: number[]) {
+  const selectedDays = [...new Set(days?.length ? days : [1, 2, 3, 4, 5])].sort(
+    (first, second) => first - second,
+  );
+  const ranges: Array<[number, number]> = [];
+  for (const day of selectedDays) {
+    const previousRange = ranges[ranges.length - 1];
+    if (previousRange && day === previousRange[1] + 1) {
+      previousRange[1] = day;
+    } else {
+      ranges.push([day, day]);
+    }
+  }
+  return ranges
+    .map(([firstDay, lastDay]) =>
+      firstDay === lastDay
+        ? thaiWeekday[firstDay - 1]
+        : `${thaiWeekday[firstDay - 1]}–${thaiWeekday[lastDay - 1]}`,
+    )
+    .join(', ');
+}
 const thaiMonth = new Intl.DateTimeFormat('th-TH', {
   month: 'long',
   year: 'numeric',
@@ -170,11 +193,21 @@ export function AttendanceManagementPage({
     queryKey: ['public-holidays', month],
     queryFn: () => listPublicHolidays(month),
   });
-  const branches = useQuery({ queryKey: ['branches'], queryFn: listBranches });
+  const branches = useQuery({
+    queryKey: ['branches'],
+    queryFn: listBranches,
+    refetchOnMount: 'always',
+  });
   const rows = attendance.data ?? [];
   const workspaceBranches = franchiseMode
     ? (branches.data ?? [])
     : (branches.data ?? []).filter((branch) => !branch.franchiseeId);
+  const headquartersBranches = workspaceBranches.filter(
+    (branch) => branch.isHeadquarters,
+  );
+  const sbcBranches = workspaceBranches.filter(
+    (branch) => !branch.isHeadquarters,
+  );
   const savedBranchIsAvailable = workspaceBranches.some(
     (branch) => branch.code === selectedBranchCode,
   );
@@ -183,12 +216,60 @@ export function AttendanceManagementPage({
     : savedBranchIsAvailable
       ? (workspaceBranches.find((branch) => branch.code === selectedBranchCode)
           ?.id ?? null)
-      : (workspaceBranches[0]?.id ?? null);
+      : (sbcBranches[0]?.id ?? headquartersBranches[0]?.id ?? null);
   const activeBranch = workspaceBranches.find(
     (branch) => branch.id === activeBranchId,
   );
+  const isHeadquarters = activeBranch?.isHeadquarters === true;
+  const employees = useQuery({
+    queryKey: ['employees'],
+    queryFn: listEmployees,
+    enabled: isHeadquarters && month === currentMonth(),
+  });
+  const holidaysByDate = useMemo(
+    () =>
+      new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
+    [holidays.data],
+  );
   const workingSchedulesByDate = useMemo(() => {
-    const result = new Map<string, NonNullable<typeof schedules.data>>();
+    const result = new Map<string, StaffShift[]>();
+    if (isHeadquarters) {
+      if (month !== currentMonth()) return result;
+      const workDays = activeBranch?.workDays?.length
+        ? activeBranch.workDays
+        : [1, 2, 3, 4, 5];
+      const headquartersEmployees = (employees.data ?? []).filter(
+        (employee) => employee.branchId === activeBranchId,
+      );
+
+      for (const day of calendarDays) {
+        if (monthKey(day) !== month) continue;
+        const weekday = day.getDay() === 0 ? 7 : day.getDay();
+        if (!workDays.includes(weekday)) continue;
+
+        const date = dateKey(day);
+        if (holidaysByDate.has(date)) continue;
+        result.set(
+          date,
+          headquartersEmployees.map((employee) => ({
+            id: -(
+              (activeBranchId ?? 0) * 1_000_000 +
+              day.getDate() * 1_000 +
+              employee.id
+            ),
+            userId: employee.id,
+            name: employee.name,
+            branchId: activeBranchId ?? undefined,
+            date,
+            startsAt: activeBranch?.opensAt ?? '09:00',
+            endsAt: activeBranch?.closesAt ?? '18:00',
+            status: 'scheduled',
+          })),
+        );
+      }
+      return result;
+    }
+
     for (const schedule of schedules.data ?? []) {
       if (schedule.branchId !== activeBranchId) continue;
       if (
@@ -202,7 +283,18 @@ export function AttendanceManagementPage({
       ]);
     }
     return result;
-  }, [activeBranchId, schedules.data]);
+  }, [
+    activeBranch?.closesAt,
+    activeBranch?.opensAt,
+    activeBranch?.workDays,
+    activeBranchId,
+    calendarDays,
+    employees.data,
+    holidaysByDate,
+    isHeadquarters,
+    month,
+    schedules.data,
+  ]);
   const attendanceByShift = useMemo(() => {
     const result = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
@@ -210,11 +302,6 @@ export function AttendanceManagementPage({
     }
     return result;
   }, [rows]);
-  const holidaysByDate = useMemo(
-    () =>
-      new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
-    [holidays.data],
-  );
   const dailyAttendanceReport = useMemo<DailyPdfSection[]>(
     () =>
       calendarDays
@@ -263,7 +350,8 @@ export function AttendanceManagementPage({
     attendance.isLoading ||
     schedules.isLoading ||
     holidays.isLoading ||
-    branches.isLoading;
+    branches.isLoading ||
+    (isHeadquarters && month === currentMonth() && employees.isLoading);
   const showSkeleton = useMinimumLoading(pageLoading);
   const today = new Date();
   const changeMonth = (offset: number) => {
@@ -309,20 +397,51 @@ export function AttendanceManagementPage({
             mb: 2,
           }}
         >
-          <Typography color="text.secondary" sx={{ fontSize: 14, mr: 0.5 }}>
-            แสดงตารางของสาขา
-          </Typography>
-          {workspaceBranches.map((branch) => (
-            <Button
-              key={branch.id}
-              size="small"
-              variant={activeBranchId === branch.id ? 'contained' : 'outlined'}
-              onClick={() => selectBranch(branch.code)}
-              sx={selectionPillSx(activeBranchId === branch.id)}
-            >
-              {branch.name}
-            </Button>
-          ))}
+          {headquartersBranches.length > 0 ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+                สำนักงานใหญ่
+              </Typography>
+              {headquartersBranches.map((branch) => (
+                <Button
+                  key={branch.id}
+                  size="small"
+                  variant={
+                    activeBranchId === branch.id ? 'contained' : 'outlined'
+                  }
+                  onClick={() => selectBranch(branch.code)}
+                  sx={selectionPillSx(activeBranchId === branch.id)}
+                >
+                  {branch.name}
+                </Button>
+              ))}
+            </Box>
+          ) : null}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Typography color="text.secondary" sx={{ fontSize: 14 }}>
+              สาขา SBC
+            </Typography>
+            {sbcBranches.map((branch) => (
+              <Button
+                key={branch.id}
+                size="small"
+                variant={
+                  activeBranchId === branch.id ? 'contained' : 'outlined'
+                }
+                onClick={() => selectBranch(branch.code)}
+                sx={selectionPillSx(activeBranchId === branch.id)}
+              >
+                {branch.name}
+              </Button>
+            ))}
+          </Box>
         </Box>
       ) : null}
       <Card
@@ -356,7 +475,7 @@ export function AttendanceManagementPage({
                   <Typography
                     sx={{ color: '#8b7161', fontSize: 12, fontWeight: 700 }}
                   >
-                    สาขา
+                    หน่วยงาน
                   </Typography>
                   <Typography
                     sx={{ color: '#201914', fontSize: 21, fontWeight: 800 }}
@@ -403,12 +522,35 @@ export function AttendanceManagementPage({
         {attendance.error ||
         schedules.error ||
         holidays.error ||
-        branches.error ? (
+        branches.error ||
+        (isHeadquarters && month === currentMonth() && employees.error) ? (
           <Box sx={{ p: 2.5 }}>
             <DataLoadNotice />
           </Box>
         ) : (
           <Box sx={{ overflowX: 'auto' }}>
+            {isHeadquarters ? (
+              <Box
+                sx={{
+                  minWidth: 780,
+                  px: 2,
+                  py: 1.25,
+                  borderBottom: '1px solid #eee4dd',
+                  bgcolor: '#fbf7f4',
+                }}
+              >
+                <Typography
+                  sx={{ color: '#201914', fontSize: 15, fontWeight: 800 }}
+                >
+                  เวลางานมาตรฐาน {activeBranch?.opensAt ?? '09:00'}–
+                  {activeBranch?.closesAt ?? '18:00'} น.
+                </Typography>
+                <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                  วันทำงานที่ตั้งค่า:{' '}
+                  {headquartersWorkDaysLabel(activeBranch?.workDays)}
+                </Typography>
+              </Box>
+            ) : null}
             <Box sx={{ minWidth: 780 }}>
               <Box
                 sx={{
@@ -551,7 +693,9 @@ export function AttendanceManagementPage({
                             <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
                               {record?.checkInAt
                                 ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
-                                : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
+                                : isHeadquarters
+                                  ? `เวลางาน ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`
+                                  : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
                             </Box>
                           </Box>
                         );

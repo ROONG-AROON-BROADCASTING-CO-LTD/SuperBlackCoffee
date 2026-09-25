@@ -58,6 +58,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	required := map[int64]float64{}
 	channels := map[string]bool{}
 	saleItems := make([]stockSaleItem, 0, len(input.Items))
+	menuAuditItems := make([]gin.H, 0, len(input.Items))
 	for _, item := range input.Items {
 		itemChannel := input.Channel
 		if item.Channel != "" {
@@ -91,6 +92,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			return
 		}
 		saleItems = append(saleItems, stockSaleItem{menuItemID: item.MenuItemID, channel: itemChannel, quantity: item.Quantity, unitPrice: unitPrice})
+		menuAuditItems = append(menuAuditItems, gin.H{"menuItemId": item.MenuItemID, "name": name, "quantity": item.Quantity, "unitPrice": unitPrice, "channel": itemChannel})
 		rows, queryErr := tx.QueryContext(c.Request.Context(), `SELECT mi.inventory_item_id,mi.quantity,COALESCE(c.track_stock,true) FROM menu_item_ingredients mi JOIN inventory_items i ON i.id=mi.inventory_item_id LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE mi.menu_item_id=$1 AND mi.channel=$2 AND i.template_enabled`, item.MenuItemID, itemChannel)
 		if queryErr != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านสูตรเมนูได้"})
@@ -151,11 +153,12 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	claims := middleware.ClaimsFrom(c)
+	consumedInventoryItems := make([]gin.H, 0, len(ids))
 	for _, inventoryID := range ids {
 		var before float64
-		var name, category string
+		var name, unit, category string
 		var expired bool
-		if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name,category,expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &name, &category, &expired); err != nil {
+		if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name,unit,category,expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &name, &unit, &category, &expired); err != nil {
 			c.JSON(400, gin.H{"success": false, "message": "ไม่พบวัตถุดิบในสูตร"})
 			return
 		}
@@ -226,6 +229,11 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 					c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติสต๊อกได้"})
 					return
 				}
+				lotDetails := make([]gin.H, 0, len(uses))
+				for _, use := range uses {
+					lotDetails = append(lotDetails, gin.H{"lotId": use.id, "quantityUsed": use.used, "quantityBefore": use.before, "quantityAfter": use.before - use.used})
+				}
+				consumedInventoryItems = append(consumedInventoryItems, gin.H{"inventoryItemId": inventoryID, "name": name, "quantityUsed": required[inventoryID], "unit": unit, "quantityBefore": before, "quantityAfter": after, "lots": lotDetails})
 				continue
 			}
 		}
@@ -246,6 +254,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติสต๊อกได้"})
 			return
 		}
+		consumedInventoryItems = append(consumedInventoryItems, gin.H{"inventoryItemId": inventoryID, "name": name, "quantityUsed": required[inventoryID], "unit": unit, "quantityBefore": before, "quantityAfter": after})
 	}
 	menuQuantity := 0.0
 	for _, item := range input.Items {
@@ -255,7 +264,7 @@ func (h *PlatformHandler) ConsumeStockFromMenus(c *gin.Context) {
 	if len(channels) > 1 {
 		auditChannel = "mixed"
 	}
-	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_consumption", 0, "consumed", gin.H{"itemCount": len(input.Items), "menuQuantity": menuQuantity, "channel": auditChannel, "note": input.Note}); err != nil {
+	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_consumption", 0, "consumed", gin.H{"itemCount": len(input.Items), "inventoryItemCount": len(consumedInventoryItems), "menuQuantity": menuQuantity, "channel": auditChannel, "note": input.Note, "menus": menuAuditItems, "items": consumedInventoryItems}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติได้"})
 		return
 	}

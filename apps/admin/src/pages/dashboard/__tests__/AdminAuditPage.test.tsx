@@ -7,6 +7,7 @@ vi.mock('@stackbuild/ui', () => ({
   DashboardMain: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
+  SearchField: (props: React.ComponentProps<'input'>) => <input {...props} />,
   PageIntro: ({
     title,
     description,

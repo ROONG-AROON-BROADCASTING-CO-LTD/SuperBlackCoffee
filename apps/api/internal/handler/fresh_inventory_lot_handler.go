@@ -122,8 +122,8 @@ func (h *PlatformHandler) ReceiveFreshInventoryLot(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	var before float64
-	var name, category string
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name,category FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &name, &category); err != nil {
+	var name, unit, category string
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name,unit,category FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, inventoryID, branchID).Scan(&before, &name, &unit, &category); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบวัตถุดิบของสด"})
 		return
 	}
@@ -145,7 +145,12 @@ func (h *PlatformHandler) ReceiveFreshInventoryLot(c *gin.Context) {
 		err = recordStockMovementTx(c.Request.Context(), tx, branchID, inventoryID, "fresh_lot_receipt", input.Quantity, before, after, "fresh_inventory_lot", &lotID, input.Note, claims.UserID)
 	}
 	if err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "fresh_inventory_lot", lotID, "received", gin.H{"inventoryItemId": inventoryID, "name": name, "quantity": input.Quantity, "manufacturedAt": manufacturedAt, "expiryDate": expiryDate})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "fresh_inventory_lot", lotID, "received", gin.H{
+			"inventoryItemId": inventoryID, "name": name, "lotNumber": strings.TrimSpace(input.LotNumber),
+			"quantity": input.Quantity, "unit": unit, "quantityBefore": before, "quantityAfter": after,
+			"manufacturedAt": manufacturedAt, "receivedAt": receivedAt, "expiryDate": expiryDate,
+			"unitCost": input.UnitCost, "note": input.Note,
+		})
 	}
 	if err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถรับของสดเข้าสต๊อกได้"})
@@ -181,8 +186,9 @@ func (h *PlatformHandler) DiscardFreshInventoryLot(c *gin.Context) {
 	defer tx.Rollback()
 	var inventoryID int64
 	var lotBefore, inventoryBefore float64
-	var status string
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT lot.inventory_item_id,lot.quantity_remaining,lot.status,item.quantity FROM fresh_inventory_lots lot JOIN inventory_items item ON item.id=lot.inventory_item_id WHERE lot.id=$1 AND lot.branch_id=$2 FOR UPDATE`, lotID, branchID).Scan(&inventoryID, &lotBefore, &status, &inventoryBefore); err != nil {
+	var status, name, lotNumber, unit string
+	var lotExpiry time.Time
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT lot.inventory_item_id,lot.quantity_remaining,lot.status,item.quantity,item.name,lot.lot_number,lot.expiry_date,item.unit FROM fresh_inventory_lots lot JOIN inventory_items item ON item.id=lot.inventory_item_id WHERE lot.id=$1 AND lot.branch_id=$2 FOR UPDATE`, lotID, branchID).Scan(&inventoryID, &lotBefore, &status, &inventoryBefore, &name, &lotNumber, &lotExpiry, &unit); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบล็อตของสด"})
 		return
 	}
@@ -203,7 +209,13 @@ func (h *PlatformHandler) DiscardFreshInventoryLot(c *gin.Context) {
 		err = recordStockMovementTx(c.Request.Context(), tx, branchID, inventoryID, "fresh_lot_discard", -input.Quantity, inventoryBefore, inventoryAfter, "fresh_inventory_lot", &lotID, input.Note, claims.UserID)
 	}
 	if err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "fresh_inventory_lot", lotID, "discarded", gin.H{"inventoryItemId": inventoryID, "quantity": input.Quantity, "note": input.Note})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "fresh_inventory_lot", lotID, "discarded", gin.H{
+			"inventoryItemId": inventoryID, "name": name, "lotNumber": lotNumber, "expiryDate": lotExpiry,
+			"quantity": input.Quantity, "unit": unit,
+			"quantityBefore": lotBefore, "quantityAfter": lotAfter,
+			"inventoryQuantityBefore": inventoryBefore, "inventoryQuantityAfter": inventoryAfter,
+			"note": input.Note,
+		})
 	}
 	if err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตัดทิ้งของสดได้"})

@@ -98,8 +98,8 @@ func (h *PlatformHandler) CreatePurchaseOrder(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	var active bool
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT status='active' FROM suppliers WHERE id=$1`, input.SupplierID).Scan(&active); err != nil || !active {
+	var supplierName, supplierStatus string
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,status FROM suppliers WHERE id=$1`, input.SupplierID).Scan(&supplierName, &supplierStatus); err != nil || supplierStatus != "active" {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบผู้ขายหรือผู้ขายถูกปิดใช้งาน"})
 		return
 	}
@@ -108,6 +108,7 @@ func (h *PlatformHandler) CreatePurchaseOrder(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างใบสั่งซื้อได้"})
 		return
 	}
+	auditItems := make([]gin.H, 0, len(input.Items))
 	for _, item := range input.Items {
 		var name, unit string
 		err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit FROM inventory_items WHERE id=$1 AND branch_id=$2 AND template_enabled`, item.InventoryItemID, branchID).Scan(&name, &unit)
@@ -122,9 +123,10 @@ func (h *PlatformHandler) CreatePurchaseOrder(c *gin.Context) {
 		if err != nil {
 			break
 		}
+		auditItems = append(auditItems, gin.H{"inventoryItemId": item.InventoryItemID, "name": name, "quantityOrdered": item.Quantity, "unit": unit, "unitCost": item.UnitCost})
 	}
 	if err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "purchase_order", id, "created", gin.H{"supplierId": input.SupplierID, "itemCount": len(input.Items)})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "purchase_order", id, "created", gin.H{"supplierId": input.SupplierID, "supplierName": supplierName, "note": input.Note, "itemCount": len(auditItems), "items": auditItems})
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกใบสั่งซื้อได้"})
@@ -200,12 +202,16 @@ func (h *PlatformHandler) UpdatePurchaseOrderStatus(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	var branchID int64
-	err = tx.QueryRowContext(c.Request.Context(), `UPDATE purchase_orders SET status=$1,approved_by=CASE WHEN $1 IN ('approved','ordered') THEN $2 ELSE approved_by END,ordered_at=CASE WHEN $1='ordered' THEN now() ELSE ordered_at END,updated_at=now() WHERE id=$3 AND status = ANY($4) RETURNING branch_id`, input.Status, claims.UserID, id, allowed[input.Status]).Scan(&branchID)
+	var previousStatus string
+	err = tx.QueryRowContext(c.Request.Context(), `SELECT branch_id,status FROM purchase_orders WHERE id=$1 AND status = ANY($2) FOR UPDATE`, id, allowed[input.Status]).Scan(&branchID, &previousStatus)
 	if errors.Is(err, sql.ErrNoRows) {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะใบสั่งซื้อนี้ได้"})
 		return
 	}
-	if err != nil || recordAuditTx(c, tx, branchID, claims.UserID, "purchase_order", id, input.Status, nil) != nil || tx.Commit() != nil {
+	if err == nil {
+		_, err = tx.ExecContext(c.Request.Context(), `UPDATE purchase_orders SET status=$1,approved_by=CASE WHEN $1 IN ('approved','ordered') THEN $2 ELSE approved_by END,ordered_at=CASE WHEN $1='ordered' THEN now() ELSE ordered_at END,updated_at=now() WHERE id=$3`, input.Status, claims.UserID, id)
+	}
+	if err != nil || recordAuditTx(c, tx, branchID, claims.UserID, "purchase_order", id, input.Status, gin.H{"beforeStatus": previousStatus, "afterStatus": input.Status}) != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะใบสั่งซื้อได้"})
 		return
 	}
@@ -239,10 +245,12 @@ func (h *PlatformHandler) ReceivePurchaseOrder(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ใบสั่งซื้อนี้ยังไม่พร้อมรับสินค้า"})
 		return
 	}
+	receivedItems := make([]gin.H, 0, len(input.Items))
 	for _, receipt := range input.Items {
 		var inventoryID int64
+		var name, unit string
 		var ordered, received, orderCost float64
-		err = tx.QueryRowContext(c.Request.Context(), `SELECT inventory_item_id,quantity_ordered,quantity_received,unit_cost FROM purchase_order_items WHERE id=$1 AND purchase_order_id=$2 FOR UPDATE`, receipt.ItemID, id).Scan(&inventoryID, &ordered, &received, &orderCost)
+		err = tx.QueryRowContext(c.Request.Context(), `SELECT inventory_item_id,item_name,unit,quantity_ordered,quantity_received,unit_cost FROM purchase_order_items WHERE id=$1 AND purchase_order_id=$2 FOR UPDATE`, receipt.ItemID, id).Scan(&inventoryID, &name, &unit, &ordered, &received, &orderCost)
 		if err != nil || receipt.Quantity+received > ordered {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "จำนวนรับสินค้าเกินกว่าจำนวนที่สั่ง หรือไม่พบรายการ"})
 			return
@@ -266,6 +274,7 @@ func (h *PlatformHandler) ReceivePurchaseOrder(c *gin.Context) {
 		if err = recordStockMovementTx(c.Request.Context(), tx, branchID, inventoryID, "purchase_receipt", receipt.Quantity, before, after, "purchase_order", &id, input.Note, claims.UserID); err != nil {
 			break
 		}
+		receivedItems = append(receivedItems, gin.H{"purchaseOrderItemId": receipt.ItemID, "inventoryItemId": inventoryID, "name": name, "quantityReceived": receipt.Quantity, "unit": unit, "unitCost": orderCost, "quantityBefore": before, "quantityAfter": after})
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต๊อกได้"})
@@ -281,7 +290,7 @@ func (h *PlatformHandler) ReceivePurchaseOrder(c *gin.Context) {
 		newStatus = "received"
 	}
 	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE purchase_orders SET status=$1,received_at=CASE WHEN $1='received' THEN now() ELSE received_at END,updated_at=now() WHERE id=$2`, newStatus, id); err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "purchase_order", id, "received", gin.H{"status": newStatus, "itemCount": len(input.Items)})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "purchase_order", id, "received", gin.H{"status": newStatus, "itemCount": len(receivedItems), "note": input.Note, "items": receivedItems})
 	}
 	if err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถรับสินค้าเข้าสต๊อกได้"})
@@ -317,8 +326,9 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 	}
 	defer tx.Rollback()
 	var before float64
+	var itemName, itemUnit string
 	var trackStock bool
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE`, id, branchID).Scan(&before, &trackStock); err != nil {
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,i.name,i.unit,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE`, id, branchID).Scan(&before, &itemName, &itemUnit, &trackStock); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต๊อก"})
 		return
 	}
@@ -334,7 +344,7 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 		err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", input.Quantity-before, before, input.Quantity, "inventory_adjustment", nil, input.Note, claims.UserID)
 	}
 	if err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "inventory_item", id, "adjusted", gin.H{"before": before, "after": input.Quantity, "note": input.Note})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "inventory_item", id, "adjusted", gin.H{"name": itemName, "unit": itemUnit, "before": before, "after": input.Quantity, "note": input.Note})
 	}
 	if err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถปรับยอดสต๊อกได้"})

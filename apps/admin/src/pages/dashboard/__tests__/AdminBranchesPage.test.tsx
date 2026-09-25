@@ -6,6 +6,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AdminBranchesPage } from '../AdminBranchesPage';
 import {
   createCompanyBranch,
@@ -25,6 +26,17 @@ const mockedCreateCompanyBranch = vi.mocked(createCompanyBranch);
 const mockedListBranches = vi.mocked(listBranches);
 const mockedUpdateBranchSize = vi.mocked(updateBranchSize);
 const mockedUpdateCompanyBranchDetails = vi.mocked(updateCompanyBranchDetails);
+
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AdminBranchesPage />
+    </QueryClientProvider>,
+  );
+}
 
 describe('AdminBranchesPage', () => {
   beforeEach(() => {
@@ -54,7 +66,7 @@ describe('AdminBranchesPage', () => {
   });
 
   it('creates an SBC branch with the selected size and places it in the grid', async () => {
-    render(<AdminBranchesPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByText('สาขาเดิม')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มสาขา SBC' }));
@@ -97,14 +109,14 @@ describe('AdminBranchesPage', () => {
         franchiseeId: 12,
       },
     ]);
-    render(<AdminBranchesPage />);
+    renderPage();
 
     expect(await screen.findByText('สาขา SBC')).toBeTruthy();
     expect(screen.queryByText('สาขาแฟรนไชส์')).toBeNull();
   });
 
   it('sends the size selected for a new SBC branch instead of always using the default plan', async () => {
-    render(<AdminBranchesPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByText('สาขาเดิม')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มสาขา SBC' }));
@@ -140,7 +152,7 @@ describe('AdminBranchesPage', () => {
     mockedCreateCompanyBranch.mockRejectedValueOnce(
       new Error('รหัสสาขานี้มีอยู่แล้ว'),
     );
-    render(<AdminBranchesPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByText('สาขาเดิม')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มสาขา SBC' }));
@@ -159,7 +171,7 @@ describe('AdminBranchesPage', () => {
   });
 
   it('updates store coordinates and attendance radius without creating another branch', async () => {
-    render(<AdminBranchesPage />);
+    renderPage();
     await screen.findByText('สาขาเดิม');
 
     fireEvent.click(

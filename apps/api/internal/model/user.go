@@ -7,6 +7,7 @@ type User struct {
 	Email                  string `json:"email"`
 	PasswordHash           string `json:"-"`
 	Role                   string `json:"role"`
+	JobTitle               string `json:"jobTitle"`
 	FranchiseeID           *int64 `json:"franchiseeId,omitempty"`
 	BranchID               *int64 `json:"branchId,omitempty"`
 	DefaultStartsAt        string `json:"defaultStartsAt,omitempty"`

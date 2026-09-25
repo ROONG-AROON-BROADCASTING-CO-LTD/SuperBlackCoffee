@@ -76,8 +76,9 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 	}
 	var userID, branchID int64
 	var name, role, branchName, startsAt, endsAt string
+	var isHeadquarters bool
 	var pinHash *string
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &pinHash)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters,u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &isHeadquarters, &pinHash)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -99,7 +100,7 @@ func (h *PlatformHandler) AttendanceLogin(c *gin.Context) {
 		return
 	}
 	h.cache.Reset(c, loginKey)
-	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt)
+	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt, isHeadquarters)
 }
 
 func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
@@ -116,8 +117,9 @@ func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
 	}
 	var userID, branchID int64
 	var name, role, branchName, startsAt, endsAt string
+	var isHeadquarters bool
 	var existing *string
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &existing)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.id,u.name,u.role,u.branch_id,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters,u.attendance_pin_hash FROM users u JOIN branches b ON b.id=u.branch_id WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &startsAt, &endsAt, &isHeadquarters, &existing)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -131,10 +133,10 @@ func (h *PlatformHandler) SetupAttendancePIN(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถตั้ง PIN ได้"})
 		return
 	}
-	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt)
+	h.respondAttendanceSession(c, userID, branchID, name, role, branchName, startsAt, endsAt, isHeadquarters)
 }
 
-func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branchID int64, name, role, branchName, startsAt, endsAt string) {
+func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branchID int64, name, role, branchName, startsAt, endsAt string, isHeadquarters bool) {
 	claims := middleware.Claims{UserID: userID, Role: role, BranchID: &branchID, RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)), IssuedAt: jwt.NewNumericDate(time.Now())}}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(h.jwtSecret))
 	if err != nil {
@@ -143,7 +145,7 @@ func (h *PlatformHandler) respondAttendanceSession(c *gin.Context, userID, branc
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("sbc_attendance_session", token, 30*24*60*60, "/api/v1", "", os.Getenv("APP_ENV") == "production", true)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": userID, "name": name, "role": role, "branchId": branchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt}}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": userID, "name": name, "role": role, "branchId": branchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt, "isHeadquarters": isHeadquarters}}})
 }
 
 func (h *PlatformHandler) AttendanceSession(c *gin.Context) {
@@ -155,12 +157,13 @@ func (h *PlatformHandler) AttendanceSession(c *gin.Context) {
 		return
 	}
 	var name, role, branchName, startsAt, endsAt string
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00') FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &branchName, &startsAt, &endsAt)
+	var isHeadquarters bool
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,b.name,COALESCE(u.default_starts_at,'08:00'),COALESCE(u.default_ends_at,'17:00'),b.is_headquarters FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, claims.BranchID).Scan(&name, &role, &branchName, &startsAt, &endsAt, &isHeadquarters)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "name": name, "role": role, "branchId": claims.BranchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt}}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "name": name, "role": role, "branchId": claims.BranchID, "branchName": branchName, "startsAt": startsAt, "endsAt": endsAt, "isHeadquarters": isHeadquarters}}})
 }
 
 func (h *PlatformHandler) AttendanceLogout(c *gin.Context) {
@@ -182,6 +185,27 @@ func attendanceToday() time.Time { return time.Now().In(thailandLocation) }
 
 func canRecordAttendance(shiftStatus string) bool {
 	return shiftStatus == "scheduled" || shiftStatus == "compensatory_work"
+}
+
+func (h *PlatformHandler) isHeadquartersBranch(c *gin.Context, branchID int64) (bool, error) {
+	var isHeadquarters bool
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT is_headquarters FROM branches WHERE id=$1`, branchID).Scan(&isHeadquarters)
+	return isHeadquarters, err
+}
+
+func (h *PlatformHandler) isHeadquartersWorkday(c *gin.Context, branchID int64, day time.Time) (bool, error) {
+	var isWorkday bool
+	err := h.db.QueryRowContext(c.Request.Context(), `
+		SELECT b.is_headquarters
+			AND EXTRACT(ISODOW FROM $2::date) = ANY(b.work_days)
+			AND NOT EXISTS (
+				SELECT 1 FROM public_holidays
+				WHERE holiday_date = $2::date
+			)
+		FROM branches b
+		WHERE b.id = $1
+	`, branchID, day.Format("2006-01-02")).Scan(&isWorkday)
+	return isWorkday, err
 }
 
 func (h *PlatformHandler) validateAttendanceLocation(c *gin.Context, branchID int64, input attendanceLocationInput) bool {
@@ -217,6 +241,10 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if claims.BranchID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "บัญชีพนักงานยังไม่ได้กำหนดสาขา"})
+		return
+	}
 	now := attendanceToday()
 	var checkIn, checkOut *time.Time
 	err := h.db.QueryRowContext(c.Request.Context(), `SELECT check_in_at,check_out_at FROM staff_attendance WHERE user_id=$1 AND work_date=$2`, claims.UserID, now.Format("2006-01-02")).Scan(&checkIn, &checkOut)
@@ -232,6 +260,23 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 	}
 	if shiftErr == sql.ErrNoRows {
 		shiftStatus = ""
+		isHeadquarters, headquartersErr := h.isHeadquartersBranch(c, *claims.BranchID)
+		if headquartersErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลางานสำนักงานใหญ่ได้"})
+			return
+		}
+		if isHeadquarters {
+			isWorkday, workdayErr := h.isHeadquartersWorkday(c, *claims.BranchID, now)
+			if workdayErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลางานสำนักงานใหญ่ได้"})
+				return
+			}
+			if isWorkday {
+				shiftStatus = "office_workday"
+			} else {
+				shiftStatus = "day_off"
+			}
+		}
 	}
 	workDate := now.Format("2006-01-02")
 	if err == sql.ErrNoRows {
@@ -253,7 +298,7 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 			workDate = previousDate
 		}
 	}
-	canActToday := canRecordAttendance(shiftStatus) && (checkIn == nil || checkOut == nil)
+	canActToday := (canRecordAttendance(shiftStatus) || shiftStatus == "office_workday") && (checkIn == nil || checkOut == nil)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
 		"date":                workDate,
 		"checkInAt":           checkIn,
@@ -282,15 +327,25 @@ func (h *PlatformHandler) AttendanceSummary(c *gin.Context) {
 			(
 				SELECT COUNT(*)
 				FROM staff_attendance a
-				JOIN staff_shifts scheduled_shift
+				JOIN users scheduled_user ON scheduled_user.id = a.user_id
+				JOIN branches scheduled_branch ON scheduled_branch.id = a.branch_id
+				LEFT JOIN staff_shifts scheduled_shift
 					ON scheduled_shift.user_id = a.user_id
 					AND scheduled_shift.shift_date = a.work_date
 				WHERE a.user_id = $1
 					AND a.work_date >= $2
 					AND a.work_date < $3
-					AND scheduled_shift.status IN ('scheduled', 'compensatory_work')
 					AND a.check_in_at IS NOT NULL
-					AND (a.check_in_at AT TIME ZONE 'Asia/Bangkok')::time > scheduled_shift.starts_at + ($4 * INTERVAL '1 minute')
+					AND (
+						(scheduled_shift.status IN ('scheduled', 'compensatory_work')
+							AND (a.check_in_at AT TIME ZONE 'Asia/Bangkok')::time > scheduled_shift.starts_at + ($4 * INTERVAL '1 minute'))
+						OR (
+							scheduled_branch.is_headquarters
+							AND EXTRACT(ISODOW FROM a.work_date) BETWEEN 1 AND 5
+							AND NOT EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date = a.work_date)
+							AND (a.check_in_at AT TIME ZONE 'Asia/Bangkok')::time > scheduled_user.default_starts_at + ($4 * INTERVAL '1 minute')
+						)
+					)
 			)
 		FROM staff_shifts
 		WHERE user_id = $1 AND shift_date >= $2 AND shift_date < $3`,
@@ -333,14 +388,23 @@ func (h *PlatformHandler) CheckIn(c *gin.Context) {
 	var shiftStatus string
 	err := h.db.QueryRowContext(c.Request.Context(), `SELECT status FROM staff_shifts WHERE user_id=$1 AND branch_id=$2 AND shift_date=$3`, claims.UserID, claims.BranchID, now.Format("2006-01-02")).Scan(&shiftStatus)
 	if err == sql.ErrNoRows {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบกะงานของวันนี้"})
-		return
+		isWorkday, workdayErr := h.isHeadquartersWorkday(c, *claims.BranchID, now)
+		if workdayErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลางานสำนักงานใหญ่ได้"})
+			return
+		}
+		if !isWorkday {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันนี้ไม่ใช่วันทำงานของคุณ"})
+			return
+		}
+		shiftStatus = "office_workday"
+		err = nil
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบกะงานได้"})
 		return
 	}
-	if !canRecordAttendance(shiftStatus) {
+	if !canRecordAttendance(shiftStatus) && shiftStatus != "office_workday" {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันนี้ไม่ใช่วันทำงานของคุณ"})
 		return
 	}

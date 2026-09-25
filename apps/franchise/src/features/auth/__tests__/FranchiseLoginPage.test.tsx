@@ -4,6 +4,7 @@ import { login } from '../../../api/auth';
 import { FranchiseLoginPage } from '../FranchiseLoginPage';
 
 const navigate = vi.fn();
+const submitError = vi.fn();
 
 vi.mock('@stackbuild/ui', () => ({
   LoginScreen: ({
@@ -12,7 +13,7 @@ vi.mock('@stackbuild/ui', () => ({
     onSubmit: (username: string, password: string) => Promise<void>;
   }) => (
     <button
-      onClick={() => void onSubmit('owner', 'password').catch(() => undefined)}
+      onClick={() => void onSubmit('owner', 'password').catch(submitError)}
     >
       login
     </button>
@@ -83,7 +84,12 @@ describe('FranchiseLoginPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'login' }));
 
-    await vi.waitFor(() => expect(login).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(submitError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'บัญชีนี้ไม่มีสิทธิ์แฟรนไชส์' }),
+      ),
+    );
     expect(onLogin).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

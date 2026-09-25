@@ -16,6 +16,7 @@ import MyLocationOutlinedIcon from '@mui/icons-material/MyLocationOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined';
 import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
@@ -33,6 +34,7 @@ import {
 } from '../../api';
 import { AdminBranchesSkeleton } from '../../components/skeletons/AdminBranchesSkeleton';
 import { AdminPageIntro } from '../../components/AdminPageIntro';
+import { suggestBranchCode } from '../../utils/branchCode';
 import {
   ActionSnackbar,
   type ActionNotice,
@@ -51,6 +53,8 @@ type Branch = {
   latitude?: number;
   longitude?: number;
   attendanceRadiusM?: number;
+  isHeadquarters?: boolean;
+  workDays?: number[];
 };
 type BranchForm = {
   name: string;
@@ -62,6 +66,7 @@ type BranchForm = {
   latitude: string;
   longitude: string;
   attendanceRadiusM: string;
+  workDays: number[];
 };
 const emptyBranchForm = (): BranchForm => ({
   name: '',
@@ -73,12 +78,31 @@ const emptyBranchForm = (): BranchForm => ({
   latitude: '',
   longitude: '',
   attendanceRadiusM: '100',
+  workDays: [1, 2, 3, 4, 5],
 });
 const statusLabel: Record<string, BranchStatus> = {
   active: 'เปิดให้บริการ',
   maintenance: 'ปิดปรับปรุง',
   inactive: 'ปิดทำการ',
 };
+const workdayOptions = [
+  { value: 1, label: 'วันจันทร์' },
+  { value: 2, label: 'วันอังคาร' },
+  { value: 3, label: 'วันพุธ' },
+  { value: 4, label: 'วันพฤหัสบดี' },
+  { value: 5, label: 'วันศุกร์' },
+  { value: 6, label: 'วันเสาร์' },
+  { value: 7, label: 'วันอาทิตย์' },
+];
+const defaultWorkDays = [1, 2, 3, 4, 5];
+
+function workDaysLabel(days?: number[]) {
+  const selectedDays = days?.length ? days : defaultWorkDays;
+  return workdayOptions
+    .filter((option) => selectedDays.includes(option.value))
+    .map((option) => option.label)
+    .join(' ');
+}
 
 const coordinateFromGoogleMapsLink = (value: string) => {
   // Google place links include both the viewport after "@" and the actual place
@@ -105,6 +129,7 @@ const coordinateFromGoogleMapsLink = (value: string) => {
 };
 
 export function AdminBranchesPage() {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -119,6 +144,7 @@ export function AdminBranchesPage() {
   const [createError, setCreateError] = useState('');
   const [googleMapsLink, setGoogleMapsLink] = useState('');
   const [newBranch, setNewBranch] = useState<BranchForm>(emptyBranchForm);
+  const [branchCodeEdited, setBranchCodeEdited] = useState(false);
   const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
   useAutoRetry(loadError, () => setReloadKey((key) => key + 1));
 
@@ -162,6 +188,20 @@ export function AdminBranchesPage() {
         .includes(normalizedQuery),
     );
   }, [branches, query]);
+  const existingBranchCodes = useMemo(
+    () => branches.map((branch) => branch.code),
+    [branches],
+  );
+  const headquarters = visibleBranches.filter(
+    (branch) => branch.isHeadquarters,
+  );
+  const visibleSbcBranches = visibleBranches.filter(
+    (branch) => !branch.isHeadquarters,
+  );
+  const editingHeadquarters =
+    editingBranchId !== null &&
+    branches.find((branch) => branch.id === editingBranchId)?.isHeadquarters ===
+      true;
   const coordinates = useMemo(() => {
     const latitude = Number(newBranch.latitude);
     const longitude = Number(newBranch.longitude);
@@ -218,6 +258,7 @@ export function AdminBranchesPage() {
           branch.id === branchId ? { ...branch, size } : branch,
         ),
       );
+      await queryClient.invalidateQueries({ queryKey: ['branches'] });
       setActionNotice({ message: 'บันทึกขนาดสาขาแล้ว' });
     } catch (error) {
       setActionNotice({
@@ -248,6 +289,7 @@ export function AdminBranchesPage() {
         longitude:
           newBranch.longitude === '' ? null : Number(newBranch.longitude),
         attendanceRadiusM: Number(newBranch.attendanceRadiusM),
+        workDays: newBranch.workDays,
       };
       if (editingBranchId !== null) {
         await updateCompanyBranchDetails(editingBranchId, input);
@@ -277,6 +319,7 @@ export function AdminBranchesPage() {
       setNewBranch(emptyBranchForm());
       setEditingBranchId(null);
       setIsCreateDrawerOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['branches'] });
       setActionNotice({
         message:
           editingBranchId !== null
@@ -291,12 +334,31 @@ export function AdminBranchesPage() {
       setIsCreating(false);
     }
   };
+  const openBranchEditor = (branch: Branch) => {
+    setCreateError('');
+    setGoogleMapsLink('');
+    setEditingBranchId(branch.id);
+    setBranchCodeEdited(false);
+    setNewBranch({
+      name: branch.name,
+      code: branch.code,
+      size: branch.size,
+      address: branch.address ?? '',
+      opensAt: branch.opensAt ?? '',
+      closesAt: branch.closesAt ?? '',
+      latitude: branch.latitude == null ? '' : String(branch.latitude),
+      longitude: branch.longitude == null ? '' : String(branch.longitude),
+      attendanceRadiusM: String(branch.attendanceRadiusM ?? 100),
+      workDays: branch.workDays?.length ? branch.workDays : defaultWorkDays,
+    });
+    setIsCreateDrawerOpen(true);
+  };
 
   return (
     <DashboardMain>
       <AdminPageIntro
-        title="สาขา Super Black Coffee"
-        description="จัดการข้อมูลสาขา SBC และกำหนดขนาดบริการของแต่ละสาขา"
+        title="สาขา SBC และสำนักงานใหญ่"
+        description="จัดการข้อมูลสำนักงานใหญ่แยกจากสาขา SBC และกำหนดขนาดบริการของแต่ละสาขา"
       />
       <Box
         sx={{
@@ -325,6 +387,7 @@ export function AdminBranchesPage() {
               setGoogleMapsLink('');
               setEditingBranchId(null);
               setNewBranch(emptyBranchForm());
+              setBranchCodeEdited(false);
               setIsCreateDrawerOpen(true);
             }}
             sx={{
@@ -351,6 +414,99 @@ export function AdminBranchesPage() {
       ) : null}
       {showSkeleton ? <AdminBranchesSkeleton /> : null}
 
+      {!showSkeleton && !loadError && headquarters.length > 0 ? (
+        <Box sx={{ mb: 3, maxWidth: 1200 }}>
+          <Typography
+            sx={{ mb: 1.25, color: '#60493b', fontSize: 16, fontWeight: 800 }}
+          >
+            สำนักงานใหญ่
+          </Typography>
+          {headquarters.map((branch) => (
+            <Card
+              key={branch.id}
+              variant="outlined"
+              sx={{
+                borderRadius: '20px',
+                borderColor: '#dccabe',
+                bgcolor: '#fffcfa',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: 2,
+                  p: { xs: 2.25, sm: 2.75 },
+                }}
+              >
+                <Box>
+                  <Typography sx={{ fontSize: 20, fontWeight: 800 }}>
+                    {branch.name}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: '#805637',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    {branch.code}
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{ mt: 1, fontSize: 14 }}
+                  >
+                    เวลาทำงานมาตรฐาน {branch.opensAt ?? '09:00'}–
+                    {branch.closesAt ?? '18:00'} น. · ไม่ใช้ตารางกะ
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{ mt: 0.35, fontSize: 13 }}
+                  >
+                    พิกัดเช็กอิน{' '}
+                    {branch.latitude != null && branch.longitude != null
+                      ? `${branch.latitude}, ${branch.longitude} · ${branch.attendanceRadiusM ?? 100} ม.`
+                      : 'ยังไม่ตั้งค่า'}
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{ mt: 0.35, fontSize: 13 }}
+                  >
+                    วันทำงาน {workDaysLabel(branch.workDays)}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditOutlinedIcon sx={{ fontSize: 17 }} />}
+                  onClick={() => openBranchEditor(branch)}
+                  sx={{
+                    minHeight: 40,
+                    px: 1.75,
+                    borderRadius: '10px',
+                    borderColor: '#dfcfc3',
+                    color: '#5d4030',
+                  }}
+                >
+                  แก้ไขสำนักงานใหญ่
+                </Button>
+              </Box>
+            </Card>
+          ))}
+        </Box>
+      ) : null}
+
+      {!showSkeleton && !loadError ? (
+        <Typography
+          sx={{ mb: 1.25, color: '#60493b', fontSize: 16, fontWeight: 800 }}
+        >
+          สาขา SBC
+        </Typography>
+      ) : null}
+
       <Box
         sx={{
           display: showSkeleton || loadError ? 'none' : 'grid',
@@ -362,7 +518,7 @@ export function AdminBranchesPage() {
           maxWidth: 1200,
         }}
       >
-        {visibleBranches.map((branch) => {
+        {visibleSbcBranches.map((branch) => {
           const badge = BRANCH_STATUS_BADGES[branch.status];
           return (
             <Card
@@ -540,31 +696,7 @@ export function AdminBranchesPage() {
                     size="small"
                     variant="outlined"
                     startIcon={<EditOutlinedIcon sx={{ fontSize: 17 }} />}
-                    onClick={() => {
-                      setCreateError('');
-                      setGoogleMapsLink('');
-                      setEditingBranchId(branch.id);
-                      setNewBranch({
-                        name: branch.name,
-                        code: branch.code,
-                        size: branch.size,
-                        address: branch.address ?? '',
-                        opensAt: branch.opensAt ?? '',
-                        closesAt: branch.closesAt ?? '',
-                        latitude:
-                          branch.latitude == null
-                            ? ''
-                            : String(branch.latitude),
-                        longitude:
-                          branch.longitude == null
-                            ? ''
-                            : String(branch.longitude),
-                        attendanceRadiusM: String(
-                          branch.attendanceRadiusM ?? 100,
-                        ),
-                      });
-                      setIsCreateDrawerOpen(true);
-                    }}
+                    onClick={() => openBranchEditor(branch)}
                     sx={{
                       minHeight: 40,
                       px: 1.75,
@@ -672,7 +804,9 @@ export function AdminBranchesPage() {
               >
                 {editingBranchId === null
                   ? 'เพิ่มสาขา SBC'
-                  : 'แก้ไขข้อมูลสาขา SBC'}
+                  : editingHeadquarters
+                    ? 'แก้ไขสำนักงานใหญ่'
+                    : 'แก้ไขข้อมูลสาขา SBC'}
               </Typography>
               <Typography
                 sx={{
@@ -684,7 +818,9 @@ export function AdminBranchesPage() {
               >
                 {editingBranchId === null
                   ? 'ระบบจะคัดลอกเมนูและสต๊อกเริ่มต้นตามขนาดของสาขา'
-                  : 'ปรับที่อยู่ เวลาเปิด–ปิด และพิกัดร้านสำหรับการลงเวลา'}
+                  : editingHeadquarters
+                    ? 'กำหนดวันและเวลาทำงานมาตรฐาน รวมถึงพิกัดสำหรับการลงเวลา'
+                    : 'ปรับที่อยู่ เวลาเปิด–ปิด และพิกัดร้านสำหรับการลงเวลา'}
               </Typography>
             </Box>
             <Button
@@ -737,6 +873,13 @@ export function AdminBranchesPage() {
                 setNewBranch((current) => ({
                   ...current,
                   name: event.target.value,
+                  code:
+                    editingBranchId === null && !branchCodeEdited
+                      ? suggestBranchCode(
+                          event.target.value,
+                          existingBranchCodes,
+                        )
+                      : current.code,
                 }))
               }
               slotProps={{ htmlInput: { maxLength: 100 } }}
@@ -747,33 +890,36 @@ export function AdminBranchesPage() {
               label="รหัสสาขา"
               placeholder="SBC-CNX-001"
               value={newBranch.code}
-              onChange={(event) =>
+              onChange={(event) => {
+                setBranchCodeEdited(true);
                 setNewBranch((current) => ({
                   ...current,
                   code: event.target.value.toUpperCase(),
-                }))
-              }
+                }));
+              }}
               slotProps={{ htmlInput: { maxLength: 50 } }}
               fullWidth
             />
-            <TextField
-              select
-              required
-              label="ขนาดสาขา"
-              value={newBranch.size}
-              disabled={editingBranchId !== null}
-              onChange={(event) =>
-                setNewBranch((current) => ({
-                  ...current,
-                  size: event.target.value as Branch['size'],
-                }))
-              }
-              fullWidth
-            >
-              <MenuItem value="S">S — น้ำและสต๊อก</MenuItem>
-              <MenuItem value="M">M — น้ำ อาหาร เบเกอรี่ และสต๊อก</MenuItem>
-              <MenuItem value="L">L — น้ำ อาหาร เบเกอรี่ และสต๊อก</MenuItem>
-            </TextField>
+            {!editingHeadquarters ? (
+              <TextField
+                select
+                required
+                label="ขนาดสาขา"
+                value={newBranch.size}
+                disabled={editingBranchId !== null}
+                onChange={(event) =>
+                  setNewBranch((current) => ({
+                    ...current,
+                    size: event.target.value as Branch['size'],
+                  }))
+                }
+                fullWidth
+              >
+                <MenuItem value="S">S — น้ำและสต๊อก</MenuItem>
+                <MenuItem value="M">M — น้ำ อาหาร เบเกอรี่ และสต๊อก</MenuItem>
+                <MenuItem value="L">L — น้ำ อาหาร เบเกอรี่ และสต๊อก</MenuItem>
+              </TextField>
+            ) : null}
             <TextField
               label="ที่อยู่สาขา"
               value={newBranch.address}
@@ -814,6 +960,63 @@ export function AdminBranchesPage() {
               slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
             />
+            {editingHeadquarters ? (
+              <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+                <Typography
+                  sx={{ fontSize: 15, fontWeight: 700, color: '#201914' }}
+                >
+                  วันทำงานของสำนักงานใหญ่
+                </Typography>
+                <Box
+                  sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 1 }}
+                >
+                  {workdayOptions.map((option) => {
+                    const isSelected = newBranch.workDays.includes(
+                      option.value,
+                    );
+                    return (
+                      <Button
+                        key={option.value}
+                        size="small"
+                        variant={isSelected ? 'contained' : 'outlined'}
+                        aria-pressed={isSelected}
+                        disabled={isSelected && newBranch.workDays.length === 1}
+                        onClick={() =>
+                          setNewBranch((current) => ({
+                            ...current,
+                            workDays: isSelected
+                              ? current.workDays.filter(
+                                  (day) => day !== option.value,
+                                )
+                              : [...current.workDays, option.value].sort(
+                                  (a, b) => a - b,
+                                ),
+                          }))
+                        }
+                        sx={{
+                          minWidth: 88,
+                          borderRadius: '10px',
+                          ...(isSelected
+                            ? {
+                                bgcolor: '#5d4030',
+                                '&:hover': { bgcolor: '#432d20' },
+                              }
+                            : { borderColor: '#dfcfc3', color: '#5d4030' }),
+                        }}
+                      >
+                        {option.label}
+                      </Button>
+                    );
+                  })}
+                </Box>
+                <Typography
+                  color="text.secondary"
+                  sx={{ mt: 0.75, fontSize: 12 }}
+                >
+                  วันหยุดนักขัตฤกษ์ยังเป็นวันหยุด แม้เลือกวันนั้นเป็นวันทำงาน
+                </Typography>
+              </Box>
+            ) : null}
             <Typography
               sx={{
                 gridColumn: { sm: '1 / -1' },

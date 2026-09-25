@@ -7,6 +7,10 @@ export type ManagedBranch = {
   size?: 'S' | 'M' | 'L';
   status?: string;
   franchiseeId?: number;
+  isHeadquarters?: boolean;
+  workDays?: number[];
+  opensAt?: string;
+  closesAt?: string;
 };
 
 export const listManagedBranches = () => secured<ManagedBranch[]>('/branches');

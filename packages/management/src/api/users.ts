@@ -6,6 +6,7 @@ export type Employee = {
   username: string;
   email: string;
   role: 'admin' | 'franchise_owner' | 'branch_manager' | 'cashier';
+  jobTitle?: string;
   franchiseeId?: number;
   branchId?: number;
   defaultStartsAt?: string;
@@ -21,6 +22,7 @@ export const createEmployee = (data: {
   username: string;
   password: string;
   role: 'branch_manager' | 'cashier';
+  jobTitle?: string;
   branchId: number;
   defaultStartsAt: string;
   defaultEndsAt: string;
@@ -33,6 +35,7 @@ export const updateEmployee = (
   data: {
     name: string;
     role: 'branch_manager' | 'cashier';
+    jobTitle?: string;
     branchId: number;
     defaultStartsAt: string;
     defaultEndsAt: string;

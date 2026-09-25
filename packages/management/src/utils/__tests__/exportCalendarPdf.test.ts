@@ -57,6 +57,19 @@ describe('exportDailyReportAsPdf', () => {
     expect(popup.document.write).toHaveBeenCalledWith(
       expect.stringContaining('report-entry--danger'),
     );
+    expect(popup.document.write).toHaveBeenCalledWith(
+      expect.stringContaining('@page { size: A4 landscape; margin: 9mm; }'),
+    );
+    expect(popup.document.write).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'grid-template-columns: repeat(3, minmax(0, 1fr))',
+      ),
+    );
+    expect(popup.document.write).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'background: #3c2d24; border-bottom: 1px solid #3c2d24; -webkit-print-color-adjust: exact; print-color-adjust: exact',
+      ),
+    );
     expect(focus).toHaveBeenCalledOnce();
     expect(print).toHaveBeenCalledOnce();
   });

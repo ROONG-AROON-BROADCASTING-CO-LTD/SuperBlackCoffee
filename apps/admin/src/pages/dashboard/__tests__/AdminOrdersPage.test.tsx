@@ -11,11 +11,19 @@ import {
   useStockRequests,
   useUpdateStockRequestStatus,
 } from '../../../hooks/useStockRequests';
+import {
+  useExpenseRequests,
+  useUpdateExpenseRequestStatus,
+} from '../../../hooks/useExpenseRequests';
 import { listBranches } from '../../../api/branches';
 
 vi.mock('../../../hooks/useStockRequests', () => ({
   useStockRequests: vi.fn(),
   useUpdateStockRequestStatus: vi.fn(),
+}));
+vi.mock('../../../hooks/useExpenseRequests', () => ({
+  useExpenseRequests: vi.fn(),
+  useUpdateExpenseRequestStatus: vi.fn(),
 }));
 vi.mock('../../../api/branches', () => ({ listBranches: vi.fn() }));
 
@@ -24,7 +32,12 @@ const mockedUseUpdateStockRequestStatus = vi.mocked(
   useUpdateStockRequestStatus,
 );
 const mockedListBranches = vi.mocked(listBranches);
+const mockedUseExpenseRequests = vi.mocked(useExpenseRequests);
+const mockedUseUpdateExpenseRequestStatus = vi.mocked(
+  useUpdateExpenseRequestStatus,
+);
 const mutateAsync = vi.fn();
+const mutateExpenseAsync = vi.fn();
 
 describe('AdminOrdersPage', () => {
   beforeEach(() => {
@@ -63,7 +76,28 @@ describe('AdminOrdersPage', () => {
     mockedUseUpdateStockRequestStatus.mockReturnValue({
       mutateAsync,
     } as unknown as ReturnType<typeof useUpdateStockRequestStatus>);
+    mockedUseExpenseRequests.mockReturnValue({
+      data: [
+        {
+          id: 12,
+          title: 'ซ่อมเครื่องบดกาแฟ',
+          category: 'maintenance',
+          estimatedAmount: 1200,
+          note: 'เสียงดังผิดปกติ',
+          status: 'pending',
+          createdAt: '2026-09-04T02:00:00Z',
+          requestedByName: 'สมชาย',
+          branch: { id: 51, name: 'อยุธยา', isFranchise: false },
+        },
+      ],
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof useExpenseRequests>);
+    mockedUseUpdateExpenseRequestStatus.mockReturnValue({
+      mutateAsync: mutateExpenseAsync,
+    } as unknown as ReturnType<typeof useUpdateExpenseRequestStatus>);
     mutateAsync.mockResolvedValue({});
+    mutateExpenseAsync.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -116,5 +150,23 @@ describe('AdminOrdersPage', () => {
       name: 'คำขอวัตถุดิบจากแฟรนไชส์ · 0',
     });
     expect(franchiseTab.querySelector('span[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('shows external expense requests separately and advances their workflow', async () => {
+    render(<AdminOrdersPage activeBranch="อยุธยา" />);
+
+    fireEvent.click(
+      screen.getByRole('tab', { name: 'คำขอค่าใช้จ่ายภายนอก · 1' }),
+    );
+
+    expect(await screen.findByText('EXP-12')).toBeTruthy();
+    expect(screen.getByText('ซ่อมเครื่องบดกาแฟ')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'อนุมัติคำขอ' }));
+    await waitFor(() =>
+      expect(mutateExpenseAsync).toHaveBeenCalledWith({
+        id: 12,
+        status: 'approved',
+      }),
+    );
   });
 });

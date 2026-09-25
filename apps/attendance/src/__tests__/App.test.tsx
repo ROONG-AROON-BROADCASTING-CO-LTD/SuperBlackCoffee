@@ -20,7 +20,9 @@ import App from '../App';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
-  ActionSnackbar: () => null,
+  ActionSnackbar: ({ notice }: { notice: { message: string } | null }) => (
+    <output>{notice?.message}</output>
+  ),
   ConnectionRetrySnackbar: () => null,
   BadgeAlertIcon: () => <span aria-hidden="true" />,
   CircleCheckIcon: () => <span aria-hidden="true" />,
@@ -160,18 +162,32 @@ describe('Attendance App session', () => {
     expect(await screen.findByText('attendance-login')).toBeTruthy();
   });
 
-  it.each([401, 403])(
-    'returns to login when loading attendance data rejects the session with %i',
-    async (status) => {
-      vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
-        new ApiRequestError('เซสชันใช้งานไม่ได้', status),
+  it('returns to login when loading attendance data rejects an expired session with 401', async () => {
+    vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
+      new ApiRequestError('เซสชันใช้งานไม่ได้', 401),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText('attendance-login')).toBeTruthy();
+  });
+
+  it('keeps the session when loading attendance data is forbidden with 403', async () => {
+    vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
+      new ApiRequestError('ไม่มีสิทธิ์ดูข้อมูล', 403),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText('attendance-router')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-retry-open').textContent).toBe(
+        'true',
       );
-
-      render(<App />);
-
-      expect(await screen.findByText('attendance-login')).toBeTruthy();
-    },
-  );
+    });
+    expect(screen.queryByText('attendance-login')).toBeNull();
+    expect(logoutAttendance).not.toHaveBeenCalled();
+  });
 
   it('disables attendance actions when today is a day off', async () => {
     render(<App />);
@@ -408,7 +424,7 @@ describe('Attendance App session', () => {
     expect(logoutAttendance).toHaveBeenCalledOnce();
   });
 
-  it('ends the local session when check-in is forbidden after the session changes', async () => {
+  it('keeps the local session when check-in is rejected by attendance rules', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',
       checkedIn: false,
@@ -418,7 +434,7 @@ describe('Attendance App session', () => {
       canRecordAttendance: true,
     });
     vi.mocked(checkIn).mockRejectedValueOnce(
-      new ApiRequestError('เซสชันใช้งานไม่ได้', 403),
+      new ApiRequestError('คุณอยู่นอกรัศมีลงเวลา', 403),
     );
 
     render(<App />);
@@ -431,13 +447,12 @@ describe('Attendance App session', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
 
-    await waitFor(() => {
-      expect(screen.getByText('attendance-login')).toBeTruthy();
-    });
-    expect(logoutAttendance).toHaveBeenCalledOnce();
+    expect(await screen.findByText('attendance-router')).toBeTruthy();
+    expect(await screen.findByText('คุณอยู่นอกรัศมีลงเวลา')).toBeTruthy();
+    expect(logoutAttendance).not.toHaveBeenCalled();
   });
 
-  it('ends the local session when checkout is forbidden after the session changes', async () => {
+  it('keeps the local session when checkout is rejected by attendance rules', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',
       checkedIn: true,
@@ -447,7 +462,7 @@ describe('Attendance App session', () => {
       canRecordAttendance: true,
     });
     vi.mocked(checkOut).mockRejectedValueOnce(
-      new ApiRequestError('เซสชันใช้งานไม่ได้', 403),
+      new ApiRequestError('คุณอยู่นอกรัศมีลงเวลา', 403),
     );
 
     render(<App />);
@@ -458,10 +473,11 @@ describe('Attendance App session', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
 
-    expect(await screen.findByText('attendance-login')).toBeTruthy();
+    expect(await screen.findByText('attendance-router')).toBeTruthy();
+    expect(await screen.findByText('คุณอยู่นอกรัศมีลงเวลา')).toBeTruthy();
     expect(checkOut).toHaveBeenCalledOnce();
     expect(checkIn).not.toHaveBeenCalled();
-    expect(logoutAttendance).toHaveBeenCalledOnce();
+    expect(logoutAttendance).not.toHaveBeenCalled();
   });
 
   it('keeps the staff session and attendance action available when check-in has a recoverable error', async () => {

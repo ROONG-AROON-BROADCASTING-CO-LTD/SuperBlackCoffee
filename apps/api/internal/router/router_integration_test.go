@@ -63,6 +63,104 @@ func TestOperationsRoutesRequireAnOperationsRole(t *testing.T) {
 	}
 }
 
+func TestExpenseRequestRoutesEnforceStaffAndAdminPermissions(t *testing.T) {
+	r := New(nil, nil)
+	tests := []struct {
+		name, method, path, role string
+		want                     int
+	}{
+		{"create requires authentication", http.MethodPost, "/api/v1/expense-requests", "", http.StatusUnauthorized},
+		{"stock staff may create", http.MethodPost, "/api/v1/expense-requests", "cashier", http.StatusServiceUnavailable},
+		{"stock staff may not list", http.MethodGet, "/api/v1/expense-requests", "cashier", http.StatusForbidden},
+		{"franchise owner may list", http.MethodGet, "/api/v1/expense-requests", "franchise_owner", http.StatusServiceUnavailable},
+		{"status update requires authentication", http.MethodPatch, "/api/v1/expense-requests/1/status", "", http.StatusUnauthorized},
+		{"stock staff may not approve", http.MethodPatch, "/api/v1/expense-requests/1/status", "cashier", http.StatusForbidden},
+		{"franchise owner may not approve", http.MethodPatch, "/api/v1/expense-requests/1/status", "franchise_owner", http.StatusForbidden},
+		{"admin may update status", http.MethodPatch, "/api/v1/expense-requests/1/status", "admin", http.StatusServiceUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			if tt.role != "" {
+				req.Header.Set("Authorization", "Bearer "+testToken(t, tt.role))
+			}
+			res := httptest.NewRecorder()
+			r.ServeHTTP(res, req)
+			if res.Code != tt.want {
+				t.Fatalf("status = %d, want %d: %s", res.Code, tt.want, res.Body.String())
+			}
+		})
+	}
+}
+
+func TestExpenseRequestsDoNotCrossBranchScope(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchA := seedBranch(t, db, "EXPENSE-SCOPE-A")
+	branchB := seedBranch(t, db, "EXPENSE-SCOPE-B")
+	seedUser(t, db, 7, "expense-scope-user", "branch_manager", branchA, nil)
+	if _, err := db.Exec(`INSERT INTO expense_requests(branch_id,title,category,estimated_amount,requested_by) VALUES($1,'ของสาขา A','office',100,7),($2,'ของสาขา B','office',200,7)`, branchA, branchB); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	branchToken := testTokenWithBranch(t, "branch_manager", branchA)
+
+	list := requestJSON(r, http.MethodGet, "/api/v1/expense-requests", "", branchToken)
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "ของสาขา A") || strings.Contains(list.Body.String(), "ของสาขา B") {
+		t.Fatalf("branch-scoped list = %d: %s", list.Code, list.Body.String())
+	}
+	create := requestJSON(r, http.MethodPost, "/api/v1/expense-requests", fmt.Sprintf(`{"branchId":%d,"title":"รายการข้ามสาขา","category":"office","estimatedAmount":100}`, branchB), branchToken)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("server-scoped create = %d: %s", create.Code, create.Body.String())
+	}
+	var persistedBranchID int64
+	if err := db.QueryRow(`SELECT branch_id FROM expense_requests WHERE title='รายการข้ามสาขา'`).Scan(&persistedBranchID); err != nil || persistedBranchID != branchA {
+		t.Fatalf("request escaped branch scope: branch=%d err=%v", persistedBranchID, err)
+	}
+}
+
+func TestExpenseRequestStatusEnforcesTransitionOrder(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "EXPENSE-TRANSITION")
+	seedUser(t, db, 7, "expense-admin", "admin", branchID, nil)
+	var requestID int64
+	if err := db.QueryRow(`INSERT INTO expense_requests(branch_id,title,category,estimated_amount,requested_by) VALUES($1,'ซื้ออุปกรณ์ภายนอก','office',500,7) RETURNING id`, branchID).Scan(&requestID); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	path := fmt.Sprintf("/api/v1/expense-requests/%d/status", requestID)
+	adminToken := testToken(t, "admin")
+	for _, tt := range []struct {
+		name, status string
+		want         int
+		persisted    string
+	}{
+		{"cannot skip approval", "funded", http.StatusConflict, "pending"},
+		{"approve", "approved", http.StatusOK, "approved"},
+		{"cannot complete before funding", "completed", http.StatusConflict, "approved"},
+		{"record funding", "funded", http.StatusOK, "funded"},
+		{"cannot reject after funding", "rejected", http.StatusConflict, "funded"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			res := requestJSON(r, http.MethodPatch, path, fmt.Sprintf(`{"status":%q}`, tt.status), adminToken)
+			if res.Code != tt.want {
+				t.Fatalf("status = %d, want %d: %s", res.Code, tt.want, res.Body.String())
+			}
+			var status string
+			if err := db.QueryRow(`SELECT status FROM expense_requests WHERE id=$1`, requestID).Scan(&status); err != nil || status != tt.persisted {
+				t.Fatalf("persisted status = %q, want %q: %v", status, tt.persisted, err)
+			}
+		})
+	}
+}
+
 func TestCentralCatalogTemplateRoutesAreAdminOnly(t *testing.T) {
 	r := New(nil, nil)
 	for _, test := range []struct {
@@ -802,7 +900,7 @@ func TestAttendanceCheckInRejectsMissingAndNonWorkingShifts(t *testing.T) {
 	token := testTokenWithBranch(t, "cashier", branchID)
 	today := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Format("2006-01-02")
 
-	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", `{"latitude":16.821085,"longitude":100.2694448}`, token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่พบกะงาน") {
+	if res := requestJSON(r, http.MethodPost, "/api/v1/attendance/check-in", `{"latitude":16.821085,"longitude":100.2694448}`, token); res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "ไม่ใช่วันทำงาน") {
 		t.Fatalf("missing shift check-in = %d: %s", res.Code, res.Body.String())
 	}
 	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','day_off')`, branchID, today); err != nil {

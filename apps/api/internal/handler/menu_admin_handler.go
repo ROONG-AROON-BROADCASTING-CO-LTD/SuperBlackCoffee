@@ -201,7 +201,12 @@ func (h *PlatformHandler) CreateMenuItem(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถสร้างเมนูได้"})
 		return
 	}
-	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "menu_item", id, "created", gin.H{"name": input.Name}); err != nil {
+	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "menu_item", id, "created", gin.H{
+		"name": input.Name, "category": input.Category,
+		"storePrice": input.StorePrice, "linemanPrice": input.LinemanPrice,
+		"costPrice": input.CostPrice, "linemanCostPrice": input.LinemanCostPrice,
+		"preparationSteps": input.PreparationSteps,
+	}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติได้"})
 		return
 	}
@@ -250,6 +255,12 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
+	var previousName, previousCategory, previousPreparationSteps string
+	var previousStorePrice, previousLinemanPrice, previousCostPrice, previousLinemanCostPrice float64
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,category,store_price,lineman_price,cost_price,lineman_cost_price,preparation_steps FROM menu_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousName, &previousCategory, &previousStorePrice, &previousLinemanPrice, &previousCostPrice, &previousLinemanCostPrice, &previousPreparationSteps); err != nil {
+		c.JSON(404, gin.H{"success": false, "message": "ไม่พบเมนู"})
+		return
+	}
 	storefrontIngredients, linemanIngredients := normalizedMenuRecipes(input)
 	_, err = menuRecipeStatusTx(c.Request.Context(), tx, branchID, storefrontIngredients)
 	if err != nil {
@@ -277,7 +288,20 @@ func (h *PlatformHandler) writeMenuItem(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถแก้ไขเมนูได้"})
 		return
 	}
-	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "menu_item", id, "updated", gin.H{"name": input.Name}); err != nil {
+	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "menu_item", id, "updated", gin.H{
+		"before": gin.H{
+			"name": previousName, "category": previousCategory,
+			"storePrice": previousStorePrice, "linemanPrice": previousLinemanPrice,
+			"costPrice": previousCostPrice, "linemanCostPrice": previousLinemanCostPrice,
+			"preparationSteps": previousPreparationSteps,
+		},
+		"after": gin.H{
+			"name": input.Name, "category": input.Category,
+			"storePrice": input.StorePrice, "linemanPrice": input.LinemanPrice,
+			"costPrice": input.CostPrice, "linemanCostPrice": input.LinemanCostPrice,
+			"preparationSteps": input.PreparationSteps,
+		},
+	}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติได้"})
 		return
 	}

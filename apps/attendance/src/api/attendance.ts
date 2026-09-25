@@ -10,6 +10,7 @@ export type AttendanceSession = {
     branchName: string;
     startsAt: string;
     endsAt: string;
+    isHeadquarters?: boolean;
   };
 };
 

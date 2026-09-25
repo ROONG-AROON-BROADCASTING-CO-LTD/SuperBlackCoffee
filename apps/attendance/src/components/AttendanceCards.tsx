@@ -139,7 +139,13 @@ export function TodayCard({
   checkedIn: boolean;
   checkInAt: string | null;
   checkOutAt: string | null;
-  staff: { role: string; branchName: string; startsAt: string; endsAt: string };
+  staff: {
+    role: string;
+    branchName: string;
+    startsAt: string;
+    endsAt: string;
+    isHeadquarters?: boolean;
+  };
 }) {
   const formatTime = (value: string) => value.slice(0, 5);
   const checkInLabel = checkInAt
@@ -229,8 +235,8 @@ export function TodayCard({
         }}
       >
         <Typography>
-          <ClockIcon size={19} /> กะงาน {formatTime(staff.startsAt)} -{' '}
-          {formatTime(staff.endsAt)} น.
+          <ClockIcon size={19} /> {staff.isHeadquarters ? 'เวลาทำงาน' : 'กะงาน'}{' '}
+          {formatTime(staff.startsAt)} - {formatTime(staff.endsAt)} น.
         </Typography>
         <Typography>
           <CoffeeIcon size={19} /> ตำแหน่ง{' '}

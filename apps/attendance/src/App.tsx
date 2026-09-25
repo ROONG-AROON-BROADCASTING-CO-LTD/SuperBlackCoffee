@@ -32,11 +32,11 @@ function isAttendanceSession(
   return !('requiresPIN' in value) && !('requiresPINSetup' in value);
 }
 
-function isInvalidAttendanceSession(error: unknown) {
-  return (
-    error instanceof ApiRequestError &&
-    (error.status === 401 || error.status === 403)
-  );
+function isExpiredAttendanceSession(error: unknown) {
+  // A 403 from attendance endpoints can be a valid, actionable rejection
+  // (for example, the employee is outside the branch check-in radius). Only a
+  // 401 proves the cookie/session is no longer valid.
+  return error instanceof ApiRequestError && error.status === 401;
 }
 
 const staffPagePaths: Record<StaffPage, string> = {
@@ -86,13 +86,16 @@ export default function App() {
     !status ||
     !status.canRecordAttendance ||
     Boolean(status.checkInAt && status.checkOutAt);
+  const attendanceScheduleLabel = session?.user.isHeadquarters
+    ? 'เวลาทำงานมาตรฐาน'
+    : 'ตารางกะ';
   const attendanceActionHint = loading
     ? 'กำลังตรวจสอบตำแหน่งปัจจุบัน'
     : status?.checkInAt && status.checkOutAt
       ? ''
       : status?.shiftStatus === 'day_off'
-        ? 'วันนี้เป็นวันหยุดตามตารางกะ'
-        : 'ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบกะงาน';
+        ? `วันนี้เป็นวันหยุดตาม${attendanceScheduleLabel}`
+        : `ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบ${attendanceScheduleLabel}`;
   const attendanceActionDisabledLabel = loading
     ? 'กำลังตรวจสอบตำแหน่ง...'
     : status?.checkInAt && status.checkOutAt
@@ -123,28 +126,32 @@ export default function App() {
   useEffect(() => {
     if (!session) return;
     let active = true;
-    void Promise.all([
+    void Promise.allSettled([
       getAttendanceStatus(),
       getAttendanceHistory(),
       getAttendanceSummary(),
     ])
       .then(([nextStatus, nextHistory, nextSummary]) => {
         if (!active) return;
-        setStatus(nextStatus);
-        setHistory(nextHistory);
-        setSummary(nextSummary);
-        setConnectionError(false);
-      })
-      .catch((error) => {
-        if (!active) return;
-        if (isInvalidAttendanceSession(error)) {
+        const failedRequest = [nextStatus, nextHistory, nextSummary].find(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected',
+        );
+        if (failedRequest && isExpiredAttendanceSession(failedRequest.reason)) {
           setSession(null);
           setStatus(null);
           setHistory([]);
           setSummary(null);
           return;
         }
-        setConnectionError(true);
+        if (nextStatus.status === 'rejected') {
+          setConnectionError(true);
+          return;
+        }
+        setStatus(nextStatus.value);
+        if (nextHistory.status === 'fulfilled') setHistory(nextHistory.value);
+        if (nextSummary.status === 'fulfilled') setSummary(nextSummary.value);
+        setConnectionError(false);
       })
       .finally(() => {
         if (active) setInitialDataLoading(false);
@@ -267,7 +274,7 @@ export default function App() {
           : 'เช็กเอาต์เรียบร้อยแล้ว',
       );
     } catch (error) {
-      if (isInvalidAttendanceSession(error)) {
+      if (isExpiredAttendanceSession(error)) {
         logout();
         return;
       }

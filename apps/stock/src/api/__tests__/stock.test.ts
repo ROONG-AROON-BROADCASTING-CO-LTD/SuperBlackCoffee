@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   adjustInventory,
+  createExpenseRequest,
   createStockRequest,
   consumeStockFromMenus,
   listInventory,
@@ -132,6 +133,41 @@ describe('stock mutation API contracts', () => {
     );
     expect(String(options?.body)).not.toContain('branchId');
     expect(String(options?.body)).not.toContain('destination');
+  });
+
+  it('submits an external expense request on the stock session without a client-selected branch', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: true, data: { id: 24, status: 'pending' } }),
+        {
+          status: 201,
+        },
+      ),
+    );
+
+    await expect(
+      createExpenseRequest({
+        title: 'ค่าซ่อมเครื่องชง',
+        category: 'maintenance',
+        estimatedAmount: 2500,
+        note: 'ช่างประเมินราคา',
+      }),
+    ).resolves.toEqual({ id: 24, status: 'pending' });
+
+    const [url, options] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/expense-requests');
+    expect(options?.method).toBe('POST');
+    expect(options?.credentials).toBe('include');
+    expect(JSON.parse(String(options?.body))).toEqual({
+      title: 'ค่าซ่อมเครื่องชง',
+      category: 'maintenance',
+      estimatedAmount: 2500,
+      note: 'ช่างประเมินราคา',
+    });
+    expect(String(options?.body)).not.toContain('branchId');
+    expect(new Headers(options?.headers).get('X-SBC-Session-Role')).toBe(
+      'stock',
+    );
   });
 
   it('consumes menu stock for the selected channel without accepting a client branch', async () => {

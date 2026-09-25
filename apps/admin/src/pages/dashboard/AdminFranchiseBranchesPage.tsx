@@ -27,6 +27,7 @@ import {
   type Franchisee,
 } from '../../api';
 import { AdminFranchiseBranchesSkeleton } from '../../components/skeletons/AdminFranchiseBranchesSkeleton';
+import { suggestBranchCode } from '../../utils/branchCode';
 import {
   ActionSnackbar,
   type ActionNotice,
@@ -120,6 +121,8 @@ export function AdminFranchiseBranchesPage() {
     username: '',
     password: '',
   });
+  const [branchCodeEdited, setBranchCodeEdited] = useState(false);
+  const [existingBranchCodes, setExistingBranchCodes] = useState<string[]>([]);
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [activatingId, setActivatingId] = useState<number | null>(null);
@@ -137,7 +140,10 @@ export function AdminFranchiseBranchesPage() {
     setLoadError(false);
     void Promise.all([listFranchisees(), listBranches()])
       .then(([owners, branches]) => {
-        if (!cancelled) setFranchisees(toCards(owners, branches));
+        if (!cancelled) {
+          setFranchisees(toCards(owners, branches));
+          setExistingBranchCodes(branches.map((branch) => branch.code));
+        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -182,6 +188,7 @@ export function AdminFranchiseBranchesPage() {
         username: '',
         password: '',
       });
+      setBranchCodeEdited(false);
       setIsDrawerOpen(false);
       setActionNotice({ message: 'เพิ่มแฟรนไชส์แล้ว' });
     } catch (error) {
@@ -242,7 +249,10 @@ export function AdminFranchiseBranchesPage() {
         <Button
           variant="contained"
           startIcon={<PlusIcon size={16} />}
-          onClick={() => setIsDrawerOpen(true)}
+          onClick={() => {
+            setBranchCodeEdited(false);
+            setIsDrawerOpen(true);
+          }}
           sx={{
             minHeight: 40,
             borderRadius: '12px',
@@ -560,14 +570,28 @@ export function AdminFranchiseBranchesPage() {
               required
               label="ชื่อสาขา"
               value={form.branchName}
-              onChange={(event) => updateForm('branchName', event.target.value)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  branchName: event.target.value,
+                  branchCode: branchCodeEdited
+                    ? current.branchCode
+                    : suggestBranchCode(
+                        event.target.value,
+                        existingBranchCodes,
+                      ),
+                }))
+              }
               fullWidth
             />
             <TextField
               required
               label="รหัสสาขา"
               value={form.branchCode}
-              onChange={(event) => updateForm('branchCode', event.target.value)}
+              onChange={(event) => {
+                setBranchCodeEdited(true);
+                updateForm('branchCode', event.target.value.toUpperCase());
+              }}
               fullWidth
             />
             <TextField

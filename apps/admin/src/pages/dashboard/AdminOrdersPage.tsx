@@ -25,13 +25,24 @@ import {
   useStockRequests,
   useUpdateStockRequestStatus,
 } from '../../hooks/useStockRequests';
+import {
+  useExpenseRequests,
+  useUpdateExpenseRequestStatus,
+} from '../../hooks/useExpenseRequests';
 import { listBranches } from '../../api/branches';
 import { AdminOrdersSkeleton } from '../../components/skeletons/AdminOrdersSkeleton';
 import { useAutoRetry } from '@stackbuild/management';
 
 type RequestStatus =
-  'pending' | 'approved' | 'preparing' | 'completed' | 'rejected';
-type SupplyType = 'วัตถุดิบ' | 'สต๊อก';
+  | 'pending'
+  | 'approved'
+  | 'preparing'
+  | 'funded'
+  | 'purchasing'
+  | 'awaiting_documents'
+  | 'completed'
+  | 'rejected';
+type SupplyType = string;
 type SupplyItem = { name: string; quantity: string };
 type SupplyRequest = {
   id: string;
@@ -41,13 +52,20 @@ type SupplyRequest = {
   items: SupplyItem[];
   requestedAt: string;
   status: RequestStatus;
+  kind: 'stock' | 'expense';
+  note?: string;
+  requester?: string;
+  estimatedAmount?: number;
 };
-type RequestTab = 'sbc' | 'franchise';
+export type RequestTab = 'sbc' | 'franchise' | 'expense';
 const statuses = [
   'ทั้งหมด',
   'รออนุมัติ',
   'อนุมัติแล้ว',
   'กำลังจัดเตรียม',
+  'โอนเงินแล้ว',
+  'กำลังจัดซื้อ',
+  'รอเอกสาร',
   'จัดเสร็จแล้ว',
   'ปฏิเสธ',
 ] as const;
@@ -55,6 +73,9 @@ const statusLabels: Record<RequestStatus, string> = {
   pending: 'รออนุมัติ',
   approved: 'อนุมัติแล้ว',
   preparing: 'กำลังจัดเตรียม',
+  funded: 'โอนเงินแล้ว',
+  purchasing: 'กำลังจัดซื้อ',
+  awaiting_documents: 'รอเอกสาร',
   completed: 'จัดเสร็จแล้ว',
   rejected: 'ปฏิเสธ',
 };
@@ -62,6 +83,9 @@ const statusColors: Record<RequestStatus, { main: string; text: string }> = {
   pending: { main: '#805637', text: '#fff' },
   approved: { main: '#556b82', text: '#fff' },
   preparing: { main: '#ca7a16', text: '#fff' },
+  funded: { main: '#265f91', text: '#fff' },
+  purchasing: { main: '#704c91', text: '#fff' },
+  awaiting_documents: { main: '#8c5d24', text: '#fff' },
   completed: { main: '#e8eee9', text: '#3c5b47' },
   rejected: { main: '#f8dddd', text: '#a22e2a' },
 };
@@ -75,6 +99,27 @@ const actionLabel: Partial<Record<RequestStatus, string>> = {
   approved: 'เริ่มจัดเตรียม',
   preparing: 'ยืนยันจัดเสร็จ',
 };
+const expenseNextStatus: Partial<Record<RequestStatus, RequestStatus>> = {
+  pending: 'approved',
+  approved: 'funded',
+  funded: 'purchasing',
+  purchasing: 'awaiting_documents',
+  awaiting_documents: 'completed',
+};
+const expenseActionLabel: Partial<Record<RequestStatus, string>> = {
+  pending: 'อนุมัติคำขอ',
+  approved: 'บันทึกว่าโอนเงินแล้ว',
+  funded: 'เริ่มจัดซื้อ',
+  purchasing: 'รอเอกสาร',
+  awaiting_documents: 'ปิดงาน',
+};
+const expenseCategoryLabels = {
+  maintenance: 'ค่าซ่อมบำรุง',
+  office: 'ค่าใช้จ่ายสำนักงาน',
+  transport: 'ค่าขนส่งและเดินทาง',
+  service: 'ค่าบริการภายนอก',
+  other: 'อื่น ๆ',
+} as const;
 
 export function AdminOrdersPage({
   activeBranch,
@@ -94,10 +139,15 @@ export function AdminOrdersPage({
     data: apiRequests = [],
     isLoading: rawLoading,
     error,
-    refetch,
   } = useStockRequests();
-  const isLoading = useMinimumLoading(rawLoading);
+  const {
+    data: apiExpenses = [],
+    isLoading: expensesLoading,
+    error: expensesError,
+  } = useExpenseRequests();
+  const isLoading = useMinimumLoading(rawLoading || expensesLoading);
   const updateStatus = useUpdateStockRequestStatus();
+  const updateExpenseStatus = useUpdateExpenseRequestStatus();
   const [branches, setBranches] = useState<
     Awaited<ReturnType<typeof listBranches>>
   >([]);
@@ -128,7 +178,7 @@ export function AdminOrdersPage({
       ),
     [branches],
   );
-  const requestStates = useMemo(
+  const requestStates = useMemo<SupplyRequest[]>(
     () =>
       apiRequests.map((request) => ({
         id: `REQ-${request.id}`,
@@ -145,17 +195,43 @@ export function AdminOrdersPage({
         })),
         requestedAt: formatDate(request.createdAt),
         status: request.status,
+        kind: 'stock' as const,
       })),
     [apiRequests, franchiseBranchIds],
   );
+  const expenseStates = useMemo<SupplyRequest[]>(
+    () =>
+      apiExpenses.map((request) => ({
+        id: `EXP-${request.id}`,
+        branch: request.branch.name as Exclude<Branch, 'ทุกสาขา'>,
+        source: 'sbc' as const,
+        type: expenseCategoryLabels[request.category],
+        items: [
+          {
+            name: request.title,
+            quantity: `${request.estimatedAmount.toLocaleString('th-TH')} บาท`,
+          },
+        ],
+        requestedAt: formatDate(request.createdAt),
+        status: request.status,
+        kind: 'expense' as const,
+        note: request.note,
+        requester: request.requestedByName,
+        estimatedAmount: request.estimatedAmount,
+      })),
+    [apiExpenses],
+  );
+  const visibleRequestStates =
+    selectedTab === 'expense' ? expenseStates : requestStates;
   const filteredRequests = useMemo(
     () =>
-      requestStates.filter((request) => {
+      visibleRequestStates.filter((request) => {
         const matchesBranch =
           activeBranch === 'ทุกสาขา' || request.branch === activeBranch;
         const matchesStatus =
           filter === 'ทั้งหมด' || statusLabels[request.status] === filter;
-        const matchesSource = request.source === selectedTab;
+        const matchesSource =
+          selectedTab === 'expense' || request.source === selectedTab;
         return (
           matchesBranch &&
           matchesStatus &&
@@ -165,18 +241,36 @@ export function AdminOrdersPage({
             .includes(query.toLowerCase())
         );
       }),
-    [activeBranch, selectedTab, filter, query, requestStates],
+    [activeBranch, selectedTab, filter, query, visibleRequestStates],
   );
   const advanceRequest = async (id: string) => {
-    const current = requestStates.find((request) => request.id === id);
+    const current = visibleRequestStates.find((request) => request.id === id);
     if (!current) return;
-    const next = nextStatus[current.status] as
-      Exclude<RequestStatus, 'pending'> | undefined;
+    const next = (current.kind === 'expense' ? expenseNextStatus : nextStatus)[
+      current.status
+    ] as Exclude<RequestStatus, 'pending'> | undefined;
     if (!next) return;
     try {
-      const requestId = Number(id.replace('REQ-', ''));
+      const requestId = Number(
+        id.replace(current.kind === 'expense' ? 'EXP-' : 'REQ-', ''),
+      );
       if (!Number.isNaN(requestId))
-        await updateStatus.mutateAsync({ id: requestId, status: next });
+        if (current.kind === 'expense')
+          await updateExpenseStatus.mutateAsync({
+            id: requestId,
+            status: next as
+              | 'approved'
+              | 'funded'
+              | 'purchasing'
+              | 'awaiting_documents'
+              | 'completed'
+              | 'rejected',
+          });
+        else
+          await updateStatus.mutateAsync({
+            id: requestId,
+            status: next as 'approved' | 'preparing' | 'completed' | 'rejected',
+          });
       setActionNotice({ message: 'อัปเดตสถานะคำขอแล้ว' });
     } catch (error) {
       setActionNotice({
@@ -187,9 +281,19 @@ export function AdminOrdersPage({
   };
   const rejectRequest = async (id: string) => {
     try {
-      const requestId = Number(id.replace('REQ-', ''));
+      const current = visibleRequestStates.find((request) => request.id === id);
+      if (!current) return;
+      const requestId = Number(
+        id.replace(current.kind === 'expense' ? 'EXP-' : 'REQ-', ''),
+      );
       if (!Number.isNaN(requestId))
-        await updateStatus.mutateAsync({ id: requestId, status: 'rejected' });
+        if (current.kind === 'expense')
+          await updateExpenseStatus.mutateAsync({
+            id: requestId,
+            status: 'rejected',
+          });
+        else
+          await updateStatus.mutateAsync({ id: requestId, status: 'rejected' });
       setActionNotice({ message: 'ปฏิเสธคำขอแล้ว' });
     } catch (error) {
       setActionNotice({
@@ -198,12 +302,6 @@ export function AdminOrdersPage({
       });
     }
   };
-  const pendingCount = requestStates.filter(
-    (request) =>
-      request.status === 'pending' &&
-      request.source === selectedTab &&
-      (activeBranch === 'ทุกสาขา' || request.branch === activeBranch),
-  ).length;
   const tabCounts = useMemo(
     () => ({
       sbc: requestStates.filter(
@@ -213,8 +311,10 @@ export function AdminOrdersPage({
         (request) =>
           request.source === 'franchise' && request.status === 'pending',
       ).length,
+      expense: expenseStates.filter((request) => request.status === 'pending')
+        .length,
     }),
-    [requestStates],
+    [requestStates, expenseStates],
   );
   const changeTab = (tab: RequestTab) => {
     setActiveTab(tab);
@@ -242,9 +342,11 @@ export function AdminOrdersPage({
               fontWeight: 600,
             }}
           >
-            {selectedTab === 'franchise'
-              ? 'คำสั่งซื้อแฟรนไชส์และคำขอจัดส่ง'
-              : 'คำสั่งซื้อและคำขอจัดส่ง'}
+            {selectedTab === 'expense'
+              ? 'คำขอเบิกค่าใช้จ่ายภายนอก'
+              : selectedTab === 'franchise'
+                ? 'คำสั่งซื้อแฟรนไชส์และคำขอจัดส่ง'
+                : 'คำสั่งซื้อและคำขอจัดส่ง'}
           </Typography>
           <Typography
             sx={{
@@ -253,7 +355,9 @@ export function AdminOrdersPage({
               fontSize: 13,
             }}
           >
-            แยกการดำเนินการระหว่างสาขา SBC และแฟรนไชส์ให้ชัดเจน
+            {selectedTab === 'expense'
+              ? 'คำขอจาก App Stock ที่ไม่ได้ตัดหรือเพิ่มยอดสต็อก'
+              : 'แยกการดำเนินการระหว่างสาขา SBC และแฟรนไชส์ให้ชัดเจน'}
           </Typography>
         </Box>
         <SearchField
@@ -283,6 +387,7 @@ export function AdminOrdersPage({
             [
               ['sbc', 'คำสั่งซื้อสาขา SBC'],
               ['franchise', 'คำขอวัตถุดิบจากแฟรนไชส์'],
+              ['expense', 'คำขอค่าใช้จ่ายภายนอก'],
             ] as const
           ).map(([tab, label]) => (
             <Button
@@ -376,7 +481,7 @@ export function AdminOrdersPage({
           borderColor: '#e8ddd5',
         }}
       />
-      {error && (
+      {(error || expensesError) && (
         <Card
           variant="outlined"
           role="alert"
@@ -422,7 +527,7 @@ export function AdminOrdersPage({
       {isLoading && <AdminOrdersSkeleton />}
       <Box
         sx={{
-          display: isLoading || error ? 'none' : 'grid',
+          display: isLoading || error || expensesError ? 'none' : 'grid',
           gridTemplateColumns: {
             xs: '1fr',
             md: 'repeat(3, minmax(0, 1fr))',
@@ -433,7 +538,11 @@ export function AdminOrdersPage({
         {!isLoading &&
           filteredRequests.map((request) => {
             const color = statusColors[request.status];
-            const canAdvance = Boolean(nextStatus[request.status]);
+            const canAdvance = Boolean(
+              (request.kind === 'expense' ? expenseNextStatus : nextStatus)[
+                request.status
+              ],
+            );
             return (
               <Card
                 key={request.id}
@@ -458,8 +567,12 @@ export function AdminOrdersPage({
                           fontWeight: 600,
                         }}
                       >
-                        {request.source === 'sbc' ? 'สาขา SBC' : 'แฟรนไชส์'} ·{' '}
-                        {request.branch}
+                        {request.kind === 'expense'
+                          ? 'ค่าใช้จ่ายภายนอก'
+                          : request.source === 'sbc'
+                            ? 'สาขา SBC'
+                            : 'แฟรนไชส์'}{' '}
+                        · {request.branch}
                       </Typography>
                       <Typography
                         sx={{
@@ -519,9 +632,11 @@ export function AdminOrdersPage({
                         fontWeight: 600,
                       }}
                     >
-                      {request.source === 'sbc'
-                        ? 'รายการสั่งซื้อ'
-                        : 'รายการที่ขอ'}{' '}
+                      {request.kind === 'expense'
+                        ? 'รายละเอียดคำขอ'
+                        : request.source === 'sbc'
+                          ? 'รายการสั่งซื้อ'
+                          : 'รายการที่ขอ'}{' '}
                       <Box
                         component="span"
                         sx={{ color: '#8a6b58', fontWeight: 500 }}
@@ -564,6 +679,13 @@ export function AdminOrdersPage({
                       </Box>
                     ))}
                   </Box>
+                  {request.note ? (
+                    <Typography
+                      sx={{ mt: 1.25, color: 'text.secondary', fontSize: 12 }}
+                    >
+                      {request.note}
+                    </Typography>
+                  ) : null}
                   <Box
                     sx={{
                       display: 'flex',
@@ -601,10 +723,14 @@ export function AdminOrdersPage({
                             },
                           }}
                         >
-                          {actionLabel[request.status]}
+                          {request.kind === 'expense'
+                            ? expenseActionLabel[request.status]
+                            : actionLabel[request.status]}
                         </Button>
                       ) : null}
-                      {request.status === 'pending' ? (
+                      {request.status === 'pending' ||
+                      (request.kind === 'expense' &&
+                        request.status === 'approved') ? (
                         <Button
                           onClick={() => rejectRequest(request.id)}
                           color="error"
@@ -636,9 +762,11 @@ export function AdminOrdersPage({
             fontFamily: 'Kanit, sans-serif',
           }}
         >
-          {selectedTab === 'sbc'
-            ? 'ไม่พบคำสั่งซื้อจากสาขา SBC ที่ค้นหา'
-            : 'ไม่พบคำขอวัตถุดิบจากแฟรนไชส์ที่ค้นหา'}
+          {selectedTab === 'expense'
+            ? 'ยังไม่มีคำขอค่าใช้จ่ายภายนอก'
+            : selectedTab === 'sbc'
+              ? 'ไม่พบคำสั่งซื้อจากสาขา SBC ที่ค้นหา'
+              : 'ไม่พบคำขอวัตถุดิบจากแฟรนไชส์ที่ค้นหา'}
         </Typography>
       )}
       <ActionSnackbar

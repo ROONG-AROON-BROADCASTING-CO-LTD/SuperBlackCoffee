@@ -4,6 +4,7 @@ export * from './operations';
 export * from './inventory';
 export * from './menu';
 export * from './stock-requests';
+export * from './expense-requests';
 export * from './audit';
 export * from './branches';
 export * from './website-leads';

@@ -64,6 +64,50 @@ type companyBranchInput struct {
 	Latitude          *float64 `json:"latitude"`
 	Longitude         *float64 `json:"longitude"`
 	AttendanceRadiusM int      `json:"attendanceRadiusM"`
+	WorkDays          []int    `json:"workDays"`
+}
+
+func validBranchWorkDays(days []int) bool {
+	if len(days) == 0 {
+		return false
+	}
+	seen := make(map[int]struct{}, len(days))
+	for _, day := range days {
+		if day < 1 || day > 7 {
+			return false
+		}
+		if _, exists := seen[day]; exists {
+			return false
+		}
+		seen[day] = struct{}{}
+	}
+	return true
+}
+
+func branchWorkDaysValue(days []int) string {
+	values := make([]string, len(days))
+	for index, day := range days {
+		values[index] = strconv.Itoa(day)
+	}
+	return "{" + strings.Join(values, ",") + "}"
+}
+
+func parseBranchWorkDays(value string) ([]int, error) {
+	if value == "" {
+		return []int{1, 2, 3, 4, 5}, nil
+	}
+	days := make([]int, 0, 7)
+	for _, part := range strings.Split(value, ",") {
+		day, err := strconv.Atoi(part)
+		if err != nil {
+			return nil, err
+		}
+		days = append(days, day)
+	}
+	if !validBranchWorkDays(days) {
+		return nil, fmt.Errorf("invalid work days")
+	}
+	return days, nil
 }
 
 func validateCompanyBranchDetails(input companyBranchInput) bool {
@@ -71,6 +115,9 @@ func validateCompanyBranchDetails(input companyBranchInput) bool {
 		(input.Latitude != nil && (*input.Latitude < -90 || *input.Latitude > 90)) ||
 		(input.Longitude != nil && (*input.Longitude < -180 || *input.Longitude > 180)) ||
 		(input.AttendanceRadiusM != 0 && (input.AttendanceRadiusM < 25 || input.AttendanceRadiusM > 1000)) {
+		return false
+	}
+	if input.WorkDays != nil && !validBranchWorkDays(input.WorkDays) {
 		return false
 	}
 	for _, value := range []string{input.OpensAt, input.ClosesAt} {
@@ -200,7 +247,7 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 		return
 	}
 	claims := middleware.ClaimsFrom(c)
-	query := `SELECT b.id,b.name,b.code,b.size,b.status,b.franchisee_id,f.name,b.address,COALESCE(to_char(b.opens_at,'HH24:MI'),''),COALESCE(to_char(b.closes_at,'HH24:MI'),''),b.latitude,b.longitude,b.attendance_radius_m FROM branches b LEFT JOIN franchisees f ON f.id=b.franchisee_id`
+	query := `SELECT b.id,b.name,b.code,b.size,b.status,b.franchisee_id,f.name,b.address,COALESCE(to_char(b.opens_at,'HH24:MI'),''),COALESCE(to_char(b.closes_at,'HH24:MI'),''),b.latitude,b.longitude,b.attendance_radius_m,b.is_headquarters,COALESCE(array_to_string(b.work_days,','),'') FROM branches b LEFT JOIN franchisees f ON f.id=b.franchisee_id`
 	args := []any{}
 	if claims.Role != "admin" {
 		if claims.Role == "branch_manager" && claims.BranchID != nil {
@@ -230,11 +277,18 @@ func (h *PlatformHandler) ListBranches(c *gin.Context) {
 		var address, opensAt, closesAt string
 		var latitude, longitude sql.NullFloat64
 		var attendanceRadiusM int
-		if err := rows.Scan(&id, &name, &code, &size, &status, &franchiseeID, &franchiseName, &address, &opensAt, &closesAt, &latitude, &longitude, &attendanceRadiusM); err != nil {
+		var isHeadquarters bool
+		var workDaysValue string
+		if err := rows.Scan(&id, &name, &code, &size, &status, &franchiseeID, &franchiseName, &address, &opensAt, &closesAt, &latitude, &longitude, &attendanceRadiusM, &isHeadquarters, &workDaysValue); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลสาขาได้"})
 			return
 		}
-		branch := gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "franchiseeName": franchiseName.String, "address": address, "opensAt": opensAt, "closesAt": closesAt, "attendanceRadiusM": attendanceRadiusM}
+		workDays, workDaysErr := parseBranchWorkDays(workDaysValue)
+		if workDaysErr != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถอ่านวันทำงานของสาขาได้"})
+			return
+		}
+		branch := gin.H{"id": id, "name": name, "code": code, "size": size, "status": status, "franchiseeName": franchiseName.String, "address": address, "opensAt": opensAt, "closesAt": closesAt, "attendanceRadiusM": attendanceRadiusM, "isHeadquarters": isHeadquarters, "workDays": workDays}
 		if latitude.Valid && longitude.Valid {
 			branch["latitude"] = latitude.Float64
 			branch["longitude"] = longitude.Float64
@@ -271,6 +325,9 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 	if input.AttendanceRadiusM == 0 {
 		input.AttendanceRadiusM = 100
 	}
+	if input.WorkDays == nil {
+		input.WorkDays = []int{1, 2, 3, 4, 5}
+	}
 	input.Address = strings.TrimSpace(input.Address)
 	tx, err := h.db.BeginTx(c.Request.Context(), nil)
 	if err != nil {
@@ -280,9 +337,9 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 	defer tx.Rollback()
 	var branchID int64
 	err = tx.QueryRowContext(c.Request.Context(), `
-		INSERT INTO branches(name,code,size,status,address,opens_at,closes_at,latitude,longitude,attendance_radius_m)
-		VALUES($1,$2,$3,'active',$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7,$8,$9)
-		RETURNING id`, input.Name, input.Code, input.Size, input.Address, input.OpensAt, input.ClosesAt, input.Latitude, input.Longitude, input.AttendanceRadiusM).Scan(&branchID)
+		INSERT INTO branches(name,code,size,status,address,opens_at,closes_at,latitude,longitude,attendance_radius_m,work_days)
+		VALUES($1,$2,$3,'active',$4,NULLIF($5,'')::time,NULLIF($6,'')::time,$7,$8,$9,$10::smallint[])
+		RETURNING id`, input.Name, input.Code, input.Size, input.Address, input.OpensAt, input.ClosesAt, input.Latitude, input.Longitude, input.AttendanceRadiusM, branchWorkDaysValue(input.WorkDays)).Scan(&branchID)
 	if err == nil {
 		err = copyCompanyCatalog(c.Request.Context(), tx, branchID, input.Size)
 	}
@@ -297,7 +354,7 @@ func (h *PlatformHandler) CreateCompanyBranch(c *gin.Context) {
 	h.invalidateBranchCache(c, branchID)
 	h.invalidateMenuSummaryCache(c)
 	h.recordAudit(c, branchID, "branch", branchID, "created", gin.H{"name": input.Name, "code": input.Code, "size": input.Size})
-	result := gin.H{"id": branchID, "name": input.Name, "code": input.Code, "size": input.Size, "status": "active", "address": input.Address, "opensAt": input.OpensAt, "closesAt": input.ClosesAt, "attendanceRadiusM": input.AttendanceRadiusM}
+	result := gin.H{"id": branchID, "name": input.Name, "code": input.Code, "size": input.Size, "status": "active", "address": input.Address, "opensAt": input.OpensAt, "closesAt": input.ClosesAt, "attendanceRadiusM": input.AttendanceRadiusM, "workDays": input.WorkDays}
 	if input.Latitude != nil && input.Longitude != nil {
 		result["latitude"] = *input.Latitude
 		result["longitude"] = *input.Longitude
@@ -329,7 +386,11 @@ func (h *PlatformHandler) UpdateCompanyBranchDetails(c *gin.Context) {
 	if input.AttendanceRadiusM == 0 {
 		input.AttendanceRadiusM = 100
 	}
-	result, err := h.db.ExecContext(c.Request.Context(), `UPDATE branches SET name=$1,code=$2,address=$3,opens_at=NULLIF($4,'')::time,closes_at=NULLIF($5,'')::time,latitude=$6,longitude=$7,attendance_radius_m=$8 WHERE id=$9 AND franchisee_id IS NULL`, input.Name, input.Code, input.Address, input.OpensAt, input.ClosesAt, input.Latitude, input.Longitude, input.AttendanceRadiusM, branchID)
+	workDaysValue := ""
+	if input.WorkDays != nil {
+		workDaysValue = branchWorkDaysValue(input.WorkDays)
+	}
+	result, err := h.db.ExecContext(c.Request.Context(), `UPDATE branches SET name=$1,code=$2,address=$3,opens_at=NULLIF($4,'')::time,closes_at=NULLIF($5,'')::time,latitude=$6,longitude=$7,attendance_radius_m=$8,work_days=COALESCE(NULLIF($9,'')::smallint[],work_days) WHERE id=$10 AND franchisee_id IS NULL`, input.Name, input.Code, input.Address, input.OpensAt, input.ClosesAt, input.Latitude, input.Longitude, input.AttendanceRadiusM, workDaysValue, branchID)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลสาขาได้ กรุณาตรวจสอบรหัสสาขา"})
 		return

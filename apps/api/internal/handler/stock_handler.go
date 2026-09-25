@@ -45,6 +45,7 @@ func (h *PlatformHandler) CreateStockRequest(c *gin.Context) {
 	defer tx.Rollback()
 	var requestID int64
 	err = tx.QueryRowContext(c.Request.Context(), `INSERT INTO stock_requests(branch_id,note,requested_by) VALUES($1,$2,$3) RETURNING id`, branchID, input.Note, claims.UserID).Scan(&requestID)
+	auditItems := make([]gin.H, 0, len(input.Items))
 	for _, item := range input.Items {
 		if err != nil {
 			break
@@ -61,12 +62,15 @@ func (h *PlatformHandler) CreateStockRequest(c *gin.Context) {
 			}
 		}
 		_, err = tx.ExecContext(c.Request.Context(), `INSERT INTO stock_request_items(stock_request_id,inventory_item_id,item_name,quantity,unit) VALUES($1,$2,$3,$4,$5)`, requestID, item.InventoryItemID, itemName, item.Quantity, itemUnit)
+		if err == nil {
+			auditItems = append(auditItems, gin.H{"inventoryItemId": item.InventoryItemID, "name": itemName, "quantity": item.Quantity, "unit": itemUnit})
+		}
 	}
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกคำขอได้"})
 		return
 	}
-	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_request", requestID, "created", gin.H{"itemCount": len(input.Items)}); err != nil {
+	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_request", requestID, "created", gin.H{"itemCount": len(auditItems), "note": input.Note, "items": auditItems}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติคำขอได้"})
 		return
 	}
@@ -158,12 +162,17 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 		}
 		defer tx.Rollback()
 		var branchID int64
-		err = tx.QueryRowContext(c.Request.Context(), `UPDATE stock_requests SET status=$1,approved_by=$2,updated_at=now() WHERE id=$3 AND status = ANY($4) RETURNING branch_id`, input.Status, claims.UserID, id, validCurrentStatuses[input.Status]).Scan(&branchID)
+		var previousStatus string
+		err = tx.QueryRowContext(c.Request.Context(), `SELECT branch_id,status FROM stock_requests WHERE id=$1 AND status = ANY($2) FOR UPDATE`, id, validCurrentStatuses[input.Status]).Scan(&branchID, &previousStatus)
 		if err != nil {
 			c.JSON(409, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะคำขอนี้ได้"})
 			return
 		}
-		if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_request", id, input.Status, nil); err != nil {
+		if _, err = tx.ExecContext(c.Request.Context(), `UPDATE stock_requests SET status=$1,approved_by=$2,updated_at=now() WHERE id=$3`, input.Status, claims.UserID, id); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถเปลี่ยนสถานะคำขอได้"})
+			return
+		}
+		if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_request", id, input.Status, gin.H{"beforeStatus": previousStatus, "afterStatus": input.Status}); err != nil {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติคำขอได้"})
 			return
 		}
@@ -223,6 +232,7 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดำเนินการรับสินค้าให้เสร็จสิ้นได้"})
 		return
 	}
+	receivedAuditItems := make([]gin.H, 0, len(items))
 	for _, item := range items {
 		var result sql.Result
 		var updateErr error
@@ -261,12 +271,13 @@ func (h *PlatformHandler) UpdateStockRequestStatus(c *gin.Context) {
 			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติสต๊อกได้"})
 			return
 		}
+		receivedAuditItems = append(receivedAuditItems, gin.H{"inventoryItemId": inventoryItemID, "name": item.name, "quantityReceived": item.quantity, "unit": item.unit, "quantityBefore": before, "quantityAfter": before + item.quantity})
 	}
 	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE stock_requests SET status='completed',approved_by=$1,updated_at=now() WHERE id=$2`, claims.UserID, id); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดำเนินการรับสินค้าให้เสร็จสิ้นได้"})
 		return
 	}
-	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_request", id, "completed", nil); err != nil {
+	if err = recordAuditTx(c, tx, branchID, claims.UserID, "stock_request", id, "completed", gin.H{"beforeStatus": "preparing", "afterStatus": "completed", "items": receivedAuditItems}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติคำขอได้"})
 		return
 	}

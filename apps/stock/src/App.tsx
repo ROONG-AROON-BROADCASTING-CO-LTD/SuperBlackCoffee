@@ -5,6 +5,7 @@ import {
   adjustInventory,
   consumeStockFromMenus,
   createStockRequest,
+  createExpenseRequest,
   listInventory,
   listMenuItems,
   listMyStockMovements,
@@ -265,6 +266,15 @@ export default function App() {
     await createStockRequest({ items, note });
     setNotice('ส่งคำสั่งซื้อสินค้าแล้ว');
   };
+  const handleCreateExpenseRequest = async (data: {
+    title: string;
+    category: 'maintenance' | 'office' | 'transport' | 'service' | 'other';
+    estimatedAmount: number;
+    note: string;
+  }) => {
+    await createExpenseRequest(data);
+    setNotice('ส่งคำขอเบิกค่าใช้จ่ายภายนอกแล้ว');
+  };
   if (checkingSession) return null;
 
   return (
@@ -304,6 +314,7 @@ export default function App() {
             isFranchise={session.user.isFranchise}
             branchName={session.user.branchName}
             onCreateStockRequest={handleCreateStockRequest}
+            onCreateExpenseRequest={handleCreateExpenseRequest}
             onOpenHistory={() => navigate('history')}
             onOrderIngredients={(item) => {
               setPendingOrderItem(item);

@@ -12,6 +12,7 @@ export type CompanyBranchInput = {
   latitude?: number | null;
   longitude?: number | null;
   attendanceRadiusM?: number;
+  workDays?: number[];
 };
 
 export type Branch = {
@@ -28,6 +29,8 @@ export type Branch = {
   latitude?: number;
   longitude?: number;
   attendanceRadiusM?: number;
+  isHeadquarters?: boolean;
+  workDays?: number[];
 };
 
 export const listBranches = () => secured<Branch[]>('/branches');

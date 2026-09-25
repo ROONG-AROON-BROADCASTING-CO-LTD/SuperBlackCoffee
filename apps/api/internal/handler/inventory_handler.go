@@ -251,8 +251,9 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 	}
 	applyCatalogTracking(&item, trackStock)
 	var previousQuantity float64
-	var previousCategory string
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,category FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity, &previousCategory); err != nil {
+	var previousName, previousUnit, previousCategory string
+	var previousExpiryDate *time.Time
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT quantity,name,unit,category,expiry_date FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&previousQuantity, &previousName, &previousUnit, &previousCategory, &previousExpiryDate); err != nil {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
 	}
@@ -278,7 +279,10 @@ func (h *PlatformHandler) UpdateInventory(c *gin.Context) {
 			return
 		}
 	}
-	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "inventory_item", id, "updated", gin.H{"name": item.Name, "quantity": item.Quantity, "unit": item.Unit, "expiryDate": item.ExpiryDate}); err != nil {
+	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "inventory_item", id, "updated", gin.H{
+		"before": gin.H{"name": previousName, "quantity": previousQuantity, "unit": previousUnit, "category": previousCategory, "expiryDate": previousExpiryDate},
+		"after":  gin.H{"name": item.Name, "quantity": item.Quantity, "unit": item.Unit, "category": item.Category, "expiryDate": item.ExpiryDate},
+	}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต็อกได้"})
 		return
 	}
@@ -316,6 +320,13 @@ func (h *PlatformHandler) DeleteInventory(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
+	var name, unit, category string
+	var quantity float64
+	var expiryDate *time.Time
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT name,unit,category,quantity,expiry_date FROM inventory_items WHERE id=$1 AND branch_id=$2 FOR UPDATE`, id, branchID).Scan(&name, &unit, &category, &quantity, &expiryDate); err != nil {
+		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
+		return
+	}
 	result, err := tx.ExecContext(c.Request.Context(), `DELETE FROM inventory_items WHERE id=$1 AND branch_id=$2`, id, branchID)
 	if err != nil {
 		status, message := inventoryDeleteError(err)
@@ -326,7 +337,7 @@ func (h *PlatformHandler) DeleteInventory(c *gin.Context) {
 		c.JSON(404, gin.H{"success": false, "message": "ไม่พบรายการสต็อก"})
 		return
 	}
-	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "inventory_item", id, "deleted", nil); err != nil {
+	if err = recordAuditTx(c, tx, branchID, middleware.ClaimsFrom(c).UserID, "inventory_item", id, "deleted", gin.H{"name": name, "unit": unit, "category": category, "quantity": quantity, "expiryDate": expiryDate}); err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถบันทึกประวัติรายการสต็อกได้"})
 		return
 	}

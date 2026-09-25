@@ -65,6 +65,12 @@ type StockPageRouterProps = {
     }>,
     note: string,
   ) => Promise<void>;
+  onCreateExpenseRequest?: (data: {
+    title: string;
+    category: 'maintenance' | 'office' | 'transport' | 'service' | 'other';
+    estimatedAmount: number;
+    note: string;
+  }) => Promise<void>;
   onOpenHistory: () => void;
   onOrderIngredients: (item: InventoryItem) => void;
   pendingOrderItem: InventoryItem | null;
@@ -90,6 +96,7 @@ export function StockPageRouter({
   isFranchise,
   branchName,
   onCreateStockRequest,
+  onCreateExpenseRequest,
   onOpenHistory,
   onOrderIngredients,
   pendingOrderItem,
@@ -164,6 +171,7 @@ export function StockPageRouter({
           cartMode === 'order' ? onCartItemCountChange : () => undefined
         }
         onCreateRequest={onCreateStockRequest}
+        onCreateExpenseRequest={onCreateExpenseRequest}
       />
     </Suspense>
   );

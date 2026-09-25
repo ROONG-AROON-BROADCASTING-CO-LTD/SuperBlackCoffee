@@ -164,7 +164,7 @@ const pageSkeletonIntroContent: Partial<
   },
   ประวัติการทำรายการ: {
     title: 'ประวัติการทำรายการ',
-    description: 'ตรวจสอบการเปลี่ยนแปลงของสาขา สต็อก เมนู และคำขอได้ในที่เดียว',
+    description: 'ตรวจสอบการเปลี่ยนแปลงสต็อกและการดำเนินการต่างของทุกสาขา',
   },
   เอกสารส่วนกลาง: {
     title: 'เอกสารส่วนกลาง',
@@ -191,8 +191,9 @@ const pageSkeletonIntroContent: Partial<
     description: 'ตรวจสอบจำนวนคงเหลือของอุปกรณ์รายสาขา',
   },
   'สาขา SBC': {
-    title: 'สาขา Super Black Coffee',
-    description: 'จัดการข้อมูลสาขา SBC และกำหนดขนาดบริการของแต่ละสาขา',
+    title: 'สาขา SBC และสำนักงานใหญ่',
+    description:
+      'จัดการข้อมูลสำนักงานใหญ่แยกจากสาขา SBC และกำหนดขนาดบริการของแต่ละสาขา',
   },
   สาขาแฟรนไชส์: {
     title: 'สาขาแฟรนไชส์',
@@ -320,7 +321,11 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     selectedBranch === 'แฟรนไชส์ทั้งหมด' ? 'ทุกสาขา' : selectedBranch
   ) as Branch;
   const activeOrderTab =
-    searchParams.get('tab') === 'franchise' ? 'franchise' : 'sbc';
+    searchParams.get('tab') === 'franchise'
+      ? 'franchise'
+      : searchParams.get('tab') === 'expense'
+        ? 'expense'
+        : 'sbc';
   const [branchLoadError, setBranchLoadError] = useState(false);
   const [branchReloadKey, setBranchReloadKey] = useState(0);
   const scrollbarTimeoutRef = useRef<number | undefined>(undefined);
@@ -596,15 +601,17 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
             : 'เมนูและสินค้า ทุกสาขา'
           : `เมนูและสินค้า สาขา${activeBranch}`
         : activePage === 'คำสั่งซื้อ'
-          ? activeBranch === 'ทุกสาขา'
-            ? activeOrderTab === 'franchise'
-              ? 'คำสั่งซื้อ แฟรนไชส์ทั้งหมด'
-              : 'คำสั่งซื้อ ทุกสาขา'
-            : activeOrderTab === 'franchise'
-              ? `คำสั่งซื้อ แฟรนไชส์ ${activeBranch}`
-              : `คำสั่งซื้อ สาขา${activeBranch}`
+          ? activeOrderTab === 'expense'
+            ? 'คำขอค่าใช้จ่ายภายนอก'
+            : activeBranch === 'ทุกสาขา'
+              ? activeOrderTab === 'franchise'
+                ? 'คำสั่งซื้อ แฟรนไชส์ทั้งหมด'
+                : 'คำสั่งซื้อ ทุกสาขา'
+              : activeOrderTab === 'franchise'
+                ? `คำสั่งซื้อ แฟรนไชส์ ${activeBranch}`
+                : `คำสั่งซื้อ สาขา${activeBranch}`
           : activePage === 'สาขา SBC'
-            ? 'สาขา Super Black Coffee'
+            ? 'สาขา SBC และสำนักงานใหญ่'
             : activePage;
   return (
     <AdminDashboardLayout
@@ -637,9 +644,11 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
                   'ทุกสาขา',
                   ...branchDirectory
                     .filter((branch) =>
-                      activeOrderTab === 'franchise'
-                        ? Boolean(branch.franchiseeId)
-                        : !branch.franchiseeId,
+                      activeOrderTab === 'expense'
+                        ? true
+                        : activeOrderTab === 'franchise'
+                          ? Boolean(branch.franchiseeId)
+                          : !branch.franchiseeId,
                     )
                     .map((branch) => branch.name),
                 ]

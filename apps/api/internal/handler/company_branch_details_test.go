@@ -16,6 +16,9 @@ func TestValidateCompanyBranchDetails(t *testing.T) {
 		{"invalid longitude", companyBranchInput{Latitude: &lat, Longitude: floatPtr(-181)}, false},
 		{"invalid radius", companyBranchInput{AttendanceRadiusM: 24}, false},
 		{"invalid hours", companyBranchInput{OpensAt: "25:00"}, false},
+		{"valid headquarters work days", companyBranchInput{WorkDays: []int{1, 2, 3, 4, 5, 6}}, true},
+		{"empty headquarters work days", companyBranchInput{WorkDays: []int{}}, false},
+		{"duplicate headquarters work days", companyBranchInput{WorkDays: []int{1, 1}}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := validateCompanyBranchDetails(tc.input); got != tc.want {

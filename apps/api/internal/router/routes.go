@@ -84,6 +84,8 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.GET("/stock-movements", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.ListStockMovements)
 	protected.POST("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.CreateStockRequest)
 	protected.GET("/stock-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.ListStockRequests)
+	protected.POST("/expense-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager", "cashier"), deps.platform.CreateExpenseRequest)
+	protected.GET("/expense-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.ListExpenseRequests)
 	protected.GET("/franchise/maintenance-tickets", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.ListFranchiseMaintenanceTickets)
 	protected.POST("/franchise/maintenance-tickets", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.CreateFranchiseMaintenanceTicket)
 	protected.GET("/audit-events", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListAuditEvents)
@@ -109,6 +111,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.GET("/website/leads", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListWebsiteLeads)
 	protected.PATCH("/website/leads/:id/status", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateWebsiteLeadStatus)
 	protected.PATCH("/stock-requests/:id/status", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateStockRequestStatus)
+	protected.PATCH("/expense-requests/:id/status", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UpdateExpenseRequestStatus)
 	registerAdminRoutes(protected, deps)
 
 	attendance := r.Group("/api/v1")
