@@ -83,6 +83,9 @@ const auditDetailLabels: Record<string, string> = {
   source: 'แหล่งที่มา',
   warningDays: 'แจ้งเตือนล่วงหน้า (วัน)',
   decisionNote: 'หมายเหตุการพิจารณา',
+  jobTitle: 'ตำแหน่งงาน',
+  role: 'บทบาท',
+  username: 'ชื่อผู้ใช้',
   category: 'หมวดหมู่',
   storePrice: 'ราคาหน้าร้าน',
   linemanPrice: 'ราคา LINE MAN',
@@ -159,6 +162,18 @@ function formatAuditValue(key: string, value: unknown): string {
     mixed: 'หลายช่องทาง',
   };
   if (key === 'channel' && channelNames[value]) return channelNames[value];
+  const valueNames: Record<string, string> = {
+    cafe_standard: 'ตรวจมาตรฐานและบริการ',
+    technician: 'ตรวจสภาพอุปกรณ์',
+    ingredients: 'ตรวจคุณภาพวัตถุดิบ',
+    cashier: 'แคชเชียร์',
+    branch_manager: 'ผู้จัดการสาขา',
+    franchise_owner: 'เจ้าของแฟรนไชส์',
+    admin: 'ผู้ดูแลระบบ',
+  };
+  if (['inspectionType', 'role'].includes(key) && valueNames[value]) {
+    return valueNames[value];
+  }
   const statusNames: Record<string, string> = {
     pending: 'รอดำเนินการ',
     submitted: 'ส่งอนุมัติ',
