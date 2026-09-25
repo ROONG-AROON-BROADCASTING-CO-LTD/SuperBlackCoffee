@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Button,
@@ -13,15 +13,8 @@ import {
   AmbulanceIcon,
   DateField,
   PlusIcon,
-  ReceiptTextIcon,
   UsersIcon,
 } from '@stackbuild/ui';
-import {
-  cancelLeaveRequest,
-  leaveRequestPdfUrl,
-  listMyLeaveRequests,
-  type MyLeaveRequest,
-} from '../api/attendance';
 import type { LeaveType } from '../types/attendance';
 
 const leaveTypeApi = {
@@ -30,12 +23,6 @@ const leaveTypeApi = {
   ลาพักร้อน: 'vacation',
   ลาอื่นๆ: 'other',
 } as const;
-
-const statusLabel: Record<MyLeaveRequest['status'], string> = {
-  pending: 'รอพิจารณา',
-  approved: 'อนุมัติแล้ว',
-  rejected: 'ไม่อนุมัติ',
-};
 
 const defaultLeaveDate = (() => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -77,23 +64,7 @@ export function AttendanceLeaveRequestPage({
     nextCalendarDay(defaultLeaveDate),
   );
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [requests, setRequests] = useState<MyLeaveRequest[]>([]);
-  const [cancellingRequest, setCancellingRequest] = useState<number | null>(
-    null,
-  );
   const [previewError, setPreviewError] = useState('');
-
-  const refreshRequests = async () => {
-    try {
-      setRequests(await listMyLeaveRequests());
-    } catch {
-      /* Form stays available during a temporary history failure. */
-    }
-  };
-
-  useEffect(() => {
-    void refreshRequests();
-  }, []);
   const submit = async () => {
     try {
       await onSuccess({
@@ -109,7 +80,6 @@ export function AttendanceLeaveRequestPage({
       setAdditionalDetails('');
       setContactPhone('');
       setAttachments([]);
-      await refreshRequests();
     } catch {
       setPreviewError(
         'ไม่สามารถส่งคำขอลาได้ กรุณาตรวจสอบวันที่ลาแล้วลองใหม่อีกครั้ง',
@@ -120,29 +90,6 @@ export function AttendanceLeaveRequestPage({
   const addAttachments = (files: FileList | null) => {
     if (!files) return;
     setAttachments((current) => [...current, ...Array.from(files)].slice(0, 5));
-  };
-
-  const cancelRequest = async (request: MyLeaveRequest) => {
-    if (
-      !window.confirm(
-        'ต้องการยกเลิกคำขอลานี้ใช่หรือไม่? คำขอและไฟล์แนบทั้งหมดจะถูกลบ',
-      )
-    )
-      return;
-    setCancellingRequest(request.id);
-    try {
-      await cancelLeaveRequest(request.id);
-      setRequests((current) =>
-        current.filter((item) => item.id !== request.id),
-      );
-      setPreviewError('');
-    } catch (error) {
-      setPreviewError(
-        error instanceof Error ? error.message : 'ไม่สามารถยกเลิกคำขอลาได้',
-      );
-    } finally {
-      setCancellingRequest(null);
-    }
   };
 
   return (
@@ -256,7 +203,7 @@ export function AttendanceLeaveRequestPage({
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'space-between',
                 gap: 1,
                 flexWrap: 'nowrap',
@@ -346,85 +293,6 @@ export function AttendanceLeaveRequestPage({
           </Button>
         </Stack>
       </Paper>
-      <Paper
-        variant="outlined"
-        sx={{
-          p: { xs: 2.5, sm: 3.5 },
-          borderColor: '#e8ddd5',
-          borderRadius: '15px',
-          bgcolor: '#fffdfb',
-        }}
-      >
-        <Stack spacing={1.5}>
-          <Typography sx={{ fontSize: 18, fontWeight: 700 }}>
-            ใบลาของฉัน
-          </Typography>
-          {requests.length === 0 ? (
-            <Typography color="text.secondary">ยังไม่มีคำขอลา</Typography>
-          ) : (
-            requests.map((request) => (
-              <Box
-                key={request.id}
-                sx={{
-                  display: 'flex',
-                  gap: 1.5,
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  border: '1px solid #eee3dc',
-                  borderRadius: '10px',
-                  p: 1.5,
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontWeight: 600 }}>
-                    {request.leaveDate} ถึง {request.leaveEndDate}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {leaveTypeLabel(request.leaveType)} ·{' '}
-                    {statusLabel[request.status]}
-                  </Typography>
-                  {(request.attachments ?? []).length ? (
-                    <Typography variant="body2" color="text.secondary">
-                      แนบแล้ว {(request.attachments ?? []).length} ไฟล์:{' '}
-                      {(request.attachments ?? [])
-                        .map((attachment) => attachment.name)
-                        .join(', ')}
-                    </Typography>
-                  ) : null}
-                </Box>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{ alignItems: 'center', ml: 'auto' }}
-                >
-                  <Button
-                    component="a"
-                    href={leaveRequestPdfUrl(request.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="outlined"
-                    size="small"
-                    startIcon={<ReceiptTextIcon size={18} />}
-                  >
-                    ดูใบลา PDF
-                  </Button>
-                  {request.status === 'pending' ? (
-                    <Button
-                      color="error"
-                      size="small"
-                      disabled={cancellingRequest === request.id}
-                      onClick={() => void cancelRequest(request)}
-                    >
-                      ยกเลิกคำขอ
-                    </Button>
-                  ) : null}
-                </Stack>
-              </Box>
-            ))
-          )}
-        </Stack>
-      </Paper>
       <ActionSnackbar
         notice={
           previewError ? { message: previewError, severity: 'error' } : null
@@ -433,13 +301,4 @@ export function AttendanceLeaveRequestPage({
       />
     </Stack>
   );
-}
-
-function leaveTypeLabel(value: MyLeaveRequest['leaveType']) {
-  return {
-    sick: 'ลาป่วย',
-    personal: 'ลากิจ',
-    vacation: 'ลาพักร้อน',
-    other: 'ลาอื่นๆ',
-  }[value];
 }

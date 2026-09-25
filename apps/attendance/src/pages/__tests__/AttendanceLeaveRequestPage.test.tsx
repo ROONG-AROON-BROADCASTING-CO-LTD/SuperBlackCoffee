@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cancelLeaveRequest, listMyLeaveRequests } from '../../api/attendance';
+import { MyLeaveRequests } from '../../components/MyLeaveRequests';
 import { AttendanceLeaveRequestPage } from '../AttendanceLeaveRequestPage';
 
 vi.mock('../../api/attendance', () => ({
@@ -73,7 +74,7 @@ describe('AttendanceLeaveRequestPage', () => {
     expect(onSuccess).toHaveBeenCalledOnce();
   });
 
-  it('opens a leave PDF through the authenticated API link, not a blocked blob preview', async () => {
+  it('shows leave PDFs in the work-history leave documents section', async () => {
     vi.mocked(listMyLeaveRequests).mockResolvedValueOnce([
       {
         id: 55,
@@ -88,7 +89,7 @@ describe('AttendanceLeaveRequestPage', () => {
         createdAt: '2026-09-01T00:00:00Z',
       },
     ]);
-    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    render(<MyLeaveRequests />);
 
     const link = await screen.findByRole('link', { name: 'ดูใบลา PDF' });
     expect(link.getAttribute('href')).toBe(
@@ -165,7 +166,7 @@ describe('AttendanceLeaveRequestPage', () => {
     vi.mocked(cancelLeaveRequest).mockResolvedValueOnce({ id: 44 });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    render(<MyLeaveRequests />);
     await screen.findByText('2026-09-09 ถึง 2026-09-10');
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }));
 
@@ -193,7 +194,7 @@ describe('AttendanceLeaveRequestPage', () => {
     );
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-    render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
+    render(<MyLeaveRequests />);
     await screen.findByText('2026-09-25 ถึง 2026-09-26');
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }));
 

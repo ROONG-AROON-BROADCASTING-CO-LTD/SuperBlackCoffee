@@ -1,5 +1,6 @@
 import { Stack, Typography } from '@mui/material';
 import { AttendanceHistoryList } from '../components/AttendanceHistoryList';
+import { MyLeaveRequests } from '../components/MyLeaveRequests';
 import type { AttendanceHistoryItem } from '../api/attendance';
 
 export function AttendanceWorkHistoryPage({
@@ -8,7 +9,7 @@ export function AttendanceWorkHistoryPage({
   history: AttendanceHistoryItem[];
 }) {
   return (
-    <Stack spacing={{ xs: 0, md: 2.5 }}>
+    <Stack spacing={{ xs: 1.5, md: 2.5 }}>
       <Typography
         sx={{
           display: { xs: 'none', md: 'block' },
@@ -20,6 +21,7 @@ export function AttendanceWorkHistoryPage({
         ประวัติการทำงาน
       </Typography>
       <AttendanceHistoryList history={history} />
+      <MyLeaveRequests />
     </Stack>
   );
 }
