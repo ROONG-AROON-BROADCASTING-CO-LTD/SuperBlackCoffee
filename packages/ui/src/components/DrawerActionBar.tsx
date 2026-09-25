@@ -20,6 +20,9 @@ export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
           alignItems: 'center',
           gap: 1.25,
           position: 'absolute',
+          width: 'fit-content',
+          gridColumn: 'auto',
+          gridRow: 'auto',
           right: { xs: 20, sm: 32 },
           bottom: 0,
           zIndex: 1301,
@@ -31,6 +34,9 @@ export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
           boxShadow: 'none',
         },
         ...(Array.isArray(sx) ? sx : [sx]),
+        // An absolute action bar must not inherit a full-width grid placement
+        // from the form it is rendered in.
+        { gridColumn: 'auto', gridRow: 'auto' },
       ]}
     >
       {children}
