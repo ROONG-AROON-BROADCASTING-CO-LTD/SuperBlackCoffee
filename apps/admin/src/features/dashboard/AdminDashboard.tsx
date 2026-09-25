@@ -537,9 +537,17 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       cardColumns={5}
     />
   ) : activePage === 'ภาพรวมสาขา SBC' ? (
-    <AdminOverviewPage onNavigate={navigate} scope="sbc" />
+    <AdminOverviewPage
+      onNavigate={navigate}
+      scope="sbc"
+      branchDirectory={branchDirectory}
+    />
   ) : activePage === 'ภาพรวมแฟรนไชส์' ? (
-    <AdminOverviewPage onNavigate={navigate} scope="franchise" />
+    <AdminOverviewPage
+      onNavigate={navigate}
+      scope="franchise"
+      branchDirectory={branchDirectory}
+    />
   ) : activePage === 'คำสั่งซื้อ' ? (
     <AdminOrdersPage
       activeBranch={activeBranch}

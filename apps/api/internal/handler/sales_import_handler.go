@@ -355,7 +355,7 @@ func salesPeriodBounds(period string) (string, string, bool) {
 	}
 }
 
-func (h *PlatformHandler) salesTrend(c *gin.Context, period string, branchID any) ([]gin.H, error) {
+func (h *PlatformHandler) salesTrend(c *gin.Context, period string, branchID any, scope string) ([]gin.H, error) {
 	config, ok := dashboardTrendConfig(period)
 	if !ok {
 		return nil, fmt.Errorf("invalid period")
@@ -373,8 +373,9 @@ func (h *PlatformHandler) salesTrend(c *gin.Context, period string, branchID any
 	LEFT JOIN stock_sales s ON s.created_at >= b.bucket
 		AND s.created_at < b.bucket + interval '%[3]s'
 		AND ($1::bigint IS NULL OR s.branch_id=$1)
+		AND `+dashboardScopeClause("s.branch_id")+`
 	GROUP BY b.bucket ORDER BY b.bucket`, start, end, config.step, config.format)
-	rows, err := h.db.QueryContext(c.Request.Context(), query, branchID)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, branchID, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +401,11 @@ func (h *PlatformHandler) SalesTrend(c *gin.Context) {
 	if !ok {
 		return
 	}
-	result, err := h.salesTrend(c, period, branchID)
+	scope, ok := dashboardReportScope(c)
+	if !ok {
+		return
+	}
+	result, err := h.salesTrend(c, period, branchID, scope)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ช่วงเวลาที่เลือกไม่ถูกต้อง"})
 		return
@@ -450,12 +455,16 @@ func (h *PlatformHandler) TopSellingMenus(c *gin.Context) {
 	if !ok {
 		return
 	}
+	scope, ok := dashboardReportScope(c)
+	if !ok {
+		return
+	}
 	rows, err := h.db.QueryContext(c.Request.Context(), fmt.Sprintf(`SELECT m.id,m.name,SUM(i.quantity),SUM(i.amount)
 		FROM stock_sale_items i
 		JOIN stock_sales s ON s.id=i.stock_sale_id
 		JOIN menu_items m ON m.id=i.menu_item_id
-		WHERE s.created_at >= %s AND s.created_at < %s AND ($1::bigint IS NULL OR s.branch_id=$1)
-		GROUP BY m.id,m.name ORDER BY SUM(i.quantity) DESC,SUM(i.amount) DESC,m.name LIMIT 5`, start, end), branchID)
+		WHERE s.created_at >= %s AND s.created_at < %s AND ($1::bigint IS NULL OR s.branch_id=$1) AND %s
+		GROUP BY m.id,m.name ORDER BY SUM(i.quantity) DESC,SUM(i.amount) DESC,m.name LIMIT 5`, start, end, dashboardScopeClause("s.branch_id")), branchID, scope)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถจัดอันดับเมนูขายดี"})
 		return

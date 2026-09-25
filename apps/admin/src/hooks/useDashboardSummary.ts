@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardSummary } from '../api';
+import { getDashboardSummary, type DashboardScope } from '../api';
 
-export const useDashboardSummary = (branchCode?: string) =>
+export const useDashboardSummary = (
+  branchCode?: string,
+  scope?: DashboardScope,
+) =>
   useQuery({
-    queryKey: ['dashboard-summary', branchCode],
-    queryFn: () => getDashboardSummary(branchCode),
+    queryKey: ['dashboard-summary', branchCode, scope],
+    queryFn: () => getDashboardSummary(branchCode, scope),
   });

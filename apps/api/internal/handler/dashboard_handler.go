@@ -38,6 +38,30 @@ func dashboardTrendConfig(period string) (dashboardTrendPeriod, bool) {
 	}
 }
 
+// dashboardScopeClause keeps platform-owned branches and franchise branches
+// separate for every overview aggregate. The scope value is validated before
+// it reaches these static SQL fragments.
+func dashboardScopeClause(branchColumn string) string {
+	return fmt.Sprintf(`($2::text='all' OR EXISTS (
+		SELECT 1 FROM branches dashboard_branch
+		WHERE dashboard_branch.id=%s AND (
+			($2::text='sbc' AND dashboard_branch.franchisee_id IS NULL AND NOT COALESCE(dashboard_branch.is_headquarters,false)) OR
+			($2::text='franchise' AND dashboard_branch.franchisee_id IS NOT NULL)
+		)
+	))`, branchColumn)
+}
+
+func dashboardReportScope(c *gin.Context) (string, bool) {
+	scope := strings.TrimSpace(c.DefaultQuery("scope", "all"))
+	switch scope {
+	case "all", "sbc", "franchise":
+		return scope, true
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ขอบเขตสาขาที่เลือกไม่ถูกต้อง"})
+		return "", false
+	}
+}
+
 // Dashboard reports stock-app activity. It deliberately does not claim this is POS revenue.
 func (h *PlatformHandler) Dashboard(c *gin.Context) {
 	if h.unavailable(c) {
@@ -47,16 +71,20 @@ func (h *PlatformHandler) Dashboard(c *gin.Context) {
 	if !ok {
 		return
 	}
+	scope, ok := dashboardReportScope(c)
+	if !ok {
+		return
+	}
 	var menuCount float64
 	var entries int
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT COALESCE(SUM(COALESCE((metadata->>'menuQuantity')::numeric,(metadata->>'itemCount')::numeric,0)),0),COUNT(*) FROM audit_events WHERE entity_type='stock_consumption' AND action='consumed' AND created_at >= date_trunc('day', now()) AND ($1::bigint IS NULL OR branch_id=$1)`, branchID).Scan(&menuCount, &entries)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT COALESCE(SUM(COALESCE((metadata->>'menuQuantity')::numeric,(metadata->>'itemCount')::numeric,0)),0),COUNT(*) FROM audit_events WHERE entity_type='stock_consumption' AND action='consumed' AND created_at >= date_trunc('day', now()) AND ($1::bigint IS NULL OR branch_id=$1) AND `+dashboardScopeClause("branch_id"), branchID, scope).Scan(&menuCount, &entries)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสรุปการตัดสต๊อกวันนี้ได้"})
 		return
 	}
 	var todaySales float64
 	var todayOrders int
-	err = h.db.QueryRowContext(c.Request.Context(), `SELECT COALESCE(SUM(total),0),COUNT(*) FROM stock_sales WHERE created_at >= date_trunc('day', now()) AND created_at < date_trunc('day', now()) + interval '1 day' AND ($1::bigint IS NULL OR branch_id=$1)`, branchID).Scan(&todaySales, &todayOrders)
+	err = h.db.QueryRowContext(c.Request.Context(), `SELECT COALESCE(SUM(total),0),COUNT(*) FROM stock_sales WHERE created_at >= date_trunc('day', now()) AND created_at < date_trunc('day', now()) + interval '1 day' AND ($1::bigint IS NULL OR branch_id=$1) AND `+dashboardScopeClause("branch_id"), branchID, scope).Scan(&todaySales, &todayOrders)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสรุปยอดขายวันนี้ได้"})
 		return
@@ -77,6 +105,10 @@ func (h *PlatformHandler) DashboardTrend(c *gin.Context) {
 		return
 	}
 	branchCode := strings.TrimSpace(c.Query("branchCode"))
+	scope, ok := dashboardReportScope(c)
+	if !ok {
+		return
+	}
 	var branchID any
 	if branchCode != "" {
 		var id int64
@@ -107,9 +139,10 @@ func (h *PlatformHandler) DashboardTrend(c *gin.Context) {
 		AND a.created_at >= b.bucket
 		AND a.created_at < b.bucket + interval '%[3]s'
 		AND ($1::bigint IS NULL OR a.branch_id=$1)
+		AND `+dashboardScopeClause("a.branch_id")+`
 	GROUP BY b.bucket
 	ORDER BY b.bucket`, start, end, config.step, config.format)
-	rows, err := h.db.QueryContext(c.Request.Context(), query, branchID)
+	rows, err := h.db.QueryContext(c.Request.Context(), query, branchID, scope)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถโหลดแนวโน้มการตัดสต๊อกได้"})
 		return

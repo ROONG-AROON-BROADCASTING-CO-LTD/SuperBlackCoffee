@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -19,11 +19,7 @@ import {
   PageIntro,
   useMinimumLoading,
 } from '@stackbuild/ui';
-import {
-  branchCodeByBranch,
-  branches,
-  type Branch,
-} from '@stackbuild/management';
+import { type Branch as ApiBranch } from '../../api/branches';
 import { useDashboardSummary } from '../../hooks/useDashboardSummary';
 import { AdminOverviewSkeleton } from '../../components/skeletons/AdminOverviewSkeleton';
 import { StockConsumptionTrendCard } from '../../components/dashboard/StockConsumptionTrendCard';
@@ -32,6 +28,7 @@ import {
   getSalesTrend,
   getTopSellingMenus,
   listInventory,
+  type DashboardScope,
   type SalesTrendPoint,
   type TopSellingMenu,
 } from '../../api';
@@ -688,36 +685,56 @@ function BestSellingMenuCard({
 export function AdminOverviewPage({
   onNavigate,
   scope = 'sbc',
+  branchDirectory = [],
 }: {
   onNavigate: (page: AdminPage) => void;
-  scope?: 'sbc' | 'franchise';
+  scope?: DashboardScope;
+  branchDirectory?: ApiBranch[];
 }) {
-  const [selectedBranch, setSelectedBranch] = useState<Branch>('ทุกสาขา');
+  const [selectedBranch, setSelectedBranch] = useState('ทุกสาขา');
   const [salesPeriod, setSalesPeriod] = useState<SalesPeriod>('day');
+  const scopedBranches = useMemo(() => {
+    const matchingBranches = branchDirectory.filter((branch) =>
+      scope === 'franchise'
+        ? Boolean(branch.franchiseeId)
+        : !branch.franchiseeId && !branch.isHeadquarters,
+    );
+    if (matchingBranches.length || scope === 'franchise')
+      return matchingBranches;
+    return [
+      { id: 0, name: 'อยุธยา', code: 'SBC-AYA-001' },
+      { id: 0, name: 'พิษณุโลก', code: 'SBC-PLK-001' },
+    ] satisfies ApiBranch[];
+  }, [branchDirectory, scope]);
+  const branchOptions = useMemo(
+    () => ['ทุกสาขา', ...scopedBranches.map((branch) => branch.name)],
+    [scopedBranches],
+  );
+  useEffect(() => {
+    if (branchOptions.includes(selectedBranch)) return;
+    setSelectedBranch('ทุกสาขา');
+  }, [branchOptions, selectedBranch]);
   const selectedBranchCode =
     selectedBranch === 'ทุกสาขา'
       ? undefined
-      : branchCodeByBranch[selectedBranch];
-  const dashboard = useDashboardSummary(selectedBranchCode);
+      : scopedBranches.find((branch) => branch.name === selectedBranch)?.code;
+  const dashboard = useDashboardSummary(selectedBranchCode, scope);
   const salesTrend = useQuery({
-    queryKey: ['dashboard-sales-trend', salesPeriod],
-    queryFn: () => getSalesTrend(salesPeriod),
+    queryKey: ['dashboard-sales-trend', salesPeriod, scope],
+    queryFn: () => getSalesTrend(salesPeriod, scope),
   });
   const topSellingMenus = useQuery({
-    queryKey: ['dashboard-top-menus', selectedBranchCode],
-    queryFn: () => getTopSellingMenus(selectedBranchCode),
+    queryKey: ['dashboard-top-menus', selectedBranchCode, scope],
+    queryFn: () => getTopSellingMenus(selectedBranchCode, scope),
   });
   const branchStock = useQuery({
-    queryKey: ['overview-branch-stock'],
+    queryKey: ['overview-branch-stock', scope],
     queryFn: async () => {
       const entries = await Promise.all(
-        branches.slice(1).map(async (branch) => {
-          const items = await listInventory(
-            'stock',
-            branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>],
-          );
+        scopedBranches.map(async (branch) => {
+          const items = await listInventory('stock', branch.code);
           return {
-            branch,
+            branch: branch.name,
             quantity: items.reduce((total, item) => total + item.quantity, 0),
             low: items.filter((item) => item.status !== 'ready').length,
           };
@@ -727,15 +744,12 @@ export function AdminOverviewPage({
     },
   });
   const inventoryAttention = useQuery({
-    queryKey: ['overview-inventory-attention'],
+    queryKey: ['overview-inventory-attention', scope],
     queryFn: async () =>
       Promise.all(
-        branches.slice(1).map(async (branch) => ({
-          branch,
-          items: await listInventory(
-            'ingredient',
-            branchCodeByBranch[branch as Exclude<Branch, 'ทุกสาขา'>],
-          ),
+        scopedBranches.map(async (branch) => ({
+          branch: branch.name,
+          items: await listInventory('ingredient', branch.code),
         })),
       ),
   });
@@ -851,9 +865,7 @@ export function AdminOverviewPage({
                   id="overview-branch-filter"
                   value={selectedBranch}
                   label="เลือกสาขา"
-                  onChange={(event) =>
-                    setSelectedBranch(event.target.value as Branch)
-                  }
+                  onChange={(event) => setSelectedBranch(event.target.value)}
                   sx={{
                     borderRadius: '12px',
                     bgcolor: '#fff',
@@ -863,7 +875,7 @@ export function AdminOverviewPage({
                     },
                   }}
                 >
-                  {branches.map((branch) => (
+                  {branchOptions.map((branch) => (
                     <MenuItem key={branch} value={branch}>
                       {branch}
                     </MenuItem>
@@ -939,7 +951,10 @@ export function AdminOverviewPage({
                 isError={salesTrend.isError}
                 isLoading={salesTrend.isLoading}
               />
-              <StockConsumptionTrendCard branchCode={selectedBranchCode} />
+              <StockConsumptionTrendCard
+                branchCode={selectedBranchCode}
+                scope={scope}
+              />
               <BestSellingMenuCard
                 menus={topSellingMenus.data ?? []}
                 isLoading={topSellingMenus.isLoading}

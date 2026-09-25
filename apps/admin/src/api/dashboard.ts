@@ -6,6 +6,7 @@ export type DashboardSummary = {
   todayMenuStockCuts: number;
   todayStockEntries: number;
 };
+export type DashboardScope = 'sbc' | 'franchise';
 export type BranchSales = {
   id: number;
   name: string;
@@ -29,22 +30,48 @@ export type TopSellingMenu = {
   quantity: number;
   sales: number;
 };
-export const getDashboardSummary = (branchCode?: string) =>
+export const getDashboardSummary = (
+  branchCode?: string,
+  scope?: DashboardScope,
+) =>
   secured<DashboardSummary>(
-    `/dashboard${branchCode ? `?branchCode=${encodeURIComponent(branchCode)}` : ''}`,
+    `/dashboard?${new URLSearchParams({
+      ...(branchCode ? { branchCode } : {}),
+      ...(scope ? { scope } : {}),
+    }).toString()}`,
   );
 export const listBranchSales = (period: 'today' | 'month' | 'year') =>
   secured<BranchSales[]>(`/branches/sales?period=${period}`);
 export const getDashboardTrend = (
   period: 'day' | 'month' | 'year',
   branchCode?: string,
+  scope?: DashboardScope,
 ) =>
   secured<DashboardTrendPoint[]>(
-    `/dashboard/trend?period=${period}${branchCode ? `&branchCode=${encodeURIComponent(branchCode)}` : ''}`,
+    `/dashboard/trend?${new URLSearchParams({
+      period,
+      ...(branchCode ? { branchCode } : {}),
+      ...(scope ? { scope } : {}),
+    }).toString()}`,
   );
-export const getSalesTrend = (period: 'day' | 'month' | 'year') =>
-  secured<SalesTrendPoint[]>(`/dashboard/sales-trend?period=${period}`);
-export const getTopSellingMenus = (branchCode?: string) =>
+export const getSalesTrend = (
+  period: 'day' | 'month' | 'year',
+  scope?: DashboardScope,
+) =>
+  secured<SalesTrendPoint[]>(
+    `/dashboard/sales-trend?${new URLSearchParams({
+      period,
+      ...(scope ? { scope } : {}),
+    }).toString()}`,
+  );
+export const getTopSellingMenus = (
+  branchCode?: string,
+  scope?: DashboardScope,
+) =>
   secured<TopSellingMenu[]>(
-    `/dashboard/top-menus?period=today${branchCode ? `&branchCode=${encodeURIComponent(branchCode)}` : ''}`,
+    `/dashboard/top-menus?${new URLSearchParams({
+      period: 'today',
+      ...(branchCode ? { branchCode } : {}),
+      ...(scope ? { scope } : {}),
+    }).toString()}`,
   );

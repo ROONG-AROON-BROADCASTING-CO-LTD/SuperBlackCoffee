@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Box, Button, Card, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardTrend, type DashboardTrendPoint } from '../../api';
+import {
+  getDashboardTrend,
+  type DashboardScope,
+  type DashboardTrendPoint,
+} from '../../api';
 
 type TrendPeriod = 'day' | 'month' | 'year';
 
@@ -182,13 +186,15 @@ function TrendChart({
 
 export function StockConsumptionTrendCard({
   branchCode,
+  scope,
 }: {
   branchCode?: string;
+  scope?: DashboardScope;
 }) {
   const [period, setPeriod] = useState<TrendPeriod>('day');
   const trend = useQuery({
-    queryKey: ['dashboard-trend', period, branchCode],
-    queryFn: () => getDashboardTrend(period, branchCode),
+    queryKey: ['dashboard-trend', period, branchCode, scope],
+    queryFn: () => getDashboardTrend(period, branchCode, scope),
   });
   const total = (trend.data ?? []).reduce(
     (sum, point) => sum + point.quantity,

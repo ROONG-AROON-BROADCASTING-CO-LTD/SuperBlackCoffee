@@ -60,14 +60,16 @@ vi.mock('../../../api', () => ({
   listInventory: vi.fn(),
 }));
 
-const renderPage = () =>
+const renderPage = (
+  props: Partial<React.ComponentProps<typeof AdminOverviewPage>> = {},
+) =>
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <AdminOverviewPage onNavigate={vi.fn()} />
+      <AdminOverviewPage onNavigate={vi.fn()} {...props} />
     </QueryClientProvider>,
   );
 
@@ -148,13 +150,44 @@ describe('AdminOverviewPage', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'อยุธยา' }));
 
     await waitFor(() =>
-      expect(getDashboardTrend).toHaveBeenLastCalledWith('day', 'SBC-AYA-001'),
+      expect(getDashboardTrend).toHaveBeenLastCalledWith(
+        'day',
+        'SBC-AYA-001',
+        'sbc',
+      ),
     );
     expect(screen.getByText('ยอดขายรวมทุกสาขาแบบรายวัน')).toBeTruthy();
     expect(screen.getByText('เมนูที่ขายดี')).toBeTruthy();
     expect(screen.getByText('อเมริกาโน่เย็น')).toBeTruthy();
     expect(screen.getByText('สต๊อกแยกตามสาขา')).toBeTruthy();
     expect(screen.queryByText('ยอดเฉลี่ยต่อบิล')).toBeNull();
+  });
+
+  it('only requests and offers franchise branches on the franchise overview', async () => {
+    renderPage({
+      scope: 'franchise',
+      branchDirectory: [
+        { id: 1, name: 'อยุธยา', code: 'SBC-AYA-001' },
+        {
+          id: 2,
+          name: 'แฟรนไชส์สุพรรณบุรี S',
+          code: 'FR-SUP-S-001',
+          franchiseeId: 10,
+        },
+      ],
+    });
+
+    await waitFor(() =>
+      expect(getSalesTrend).toHaveBeenLastCalledWith('day', 'franchise'),
+    );
+    const branchFilter = await screen.findByRole('combobox', {
+      name: 'เลือกสาขา',
+    });
+    fireEvent.mouseDown(branchFilter);
+    expect(
+      await screen.findByRole('option', { name: 'แฟรนไชส์สุพรรณบุรี S' }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'อยุธยา' })).toBeNull();
   });
 
   it('shows the sales chart before the stock-consumption trend', async () => {
@@ -210,7 +243,7 @@ describe('AdminOverviewPage', () => {
     );
 
     await waitFor(() =>
-      expect(getSalesTrend).toHaveBeenLastCalledWith('month'),
+      expect(getSalesTrend).toHaveBeenLastCalledWith('month', 'sbc'),
     );
     expect(await screen.findByText('ยอดขายรวมทุกสาขาแบบรายเดือน')).toBeTruthy();
     expect(
@@ -248,7 +281,11 @@ describe('AdminOverviewPage', () => {
     );
 
     await waitFor(() =>
-      expect(getDashboardTrend).toHaveBeenLastCalledWith('month', undefined),
+      expect(getDashboardTrend).toHaveBeenLastCalledWith(
+        'month',
+        undefined,
+        'sbc',
+      ),
     );
     expect(
       screen.getByText('แนวโน้มการตัดสต็อกย้อนหลังแบบรายเดือน'),
