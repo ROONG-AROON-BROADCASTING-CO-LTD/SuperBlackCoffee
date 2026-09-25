@@ -7,8 +7,8 @@ export type DrawerActionBarProps = {
 };
 
 /**
- * Shared action footer for bottom drawers. It remains fixed at the lower-right
- * edge while long drawer content is being scrolled.
+ * Shared action footer for bottom drawers. It is anchored to the drawer itself
+ * so it remains at the lower-right edge without separating during transitions.
  */
 export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
   return (
@@ -19,7 +19,7 @@ export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
           justifyContent: 'flex-end',
           alignItems: 'center',
           gap: 1.25,
-          position: 'fixed',
+          position: 'absolute',
           right: { xs: 20, sm: 32 },
           bottom: 0,
           zIndex: 1301,
