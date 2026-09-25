@@ -2629,7 +2629,7 @@ export function AdminCentralCatalogPage({
               display: 'flex',
               flexDirection: 'column',
               px: { xs: 2.5, sm: 4 },
-              pt: 1,
+              pt: 0.75,
               pb: 3.5,
             }}
           >
@@ -2638,7 +2638,7 @@ export function AdminCentralCatalogPage({
                 width: 44,
                 height: 5,
                 mx: 'auto',
-                mb: 1.5,
+                mb: 1,
                 borderRadius: 99,
                 bgcolor: '#d8c8bd',
               }}
@@ -2654,7 +2654,7 @@ export function AdminCentralCatalogPage({
                 component="h2"
                 sx={{
                   fontFamily: 'Kanit, sans-serif',
-                  fontSize: 20,
+                  fontSize: 19,
                   fontWeight: 600,
                 }}
               >
@@ -2670,11 +2670,13 @@ export function AdminCentralCatalogPage({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: 36,
-                  width: 36,
-                  height: 36,
+                  flex: '0 0 32px',
+                  minWidth: 32,
+                  width: 32,
+                  height: 32,
+                  aspectRatio: '1 / 1',
                   p: 0,
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   bgcolor: '#f7eee8',
                   color: '#5f4b3d',
                   '&:hover': { bgcolor: '#f1e4da' },
@@ -2696,7 +2698,7 @@ export function AdminCentralCatalogPage({
             </Typography>
             <Divider
               sx={{
-                mt: 1.5,
+                mt: 1,
                 mx: { xs: -2.5, sm: -4 },
                 borderColor: '#e8ddd5',
               }}
@@ -2706,7 +2708,7 @@ export function AdminCentralCatalogPage({
                 flex: 1,
                 minHeight: 0,
                 overflowY: 'auto',
-                pt: 1.5,
+                pt: 1,
                 pr: 0.5,
               }}
             >
