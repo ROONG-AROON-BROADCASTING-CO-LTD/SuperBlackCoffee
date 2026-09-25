@@ -131,15 +131,31 @@ export function AttendanceLeaveRequestPage({
               (type) => (
                 <Button
                   key={type}
-                  variant={leaveType === type ? 'contained' : 'outlined'}
+                  variant="outlined"
                   onClick={() => setLeaveType(type)}
                   sx={{
-                    minHeight: 72,
+                    height: 72,
+                    minHeight: '72px !important',
+                    boxSizing: 'border-box',
                     display: 'grid',
                     alignContent: 'center',
                     gap: 0.5,
                     minWidth: 0,
                     fontSize: { xs: 12, sm: 14 },
+                    borderColor:
+                      leaveType === type ? '#171411' : 'rgba(23, 20, 17, .4)',
+                    bgcolor: leaveType === type ? '#171411' : 'transparent',
+                    color: leaveType === type ? '#fff' : 'text.primary',
+                    transition:
+                      'background-color 160ms ease, border-color 160ms ease, color 160ms ease',
+                    '&:hover': {
+                      borderColor: '#171411',
+                      bgcolor:
+                        leaveType === type
+                          ? '#171411'
+                          : 'rgba(23, 20, 17, .04)',
+                    },
+                    '&:active': { transform: 'none' },
                   }}
                 >
                   {type === 'ลาป่วย' ? (
