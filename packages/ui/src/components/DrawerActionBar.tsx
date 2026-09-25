@@ -28,7 +28,7 @@ export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
           bgcolor: '#fffaf7',
           border: '1px solid #e8ddd5',
           borderRadius: '14px 14px 0 0',
-          boxShadow: '0 -8px 24px rgba(67, 45, 33, .10)',
+          boxShadow: 'none',
         },
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
