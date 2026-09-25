@@ -20,6 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
+  DrawerActionBar,
   SearchField,
   XIcon,
   useMinimumLoading,
@@ -1234,11 +1235,8 @@ export function AdminBranchesPage() {
               </Typography>
             ) : null}
           </Box>
-          <Box
+          <DrawerActionBar
             sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 1.25,
               pt: 2,
             }}
           >
@@ -1281,7 +1279,7 @@ export function AdminBranchesPage() {
                   ? 'เพิ่มสาขา'
                   : 'บันทึกข้อมูล'}
             </Button>
-          </Box>
+          </DrawerActionBar>
         </Box>
       </Drawer>
     </DashboardMain>

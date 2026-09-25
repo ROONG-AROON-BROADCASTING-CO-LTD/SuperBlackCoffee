@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   ItemActionButtons,
   coffeeIngredientsImage,
   INGREDIENT_STATUS_BADGES,
@@ -750,12 +751,8 @@ export function AdminIngredientsPage({
                 placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"
                 sx={{ gridColumn: { sm: '1 / -1' } }}
               />
-              <Box
+              <DrawerActionBar
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 1.25,
-                  mt: 1,
                   gridColumn: { sm: '1 / -1' },
                 }}
               >
@@ -784,7 +781,7 @@ export function AdminIngredientsPage({
                 >
                   {editingIngredient ? 'บันทึกการแก้ไข' : 'บันทึกวัตถุดิบ'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             </Box>
           </Box>
         </Box>

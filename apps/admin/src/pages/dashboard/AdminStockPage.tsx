@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   ItemActionButtons,
   INGREDIENT_STATUS_BADGES,
   INVENTORY_UNIT_OPTIONS,
@@ -662,12 +663,8 @@ export function AdminStockPage({
                 placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)"
                 sx={{ gridColumn: { sm: '1 / -1' } }}
               />
-              <Box
+              <DrawerActionBar
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 1.25,
-                  mt: 1,
                   gridColumn: { sm: '1 / -1' },
                 }}
               >
@@ -696,7 +693,7 @@ export function AdminStockPage({
                 >
                   {editingItem ? 'บันทึกการแก้ไข' : 'บันทึกสต๊อก'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             </Box>
           </Box>
         </Box>

@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   ItemActionButtons,
   PlusIcon,
   SearchField,
@@ -905,12 +906,8 @@ export function AdminProductsPage({
                   ))}
                 </Box>
               </Box>
-              <Box
+              <DrawerActionBar
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 1.25,
-                  mt: 1,
                   gridColumn: { sm: '1 / -1' },
                 }}
               >
@@ -937,7 +934,7 @@ export function AdminProductsPage({
                 >
                   {editing ? 'บันทึกการแก้ไข' : 'บันทึกสินค้า'}
                 </Button>
-              </Box>
+              </DrawerActionBar>
             </Box>
           </Box>
         </Box>

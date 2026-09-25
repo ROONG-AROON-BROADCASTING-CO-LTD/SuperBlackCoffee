@@ -27,6 +27,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   ActionSnackbar,
   ItemActionButtons,
   PageIntro,
@@ -2587,13 +2588,7 @@ export function AdminCentralCatalogPage({
               ) : null}
             </Box>
 
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                pt: 2.5,
-              }}
-            >
+            <DrawerActionBar sx={{ pt: 2.5 }}>
               <Button
                 variant="outlined"
                 onClick={() => setIsCentralCatalogDrawerOpen(false)}
@@ -2601,7 +2596,7 @@ export function AdminCentralCatalogPage({
               >
                 ปิด
               </Button>
-            </Box>
+            </DrawerActionBar>
           </Box>
         </Drawer>
       ) : null}
@@ -3264,12 +3259,8 @@ export function AdminCentralCatalogPage({
                       </Typography>
                     ) : null}
                   </Box>
-                  <Box
+                  <DrawerActionBar
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      gap: 1.25,
-                      mt: 1,
                       gridColumn: { sm: '1 / -1' },
                     }}
                   >
@@ -3306,7 +3297,7 @@ export function AdminCentralCatalogPage({
                           ? 'บันทึกสินค้า'
                           : 'บันทึกการแก้ไข'}
                     </Button>
-                  </Box>
+                  </DrawerActionBar>
                 </Box>
               </Box>
             </Box>
@@ -3906,12 +3897,8 @@ function CentralInventoryEditorDrawer({
                   คลังกลางเก็บข้อมูลรายการและต้นทุนเท่านั้น
                   ยอดคงเหลือและวันหมดอายุจัดการที่สาขา
                 </Typography>
-                <Box
+                <DrawerActionBar
                   sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: 1.25,
-                    mt: 1,
                     gridColumn: { sm: '1 / -1' },
                   }}
                 >
@@ -3947,7 +3934,7 @@ function CentralInventoryEditorDrawer({
                         ? `บันทึก${itemLabel}`
                         : 'บันทึกการแก้ไข'}
                   </Button>
-                </Box>
+                </DrawerActionBar>
               </Box>
             </Box>
           </Box>

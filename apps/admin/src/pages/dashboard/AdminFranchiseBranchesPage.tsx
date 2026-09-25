@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DrawerActionBar,
   PageIntro,
   PlusIcon,
   SearchField,
@@ -633,12 +634,8 @@ export function AdminFranchiseBranchesPage() {
                 </MenuItem>
               ))}
             </TextField>
-            <Box
+            <DrawerActionBar
               sx={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 1.25,
-                mt: 1,
                 gridColumn: { sm: '1 / -1' },
               }}
             >
@@ -676,7 +673,7 @@ export function AdminFranchiseBranchesPage() {
               >
                 {isSaving ? 'กำลังสร้างบัญชี...' : 'สร้างและส่งคำเชิญ'}
               </Button>
-            </Box>
+            </DrawerActionBar>
           </Box>
         </Box>
       </Drawer>
