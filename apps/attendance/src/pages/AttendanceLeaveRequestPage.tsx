@@ -259,10 +259,10 @@ export function AttendanceLeaveRequestPage({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: 1,
-                flexWrap: 'wrap',
+                flexWrap: 'nowrap',
               }}
             >
-              <Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography sx={{ fontWeight: 600 }}>
                   เอกสารแนบ (ถ้ามี)
                 </Typography>
@@ -274,7 +274,7 @@ export function AttendanceLeaveRequestPage({
                 component="label"
                 variant="outlined"
                 disabled={attachments.length >= 5}
-                sx={{ ml: 'auto' }}
+                sx={{ ml: 'auto', flexShrink: 0 }}
               >
                 เลือกไฟล์
                 <input
