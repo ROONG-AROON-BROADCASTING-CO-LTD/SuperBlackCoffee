@@ -2629,7 +2629,7 @@ export function AdminCentralCatalogPage({
               display: 'flex',
               flexDirection: 'column',
               px: { xs: 2.5, sm: 4 },
-              pt: 1.5,
+              pt: 1,
               pb: 3.5,
             }}
           >
@@ -2638,7 +2638,7 @@ export function AdminCentralCatalogPage({
                 width: 44,
                 height: 5,
                 mx: 'auto',
-                mb: 2.5,
+                mb: 1.5,
                 borderRadius: 99,
                 bgcolor: '#d8c8bd',
               }}
@@ -2654,7 +2654,7 @@ export function AdminCentralCatalogPage({
                 component="h2"
                 sx={{
                   fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
+                  fontSize: 20,
                   fontWeight: 600,
                 }}
               >
@@ -2670,9 +2670,9 @@ export function AdminCentralCatalogPage({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: 40,
-                  width: 40,
-                  height: 40,
+                  minWidth: 36,
+                  width: 36,
+                  height: 36,
                   p: 0,
                   borderRadius: '12px',
                   bgcolor: '#f7eee8',
@@ -2685,7 +2685,7 @@ export function AdminCentralCatalogPage({
             </Box>
             <Typography
               sx={{
-                mt: 0.5,
+                mt: 0.25,
                 color: 'text.secondary',
                 fontFamily: 'Kanit, sans-serif',
               }}
@@ -2696,7 +2696,7 @@ export function AdminCentralCatalogPage({
             </Typography>
             <Divider
               sx={{
-                mt: 2.25,
+                mt: 1.5,
                 mx: { xs: -2.5, sm: -4 },
                 borderColor: '#e8ddd5',
               }}
@@ -2706,7 +2706,7 @@ export function AdminCentralCatalogPage({
                 flex: 1,
                 minHeight: 0,
                 overflowY: 'auto',
-                pt: 2.25,
+                pt: 1.5,
                 pr: 0.5,
               }}
             >
