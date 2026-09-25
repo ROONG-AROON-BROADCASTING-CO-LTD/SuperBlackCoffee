@@ -36,6 +36,7 @@ import {
   XIcon,
   useMinimumLoading,
   coffeeIngredientsImage,
+  inventoryUnitSelectSlotProps,
 } from '@stackbuild/ui';
 import {
   createCatalogTemplateInventoryItem,
@@ -3196,6 +3197,7 @@ export function AdminCentralCatalogPage({
                               fullWidth
                               label="วัตถุดิบ"
                               value={recipe.catalogItemId}
+                              slotProps={inventoryUnitSelectSlotProps}
                               onChange={(event) => {
                                 const recipes = [...menuEditor.draft.recipes];
                                 recipes[index] = {
