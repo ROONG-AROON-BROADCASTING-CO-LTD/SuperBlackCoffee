@@ -3,6 +3,9 @@ import { secured } from './client';
 export type DashboardSummary = {
   todaySales: number;
   todayOrders: number;
+  weekSales: number;
+  monthSales: number;
+  yearSales: number;
   todayMenuStockCuts: number;
   todayStockEntries: number;
 };
@@ -33,13 +36,13 @@ export type TopSellingMenu = {
 export const getDashboardSummary = (
   branchCode?: string,
   scope?: DashboardScope,
-) =>
-  secured<DashboardSummary>(
-    `/dashboard?${new URLSearchParams({
-      ...(branchCode ? { branchCode } : {}),
-      ...(scope ? { scope } : {}),
-    }).toString()}`,
-  );
+) => {
+  const query = new URLSearchParams({
+    ...(branchCode ? { branchCode } : {}),
+    ...(scope ? { scope } : {}),
+  }).toString();
+  return secured<DashboardSummary>(`/dashboard${query ? `?${query}` : ''}`);
+};
 export const listBranchSales = (period: 'today' | 'month' | 'year') =>
   secured<BranchSales[]>(`/branches/sales?period=${period}`);
 export const getDashboardTrend = (

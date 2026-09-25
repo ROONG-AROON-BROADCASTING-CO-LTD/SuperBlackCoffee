@@ -104,6 +104,9 @@ describe('AdminOverviewPage', () => {
       data: {
         todaySales: 400,
         todayOrders: 2,
+        weekSales: 1_200,
+        monthSales: 5_200,
+        yearSales: 20_000,
         todayMenuStockCuts: 5,
         todayStockEntries: 1,
       },
@@ -160,6 +163,12 @@ describe('AdminOverviewPage', () => {
     expect(screen.getByText('เมนูที่ขายดี')).toBeTruthy();
     expect(screen.getByText('อเมริกาโน่เย็น')).toBeTruthy();
     expect(screen.getByText('สต๊อกแยกตามสาขา')).toBeTruthy();
+    expect(screen.getByText('สัปดาห์นี้')).toBeTruthy();
+    expect(screen.getByText('1,200 บาท')).toBeTruthy();
+    expect(screen.getByText('เดือนนี้')).toBeTruthy();
+    expect(screen.getByText('5,200 บาท')).toBeTruthy();
+    expect(screen.getByText('ปีนี้')).toBeTruthy();
+    expect(screen.getByText('20,000 บาท')).toBeTruthy();
     expect(screen.queryByText('ยอดเฉลี่ยต่อบิล')).toBeNull();
   });
 

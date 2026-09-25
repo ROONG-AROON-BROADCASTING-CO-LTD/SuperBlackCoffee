@@ -506,7 +506,17 @@ function FollowUpRow({
   );
 }
 
-function SalesSummaryCard({ sales }: { sales: number }) {
+function SalesSummaryCard({
+  todaySales,
+  weekSales,
+  monthSales,
+  yearSales,
+}: {
+  todaySales: number;
+  weekSales: number;
+  monthSales: number;
+  yearSales: number;
+}) {
   return (
     <Card variant="outlined" sx={cardSx}>
       <Box sx={{ p: { xs: 2, md: 2.75 } }}>
@@ -539,7 +549,7 @@ function SalesSummaryCard({ sales }: { sales: number }) {
               fontSize: 13,
             }}
           >
-            รายได้สะสม
+            ยอดขายวันนี้
           </Typography>
           <Typography
             sx={{
@@ -549,13 +559,68 @@ function SalesSummaryCard({ sales }: { sales: number }) {
               lineHeight: 1.1,
             }}
           >
-            {formatCurrency(sales)}
+            {formatCurrency(todaySales)}
           </Typography>
           <Typography
             sx={{ mt: 1, color: 'rgba(255,255,255,.7)', fontSize: 13 }}
           >
             จากคำสั่งซื้อที่ชำระเงินแล้ว
           </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(3, minmax(0, 1fr))',
+              },
+              mt: 2,
+              pt: 2,
+              borderTop: '1px solid rgba(255,255,255,.16)',
+            }}
+          >
+            {[
+              { label: 'สัปดาห์นี้', amount: weekSales },
+              { label: 'เดือนนี้', amount: monthSales },
+              { label: 'ปีนี้', amount: yearSales },
+            ].map(({ label, amount }, index) => (
+              <Box
+                key={label}
+                sx={{
+                  minWidth: 0,
+                  px: { xs: 0, sm: 1.75 },
+                  py: { xs: index === 0 ? 0 : 1.25, sm: 0 },
+                  borderTop: {
+                    xs:
+                      index === 0 ? 'none' : '1px solid rgba(255,255,255,.12)',
+                    sm: 'none',
+                  },
+                  borderLeft: {
+                    xs: 'none',
+                    sm:
+                      index === 0 ? 'none' : '1px solid rgba(255,255,255,.16)',
+                  },
+                }}
+              >
+                <Typography
+                  sx={{ color: 'rgba(255,255,255,.64)', fontSize: 12.5 }}
+                >
+                  {label}
+                </Typography>
+                <Typography
+                  sx={{
+                    mt: 0.3,
+                    color: '#fff',
+                    fontSize: { xs: 19, md: 21 },
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {formatCurrency(amount)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Box>
       </Box>
     </Card>
@@ -754,6 +819,9 @@ export function AdminOverviewPage({
       ),
   });
   const sales = dashboard.data?.todaySales ?? 0;
+  const weekSales = dashboard.data?.weekSales ?? 0;
+  const monthSales = dashboard.data?.monthSales ?? 0;
+  const yearSales = dashboard.data?.yearSales ?? 0;
   const stockCuts = dashboard.data?.todayMenuStockCuts ?? 0;
   const stockEntries = dashboard.data?.todayStockEntries ?? 0;
   const rawLoading =
@@ -817,7 +885,6 @@ export function AdminOverviewPage({
     (branch) =>
       selectedBranch === 'ทุกสาขา' || branch.branch === selectedBranch,
   );
-  const overviewSales = sales;
   const updatedAt = new Intl.DateTimeFormat('th-TH', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -905,7 +972,12 @@ export function AdminOverviewPage({
                 </span>
               </Box>
             ) : null}
-            <SalesSummaryCard sales={overviewSales} />
+            <SalesSummaryCard
+              todaySales={sales}
+              weekSales={weekSales}
+              monthSales={monthSales}
+              yearSales={yearSales}
+            />
             <Box
               sx={{
                 display: 'grid',

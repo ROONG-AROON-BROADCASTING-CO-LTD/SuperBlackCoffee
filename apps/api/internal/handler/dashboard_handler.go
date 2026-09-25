@@ -84,12 +84,21 @@ func (h *PlatformHandler) Dashboard(c *gin.Context) {
 	}
 	var todaySales float64
 	var todayOrders int
-	err = h.db.QueryRowContext(c.Request.Context(), `SELECT COALESCE(SUM(total),0),COUNT(*) FROM stock_sales WHERE created_at >= date_trunc('day', now()) AND created_at < date_trunc('day', now()) + interval '1 day' AND ($1::bigint IS NULL OR branch_id=$1) AND `+dashboardScopeClause("branch_id"), branchID, scope).Scan(&todaySales, &todayOrders)
+	var weekSales float64
+	var monthSales float64
+	var yearSales float64
+	err = h.db.QueryRowContext(c.Request.Context(), `SELECT
+		COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('day', now()) AND created_at < date_trunc('day', now()) + interval '1 day'),0),
+		COUNT(*) FILTER (WHERE created_at >= date_trunc('day', now()) AND created_at < date_trunc('day', now()) + interval '1 day'),
+		COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('week', now()) AND created_at < date_trunc('week', now()) + interval '1 week'),0),
+		COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', now()) AND created_at < date_trunc('month', now()) + interval '1 month'),0),
+		COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('year', now()) AND created_at < date_trunc('year', now()) + interval '1 year'),0)
+		FROM stock_sales WHERE ($1::bigint IS NULL OR branch_id=$1) AND `+dashboardScopeClause("branch_id"), branchID, scope).Scan(&todaySales, &todayOrders, &weekSales, &monthSales, &yearSales)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสรุปยอดขายวันนี้ได้"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"todaySales": todaySales, "todayOrders": todayOrders, "todayMenuStockCuts": menuCount, "todayStockEntries": entries}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"todaySales": todaySales, "todayOrders": todayOrders, "weekSales": weekSales, "monthSales": monthSales, "yearSales": yearSales, "todayMenuStockCuts": menuCount, "todayStockEntries": entries}})
 }
 
 // DashboardTrend returns stock-consumption volume grouped into a time series.

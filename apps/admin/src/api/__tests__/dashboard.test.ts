@@ -21,17 +21,23 @@ describe('dashboard API', () => {
   });
 
   it('encodes the selected branch in summary and trend requests', () => {
-    getDashboardSummary('SBC AYA/01');
+    getDashboardSummary('SBC AYA/01', 'sbc');
     getDashboardTrend('month', 'SBC AYA/01');
 
     expect(secured).toHaveBeenNthCalledWith(
       1,
-      '/dashboard?branchCode=SBC%20AYA%2F01',
+      '/dashboard?branchCode=SBC+AYA%2F01&scope=sbc',
     );
     expect(secured).toHaveBeenNthCalledWith(
       2,
-      '/dashboard/trend?period=month&branchCode=SBC%20AYA%2F01',
+      '/dashboard/trend?period=month&branchCode=SBC+AYA%2F01',
     );
+  });
+
+  it('adds the requested reporting scope to aggregate dashboard requests', () => {
+    getDashboardSummary(undefined, 'franchise');
+
+    expect(secured).toHaveBeenCalledWith('/dashboard?scope=franchise');
   });
 
   it('keeps aggregate sales separate from branch-scoped top-menu requests', () => {
@@ -44,7 +50,7 @@ describe('dashboard API', () => {
     );
     expect(secured).toHaveBeenNthCalledWith(
       2,
-      '/dashboard/top-menus?period=today&branchCode=SBC%20AYA%2F01',
+      '/dashboard/top-menus?period=today&branchCode=SBC+AYA%2F01',
     );
   });
 });
