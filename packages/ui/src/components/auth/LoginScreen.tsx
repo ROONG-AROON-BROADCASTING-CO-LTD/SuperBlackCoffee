@@ -1,9 +1,20 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useRef, useState } from 'react';
-import { Box, Button, Stack, TextField, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import superBlackLogo from '../../assets/superblack-logo.png';
 import { LoaderCircleIcon } from '../icons/LoaderCircleIcon';
 import { LogInIcon, type LogInIconHandle } from '../icons/LogInIcon';
+import { EyeIcon } from '../icons/EyeIcon';
+import { EyeOffIcon } from '../icons/EyeOffIcon';
+import { TurnstileWidget } from './TurnstileWidget';
 
 export function LoginScreen({
   headline,
@@ -15,10 +26,16 @@ export function LoginScreen({
   headline: ReactNode;
   description: string;
   submitLabel: string;
-  onSubmit: (username: string, password: string) => void | Promise<void>;
+  onSubmit: (
+    username: string,
+    password: string,
+    turnstileToken: string,
+  ) => void | Promise<void>;
 }) {
   const iconRef = useRef<LogInIconHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -28,6 +45,7 @@ export function LoginScreen({
       await onSubmit(
         String(data.get('username') ?? ''),
         String(data.get('password') ?? ''),
+        turnstileToken,
       );
     } finally {
       setIsSubmitting(false);
@@ -36,7 +54,7 @@ export function LoginScreen({
   return (
     <Box
       sx={{
-        minHeight: '100vh',
+        minHeight: { xs: '100dvh', md: '100vh' },
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
         bgcolor: 'primary.main',
@@ -84,16 +102,18 @@ export function LoginScreen({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          p: { xs: 3, md: 6 },
-          m: '60px 60px 60px 0',
-          borderRadius: '28px',
+          minWidth: 0,
+          p: { xs: 2, sm: 3, md: 6 },
+          m: { xs: 1, sm: 2, md: '60px 60px 60px 0' },
+          borderRadius: { xs: '20px', md: '28px' },
           bgcolor: '#fff',
         }}
       >
         <Box
           component="form"
           onSubmit={handleSubmit}
-          autoComplete="off"
+          method="post"
+          autoComplete="on"
           sx={{ width: '100%', maxWidth: 380 }}
         >
           <Typography
@@ -110,21 +130,46 @@ export function LoginScreen({
           </Typography>
           <Stack spacing={2}>
             <TextField
+              id="login-username"
               name="username"
               label="ชื่อผู้ใช้งาน"
               type="text"
-              autoComplete="off"
+              autoComplete="username"
               fullWidth
               required
             />
             <TextField
+              id="login-password"
               name="password"
               label="รหัสผ่าน"
-              type="password"
-              autoComplete="off"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
               fullWidth
               required
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        type="button"
+                        edge="end"
+                        aria-label={
+                          showPassword ? 'ซ่อนรหัสผ่าน' : 'ดูรหัสผ่าน'
+                        }
+                        onClick={() => setShowPassword((visible) => !visible)}
+                      >
+                        {showPassword ? (
+                          <EyeOffIcon aria-hidden="true" />
+                        ) : (
+                          <EyeIcon aria-hidden="true" />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
             />
+            <TurnstileWidget onToken={setTurnstileToken} />
             <Button
               type="submit"
               variant="contained"

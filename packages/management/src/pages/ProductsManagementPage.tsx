@@ -5,13 +5,15 @@ import {
   Card,
   Chip,
   Divider,
-  Drawer,
   MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
 import {
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   PageIntro,
   ItemActionButtons,
@@ -1317,24 +1319,11 @@ export function ProductsManagementPage({
           ไม่พบเมนูหรือสินค้าที่ค้นหา
         </Typography>
       )}
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={recipeProduct !== null}
         onClose={() => setRecipeProduct(null)}
         transitionDuration={{ enter: 300, exit: 220 }}
-        sx={{ zIndex: 1301 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
+        zIndex={1301}
       >
         {recipeProduct ? (
           <Box
@@ -1347,63 +1336,15 @@ export function ProductsManagementPage({
               pb: 1.5,
             }}
           >
-            <Box
-              sx={{
-                width: 44,
-                height: 5,
-                mx: 'auto',
-                mb: 1.25,
-                borderRadius: 99,
-                bgcolor: '#d8c8bd',
-              }}
+            <DashboardDrawerHandle />
+            <DashboardDrawerHeader
+              title="สูตรการทำ"
+              description={`${recipeProduct.name} · สูตร${
+                salesChannel === 'lineman' ? ' LINE MAN' : 'หน้าร้าน'
+              }`}
+              closeLabel="ปิดสูตรการทำ"
+              onClose={() => setRecipeProduct(null)}
             />
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 2,
-              }}
-            >
-              <Box>
-                <Typography
-                  sx={{
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 20,
-                    fontWeight: 600,
-                  }}
-                >
-                  สูตรการทำ
-                </Typography>
-                <Typography
-                  sx={{
-                    color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 13,
-                  }}
-                >
-                  {recipeProduct.name}· สูตร
-                  {salesChannel === 'lineman' ? ' LINE MAN' : 'หน้าร้าน'}
-                </Typography>
-              </Box>
-              <Button
-                aria-label="ปิดสูตรการทำ"
-                onClick={() => setRecipeProduct(null)}
-                sx={{
-                  minWidth: 40,
-                  width: 40,
-                  height: 40,
-                  p: 0,
-                  borderRadius: '12px',
-                  bgcolor: '#f7eee8',
-                  color: '#5f4b3d',
-                  '&:hover': { bgcolor: '#f1e4da' },
-                }}
-              >
-                <XIcon size={20} />
-              </Button>
-            </Box>
-            <Divider sx={{ mt: 1.25, borderColor: '#e8ddd5' }} />
             <Box sx={{ flex: 1, overflowY: 'auto', py: 1.5 }}>
               {readOnly ? (
                 recipeProduct.ingredients.length > 0 ||
@@ -1694,29 +1635,14 @@ export function ProductsManagementPage({
             ) : null}
           </Box>
         ) : null}
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={actionNotice}
         onClose={() => setActionNotice(null)}
       />
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
         <Box
           sx={{
@@ -1730,72 +1656,18 @@ export function ProductsManagementPage({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <Typography
-              sx={{
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 22,
-                fontWeight: 600,
-              }}
-            >
-              {editing ? 'แก้ไขเมนูและสินค้า' : 'เพิ่มเมนูและสินค้า'}
-            </Typography>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setDrawerOpen(false)}
-              onMouseEnter={() => closeRef.current?.startAnimation()}
-              onMouseLeave={() => closeRef.current?.stopAnimation()}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon ref={closeRef} size={20} />
-            </Button>
-          </Box>
-          <Typography
-            sx={{
-              mt: 0.5,
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-            }}
-          >
-            {editing
-              ? 'แก้ไขข้อมูลสินค้าในเมนู'
-              : 'กรอกข้อมูลเพื่อเพิ่มสินค้าใหม่'}
-          </Typography>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mb: 0,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={editing ? 'แก้ไขเมนูและสินค้า' : 'เพิ่มเมนูและสินค้า'}
+            description={
+              editing
+                ? 'แก้ไขข้อมูลสินค้าในเมนู'
+                : 'กรอกข้อมูลเพื่อเพิ่มสินค้าใหม่'
+            }
+            onClose={() => setDrawerOpen(false)}
+            onCloseMouseEnter={() => closeRef.current?.startAnimation()}
+            onCloseMouseLeave={() => closeRef.current?.stopAnimation()}
+            closeIcon={<XIcon ref={closeRef} size={20} />}
           />
           <Box
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
@@ -2266,7 +2138,7 @@ export function ProductsManagementPage({
             </Box>
           </Box>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
     </DashboardMain>
   );
 }

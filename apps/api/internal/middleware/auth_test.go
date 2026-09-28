@@ -153,6 +153,27 @@ func TestRequireAuthStockSessionHeaderOnlyAcceptsDedicatedStockCookie(t *testing
 	}
 }
 
+func TestRequireAuthImageSessionRoleQueryUsesDedicatedStockCookie(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	secret := "test-secret"
+	r := gin.New()
+	r.GET("/menu-items/1/image", RequireAuth(secret, "cashier", "branch_manager"), func(c *gin.Context) {
+		claims := ClaimsFrom(c)
+		if claims == nil || claims.Role != "cashier" {
+			t.Fatalf("claims = %#v, want cashier", claims)
+		}
+		c.Status(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/menu-items/1/image?sessionRole=stock", nil)
+	req.AddCookie(&http.Cookie{Name: "sbc_admin_session", Value: signedToken(t, secret, "admin", time.Now().Add(time.Hour))})
+	req.AddCookie(&http.Cookie{Name: "sbc_stock_session", Value: signedToken(t, secret, "cashier", time.Now().Add(time.Hour))})
+	res := httptest.NewRecorder()
+	r.ServeHTTP(res, req)
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", res.Code, http.StatusNoContent)
+	}
+}
+
 func TestRequireAuthAllowsCashierStockRequestWithDedicatedStockSession(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

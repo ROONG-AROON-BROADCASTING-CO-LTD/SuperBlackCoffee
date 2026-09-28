@@ -7,7 +7,6 @@ import {
   CardActions,
   CardContent,
   Divider,
-  Drawer,
   MenuItem,
   TextField,
   Typography,
@@ -16,6 +15,9 @@ import {
   ActionSnackbar,
   DashboardMain,
   DrawerActionBar,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DeleteItemButton,
   FilterPill,
   PlusIcon,
@@ -587,25 +589,7 @@ export function CompanyDocumentsPage({
             )}
           </Box>
         )}
-        <Drawer
-          anchor="bottom"
-          open={uploadOpen}
-          onClose={closeUpload}
-          transitionDuration={{ enter: 360, exit: 280 }}
-          sx={{ zIndex: 1300 }}
-          slotProps={{
-            paper: {
-              sx: {
-                left: { md: '280px' },
-                width: { md: 'calc(100% - 304px)' },
-                height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-                overflow: 'hidden',
-                borderRadius: '16px 16px 0 0',
-                bgcolor: '#fffaf7',
-              },
-            },
-          }}
-        >
+        <DashboardFormDrawer open={uploadOpen} onClose={closeUpload}>
           <Box
             sx={{
               width: '100%',
@@ -618,71 +602,14 @@ export function CompanyDocumentsPage({
               pb: 3.5,
             }}
           >
-            <Box
-              sx={{
-                width: 44,
-                height: 5,
-                mx: 'auto',
-                mb: 2.5,
-                borderRadius: 99,
-                bgcolor: '#d8c8bd',
-              }}
-            />
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 2,
-              }}
-            >
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                เพิ่มเอกสารส่วนกลาง
-              </Typography>
-              <Button
-                aria-label="ปิด"
-                onClick={closeUpload}
-                onMouseEnter={() => closeIconRef.current?.startAnimation()}
-                onMouseLeave={() => closeIconRef.current?.stopAnimation()}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 40,
-                  width: 40,
-                  height: 40,
-                  p: 0,
-                  borderRadius: '12px',
-                  bgcolor: '#f7eee8',
-                  color: '#5f4b3d',
-                  '&:hover': { bgcolor: '#f1e4da' },
-                }}
-              >
-                <XIcon ref={closeIconRef} size={20} />
-              </Button>
-            </Box>
-            <Typography
-              sx={{
-                mt: 0.5,
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-              }}
-            >
-              อัปโหลดเอกสารเพื่อให้ทีมงานและแฟรนไชส์ดาวน์โหลดได้
-            </Typography>
-            <Divider
-              sx={{
-                mt: 2.25,
-                mx: { xs: -2.5, sm: -4 },
-                borderColor: '#e8ddd5',
-              }}
+            <DashboardDrawerHandle />
+            <DashboardDrawerHeader
+              title="เพิ่มเอกสารส่วนกลาง"
+              description="อัปโหลดเอกสารเพื่อให้ทีมงานและแฟรนไชส์ดาวน์โหลดได้"
+              onClose={closeUpload}
+              onCloseMouseEnter={() => closeIconRef.current?.startAnimation()}
+              onCloseMouseLeave={() => closeIconRef.current?.stopAnimation()}
+              closeIcon={<XIcon ref={closeIconRef} size={20} />}
             />
             <Box
               sx={{
@@ -828,7 +755,7 @@ export function CompanyDocumentsPage({
               </Box>
             </Box>
           </Box>
-        </Drawer>
+        </DashboardFormDrawer>
       </Box>
       <ActionSnackbar
         notice={error ? { message: error, severity: 'error' } : null}

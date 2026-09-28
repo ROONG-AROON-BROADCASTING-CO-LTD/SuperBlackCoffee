@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Box } from '@mui/material';
-import { DashboardSidebar, DashboardTopbar } from '@stackbuild/ui';
+import {
+  DashboardMobileMenu,
+  DashboardSidebar,
+  DashboardTopbar,
+} from '@stackbuild/ui';
 
 type NavigationItem = {
   id?: string;
@@ -22,6 +26,7 @@ export function AdminDashboardLayout({
   forceSidebarCollapsed = false,
   secondarySidebar,
   secondarySidebarVisible = false,
+  mobileBranchSelector,
 }: {
   activePage: string;
   activeNavigationKey?: string;
@@ -33,8 +38,15 @@ export function AdminDashboardLayout({
   forceSidebarCollapsed?: boolean;
   secondarySidebar?: ReactNode;
   secondarySidebarVisible?: boolean;
+  mobileBranchSelector?: {
+    value: string;
+    options: readonly string[];
+    allBranchLabel?: string;
+    onChange: (branch: string) => void;
+  };
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [forceCollapsedManuallyExpanded, setForceCollapsedManuallyExpanded] =
     useState(false);
   useEffect(() => {
@@ -46,28 +58,54 @@ export function AdminDashboardLayout({
     ? !forceCollapsedManuallyExpanded
     : sidebarCollapsed;
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <DashboardSidebar
+    <Box
+      sx={{
+        display: 'flex',
+        height: { xs: '100dvh', md: '100vh' },
+        overflow: 'hidden',
+        '@media (max-width:899.95px)': {
+          '& main': { height: 'calc(100dvh - 72px)' },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: primarySidebarCollapsed ? 96 : 230,
+          flexShrink: 0,
+        }}
+      >
+        <DashboardSidebar
+          activePage={activeNavigationKey}
+          navigation={navigation}
+          onNavigate={onNavigate}
+          onLogout={onLogout}
+          selectedColor="#3c2d24"
+          activeBackground="#fbfaf8"
+          accentColor="#bf9576"
+          collapsed={primarySidebarCollapsed}
+          onToggle={() => {
+            if (forceSidebarCollapsed) {
+              setForceCollapsedManuallyExpanded((value) => !value);
+              return;
+            }
+            setSidebarCollapsed((value) => !value);
+          }}
+          attachedPanel={secondarySidebar}
+        />
+      </Box>
+      <DashboardMobileMenu
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
         activePage={activeNavigationKey}
         navigation={navigation}
         onNavigate={onNavigate}
         onLogout={onLogout}
-        selectedColor="#3c2d24"
-        activeBackground="#fbfaf8"
-        accentColor="#bf9576"
-        collapsed={primarySidebarCollapsed}
-        onToggle={() => {
-          if (forceSidebarCollapsed) {
-            setForceCollapsedManuallyExpanded((value) => !value);
-            return;
-          }
-          setSidebarCollapsed((value) => !value);
-        }}
-        attachedPanel={secondarySidebar}
+        branchSelector={mobileBranchSelector}
       />
       <Box
         sx={{
-          width: secondarySidebarVisible ? 160 : 0,
+          width: { xs: 0, md: secondarySidebarVisible ? 160 : 0 },
           flexShrink: 0,
         }}
       />
@@ -77,6 +115,7 @@ export function AdminDashboardLayout({
         name="Arthit P."
         role="Store manager"
         sidebarWidth={primarySidebarCollapsed ? 96 : 230}
+        onOpenMobileMenu={() => setMobileMenuOpen(true)}
       />
       {children}
     </Box>

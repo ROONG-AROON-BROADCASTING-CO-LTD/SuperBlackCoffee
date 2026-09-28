@@ -4,13 +4,15 @@ import {
   Button,
   Card,
   Chip,
-  Drawer,
   MenuItem,
   TextField,
   Typography,
 } from '@mui/material';
 import {
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   ItemActionButtons,
   INGREDIENT_STATUS_BADGES,
@@ -408,94 +410,33 @@ export function AdminStockPage({
           ไม่พบรายการสต๊อกที่ค้นหา
         </Typography>
       )}
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflowY: 'auto',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
-        <Box sx={{ width: '100%', px: { xs: 2.5, sm: 4 }, pt: 1.5, pb: 3.5 }}>
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            px: { xs: 2.5, sm: 4 },
+            pt: 1.5,
+            pb: 3.5,
+          }}
+        >
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={drawerTitle}
+            description={
+              editingItem ? 'แก้ไขข้อมูลสต๊อก' : 'กรอกข้อมูลเพื่อเพิ่มสต๊อกใหม่'
+            }
+            onClose={() => setDrawerOpen(false)}
+            onCloseMouseEnter={() => closeRef.current?.startAnimation()}
+            onCloseMouseLeave={() => closeRef.current?.stopAnimation()}
+            closeIcon={<XIcon ref={closeRef} size={20} />}
           />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Typography
-              sx={{
-                color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 22,
-                fontWeight: 600,
-              }}
-            >
-              {drawerTitle}
-            </Typography>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setDrawerOpen(false)}
-              onMouseEnter={() => closeRef.current?.startAnimation()}
-              onMouseLeave={() => closeRef.current?.stopAnimation()}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon
-                ref={closeRef}
-                size={20}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 0,
-                }}
-              />
-            </Button>
-          </Box>
-          <Typography
-            sx={{
-              mt: 0.5,
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-            }}
-          >
-            {editingItem ? 'แก้ไขข้อมูลสต๊อก' : 'กรอกข้อมูลเพื่อเพิ่มสต๊อกใหม่'}
-          </Typography>
           <Box
             component="form"
             onSubmit={(event) => {
@@ -504,12 +445,18 @@ export function AdminStockPage({
             }}
             sx={{
               display: 'grid',
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              alignContent: 'start',
+              gridAutoRows: 'min-content',
               gridTemplateColumns: {
                 xs: '1fr',
                 md: 'minmax(0, 1fr) minmax(0, 2fr)',
               },
               gap: 2.5,
-              mt: 3,
+              mt: 2.25,
+              pb: 9,
               '& .MuiOutlinedInput-root': { borderRadius: '12px' },
             }}
           >
@@ -697,7 +644,7 @@ export function AdminStockPage({
             </Box>
           </Box>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
     </DashboardMain>
   );
 }

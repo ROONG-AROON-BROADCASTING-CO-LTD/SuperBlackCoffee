@@ -29,6 +29,30 @@ describe('franchise auth API', () => {
     );
   });
 
+  it('forwards the Turnstile proof with franchise credentials', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { user: { id: 1, role: 'franchise_owner' } },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await login('owner', 'password', 'verified-token');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/login'),
+      expect.objectContaining({
+        body: JSON.stringify({
+          username: 'owner',
+          password: 'password',
+          turnstileToken: 'verified-token',
+        }),
+      }),
+    );
+  });
+
   it('restores and ends a session using the HttpOnly cookie transport', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')

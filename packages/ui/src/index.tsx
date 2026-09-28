@@ -36,7 +36,13 @@ export {
 export { BrowserAutofillGuard } from './components/BrowserAutofillGuard';
 export { LoginScreen } from './components/auth/LoginScreen';
 export { DashboardSidebar } from './components/dashboard/DashboardSidebar';
+export { DashboardMobileMenu } from './components/dashboard/DashboardMobileMenu';
 export { DashboardMain } from './components/dashboard/DashboardMain';
+export {
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
+} from './components/dashboard/DashboardFormDrawer';
 export { DashboardTopbar } from './components/dashboard/DashboardTopbar';
 export { LoaderCircleIcon } from './components/icons/LoaderCircleIcon';
 export { LogInIcon, type LogInIconHandle } from './components/icons/LogInIcon';

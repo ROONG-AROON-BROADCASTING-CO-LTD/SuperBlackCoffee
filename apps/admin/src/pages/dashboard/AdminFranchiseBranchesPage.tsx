@@ -1,23 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Avatar,
   Box,
   Button,
   Card,
   Chip,
   Divider,
-  Drawer,
   MenuItem,
+  Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import LocationOnRoundedIcon from '@mui/icons-material/LocationOnRounded';
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded';
 import {
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   PageIntro,
   PlusIcon,
   SearchField,
   useMinimumLoading,
-  XIcon,
 } from '@stackbuild/ui';
 import {
   createFranchisee,
@@ -268,100 +273,188 @@ export function AdminFranchiseBranchesPage() {
         </Button>
       </Box>
       <Box
+        aria-label="รายการสาขาแฟรนไชส์"
         sx={{
           display: showSkeleton || loadError ? 'none' : 'grid',
-          maxWidth: 1180,
+          width: '100%',
+          maxWidth: 1320,
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, minmax(0, 1fr))',
             md: 'repeat(3, minmax(0, 1fr))',
           },
-          gap: '16px',
+          gap: { xs: 1.5, md: 2 },
         }}
       >
         {visibleFranchisees.map((franchisee) => (
           <Card
             key={franchisee.id}
             variant="outlined"
-            sx={{ borderRadius: '15px', borderColor: '#e8ddd5' }}
+            component="article"
+            sx={{
+              minHeight: 224,
+              borderRadius: '20px',
+              borderColor: '#e8ddd5',
+              bgcolor: '#fff',
+              boxShadow: '0 10px 24px rgba(50, 33, 22, 0.045)',
+              transition: 'transform 180ms ease, box-shadow 180ms ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 16px 30px rgba(50, 33, 22, 0.09)',
+              },
+            }}
           >
-            <Box sx={{ p: { xs: 2.25, md: 2.5 } }}>
+            <Box
+              sx={{
+                height: '100%',
+                p: { xs: 2, md: 2.5 },
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
               <Box
                 sx={{
                   display: 'flex',
-                  alignItems: 'flex-start',
+                  alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: 1,
+                  gap: 1.5,
                 }}
               >
-                <Box>
-                  <Typography
+                <Stack direction="row" spacing={1.25} sx={{ minWidth: 0 }}>
+                  <Avatar
                     sx={{
-                      color: '#201914',
+                      width: 48,
+                      height: 48,
+                      flex: '0 0 auto',
+                      bgcolor: `${plans[franchisee.plan].color}16`,
+                      color: plans[franchisee.plan].color,
                       fontFamily: 'Kanit, sans-serif',
-                      fontSize: 19,
-                      fontWeight: 600,
+                      fontSize: 20,
+                      fontWeight: 700,
                     }}
                   >
-                    {franchisee.name}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      mt: 0.35,
-                      color: '#805637',
-                      fontFamily: 'Kanit, sans-serif',
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {franchisee.branch}
-                  </Typography>
-                </Box>
-                <Chip
-                  label={franchisee.status}
-                  size="small"
-                  sx={{
-                    height: 25,
-                    borderRadius: '12px',
-                    bgcolor:
-                      franchisee.status === 'ใช้งานแล้ว'
-                        ? '#def4e7'
-                        : '#f8edd8',
-                    color:
-                      franchisee.status === 'ใช้งานแล้ว'
-                        ? '#177245'
-                        : '#a76415',
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                />
-              </Box>
-              <Box sx={{ mt: 2, pt: 1.75, borderTop: '1px solid #eee6e0' }}>
+                    {franchisee.plan}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0, pt: 0.1 }}>
+                    <Typography
+                      noWrap
+                      sx={{
+                        color: '#201914',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: { xs: 17, md: 18 },
+                        fontWeight: 600,
+                        lineHeight: 1.25,
+                      }}
+                    >
+                      {franchisee.branch}
+                    </Typography>
+                    <Typography
+                      noWrap
+                      sx={{
+                        mt: 0.35,
+                        color: '#766b64',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 12,
+                      }}
+                    >
+                      {franchisee.name}
+                    </Typography>
+                  </Box>
+                </Stack>
                 <Chip
                   label={`แพ็กเกจ ${franchisee.plan}`}
                   size="small"
                   sx={{
-                    height: 25,
-                    borderRadius: '12px',
-                    bgcolor: `${plans[franchisee.plan].color}16`,
+                    height: 28,
+                    flex: '0 0 auto',
+                    borderRadius: '9px',
+                    bgcolor: `${plans[franchisee.plan].color}14`,
                     color: plans[franchisee.plan].color,
                     fontFamily: 'Kanit, sans-serif',
                     fontSize: 11,
                     fontWeight: 700,
                   }}
                 />
-                <Typography
-                  sx={{
-                    mt: 1.1,
-                    color: 'text.secondary',
-                    fontFamily: 'Inter, Kanit, sans-serif',
-                    fontSize: 12,
-                    overflowWrap: 'anywhere',
-                  }}
+              </Box>
+              <Divider sx={{ my: 2, borderColor: '#eee6e0' }} />
+              <Stack spacing={1.1}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center' }}
                 >
-                  บัญชีผู้ดูแล: {franchisee.name}
-                </Typography>
+                  <LocationOnRoundedIcon
+                    sx={{ color: '#a47c60', fontSize: 18 }}
+                  />
+                  <Typography
+                    sx={{
+                      color: '#675b53',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 13,
+                    }}
+                  >
+                    สาขาแฟรนไชส์ · {franchisee.branch}
+                  </Typography>
+                </Stack>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center' }}
+                >
+                  <PersonRoundedIcon sx={{ color: '#a47c60', fontSize: 18 }} />
+                  <Typography
+                    noWrap
+                    sx={{
+                      color: '#675b53',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 13,
+                    }}
+                  >
+                    บัญชีผู้ดูแล: {franchisee.name}
+                  </Typography>
+                </Stack>
+              </Stack>
+              <Box
+                sx={{
+                  mt: 'auto',
+                  pt: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
+                }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={0.75}
+                  sx={{ alignItems: 'center' }}
+                >
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor:
+                        franchisee.status === 'ใช้งานแล้ว'
+                          ? '#24935e'
+                          : '#d38a2d',
+                    }}
+                  />
+                  <Typography
+                    sx={{
+                      color:
+                        franchisee.status === 'ใช้งานแล้ว'
+                          ? '#177245'
+                          : '#a76415',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {franchisee.status}
+                  </Typography>
+                </Stack>
                 {franchisee.status !== 'ใช้งานแล้ว' ? (
                   <Button
                     size="small"
@@ -371,9 +464,8 @@ export function AdminFranchiseBranchesPage() {
                       void activateFranchisee(franchisee.franchiseeId)
                     }
                     sx={{
-                      mt: 1.25,
                       minHeight: 32,
-                      borderRadius: '10px',
+                      borderRadius: '9px',
                       bgcolor: '#2d6d47',
                       fontFamily: 'Kanit, sans-serif',
                       fontSize: 12,
@@ -433,23 +525,9 @@ export function AdminFranchiseBranchesPage() {
           ไม่พบข้อมูลสาขาแฟรนไชส์
         </Typography>
       )}
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '254px' },
-              width: { md: 'calc(100% - 278px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
         <Box
           component="form"
@@ -467,75 +545,17 @@ export function AdminFranchiseBranchesPage() {
             pt: 1.5,
             pb: 3.5,
             '& .MuiOutlinedInput-root': {
+              minHeight: 52,
               borderRadius: '12px',
               bgcolor: '#fff',
             },
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                เพิ่มบัญชีแฟรนไชส์
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 0.25,
-                  color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 14,
-                }}
-              >
-                กำหนดข้อมูลสำหรับเข้าสู่ระบบของผู้ซื้อแฟรนไชส์
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setIsDrawerOpen(false)}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon size={20} />
-            </Button>
-          </Box>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mb: 0,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title="เพิ่มบัญชีแฟรนไชส์"
+            description="กำหนดข้อมูลสำหรับเข้าสู่ระบบของผู้ซื้อแฟรนไชส์"
+            onClose={() => setIsDrawerOpen(false)}
           />
           <Box
             sx={{
@@ -546,8 +566,11 @@ export function AdminFranchiseBranchesPage() {
               minHeight: 0,
               overflowY: 'auto',
               pt: 2.25,
-              pr: 0.5,
+              pr: { xs: 0, sm: 0.5 },
+              pb: 2,
               display: 'grid',
+              alignContent: 'start',
+              gridAutoRows: 'min-content',
               gridTemplateColumns: {
                 xs: '1fr',
                 sm: 'repeat(2, minmax(0, 1fr))',
@@ -634,49 +657,51 @@ export function AdminFranchiseBranchesPage() {
                 </MenuItem>
               ))}
             </TextField>
-            <DrawerActionBar
+          </Box>
+          <DrawerActionBar
+            sx={{
+              flex: '0 0 auto',
+              pt: 2,
+              borderTop: '1px solid #e8ddd5',
+            }}
+          >
+            <Button
+              onClick={() => setIsDrawerOpen(false)}
               sx={{
-                gridColumn: { sm: '1 / -1' },
+                minHeight: 40,
+                borderRadius: '12px',
+                color: '#5f4b3d',
+                fontFamily: 'Kanit, sans-serif',
               }}
             >
-              <Button
-                onClick={() => setIsDrawerOpen(false)}
-                sx={{
-                  minHeight: 40,
-                  borderRadius: '12px',
-                  color: '#5f4b3d',
-                  fontFamily: 'Kanit, sans-serif',
-                }}
-              >
-                ยกเลิก
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={
-                  isSaving ||
-                  !form.name ||
-                  !form.email ||
-                  !form.branchName ||
-                  !form.branchCode ||
-                  !form.username ||
-                  form.password.length < 8
-                }
-                sx={{
-                  minHeight: 40,
-                  borderRadius: '12px',
-                  bgcolor: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  boxShadow: 'none',
-                  '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
-                }}
-              >
-                {isSaving ? 'กำลังสร้างบัญชี...' : 'สร้างและส่งคำเชิญ'}
-              </Button>
-            </DrawerActionBar>
-          </Box>
+              ยกเลิก
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={
+                isSaving ||
+                !form.name ||
+                !form.email ||
+                !form.branchName ||
+                !form.branchCode ||
+                !form.username ||
+                form.password.length < 8
+              }
+              sx={{
+                minHeight: 40,
+                borderRadius: '12px',
+                bgcolor: '#201914',
+                fontFamily: 'Kanit, sans-serif',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+              }}
+            >
+              {isSaving ? 'กำลังสร้างบัญชี...' : 'สร้างและส่งคำเชิญ'}
+            </Button>
+          </DrawerActionBar>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={
           saveError || activationError

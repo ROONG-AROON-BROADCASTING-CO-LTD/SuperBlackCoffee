@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -91,7 +92,14 @@ func parseWorkbookNumber(value string) (float64, error) {
 	if value == "" {
 		return 0, nil
 	}
-	return strconv.ParseFloat(value, 64)
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, err
+	}
+	if math.IsNaN(parsed) || math.IsInf(parsed, 0) {
+		return 0, fmt.Errorf("invalid non-finite workbook number")
+	}
+	return parsed, nil
 }
 
 func parseWorkbookSaleTime(dateValue, timeValue string) (time.Time, error) {

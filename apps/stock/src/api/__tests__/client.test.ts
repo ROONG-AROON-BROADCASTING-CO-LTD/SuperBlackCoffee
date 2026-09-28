@@ -100,4 +100,36 @@ describe('stock API client', () => {
       } satisfies Partial<ApiRequestError>),
     );
   });
+
+  it.each(['null', '[]', '{}'])(
+    'rejects a malformed JSON envelope (%s)',
+    async (body) => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(body, { status: 200 }),
+      );
+
+      await expect(request('/inventory')).rejects.toEqual(
+        expect.objectContaining({
+          message: 'ระบบตอบกลับผิดรูปแบบ กรุณาลองใหม่อีกครั้ง',
+          status: 200,
+        } satisfies Partial<ApiRequestError>),
+      );
+    },
+  );
+
+  it('preserves the forbidden response without treating it as a missing session', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ success: false, message: 'ไม่มีสิทธิ์แก้ไขสาขานี้' }),
+        { status: 403 },
+      ),
+    );
+
+    await expect(request('/inventory/7/adjust')).rejects.toEqual(
+      expect.objectContaining({
+        message: 'ไม่มีสิทธิ์แก้ไขสาขานี้',
+        status: 403,
+      }),
+    );
+  });
 });

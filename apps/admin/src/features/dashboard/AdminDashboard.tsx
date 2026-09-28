@@ -668,6 +668,44 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
           : activePage === 'สาขา SBC'
             ? 'สาขา SBC และสำนักงานใหญ่'
             : activePage;
+  const sidebarBranchOptions =
+    activePage === 'คำสั่งซื้อ'
+      ? [
+          'ทุกสาขา',
+          ...branchDirectory
+            .filter(
+              (branch) =>
+                !branch.isHeadquarters &&
+                (activeOrderTab === 'franchise'
+                  ? Boolean(branch.franchiseeId)
+                  : activeOrderTab === 'expense' || !branch.franchiseeId),
+            )
+            .map((branch) => branch.name),
+        ]
+      : isCatalogPage
+        ? isFranchiseCatalogSelection
+          ? ['แฟรนไชส์ทั้งหมด', ...franchiseBranchOptions]
+          : ['ทุกสาขา', ...sbcBranchOptions]
+        : undefined;
+  const allBranchLabel =
+    (activePage === 'คำสั่งซื้อ' && activeOrderTab === 'franchise') ||
+    isFranchiseCatalogSelection
+      ? 'ทุกแฟรนไชส์'
+      : isCatalogPage
+        ? 'ทุกสาขา SBC'
+        : 'ทุกสาขา';
+  const selectSidebarBranch = (branch: string) => {
+    setSearchParams(
+      (current) => {
+        if (branch === 'ทุกสาขา' && activePage !== 'เมนูและสินค้า')
+          current.delete('branch');
+        else current.set('branch', branch);
+        current.delete('branchCode');
+        return current;
+      },
+      { replace: true },
+    );
+  };
   return (
     <AdminDashboardLayout
       activePage={activePage}
@@ -678,50 +716,22 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
       onLogout={logout}
       forceSidebarCollapsed={hasBranchSidebar || usesCompactPersonnelSidebar}
       secondarySidebarVisible={hasBranchSidebar}
+      mobileBranchSelector={
+        hasBranchSidebar
+          ? {
+              value: selectedBranch,
+              options: sidebarBranchOptions ?? ['ทุกสาขา'],
+              allBranchLabel,
+              onChange: selectSidebarBranch,
+            }
+          : undefined
+      }
       secondarySidebar={
         <BranchesSidebar
           activeBranch={selectedBranch}
-          onBranchChange={(branch) => {
-            setSearchParams(
-              (current) => {
-                if (branch === 'ทุกสาขา' && activePage !== 'เมนูและสินค้า')
-                  current.delete('branch');
-                else current.set('branch', branch);
-                current.delete('branchCode');
-                return current;
-              },
-              { replace: true },
-            );
-          }}
-          branchOptions={
-            activePage === 'คำสั่งซื้อ'
-              ? [
-                  'ทุกสาขา',
-                  ...branchDirectory
-                    .filter(
-                      (branch) =>
-                        !branch.isHeadquarters &&
-                        (activeOrderTab === 'franchise'
-                          ? Boolean(branch.franchiseeId)
-                          : activeOrderTab === 'expense' ||
-                            !branch.franchiseeId),
-                    )
-                    .map((branch) => branch.name),
-                ]
-              : isCatalogPage
-                ? isFranchiseCatalogSelection
-                  ? ['แฟรนไชส์ทั้งหมด', ...franchiseBranchOptions]
-                  : ['ทุกสาขา', ...sbcBranchOptions]
-                : undefined
-          }
-          allBranchLabel={
-            (activePage === 'คำสั่งซื้อ' && activeOrderTab === 'franchise') ||
-            isFranchiseCatalogSelection
-              ? 'ทุกแฟรนไชส์'
-              : isCatalogPage
-                ? 'ทุกสาขา SBC'
-                : 'ทุกสาขา'
-          }
+          onBranchChange={selectSidebarBranch}
+          branchOptions={sidebarBranchOptions}
+          allBranchLabel={allBranchLabel}
           visible={hasBranchSidebar}
         />
       }

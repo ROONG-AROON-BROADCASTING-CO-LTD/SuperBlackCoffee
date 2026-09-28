@@ -210,7 +210,7 @@ export function LeaveRequestsManagementPage({
                         justifyContent: 'space-between',
                       }}
                     >
-                      <Box sx={{ flex: 1, minWidth: 260 }}>
+                      <Box sx={{ flex: 1, minWidth: { xs: 0, sm: 260 } }}>
                         <Typography sx={{ fontWeight: 700 }}>
                           {item.name} · {leaveTypeLabels[item.leaveType]}
                         </Typography>

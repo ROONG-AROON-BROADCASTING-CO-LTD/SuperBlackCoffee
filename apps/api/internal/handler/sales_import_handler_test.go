@@ -1,6 +1,28 @@
 package handler
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+func TestParseWorkbookSaleTimeUsesBangkokAndRejectsInvalidDates(t *testing.T) {
+	got, err := parseWorkbookSaleTime("29/02/2024", "00:05")
+	if err != nil {
+		t.Fatalf("valid leap day: %v", err)
+	}
+	if got.Format(time.RFC3339) != "2024-02-29T00:05:00+07:00" {
+		t.Fatalf("sale time = %s, want Bangkok leap day", got.Format(time.RFC3339))
+	}
+	for _, input := range []struct{ date, clock string }{
+		{"29/02/2025", "00:05"},
+		{"31/04/2026", "12:00"},
+		{"01/01/2026", "24:00"},
+	} {
+		if _, err := parseWorkbookSaleTime(input.date, input.clock); err == nil {
+			t.Errorf("accepted invalid date/time %q %q", input.date, input.clock)
+		}
+	}
+}
 
 func TestSalesImportParsingKeepsFinancialInputDeterministic(t *testing.T) {
 	tests := []struct {
@@ -12,6 +34,8 @@ func TestSalesImportParsingKeepsFinancialInputDeterministic(t *testing.T) {
 		{name: "accepts formatted currency value", numberText: " 1,250.50 ", wantNumber: 1250.5},
 		{name: "accepts an empty optional value as zero", numberText: "", wantNumber: 0},
 		{name: "rejects non numeric financial value", numberText: "one hundred", wantErr: true},
+		{name: "rejects non finite NaN", numberText: "NaN", wantErr: true},
+		{name: "rejects non finite infinity", numberText: "+Inf", wantErr: true},
 	}
 
 	for _, tt := range tests {

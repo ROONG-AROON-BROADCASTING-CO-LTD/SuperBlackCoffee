@@ -44,11 +44,15 @@ async function requestSession(
   return body.data as FranchiseSession;
 }
 
-export async function login(username: string, password: string) {
+export async function login(
+  username: string,
+  password: string,
+  turnstileToken?: string,
+) {
   return requestSession('/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, turnstileToken }),
   });
 }
 

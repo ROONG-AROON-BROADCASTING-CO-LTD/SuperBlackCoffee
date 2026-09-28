@@ -4,8 +4,6 @@ import {
   Button,
   Card,
   Chip,
-  Divider,
-  Drawer,
   MenuItem,
   TextField,
   Typography,
@@ -20,9 +18,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   BRANCH_STATUS_BADGES,
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   SearchField,
-  XIcon,
   useMinimumLoading,
   type BranchStatus,
 } from '@stackbuild/ui';
@@ -106,13 +106,14 @@ function workDaysLabel(days?: number[]) {
 }
 
 const coordinateFromGoogleMapsLink = (value: string) => {
-  // Google place links include both the viewport after "@" and the actual place
-  // location in "!3d...!4d...". Always prefer the latter when it is available.
+  // Use the coordinates shown directly after "@" in the pasted URL so the
+  // form, preview map, and saved attendance location all match that URL.
   const matched =
-    value.match(/!3d(-?\d{1,2}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/i) ??
+    value.match(/@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)(?:,|\/|$)/i) ??
     value.match(
-      /(?:@|[?&](?:q|query|ll)=)(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/i,
-    );
+      /[?&](?:q|query|ll)=(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/i,
+    ) ??
+    value.match(/!3d(-?\d{1,2}(?:\.\d+)?)!4d(-?\d{1,3}(?:\.\d+)?)/i);
   if (!matched) return null;
   const latitude = Number(matched[1]);
   const longitude = Number(matched[2]);
@@ -733,26 +734,12 @@ export function AdminBranchesPage() {
         notice={actionNotice}
         onClose={() => setActionNotice(null)}
       />
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={isCreateDrawerOpen}
         onClose={() => {
           if (!isCreating) {
             setIsCreateDrawerOpen(false);
           }
-        }}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '254px' },
-              width: { md: 'calc(100% - 278px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
         }}
       >
         <Box
@@ -776,78 +763,24 @@ export function AdminBranchesPage() {
             },
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                {editingBranchId === null
-                  ? 'เพิ่มสาขา SBC'
-                  : editingHeadquarters
-                    ? 'แก้ไขสำนักงานใหญ่'
-                    : 'แก้ไขข้อมูลสาขา SBC'}
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 0.25,
-                  color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 14,
-                }}
-              >
-                {editingBranchId === null
-                  ? 'ระบบจะคัดลอกเมนูและสต๊อกเริ่มต้นตามขนาดของสาขา'
-                  : editingHeadquarters
-                    ? 'กำหนดวันและเวลาทำงานมาตรฐาน รวมถึงพิกัดสำหรับการลงเวลา'
-                    : 'ปรับที่อยู่ เวลาเปิด–ปิด และพิกัดร้านสำหรับการลงเวลา'}
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิด"
-              disabled={isCreating}
-              onClick={() => setIsCreateDrawerOpen(false)}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon size={20} />
-            </Button>
-          </Box>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={
+              editingBranchId === null
+                ? 'เพิ่มสาขา SBC'
+                : editingHeadquarters
+                  ? 'แก้ไขสำนักงานใหญ่'
+                  : 'แก้ไขข้อมูลสาขา SBC'
+            }
+            description={
+              editingBranchId === null
+                ? 'ระบบจะคัดลอกเมนูและสต๊อกเริ่มต้นตามขนาดของสาขา'
+                : editingHeadquarters
+                  ? 'กำหนดวันและเวลาทำงานมาตรฐาน รวมถึงพิกัดสำหรับการลงเวลา'
+                  : 'ปรับที่อยู่ เวลาเปิด–ปิด และพิกัดร้านสำหรับการลงเวลา'
+            }
+            closeDisabled={isCreating}
+            onClose={() => setIsCreateDrawerOpen(false)}
           />
           <Box
             sx={{
@@ -1169,7 +1102,7 @@ export function AdminBranchesPage() {
                   setCreateError('');
                 }
               }}
-              helperText="ค้นหาสถานที่หรือปักหมุดใน Google Maps แล้วคัดลอกลิงก์ที่มีพิกัดมาวาง"
+              helperText="ระบบจะใช้ค่าละติจูดและลองจิจูดที่แสดงหลัง @ ในลิงก์สำหรับหมุดและการลงเวลา"
               fullWidth
               sx={{ gridColumn: { sm: '1 / -1' } }}
             />
@@ -1281,7 +1214,7 @@ export function AdminBranchesPage() {
             </Button>
           </DrawerActionBar>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
     </DashboardMain>
   );
 }

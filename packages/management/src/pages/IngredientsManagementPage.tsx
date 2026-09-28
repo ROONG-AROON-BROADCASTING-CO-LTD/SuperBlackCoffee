@@ -13,7 +13,6 @@ import {
   Button,
   Card,
   Chip,
-  Drawer,
   Divider,
   MenuItem,
   TextField,
@@ -22,6 +21,9 @@ import {
 import {
   ActionSnackbar,
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   EditItemButton,
   ItemActionButtons,
@@ -1802,24 +1804,9 @@ export function IngredientsManagementPage({
           ไม่พบวัตถุดิบที่ค้นหา
         </Typography>
       )}
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={isAddDrawerOpen}
         onClose={() => setIsAddDrawerOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
         <Box
           sx={{
@@ -1833,76 +1820,19 @@ export function IngredientsManagementPage({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={drawerTitle}
+            description={
+              editingIngredient
+                ? 'แก้ไขข้อมูลวัตถุดิบในสต๊อก'
+                : 'กรอกข้อมูลวัตถุดิบเพื่อเพิ่มเข้าสต๊อก'
+            }
+            onClose={() => setIsAddDrawerOpen(false)}
+            onCloseMouseEnter={() => closeIconRef.current?.startAnimation()}
+            onCloseMouseLeave={() => closeIconRef.current?.stopAnimation()}
+            closeIcon={<XIcon ref={closeIconRef} size={20} />}
           />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Typography
-              sx={{
-                color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 22,
-                fontWeight: 600,
-              }}
-            >
-              {drawerTitle}
-            </Typography>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setIsAddDrawerOpen(false)}
-              onMouseEnter={() => closeIconRef.current?.startAnimation()}
-              onMouseLeave={() => closeIconRef.current?.stopAnimation()}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon
-                ref={closeIconRef}
-                size={20}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 0,
-                }}
-              />
-            </Button>
-          </Box>
-          <Typography
-            sx={{
-              mt: 0.5,
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-            }}
-          >
-            {editingIngredient
-              ? 'แก้ไขข้อมูลวัตถุดิบในสต๊อก'
-              : 'กรอกข้อมูลวัตถุดิบเพื่อเพิ่มเข้าสต๊อก'}
-          </Typography>
           {isLimitedEdit ? (
             <Typography
               sx={{
@@ -1915,14 +1845,6 @@ export function IngredientsManagementPage({
               แก้ไขได้เฉพาะจำนวนคงเหลือ แจ้งเตือนเมื่อคงเหลือ และวันหมดอายุ
             </Typography>
           ) : null}
-          <Divider
-            sx={{
-              mt: 2.25,
-              mb: 0,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
-          />
           <Box
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
           >
@@ -2220,23 +2142,13 @@ export function IngredientsManagementPage({
             </Box>
           </Box>
         </Box>
-      </Drawer>
-      <Drawer
-        anchor="bottom"
+      </DashboardFormDrawer>
+      <DashboardFormDrawer
         open={expirySettingsBranch !== null}
         onClose={() => setExpirySettingsBranch(null)}
         transitionDuration={{ enter: 260, exit: 180 }}
-        sx={{ zIndex: 1302 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              borderRadius: '18px 18px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
+        zIndex={1302}
+        paperSx={{ height: 'auto' }}
       >
         <Box
           sx={{
@@ -2244,39 +2156,16 @@ export function IngredientsManagementPage({
             maxWidth: 720,
             mx: 'auto',
             px: { xs: 2.5, sm: 4 },
-            py: 3,
+            pt: 3,
+            pb: 11,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title="ตั้งค่าการแจ้งเตือนวันหมดอายุ"
+            description={`สาขา${expirySettingsTarget ?? ''} · ระบบจะแจ้งเตือนล็อตของสดที่ยังเหลือในสต๊อกตามจำนวนวันที่กำหนด`}
+            onClose={() => setExpirySettingsBranch(null)}
           />
-          <Typography
-            sx={{
-              color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
-              fontSize: 21,
-              fontWeight: 700,
-            }}
-          >
-            ตั้งค่าการแจ้งเตือนวันหมดอายุ
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.35,
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-            }}
-          >
-            สาขา{expirySettingsTarget ?? ''} ·
-            ระบบจะแจ้งเตือนล็อตของสดที่ยังเหลือในสต๊อกตามจำนวนวันที่กำหนด
-          </Typography>
           <TextField
             fullWidth
             required
@@ -2316,25 +2205,11 @@ export function IngredientsManagementPage({
             </Button>
           </DrawerActionBar>
         </Box>
-      </Drawer>
-      <Drawer
-        anchor="bottom"
+      </DashboardFormDrawer>
+      <DashboardFormDrawer
         open={freshLotTarget !== null}
         onClose={() => setFreshLotTarget(null)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1301 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              bgcolor: '#fffaf7',
-              borderRadius: '16px 16px 0 0',
-            },
-          },
-        }}
+        zIndex={1301}
       >
         <Box
           sx={{
@@ -2346,63 +2221,12 @@ export function IngredientsManagementPage({
             pb: 3,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                ล็อตของสด
-                {freshLotTarget ? ` · ${freshLotTarget.ingredient.name}` : ''}
-              </Typography>
-              <Typography
-                sx={{
-                  color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
-                }}
-              >
-                ระบบตัดตามล็อตที่หมดอายุก่อน (FEFO) และไม่ใช้ล็อตหมดอายุ
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิดล็อตของสด"
-              onClick={() => setFreshLotTarget(null)}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-              }}
-            >
-              <XIcon size={20} />
-            </Button>
-          </Box>
-          <Divider
-            sx={{ mt: 2.25, mx: { xs: -2.5, sm: -4 }, borderColor: '#e8ddd5' }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={`ล็อตของสด${freshLotTarget ? ` · ${freshLotTarget.ingredient.name}` : ''}`}
+            description="ระบบตัดตามล็อตที่หมดอายุก่อน (FEFO) และไม่ใช้ล็อตหมดอายุ"
+            closeLabel="ปิดล็อตของสด"
+            onClose={() => setFreshLotTarget(null)}
           />
           <Box
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', py: 2.25, pr: 0.5 }}
@@ -2641,26 +2465,8 @@ export function IngredientsManagementPage({
             )}
           </Box>
         </Box>
-      </Drawer>
-      <Drawer
-        anchor="bottom"
-        open={cartOpen}
-        onClose={() => setCartOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              bgcolor: '#fffaf7',
-              borderRadius: '16px 16px 0 0',
-            },
-          },
-        }}
-      >
+      </DashboardFormDrawer>
+      <DashboardFormDrawer open={cartOpen} onClose={() => setCartOpen(false)}>
         <Box
           sx={{
             width: '100%',
@@ -2673,86 +2479,19 @@ export function IngredientsManagementPage({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                ตะกร้าวัตถุดิบ
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 0.25,
-                  color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 13,
-                }}
-              >
-                {cartQuantity
-                  ? `${cartQuantity} รายการที่ต้องการสั่ง`
-                  : 'ยังไม่มีรายการในตะกร้า'}
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิดตะกร้าวัตถุดิบ"
-              onClick={() => setCartOpen(false)}
-              onMouseEnter={() => cartCloseIconRef.current?.startAnimation()}
-              onMouseLeave={() => cartCloseIconRef.current?.stopAnimation()}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon
-                ref={cartCloseIconRef}
-                size={20}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 0,
-                }}
-              />
-            </Button>
-          </Box>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mb: 0,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title="ตะกร้าวัตถุดิบ"
+            description={
+              cartQuantity
+                ? `${cartQuantity} รายการที่ต้องการสั่ง`
+                : 'ยังไม่มีรายการในตะกร้า'
+            }
+            closeLabel="ปิดตะกร้าวัตถุดิบ"
+            onClose={() => setCartOpen(false)}
+            onCloseMouseEnter={() => cartCloseIconRef.current?.startAnimation()}
+            onCloseMouseLeave={() => cartCloseIconRef.current?.stopAnimation()}
+            closeIcon={<XIcon ref={cartCloseIconRef} size={20} />}
           />
           <Box
             sx={{
@@ -3020,7 +2759,7 @@ export function IngredientsManagementPage({
             </Button>
           </Box>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={cartError ? { message: cartError, severity: 'error' } : null}
         onClose={() => setCartError(null)}

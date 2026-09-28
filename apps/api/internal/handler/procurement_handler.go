@@ -328,8 +328,12 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 	var before float64
 	var itemName, itemUnit string
 	var trackStock bool
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,i.name,i.unit,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE`, id, branchID).Scan(&before, &itemName, &itemUnit, &trackStock); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต๊อก"})
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,i.name,i.unit,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE OF i`, id, branchID).Scan(&before, &itemName, &itemUnit, &trackStock); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต๊อก"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถค้นหารายการสต๊อกได้"})
+		}
 		return
 	}
 	if !trackStock {

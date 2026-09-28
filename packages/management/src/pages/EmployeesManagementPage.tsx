@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Divider,
-  Drawer,
   FormControl,
   InputLabel,
   MenuItem,
@@ -17,11 +16,13 @@ import {
   ClockIcon,
   DateField,
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   ItemActionButtons,
   PageIntro,
   selectionPillSx,
-  XIcon,
   useMinimumLoading,
 } from '@stackbuild/ui';
 import {
@@ -671,8 +672,10 @@ export function EmployeesManagementPage({
                           key={employee.id}
                           sx={{
                             display: 'flex',
-                            alignItems: 'center',
+                            flexDirection: { xs: 'column', md: 'row' },
+                            alignItems: { xs: 'stretch', md: 'center' },
                             justifyContent: 'space-between',
+                            gap: { xs: 0.75, md: 0 },
                             px: 1.5,
                             py: 1,
                             borderRadius: '10px',
@@ -720,7 +723,11 @@ export function EmployeesManagementPage({
                                 void removeEmployee(employee);
                               else setPendingDeleteEmployeeId(employee.id);
                             }}
-                            sx={{ ml: 2, width: 176, flexShrink: 0 }}
+                            sx={{
+                              ml: { xs: 0, md: 2 },
+                              width: { xs: '100%', md: 176 },
+                              flexShrink: 0,
+                            }}
                           />
                         </Box>
                       ))
@@ -782,8 +789,10 @@ export function EmployeesManagementPage({
                           key={employee.id}
                           sx={{
                             display: 'flex',
-                            alignItems: 'center',
+                            flexDirection: { xs: 'column', md: 'row' },
+                            alignItems: { xs: 'stretch', md: 'center' },
                             justifyContent: 'space-between',
+                            gap: { xs: 0.75, md: 0 },
                             px: 1.5,
                             py: 1,
                             borderRadius: '10px',
@@ -831,7 +840,11 @@ export function EmployeesManagementPage({
                                 void removeEmployee(employee);
                               else setPendingDeleteEmployeeId(employee.id);
                             }}
-                            sx={{ ml: 2, width: 176, flexShrink: 0 }}
+                            sx={{
+                              ml: { xs: 0, md: 2 },
+                              width: { xs: '100%', md: 176 },
+                              flexShrink: 0,
+                            }}
                           />
                         </Box>
                       ))}
@@ -1236,24 +1249,9 @@ export function EmployeesManagementPage({
           </>
         ) : null}
       </Box>
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={Boolean(selectedShift)}
         onClose={() => setSelectedShift(null)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
         <Box
           sx={{
@@ -1267,63 +1265,11 @@ export function EmployeesManagementPage({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                จัดการกะงาน
-              </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-                {selectedShift?.name}
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setSelectedShift(null)}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon size={20} />
-            </Button>
-          </Box>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mb: 0,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title="จัดการกะงาน"
+            description={selectedShift?.name}
+            onClose={() => setSelectedShift(null)}
           />
           <Box
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
@@ -1410,27 +1356,10 @@ export function EmployeesManagementPage({
             </Box>
           </Box>
         </Box>
-      </Drawer>
-      <Drawer
-        anchor="bottom"
+      </DashboardFormDrawer>
+      <DashboardFormDrawer
         open={isEmployeeDrawerOpen}
         onClose={() => setIsEmployeeDrawerOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              // Keep the sheet just below the application top bar on larger screens,
-              // while preserving enough room for the form itself to scroll internally.
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
         <Box
           sx={{
@@ -1444,62 +1373,11 @@ export function EmployeesManagementPage({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                {editingEmployeeId !== null ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน'}
-              </Typography>
-              <Typography color="text.secondary" sx={{ fontSize: 14 }}>
-                สร้างบัญชีเพื่อเข้าสู่ระบบและจัดตารางกะ
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setIsEmployeeDrawerOpen(false)}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-              }}
-            >
-              <XIcon size={20} />
-            </Button>
-          </Box>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mb: 0,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={editingEmployeeId !== null ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน'}
+            description="สร้างบัญชีเพื่อเข้าสู่ระบบและจัดตารางกะ"
+            onClose={() => setIsEmployeeDrawerOpen(false)}
           />
           <Box
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
@@ -1963,7 +1841,7 @@ export function EmployeesManagementPage({
             </Box>
           </Box>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={actionNotice}
         onClose={() => setActionNotice(null)}

@@ -3,10 +3,14 @@ import { publicRequest, secured } from './client';
 export type AuthSession = {
   user: { id: number; name?: string; role: string };
 };
-export const login = (username: string, password: string) =>
+export const login = (
+  username: string,
+  password: string,
+  turnstileToken?: string,
+) =>
   publicRequest<AuthSession>('/auth/login', {
     method: 'POST',
-    data: { username, password },
+    data: { username, password, turnstileToken },
   });
 
 export const restoreSession = () =>

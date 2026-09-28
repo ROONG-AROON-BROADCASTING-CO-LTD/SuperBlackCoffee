@@ -50,9 +50,10 @@ func TestMenuImageURLsUseCurrentRequestOrigin(t *testing.T) {
 	response := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(response)
 	ctx.Request = httptest.NewRequest(http.MethodGet, "https://api.example.test/api/v1/menu-items", nil)
+	ctx.Request.Header.Set("X-SBC-Session-Role", "stock")
 	items := []model.MenuItem{{ImageURL: "/api/v1/menu-items/7/image?branchId=2"}}
 	setMenuImageOrigins(ctx, items)
-	if items[0].ImageURL != "https://api.example.test/api/v1/menu-items/7/image?branchId=2" {
+	if items[0].ImageURL != "https://api.example.test/api/v1/menu-items/7/image?branchId=2&sessionRole=stock" {
 		t.Fatalf("image URL = %q", items[0].ImageURL)
 	}
 }

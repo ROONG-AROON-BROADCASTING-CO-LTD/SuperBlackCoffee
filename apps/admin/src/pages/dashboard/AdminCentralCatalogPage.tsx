@@ -11,8 +11,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
-  Drawer,
   MenuItem,
   Stack,
   Switch,
@@ -27,6 +25,9 @@ import {
 } from '@mui/material';
 import {
   DashboardMain,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   DrawerActionBar,
   ActionSnackbar,
   ItemActionButtons,
@@ -2333,24 +2334,9 @@ export function AdminCentralCatalogPage({
       />
 
       {template ? (
-        <Drawer
-          anchor="bottom"
+        <DashboardFormDrawer
           open={isCentralCatalogDrawerOpen}
           onClose={() => setIsCentralCatalogDrawerOpen(false)}
-          transitionDuration={{ enter: 360, exit: 280 }}
-          sx={{ zIndex: 1300 }}
-          slotProps={{
-            paper: {
-              sx: {
-                left: { md: '280px' },
-                width: { md: 'calc(100% - 304px)' },
-                height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-                overflow: 'hidden',
-                borderRadius: '16px 16px 0 0',
-                bgcolor: '#fffaf7',
-              },
-            },
-          }}
         >
           <Box
             sx={{
@@ -2364,63 +2350,13 @@ export function AdminCentralCatalogPage({
               pb: 3.5,
             }}
           >
-            <Box
-              sx={{
-                width: 44,
-                height: 5,
-                mx: 'auto',
-                mb: 2.5,
-                borderRadius: 99,
-                bgcolor: '#d8c8bd',
-              }}
+            <DashboardDrawerHandle />
+            <DashboardDrawerHeader
+              title="ข้อมูลกลาง"
+              description="ข้อมูลชุดเดียวที่ใช้ร่วมกันระหว่างสาขา SBC และแฟรนไชส์"
+              closeLabel="ปิดข้อมูลกลาง"
+              onClose={() => setIsCentralCatalogDrawerOpen(false)}
             />
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 2,
-              }}
-            >
-              <Box>
-                <Typography
-                  component="h2"
-                  sx={{
-                    color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 22,
-                    fontWeight: 600,
-                  }}
-                >
-                  ข้อมูลกลาง
-                </Typography>
-                <Typography sx={{ ...sectionMetaSx, mt: 0.25, fontSize: 13 }}>
-                  ข้อมูลชุดเดียวที่ใช้ร่วมกันระหว่างสาขา SBC และแฟรนไชส์
-                </Typography>
-              </Box>
-              <Button
-                aria-label="ปิดข้อมูลกลาง"
-                onClick={() => setIsCentralCatalogDrawerOpen(false)}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  minWidth: 40,
-                  width: 40,
-                  height: 40,
-                  p: 0,
-                  borderRadius: '12px',
-                  bgcolor: '#f7eee8',
-                  color: '#5f4b3d',
-                  '&:hover': { bgcolor: '#f1e4da' },
-                }}
-              >
-                <XIcon size={20} />
-              </Button>
-            </Box>
-
-            <Divider sx={{ my: 2, borderColor: '#eee3dc' }} />
 
             <Box
               sx={{
@@ -2599,27 +2535,12 @@ export function AdminCentralCatalogPage({
               </Button>
             </DrawerActionBar>
           </Box>
-        </Drawer>
+        </DashboardFormDrawer>
       ) : null}
 
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={menuEditor !== null}
         onClose={() => !isSavingEditor && setEditor(null)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        sx={{ zIndex: 1300 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
       >
         {menuEditor ? (
           <Box
@@ -2634,78 +2555,20 @@ export function AdminCentralCatalogPage({
               pb: 3.5,
             }}
           >
-            <Box
-              sx={{
-                width: 44,
-                height: 5,
-                mx: 'auto',
-                mb: 1,
-                borderRadius: 99,
-                bgcolor: '#d8c8bd',
-              }}
-            />
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Typography
-                component="h2"
-                sx={{
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 19,
-                  fontWeight: 600,
-                }}
-              >
-                {menuEditor.item.id === 0
+            <DashboardDrawerHandle />
+            <DashboardDrawerHeader
+              title={
+                menuEditor.item.id === 0
                   ? 'เพิ่มเมนูและสินค้า'
-                  : 'แก้ไขเมนูและสินค้า'}
-              </Typography>
-              <Button
-                aria-label="ปิด"
-                onClick={() => setEditor(null)}
-                disabled={isSavingEditor}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flex: '0 0 40px',
-                  minWidth: '40px !important',
-                  width: '40px !important',
-                  maxWidth: '40px !important',
-                  minHeight: '40px !important',
-                  height: '40px !important',
-                  maxHeight: '40px !important',
-                  aspectRatio: '1 / 1',
-                  p: '0 !important',
-                  borderRadius: '10px',
-                  bgcolor: '#f7eee8',
-                  color: '#5f4b3d',
-                  '&:hover': { bgcolor: '#f1e4da' },
-                }}
-              >
-                <XIcon size={20} />
-              </Button>
-            </Box>
-            <Typography
-              sx={{
-                mt: 0.25,
-                color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
-              }}
-            >
-              {menuEditor.item.id === 0
-                ? 'กรอกข้อมูลเพื่อเพิ่มสินค้าใหม่'
-                : 'แก้ไขข้อมูลสินค้าในเมนู'}
-            </Typography>
-            <Divider
-              sx={{
-                mt: 1,
-                mx: { xs: -2.5, sm: -4 },
-                borderColor: '#e8ddd5',
-              }}
+                  : 'แก้ไขเมนูและสินค้า'
+              }
+              description={
+                menuEditor.item.id === 0
+                  ? 'กรอกข้อมูลเพื่อเพิ่มสินค้าใหม่'
+                  : 'แก้ไขข้อมูลสินค้าในเมนู'
+              }
+              closeDisabled={isSavingEditor}
+              onClose={() => setEditor(null)}
             />
             <Box
               sx={{
@@ -3310,7 +3173,7 @@ export function AdminCentralCatalogPage({
             </Box>
           </Box>
         ) : null}
-      </Drawer>
+      </DashboardFormDrawer>
 
       <Dialog
         open={impactDialogMode !== null}
@@ -3562,24 +3425,9 @@ function CentralInventoryEditorDrawer({
       : units;
 
   return (
-    <Drawer
-      anchor="bottom"
+    <DashboardFormDrawer
       open={editor !== null}
       onClose={() => !isSaving && onClose()}
-      transitionDuration={{ enter: 360, exit: 280 }}
-      sx={{ zIndex: 1300 }}
-      slotProps={{
-        paper: {
-          sx: {
-            left: { md: '280px' },
-            width: { md: 'calc(100% - 304px)' },
-            height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-            overflow: 'hidden',
-            borderRadius: '16px 16px 0 0',
-            bgcolor: '#fffaf7',
-          },
-        },
-      }}
     >
       {editor ? (
         <Box
@@ -3594,65 +3442,18 @@ function CentralInventoryEditorDrawer({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 2,
-            }}
-          >
-            <Typography
-              sx={{
-                color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
-                fontSize: 22,
-                fontWeight: 600,
-              }}
-            >
-              {editor.item.id === 0 ? `เพิ่ม${itemLabel}` : `แก้ไข${itemLabel}`}
-            </Typography>
-            <Button
-              aria-label="ปิด"
-              onClick={onClose}
-              disabled={isSaving}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon size={20} />
-            </Button>
-          </Box>
-          <Typography
-            sx={{
-              mt: 0.5,
-              color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
-            }}
-          >
-            {editor.item.id === 0
-              ? `กรอกข้อมูล${itemLabel}เพื่อเพิ่มเข้าคลังกลาง`
-              : `แก้ไขข้อมูล${itemLabel}ในคลังกลาง`}
-          </Typography>
-          <Divider
-            sx={{ mt: 2.25, mx: { xs: -2.5, sm: -4 }, borderColor: '#e8ddd5' }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title={
+              editor.item.id === 0 ? `เพิ่ม${itemLabel}` : `แก้ไข${itemLabel}`
+            }
+            description={
+              editor.item.id === 0
+                ? `กรอกข้อมูล${itemLabel}เพื่อเพิ่มเข้าคลังกลาง`
+                : `แก้ไขข้อมูล${itemLabel}ในคลังกลาง`
+            }
+            closeDisabled={isSaving}
+            onClose={onClose}
           />
           <Box
             sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pt: 2.25, pr: 0.5 }}
@@ -3947,7 +3748,7 @@ function CentralInventoryEditorDrawer({
           </Box>
         </Box>
       ) : null}
-    </Drawer>
+    </DashboardFormDrawer>
   );
 }
 

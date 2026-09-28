@@ -5,7 +5,6 @@ import {
   Card,
   Chip,
   Divider,
-  Drawer,
   MenuItem,
   Stack,
   TextField,
@@ -14,6 +13,9 @@ import {
 import {
   DashboardMain,
   DrawerActionBar,
+  DashboardFormDrawer,
+  DashboardDrawerHandle,
+  DashboardDrawerHeader,
   FilterPill,
   PlusIcon,
   XIcon,
@@ -656,91 +658,39 @@ export function PromotionsManagementPage({
           </Box>
         )}
       </Box>
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: embedded ? { lg: '230px' } : { md: '280px' },
-              width: embedded
-                ? { lg: 'calc(100% - 230px)' }
-                : { md: 'calc(100% - 304px)' },
-              bottom: embedded
-                ? {
-                    xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
-                    md: 0,
-                  }
-                : undefined,
-              height: embedded
-                ? {
-                    xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                    md: 'calc(100dvh - 72px)',
-                  }
-                : { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflowY: 'auto',
-              borderRadius: '22px 22px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
+        paperSx={{
+          ...(embedded
+            ? {
+                left: { md: 0, lg: '230px' },
+                width: { md: '100%', lg: 'calc(100% - 230px)' },
+                bottom: {
+                  xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+                  md: 0,
+                },
+                height: {
+                  xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+                  md: 'calc(100dvh - 72px)',
+                },
+              }
+            : {}),
+          overflowY: 'auto',
         }}
       >
         {selected && (
           <Box sx={{ width: '100%', px: { xs: 2.5, sm: 4 }, pt: 1.5, pb: 3.5 }}>
-            <Box
-              sx={{
-                width: 44,
-                height: 5,
-                mx: 'auto',
-                mb: 2.5,
-                borderRadius: 99,
-                bgcolor: '#d8c8bd',
-              }}
-            />
-            <Stack
-              direction="row"
-              sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-            >
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 21,
-                  fontWeight: 700,
-                }}
-              >
-                รายละเอียดโปรโมชั่น
-              </Typography>
-              <Button
-                aria-label="ปิดรายละเอียดโปรโมชั่น"
-                onClick={() => setSelected(null)}
-                onMouseEnter={() => detailsCloseRef.current?.startAnimation()}
-                onMouseLeave={() => detailsCloseRef.current?.stopAnimation()}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: 40,
-                  width: 40,
-                  height: 40,
-                  p: 0,
-                  borderRadius: '12px',
-                  bgcolor: '#f7eee8',
-                  color: '#5f4b3d',
-                  '&:hover': { bgcolor: '#f1e4da' },
-                }}
-              >
-                <XIcon ref={detailsCloseRef} size={20} />
-              </Button>
-            </Stack>
-            <Divider
-              sx={{
-                mt: 2.25,
-                mx: { xs: -2.5, sm: -4 },
-                borderColor: '#e8ddd5',
-              }}
+            <DashboardDrawerHandle />
+            <DashboardDrawerHeader
+              title="รายละเอียดโปรโมชั่น"
+              closeLabel="ปิดรายละเอียดโปรโมชั่น"
+              onClose={() => setSelected(null)}
+              onCloseMouseEnter={() =>
+                detailsCloseRef.current?.startAnimation()
+              }
+              onCloseMouseLeave={() => detailsCloseRef.current?.stopAnimation()}
+              closeIcon={<XIcon ref={detailsCloseRef} size={20} />}
             />
             <Box
               sx={{
@@ -990,26 +940,11 @@ export function PromotionsManagementPage({
             </Box>
           </Box>
         )}
-      </Drawer>
-      <Drawer
-        anchor="bottom"
+      </DashboardFormDrawer>
+      <DashboardFormDrawer
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        transitionDuration={{ enter: 360, exit: 280 }}
-        slotProps={{
-          paper: {
-            sx: {
-              left: { md: '280px' },
-              width: { md: 'calc(100% - 304px)' },
-              height: { xs: '88dvh', sm: 'calc(100dvh - 72px)' },
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: '22px 22px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
-        }}
+        paperSx={{ overflowY: 'auto' }}
       >
         <Box
           sx={{
@@ -1019,71 +954,14 @@ export function PromotionsManagementPage({
             pb: 3.5,
           }}
         >
-          <Box
-            sx={{
-              width: 44,
-              height: 5,
-              mx: 'auto',
-              mb: 2.5,
-              borderRadius: 99,
-              bgcolor: '#d8c8bd',
-            }}
-          />
-          <Stack
-            direction="row"
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Box>
-              <Typography
-                sx={{
-                  color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 22,
-                  fontWeight: 600,
-                }}
-              >
-                เพิ่มโปรโมชั่น
-              </Typography>
-              <Typography
-                sx={{
-                  mt: 0.35,
-                  color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontSize: 13,
-                }}
-              >
-                เลือกเมนูที่มีสูตรแล้ว
-                ระบบจะใช้สูตรเดิมของเมนูนั้นตัดสต๊อกอัตโนมัติ
-              </Typography>
-            </Box>
-            <Button
-              aria-label="ปิด"
-              onClick={() => setCreateOpen(false)}
-              onMouseEnter={() => createCloseRef.current?.startAnimation()}
-              onMouseLeave={() => createCloseRef.current?.stopAnimation()}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-                borderRadius: '12px',
-                bgcolor: '#f7eee8',
-                color: '#5f4b3d',
-                '&:hover': { bgcolor: '#f1e4da' },
-              }}
-            >
-              <XIcon ref={createCloseRef} size={20} />
-            </Button>
-          </Stack>
-          <Divider
-            sx={{
-              mt: 2.25,
-              mx: { xs: -2.5, sm: -4 },
-              borderColor: '#e8ddd5',
-            }}
+          <DashboardDrawerHandle />
+          <DashboardDrawerHeader
+            title="เพิ่มโปรโมชั่น"
+            description="เลือกเมนูที่มีสูตรแล้ว ระบบจะใช้สูตรเดิมของเมนูนั้นตัดสต๊อกอัตโนมัติ"
+            onClose={() => setCreateOpen(false)}
+            onCloseMouseEnter={() => createCloseRef.current?.startAnimation()}
+            onCloseMouseLeave={() => createCloseRef.current?.stopAnimation()}
+            closeIcon={<XIcon ref={createCloseRef} size={20} />}
           />
           <Box
             sx={{
@@ -1314,7 +1192,7 @@ export function PromotionsManagementPage({
             </Box>
           </Box>
         </Box>
-      </Drawer>
+      </DashboardFormDrawer>
     </>
   );
 

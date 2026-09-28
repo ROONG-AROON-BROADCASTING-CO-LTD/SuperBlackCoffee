@@ -56,10 +56,37 @@ func (h *PlatformHandler) ListMenuItems(c *gin.Context) {
 }
 
 func setMenuImageOrigins(c *gin.Context, items []model.MenuItem) {
+	sessionRole := menuImageSessionRole(c)
 	for index := range items {
 		if items[index].ImageURL != "" && strings.HasPrefix(items[index].ImageURL, "/") {
-			items[index].ImageURL = menuImageOrigin(c) + items[index].ImageURL
+			imageURL := items[index].ImageURL
+			if sessionRole != "" {
+				separator := "?"
+				if strings.Contains(imageURL, "?") {
+					separator = "&"
+				}
+				imageURL += separator + "sessionRole=" + sessionRole
+			}
+			items[index].ImageURL = menuImageOrigin(c) + imageURL
 		}
+	}
+}
+
+func menuImageSessionRole(c *gin.Context) string {
+	if role := c.GetHeader("X-SBC-Session-Role"); role == "admin" || role == "franchise_owner" || role == "stock" {
+		return role
+	}
+	claims := middleware.ClaimsFrom(c)
+	if claims == nil {
+		return ""
+	}
+	switch claims.Role {
+	case "admin", "franchise_owner":
+		return claims.Role
+	case "cashier", "branch_manager":
+		return "stock"
+	default:
+		return ""
 	}
 }
 

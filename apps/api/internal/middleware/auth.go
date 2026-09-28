@@ -21,7 +21,14 @@ func RequireAuth(secret string, roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawTokens := []string{strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")}
 		cookieNames := []string{"sbc_admin_session", "sbc_franchise_session", "sbc_attendance_session", "sbc_stock_session"}
-		switch c.GetHeader("X-SBC-Session-Role") {
+		sessionRole := c.GetHeader("X-SBC-Session-Role")
+		// Image elements cannot send the platform header. The API generates their
+		// URL with this scoped query value, so an Admin cookie cannot take
+		// precedence over the Stock or Attendance cookie in the same browser.
+		if sessionRole == "" {
+			sessionRole = c.Query("sessionRole")
+		}
+		switch sessionRole {
 		case "admin":
 			cookieNames = []string{"sbc_admin_session"}
 		case "franchise_owner":

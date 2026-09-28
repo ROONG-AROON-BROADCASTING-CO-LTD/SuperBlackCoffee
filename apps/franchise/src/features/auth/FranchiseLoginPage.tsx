@@ -14,8 +14,8 @@ export function FranchiseLoginPage({
       headline="Franchise Portal"
       description="เข้าสู่ระบบเพื่อจัดการแฟรนไชส์ของคุณ"
       submitLabel="เข้าสู่ระบบแฟรนไชส์"
-      onSubmit={async (username, password) => {
-        const session = await login(username, password);
+      onSubmit={async (username, password, turnstileToken) => {
+        const session = await login(username, password, turnstileToken);
         if (session.user.role !== 'franchise_owner')
           throw new Error('บัญชีนี้ไม่มีสิทธิ์แฟรนไชส์');
         navigate('/', { replace: true });

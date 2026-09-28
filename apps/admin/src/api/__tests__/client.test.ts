@@ -18,7 +18,7 @@ vi.mock('axios', () => ({
 }));
 
 import { downloadSecuredPDF, publicRequest, secured } from '../client';
-import { logout, restoreSession } from '../auth';
+import { login, logout, restoreSession } from '../auth';
 
 describe('admin API client', () => {
   afterEach(() => {
@@ -44,6 +44,29 @@ describe('admin API client', () => {
     expect(
       mocks.request.mock.calls[0][0].headers?.Authorization,
     ).toBeUndefined();
+  });
+
+  it('forwards the Turnstile proof with admin credentials', async () => {
+    mocks.request.mockResolvedValueOnce({
+      data: { success: true, data: { user: { id: 1, role: 'admin' } } },
+    });
+
+    await expect(
+      login('administrator', 'password', 'verified-token'),
+    ).resolves.toMatchObject({
+      user: { role: 'admin' },
+    });
+    expect(mocks.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: '/auth/login',
+        method: 'POST',
+        data: {
+          username: 'administrator',
+          password: 'password',
+          turnstileToken: 'verified-token',
+        },
+      }),
+    );
   });
 
   it('notifies the app when an authenticated request receives 401', async () => {

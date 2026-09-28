@@ -361,6 +361,16 @@ export function StockCountPage({
               borderRadius: { xs: 0, lg: '24px 24px 0 0' },
               p: { xs: 2, sm: 3 },
               bgcolor: '#fffaf7',
+              // The phone navigation is deliberately reserved while the
+              // sheet is idle. Once an editor field opens the keyboard,
+              // that reserve leaves a visible gap below the sheet, making it
+              // appear to float. Let the sheet meet the keyboard instead.
+              // Larger breakpoints retain their existing desktop placement.
+              '@media (max-width: 599.95px)': {
+                '&:has(input:focus, textarea:focus)': {
+                  bottom: 0,
+                },
+              },
             },
           },
         }}

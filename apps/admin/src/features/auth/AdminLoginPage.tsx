@@ -18,9 +18,9 @@ export function AdminLoginPage({ onLogin }: { onLogin: () => void }) {
         }
         description="ทุกแก้วที่ดี เริ่มจากการจัดการที่ดี"
         submitLabel="เข้าสู่ระบบผู้ดูแล"
-        onSubmit={async (username, password) => {
+        onSubmit={async (username, password, turnstileToken) => {
           try {
-            const session = await login(username, password);
+            const session = await login(username, password, turnstileToken);
             if (session.user.role !== 'admin')
               throw new Error('บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ');
             navigate('/', { replace: true });

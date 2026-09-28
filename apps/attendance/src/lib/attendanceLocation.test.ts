@@ -54,6 +54,56 @@ describe('requestAttendanceLocation', () => {
     );
   });
 
+  it('rejects clearly when the device has no geolocation support', async () => {
+    Reflect.deleteProperty(navigator, 'geolocation');
+    await expect(requestAttendanceLocation()).rejects.toThrow(
+      'อุปกรณ์นี้ไม่รองรับการระบุตำแหน่งสำหรับลงเวลา',
+    );
+  });
+
+  it.each([
+    [2, 'ยังไม่สามารถระบุตำแหน่งปัจจุบันได้'],
+    [3, 'ใช้เวลาตรวจสอบตำแหน่งนานเกินไป'],
+  ])('reports browser location error code %i', async (code, message) => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (
+          _success: PositionCallback,
+          fail: PositionErrorCallback,
+        ) =>
+          fail({
+            code,
+            PERMISSION_DENIED: 1,
+            POSITION_UNAVAILABLE: 2,
+            TIMEOUT: 3,
+          } as GeolocationPositionError),
+      },
+    });
+    await expect(requestAttendanceLocation()).rejects.toThrow(message);
+  });
+
+  it.each([
+    { latitude: -90, longitude: -180, accuracy: 0 },
+    { latitude: 90, longitude: 180, accuracy: 0 },
+  ])(
+    'accepts valid coordinate boundaries including zero accuracy',
+    async (coords) => {
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: {
+          getCurrentPosition: (success: PositionCallback) =>
+            success({ coords } as GeolocationPosition),
+        },
+      });
+      await expect(requestAttendanceLocation()).resolves.toEqual({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracyM: 0,
+      });
+    },
+  );
+
   it.each([
     { latitude: 91, longitude: 100, accuracy: 5 },
     { latitude: 13, longitude: -181, accuracy: 5 },

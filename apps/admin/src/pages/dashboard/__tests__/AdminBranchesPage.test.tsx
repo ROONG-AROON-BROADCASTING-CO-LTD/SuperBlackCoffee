@@ -184,10 +184,18 @@ describe('AdminBranchesPage', () => {
       {
         target: {
           value:
-            'https://www.google.com/maps/place/SuperBlack+Coffee/@16.8209945,100.2691144,20.14z/data=!4m6!3m5!1s0x30df97e6a3a6f70d:0xbf38a3b13f12b83b!8m2!3d16.821085!4d100.2694448!16s%2Fg%2F11mz055fvc',
+            'https://www.google.com/maps/place/company/@13.8725948,100.6219165,1182m/data=!3m1!1e3!4m12!1m5!3m4!2zencoded!8m2!3d13.872472!4d100.621921!3m5!1splace!8m2!3d13.8715549!4d100.6212071',
         },
       },
     );
+    expect(
+      (screen.getByRole('spinbutton', { name: 'ละติจูด' }) as HTMLInputElement)
+        .value,
+    ).toBe('13.8725948');
+    expect(
+      (screen.getByRole('spinbutton', { name: 'ลองจิจูด' }) as HTMLInputElement)
+        .value,
+    ).toBe('100.6219165');
     fireEvent.change(
       screen.getByRole('spinbutton', { name: 'รัศมีเช็กอิน (เมตร)' }),
       {
@@ -200,13 +208,13 @@ describe('AdminBranchesPage', () => {
       expect(mockedUpdateCompanyBranchDetails).toHaveBeenCalledWith(
         1,
         expect.objectContaining({
-          latitude: 16.821085,
-          longitude: 100.2694448,
+          latitude: 13.8725948,
+          longitude: 100.6219165,
           attendanceRadiusM: 150,
         }),
       ),
     );
     expect(mockedCreateCompanyBranch).not.toHaveBeenCalled();
-    expect(await screen.findByText(/16.821085, 100.2694448/)).toBeTruthy();
+    expect(await screen.findByText(/13.8725948, 100.6219165/)).toBeTruthy();
   });
 });

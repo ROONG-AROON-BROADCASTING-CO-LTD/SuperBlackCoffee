@@ -925,7 +925,13 @@ export function AdminOverviewPage({
         ) : (
           <>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <FormControl size="small" sx={{ minWidth: 220 }}>
+              <FormControl
+                size="small"
+                sx={{
+                  width: { xs: '100%', sm: 'auto' },
+                  minWidth: { xs: 0, sm: 220 },
+                }}
+              >
                 <InputLabel id="overview-branch-filter-label">
                   เลือกสาขา
                 </InputLabel>
