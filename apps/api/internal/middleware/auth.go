@@ -17,24 +17,39 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// RequireSessionRole pins a route to one dedicated session cookie. It is used
+// where accepting any otherwise-valid staff session would weaken the flow.
+func RequireSessionRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("requiredSessionRole", role)
+		c.Next()
+	}
+}
+
 func RequireAuth(secret string, roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawTokens := []string{strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")}
 		cookieNames := []string{"sbc_admin_session", "sbc_franchise_session", "sbc_attendance_session", "sbc_stock_session"}
-		sessionRole := c.GetHeader("X-SBC-Session-Role")
+		sessionRole, _ := c.Get("requiredSessionRole")
+		sessionRoleValue, _ := sessionRole.(string)
+		if sessionRoleValue == "" {
+			sessionRoleValue = c.GetHeader("X-SBC-Session-Role")
+		}
 		// Image elements cannot send the platform header. The API generates their
 		// URL with this scoped query value, so an Admin cookie cannot take
 		// precedence over the Stock or Attendance cookie in the same browser.
-		if sessionRole == "" {
-			sessionRole = c.Query("sessionRole")
+		if sessionRoleValue == "" {
+			sessionRoleValue = c.Query("sessionRole")
 		}
-		switch sessionRole {
+		switch sessionRoleValue {
 		case "admin":
 			cookieNames = []string{"sbc_admin_session"}
 		case "franchise_owner":
 			cookieNames = []string{"sbc_franchise_session"}
 		case "stock":
 			cookieNames = []string{"sbc_stock_session"}
+		case "attendance":
+			cookieNames = []string{"sbc_attendance_session"}
 		}
 		for _, name := range cookieNames {
 			if value, err := c.Cookie(name); err == nil {

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Stack, Typography } from '@mui/material';
-import { ActionSnackbar, SbcThemeProvider } from '@stackbuild/ui';
+import { Button, Stack, Typography } from '@mui/material';
+import {
+  ActionSnackbar,
+  SbcThemeProvider,
+  useServiceWorkerUpdateAvailable,
+} from '@stackbuild/ui';
 import { attendanceNavigation } from './components/AttendanceNavigation';
 import {
   checkIn,
@@ -77,6 +81,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [connectionError, setConnectionError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
+  const updateAvailable = useServiceWorkerUpdateAvailable();
   const clock = useAttendanceClock();
   const title = useMemo(
     () =>
@@ -382,6 +387,24 @@ export default function App() {
           loading={loading}
         />
       )}
+      <ActionSnackbar
+        notice={
+          updateAvailable
+            ? { message: 'มีเวอร์ชันใหม่พร้อมใช้งาน', severity: 'info' }
+            : null
+        }
+        autoHideDuration={null}
+        onClose={() => undefined}
+        action={
+          <Button
+            color="inherit"
+            size="small"
+            onClick={() => window.location.reload()}
+          >
+            รีเฟรชตอนนี้
+          </Button>
+        }
+      />
     </SbcThemeProvider>
   );
 }

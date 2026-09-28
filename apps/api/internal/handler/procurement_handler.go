@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -300,6 +301,39 @@ func (h *PlatformHandler) ReceivePurchaseOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id, "status": newStatus}})
 }
 
+func stockAdjustmentDate(value *string) (*time.Time, error) {
+	if value == nil || strings.TrimSpace(*value) == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*value))
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func stockAdjustmentDates(
+	currentManufacturedAt, currentExpiryDate *time.Time,
+	input dto.StockAdjustmentRequest,
+) (manufacturedAt, expiryDate *time.Time, datesProvided bool, err error) {
+	manufacturedAt, expiryDate = currentManufacturedAt, currentExpiryDate
+	datesProvided = input.ManufacturedAt != nil || input.ExpiryDate != nil
+	if input.ManufacturedAt != nil {
+		if manufacturedAt, err = stockAdjustmentDate(input.ManufacturedAt); err != nil {
+			return nil, nil, datesProvided, err
+		}
+	}
+	if input.ExpiryDate != nil {
+		if expiryDate, err = stockAdjustmentDate(input.ExpiryDate); err != nil {
+			return nil, nil, datesProvided, err
+		}
+	}
+	if manufacturedAt != nil && expiryDate != nil && manufacturedAt.After(*expiryDate) {
+		return nil, nil, datesProvided, errors.New("manufactured date after expiry date")
+	}
+	return manufacturedAt, expiryDate, datesProvided, nil
+}
+
 func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 	if h.unavailable(c) {
 		return
@@ -328,7 +362,8 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 	var before float64
 	var itemName, itemUnit string
 	var trackStock bool
-	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,i.name,i.unit,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE OF i`, id, branchID).Scan(&before, &itemName, &itemUnit, &trackStock); err != nil {
+	var currentManufacturedAt, currentExpiryDate *time.Time
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT i.quantity,i.name,i.unit,i.manufactured_at,i.expiry_date,COALESCE(c.track_stock,true) FROM inventory_items i LEFT JOIN inventory_catalog_items c ON c.id=i.catalog_item_id WHERE i.id=$1 AND i.branch_id=$2 AND i.template_enabled FOR UPDATE OF i`, id, branchID).Scan(&before, &itemName, &itemUnit, &currentManufacturedAt, &currentExpiryDate, &trackStock); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบรายการสต๊อก"})
 		} else {
@@ -340,22 +375,41 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รายการนี้คิดต้นทุนอย่างเดียว จึงไม่ต้องปรับยอดคงเหลือ"})
 		return
 	}
-	if before == input.Quantity {
+	manufacturedAt, expiryDate, datesProvided, err := stockAdjustmentDates(currentManufacturedAt, currentExpiryDate, input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันผลิตและวันหมดอายุต้องเป็น YYYY-MM-DD และวันผลิตต้องไม่เกินวันหมดอายุ"})
+		return
+	}
+	if before == input.Quantity && !datesProvided {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ยอดใหม่เท่ากับยอดเดิม จึงไม่ต้องปรับสต๊อก"})
 		return
 	}
-	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=$1,updated_at=now() WHERE id=$2`, input.Quantity, id); err == nil {
+	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=$1,manufactured_at=$2,expiry_date=$3,updated_at=now() WHERE id=$4`, input.Quantity, manufacturedAt, expiryDate, id); err == nil && before != input.Quantity {
 		err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", input.Quantity-before, before, input.Quantity, "inventory_adjustment", nil, input.Note, claims.UserID)
 	}
 	if err == nil {
-		err = recordAuditTx(c, tx, branchID, claims.UserID, "inventory_item", id, "adjusted", gin.H{"name": itemName, "unit": itemUnit, "before": before, "after": input.Quantity, "note": input.Note})
+		err = recordAuditTx(c, tx, branchID, claims.UserID, "inventory_item", id, "adjusted", gin.H{
+			"name": itemName,
+			"unit": itemUnit,
+			"before": gin.H{
+				"quantity":       before,
+				"manufacturedAt": currentManufacturedAt,
+				"expiryDate":     currentExpiryDate,
+			},
+			"after": gin.H{
+				"quantity":       input.Quantity,
+				"manufacturedAt": manufacturedAt,
+				"expiryDate":     expiryDate,
+			},
+			"note": input.Note,
+		})
 	}
 	if err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถปรับยอดสต๊อกได้"})
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id, "quantity": input.Quantity}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id, "quantity": input.Quantity, "manufacturedAt": manufacturedAt, "expiryDate": expiryDate}})
 }
 
 func (h *PlatformHandler) ListStockMovements(c *gin.Context) {

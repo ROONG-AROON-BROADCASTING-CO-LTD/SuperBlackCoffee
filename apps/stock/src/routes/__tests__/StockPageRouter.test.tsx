@@ -42,6 +42,7 @@ const baseProps = {
   drinkStock: [],
   postalStock: [],
   menus: [],
+  expiryPromotionSuggestions: [],
   onRefreshMenus: vi.fn().mockResolvedValue([]),
   movements: [
     {
@@ -83,7 +84,7 @@ describe('StockPageRouter', () => {
   it.each([
     ['count', 'stock-count-page', ''],
     ['history', 'stock-history-page', '1'],
-    ['promotions', 'promotions-page', 'franchise:อยุธยา'],
+    ['promotions', 'promotions-page', 'stock:อยุธยา'],
   ] as const)('routes %s to the expected page', async (page, testId, text) => {
     render(
       <StockPageRouter {...baseProps} page={page} isInitialLoading={false} />,

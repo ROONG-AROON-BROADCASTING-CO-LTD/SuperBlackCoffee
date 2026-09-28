@@ -28,13 +28,14 @@ vi.mock('@stackbuild/ui', () => ({
     content?:
       | React.ReactNode
       | ((notice: { message: string; severity?: string }) => React.ReactNode);
-  }) => (
-    <output data-testid="attendance-notice" data-severity={notice?.severity}>
-      {typeof content === 'function'
-        ? content(notice ?? { message: '' })
-        : (content ?? notice?.message)}
-    </output>
-  ),
+  }) =>
+    notice ? (
+      <output data-testid="attendance-notice" data-severity={notice.severity}>
+        {typeof content === 'function'
+          ? content(notice)
+          : (content ?? notice.message)}
+      </output>
+    ) : null,
   ConnectionRetrySnackbar: () => null,
   BadgeAlertIcon: () => <span aria-hidden="true" />,
   CircleCheckIcon: () => <span aria-hidden="true" />,
@@ -45,6 +46,7 @@ vi.mock('@stackbuild/ui', () => ({
   }),
   snackbarBelowTopbarSx: {},
   snackbarBottomSx: {},
+  useServiceWorkerUpdateAvailable: () => false,
 }));
 vi.mock('../components/AttendanceNavigation', () => ({
   attendanceNavigation: [{ page: 'overview', label: 'ภาพรวม' }],

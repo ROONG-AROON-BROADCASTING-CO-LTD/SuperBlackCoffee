@@ -49,6 +49,23 @@ type Promotion = {
   menuItems: PromotionMenu[];
 };
 
+export type ExpiryPromotionSuggestion = {
+  menuId: number;
+  menuName: string;
+  category: string;
+  storePrice: number;
+  lotId: number;
+  inventoryItemId: number;
+  ingredientName: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantityRemaining: number;
+  unit: string;
+  daysUntilExpiry: number;
+  suggestedDiscountPercent: number;
+  reason: string;
+};
+
 const menuTemplates: PromotionMenu[] = [
   {
     id: 'americano-iced',
@@ -198,6 +215,13 @@ const blankPromotion = {
   menuId: menuTemplates[0].id,
 };
 
+const formatExpiryDate = (date: string) =>
+  new Intl.DateTimeFormat('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${date}T00:00:00`));
+
 function StatusChip({
   status,
   compact = false,
@@ -228,7 +252,7 @@ function PromotionCard({
   compact = false,
 }: {
   promotion: Promotion;
-  mode: 'admin' | 'franchise';
+  mode: 'admin' | 'franchise' | 'stock';
   onSelect: (promotion: Promotion) => void;
   compact?: boolean;
 }) {
@@ -417,10 +441,13 @@ function PromotionCard({
 export function PromotionsManagementPage({
   mode,
   branchName = 'อยุธยา',
+  expiryPromotionSuggestions = [],
   embedded = false,
 }: {
-  mode: 'admin' | 'franchise';
+  mode: 'admin' | 'franchise' | 'stock';
   branchName?: string;
+  /** Suggestions calculated from fresh inventory lots that are nearing expiry. */
+  expiryPromotionSuggestions?: ExpiryPromotionSuggestion[];
   /** Render inside another app's content shell without a second topbar offset. */
   embedded?: boolean;
 }) {
@@ -432,7 +459,25 @@ export function PromotionsManagementPage({
   const [selected, setSelected] = useState<Promotion | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [draft, setDraft] = useState(blankPromotion);
-  const canCreate = mode === 'admin';
+  const canCreate = mode === 'admin' || mode === 'stock';
+  const promotionMenus = useMemo<PromotionMenu[]>(
+    () => [
+      ...menuTemplates,
+      ...expiryPromotionSuggestions.map((suggestion) => ({
+        id: `expiry-${suggestion.menuId}-${suggestion.lotId || suggestion.inventoryItemId}`,
+        name: suggestion.menuName,
+        category: suggestion.category,
+        price: `${suggestion.storePrice.toLocaleString('th-TH')} บาท`,
+        ingredients: [
+          {
+            name: suggestion.ingredientName,
+            quantity: `${suggestion.quantityRemaining.toLocaleString('th-TH')} ${suggestion.unit}`,
+          },
+        ],
+      })),
+    ],
+    [expiryPromotionSuggestions],
+  );
   const counts = useMemo(
     () =>
       promotions.reduce(
@@ -465,7 +510,7 @@ export function PromotionsManagementPage({
     [filter, promotions, query],
   );
   const createPromotion = () => {
-    const menuItem = menuTemplates.find((menu) => menu.id === draft.menuId);
+    const menuItem = promotionMenus.find((menu) => menu.id === draft.menuId);
     if (
       !draft.name.trim() ||
       !draft.benefit.trim() ||
@@ -495,6 +540,19 @@ export function PromotionsManagementPage({
     setCreateOpen(false);
     setSelected(next);
   };
+  const createFromExpirySuggestion = (
+    suggestion: ExpiryPromotionSuggestion,
+  ) => {
+    setDraft({
+      name: `${suggestion.menuName} ลด ${suggestion.suggestedDiscountPercent}%`,
+      type: 'ส่วนลด',
+      benefit: `ลด ${suggestion.suggestedDiscountPercent}% เพื่อใช้ ${suggestion.ingredientName} ล็อตใกล้หมดอายุ`,
+      branches: `สาขา${branchName}`,
+      period: `วันนี้ – ${formatExpiryDate(suggestion.expiryDate)}`,
+      menuId: `expiry-${suggestion.menuId}-${suggestion.lotId || suggestion.inventoryItemId}`,
+    });
+    setCreateOpen(true);
+  };
   const filters: Array<['all' | PromotionStatus, string, number]> = [
     ['all', 'ทั้งหมด', promotions.length],
     ['active', 'กำลังใช้งาน', counts.active],
@@ -502,7 +560,8 @@ export function PromotionsManagementPage({
     ['expired', 'สิ้นสุดแล้ว', counts.expired],
   ];
   const selectedMenuDraft =
-    menuTemplates.find((menu) => menu.id === draft.menuId) ?? menuTemplates[0];
+    promotionMenus.find((menu) => menu.id === draft.menuId) ??
+    promotionMenus[0];
 
   const content = (
     <>
@@ -546,10 +605,142 @@ export function PromotionsManagementPage({
             >
               {mode === 'admin'
                 ? 'โปรโมชั่นจะใช้สูตรวัตถุดิบของเมนูเดิมในการตัดสต๊อกอัตโนมัติ'
-                : 'เลือกดูรายการโปรโมชั่นและเมนูที่ร่วมรายการของสาขาคุณ'}
+                : mode === 'stock'
+                  ? 'ดูคำแนะนำจากวัตถุดิบใกล้หมดอายุ แล้วตรวจสอบก่อนสร้างโปรโมชั่น'
+                  : 'เลือกดูรายการโปรโมชั่นและเมนูที่ร่วมรายการของสาขาคุณ'}
             </Typography>
           </Box>
         </Stack>
+        {mode === 'stock' && expiryPromotionSuggestions.length > 0 && (
+          <Card
+            component="section"
+            aria-label="คำแนะนำโปรโมชั่นจากวันหมดอายุ"
+            sx={{
+              mb: 2.5,
+              p: { xs: 1.5, sm: 2 },
+              border: '1px solid #f0d7bd',
+              borderRadius: '16px',
+              bgcolor: '#fffaf5',
+              boxShadow: 'none',
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              sx={{ justifyContent: 'space-between', gap: 0.6, mb: 1.25 }}
+            >
+              <Box>
+                <Typography
+                  sx={{
+                    color: '#5f3520',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 16,
+                    fontWeight: 700,
+                  }}
+                >
+                  แนะนำโปรโมชันเพื่อลดของเสีย
+                </Typography>
+                <Typography
+                  sx={{
+                    color: '#7b7068',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontSize: 12,
+                  }}
+                >
+                  เลือกหนึ่งรายการ ระบบจะกรอกข้อมูลร่างให้ แล้วตรวจสอบก่อนบันทึก
+                </Typography>
+              </Box>
+              <Chip
+                label={`${expiryPromotionSuggestions.length} รายการ`}
+                size="small"
+                sx={{
+                  alignSelf: { xs: 'flex-start', sm: 'center' },
+                  bgcolor: '#f7e7d3',
+                  color: '#8a4d1d',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontWeight: 700,
+                }}
+              />
+            </Stack>
+            <Stack spacing={1}>
+              {expiryPromotionSuggestions.slice(0, 6).map((suggestion) => (
+                <Box
+                  key={`${suggestion.menuId}-${suggestion.lotId || suggestion.inventoryItemId}`}
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'minmax(0, 1fr) auto',
+                    },
+                    gap: 1,
+                    alignItems: 'center',
+                    p: 1.25,
+                    border: '1px solid #f0e1d5',
+                    borderRadius: '12px',
+                    bgcolor: '#fff',
+                  }}
+                >
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: '#3c2d24',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 14,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {suggestion.menuName}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: '#7b7068',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 12,
+                      }}
+                    >
+                      {suggestion.ingredientName} · เหลือ{' '}
+                      {suggestion.quantityRemaining.toLocaleString('th-TH')}{' '}
+                      {suggestion.unit} · หมดอายุ{' '}
+                      {formatExpiryDate(suggestion.expiryDate)}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 0.2,
+                        color: '#a9551b',
+                        fontFamily: 'Kanit, sans-serif',
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      เหลือ {suggestion.daysUntilExpiry} วัน · แนะนำลด{' '}
+                      {suggestion.suggestedDiscountPercent}%
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    onClick={() => createFromExpirySuggestion(suggestion)}
+                    sx={{
+                      minHeight: 38,
+                      px: 1.5,
+                      borderColor: '#b77948',
+                      color: '#6c3e22',
+                      borderRadius: '10px',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                      '&:hover': {
+                        borderColor: '#805637',
+                        bgcolor: '#fff6ee',
+                      },
+                    }}
+                  >
+                    สร้างโปรโมชั่น
+                  </Button>
+                </Box>
+              ))}
+            </Stack>
+          </Card>
+        )}
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           sx={{
@@ -564,7 +755,9 @@ export function PromotionsManagementPage({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="ค้นหาชื่อเมนูหรือโปรโมชั่น"
-            slotProps={{ htmlInput: { 'aria-label': 'ค้นหาชื่อโปรโมชั่น' } }}
+            slotProps={{
+              htmlInput: { 'aria-label': 'ค้นหาเมนูหรือโปรโมชั่น' },
+            }}
             sx={{
               width: { xs: '100%', sm: 280 },
               '& .MuiOutlinedInput-root': { borderRadius: '10px' },
@@ -976,8 +1169,16 @@ export function PromotionsManagementPage({
         >
           <DashboardDrawerHandle />
           <DashboardDrawerHeader
-            title="เพิ่มโปรโมชั่น"
-            description="เลือกเมนูที่มีสูตรแล้ว ระบบจะใช้สูตรเดิมของเมนูนั้นตัดสต๊อกอัตโนมัติ"
+            title={
+              draft.menuId.startsWith('expiry-')
+                ? 'สร้างโปรโมชั่นจากวัตถุดิบใกล้หมดอายุ'
+                : 'เพิ่มโปรโมชั่น'
+            }
+            description={
+              draft.menuId.startsWith('expiry-')
+                ? 'ตรวจสอบส่วนลด ระยะเวลา และสาขาก่อนบันทึกโปรโมชั่น'
+                : 'เลือกเมนูที่มีสูตรแล้ว ระบบจะใช้สูตรเดิมของเมนูนั้นตัดสต๊อกอัตโนมัติ'
+            }
             onClose={() => setCreateOpen(false)}
             onCloseMouseEnter={() => createCloseRef.current?.startAnimation()}
             onCloseMouseLeave={() => createCloseRef.current?.stopAnimation()}
@@ -1092,7 +1293,7 @@ export function PromotionsManagementPage({
                 fullWidth
                 sx={{ gridColumn: { sm: '1 / -1' } }}
               >
-                {menuTemplates.map((menu) => (
+                {promotionMenus.map((menu) => (
                   <MenuItem key={menu.id} value={menu.id}>
                     {menu.name} · สูตร {menu.ingredients.length} รายการ
                   </MenuItem>

@@ -45,6 +45,29 @@ describe('StockLoginPage', () => {
     );
   });
 
+  it('uses the active Staff session to request only a PIN for Stock', async () => {
+    const onStaffPIN = vi.fn().mockResolvedValue(undefined);
+    render(
+      <StockLoginPage
+        onUsername={vi.fn()}
+        onPIN={vi.fn()}
+        onSetupPIN={vi.fn()}
+        staffSession={{ user: { name: 'พนักงานอยุธยา' } }}
+        onStaffPIN={onStaffPIN}
+        error=""
+        loading={false}
+      />,
+    );
+
+    expect(await screen.findByText('ยืนยัน PIN เพื่อเข้า Stock')).toBeTruthy();
+    expect(screen.getByText(/สวัสดี พนักงานอยุธยา/)).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'ชื่อผู้ใช้' })).toBeNull();
+    for (const digit of ['1', '2', '3', '4', '5', '6']) {
+      fireEvent.click(screen.getByRole('button', { name: `เลข ${digit}` }));
+    }
+    await waitFor(() => expect(onStaffPIN).toHaveBeenCalledWith('123456'));
+  });
+
   it('shows a PIN error on the PIN cells without offering a username switch', async () => {
     sessionStorage.setItem('sbc-stock-username', 'stock_ayutthaya');
     render(

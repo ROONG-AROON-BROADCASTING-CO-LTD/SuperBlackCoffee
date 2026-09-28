@@ -5,6 +5,8 @@ dist/
 .next/
 .env
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 *.db
 CODEX_TEST_AUDIT.md

@@ -15,7 +15,8 @@ export async function request<T>(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type'))
     headers.set('Content-Type', 'application/json');
-  headers.set('X-SBC-Session-Role', 'stock');
+  if (!headers.has('X-SBC-Session-Role'))
+    headers.set('X-SBC-Session-Role', 'stock');
   try {
     const response = await fetch(`${API_URL}${path}`, {
       ...options,

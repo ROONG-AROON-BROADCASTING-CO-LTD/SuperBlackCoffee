@@ -1,15 +1,28 @@
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { registerServiceWorker } from './registerServiceWorker';
+import {
+  registerServiceWorker,
+  useServiceWorkerUpdateAvailable,
+} from './registerServiceWorker';
 
 const originalServiceWorker = Object.getOwnPropertyDescriptor(
   navigator,
   'serviceWorker',
 );
 
-function setServiceWorker(register: ReturnType<typeof vi.fn>) {
+const workerEvents = new EventTarget();
+
+function setServiceWorker(
+  register: ReturnType<typeof vi.fn>,
+  controller: ServiceWorker | null = null,
+) {
   Object.defineProperty(navigator, 'serviceWorker', {
     configurable: true,
-    value: { register },
+    value: {
+      register,
+      controller,
+      addEventListener: workerEvents.addEventListener.bind(workerEvents),
+    },
   });
 }
 
@@ -48,7 +61,7 @@ describe('registerServiceWorker', () => {
   });
 
   it('registers the app worker once after the page has loaded', () => {
-    const register = vi.fn().mockResolvedValue({});
+    const register = vi.fn().mockResolvedValue({ update: vi.fn() });
     setServiceWorker(register);
 
     registerServiceWorker(true);
@@ -70,5 +83,31 @@ describe('registerServiceWorker', () => {
     await Promise.resolve();
 
     expect(register).toHaveBeenCalledWith('/sw.js');
+  });
+
+  it('does not show an update when the first worker claims the page', async () => {
+    const { result } = renderHook(() => useServiceWorkerUpdateAvailable());
+    const register = vi.fn().mockResolvedValue({ update: vi.fn() });
+    setServiceWorker(register);
+
+    registerServiceWorker(true);
+    window.dispatchEvent(new Event('load'));
+    await Promise.resolve();
+    act(() => workerEvents.dispatchEvent(new Event('controllerchange')));
+
+    expect(result.current).toBe(false);
+  });
+
+  it('shows an update only after an existing worker is replaced', async () => {
+    const { result } = renderHook(() => useServiceWorkerUpdateAvailable());
+    const register = vi.fn().mockResolvedValue({ update: vi.fn() });
+    setServiceWorker(register, {} as ServiceWorker);
+
+    registerServiceWorker(true);
+    window.dispatchEvent(new Event('load'));
+    await Promise.resolve();
+    act(() => workerEvents.dispatchEvent(new Event('controllerchange')));
+
+    expect(result.current).toBe(true);
   });
 });

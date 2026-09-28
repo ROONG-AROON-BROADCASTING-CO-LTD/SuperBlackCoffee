@@ -1,22 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActionSnackbar, SbcThemeProvider } from '@stackbuild/ui';
+import { Button } from '@mui/material';
+import {
+  ActionSnackbar,
+  SbcThemeProvider,
+  useServiceWorkerUpdateAvailable,
+} from '@stackbuild/ui';
 import { ApiRequestError } from './api/client';
 import {
   adjustInventory,
   consumeStockFromMenus,
   createStockRequest,
   createExpenseRequest,
+  listExpiryPromotionSuggestions,
   listInventory,
   listMenuItems,
   listMyStockMovements,
   isStockSession,
   loginStock,
   logoutStock,
+  confirmStaffSessionForStock,
   restoreStockSession,
+  restoreStaffSessionForStock,
   setupStockPIN,
   type InventoryItem,
+  type ExpiryPromotionSuggestion,
   type MenuItem,
+  type StockDateDetails,
   type StockSession,
+  type StockStaffSession,
 } from './api/stock';
 import { stockNavigation } from './components/StockNavigation';
 import { AutoRetrySnackbar } from './components/AutoRetrySnackbar';
@@ -52,6 +63,9 @@ function isInvalidStockSession(error: unknown) {
 
 export default function App() {
   const [session, setSession] = useState<StockSession | null>(null);
+  const [staffSession, setStaffSession] = useState<StockStaffSession | null>(
+    null,
+  );
   const [checkingSession, setCheckingSession] = useState(true);
   const [initialDataLoading, setInitialDataLoading] = useState(false);
   const [page, setPage] = useState<StockPage>(() =>
@@ -61,6 +75,9 @@ export default function App() {
   const [drinkStock, setDrinkStock] = useState<InventoryItem[]>([]);
   const [postalStock, setPostalStock] = useState<InventoryItem[]>([]);
   const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [expiryPromotionSuggestions, setExpiryPromotionSuggestions] = useState<
+    ExpiryPromotionSuggestion[]
+  >([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [cartItemCount, setCartItemCount] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
@@ -72,6 +89,7 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [connectionError, setConnectionError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
+  const updateAvailable = useServiceWorkerUpdateAvailable();
   const title = useMemo(
     () =>
       page === 'history'
@@ -112,8 +130,16 @@ export default function App() {
         setInitialDataLoading(true);
         setSession(next);
       })
-      .catch(() => {
-        if (active) setSession(null);
+      .catch(async (error) => {
+        if (!active) return;
+        setSession(null);
+        if (!isInvalidStockSession(error)) return;
+        try {
+          const nextStaffSession = await restoreStaffSessionForStock();
+          if (active) setStaffSession(nextStaffSession);
+        } catch {
+          // Stock remains available through its regular username and PIN flow.
+        }
       })
       .finally(() => {
         if (active) setCheckingSession(false);
@@ -126,12 +152,23 @@ export default function App() {
     if (!session) return;
     let active = true;
     setInitialDataLoading(true);
-    void Promise.all([getInventory(), listMyStockMovements(), listMenuItems()])
-      .then(([nextInventory, nextMovements, nextMenus]) => {
+    void Promise.all([
+      getInventory(),
+      listMyStockMovements(),
+      listMenuItems(),
+      // This is an optional decision aid. A temporary failure must not block
+      // counting or selling stock for the branch.
+      listExpiryPromotionSuggestions().catch(() => ({
+        warningDays: 0,
+        suggestions: [],
+      })),
+    ])
+      .then(([nextInventory, nextMovements, nextMenus, nextSuggestions]) => {
         if (!active) return;
         setInventory(nextInventory);
         setMovements(nextMovements);
         setMenus(nextMenus);
+        setExpiryPromotionSuggestions(nextSuggestions.suggestions);
         setConnectionError(false);
       })
       .catch((error) => {
@@ -143,6 +180,7 @@ export default function App() {
           setPostalStock([]);
           setMenus([]);
           setMovements([]);
+          setExpiryPromotionSuggestions([]);
           return;
         }
         setConnectionError(true);
@@ -179,6 +217,7 @@ export default function App() {
   };
   const startSession = (nextSession: StockSession) => {
     setInitialDataLoading(true);
+    setStaffSession(null);
     setSession(nextSession);
     navigate('sales');
   };
@@ -229,6 +268,20 @@ export default function App() {
       setLoginLoading(false);
     }
   };
+  const confirmStaffPIN = async (pin: string) => {
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      startSession(await confirmStaffSessionForStock(pin));
+    } catch (error) {
+      setLoginError(
+        error instanceof Error ? error.message : 'ไม่สามารถเข้าสู่ระบบได้',
+      );
+      throw error;
+    } finally {
+      setLoginLoading(false);
+    }
+  };
   const signOut = () => {
     void logoutStock();
     setSession(null);
@@ -250,8 +303,9 @@ export default function App() {
     item: InventoryItem,
     quantity: number,
     note: string,
+    dates?: StockDateDetails,
   ) => {
-    const result = await adjustInventory(item.id, quantity, note);
+    const result = await adjustInventory(item.id, quantity, note, dates);
     const [nextInventory, nextMovements] = await Promise.all([
       getInventory(),
       listMyStockMovements(),
@@ -336,6 +390,7 @@ export default function App() {
             drinkStock={drinkStock}
             postalStock={postalStock}
             menus={menus}
+            expiryPromotionSuggestions={expiryPromotionSuggestions}
             onRefreshMenus={refreshMenus}
             movements={movements}
             isInitialLoading={initialDataLoading}
@@ -370,11 +425,31 @@ export default function App() {
           onUsername={startLogin}
           onPIN={loginWithPIN}
           onSetupPIN={createPIN}
+          staffSession={staffSession}
+          onStaffPIN={confirmStaffPIN}
           onClearError={() => setLoginError('')}
           error={loginError}
           loading={loginLoading}
         />
       )}
+      <ActionSnackbar
+        notice={
+          updateAvailable
+            ? { message: 'มีเวอร์ชันใหม่พร้อมใช้งาน', severity: 'info' }
+            : null
+        }
+        autoHideDuration={null}
+        onClose={() => undefined}
+        action={
+          <Button
+            color="inherit"
+            size="small"
+            onClick={() => window.location.reload()}
+          >
+            รีเฟรชตอนนี้
+          </Button>
+        }
+      />
     </SbcThemeProvider>
   );
 }

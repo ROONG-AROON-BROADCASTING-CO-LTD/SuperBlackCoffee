@@ -11,7 +11,7 @@ import {
   superBlackLogo,
 } from '@stackbuild/ui';
 
-type LoginStep = 'username' | 'pin' | 'setup-pin' | 'confirm-pin';
+type LoginStep = 'username' | 'pin' | 'setup-pin' | 'confirm-pin' | 'staff-pin';
 
 const pinKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const isValidPIN = (value: string) => /^\d{6}$/.test(value);
@@ -20,6 +20,8 @@ export function StockLoginPage({
   onUsername,
   onPIN,
   onSetupPIN,
+  staffSession,
+  onStaffPIN,
   onClearError,
   error,
   loading,
@@ -27,6 +29,8 @@ export function StockLoginPage({
   onUsername: (username: string) => Promise<'pin' | 'setup-pin'>;
   onPIN: (username: string, pin: string) => Promise<void>;
   onSetupPIN: (username: string, pin: string) => Promise<void>;
+  staffSession?: { user: { name: string } } | null;
+  onStaffPIN?: (pin: string) => Promise<void>;
   onClearError?: () => void;
   error: string;
   loading: boolean;
@@ -49,6 +53,15 @@ export function StockLoginPage({
     if (error && step !== 'username') setPinHasError(true);
   }, [error, step]);
 
+  useEffect(() => {
+    if (!staffSession) return;
+    setPIN('');
+    setFirstPIN('');
+    setValidationError('');
+    setPinHasError(false);
+    setStep('staff-pin');
+  }, [staffSession]);
+
   const submitPIN = async (value: string) => {
     if (!isValidPIN(value) || isPINSubmitting) return;
     setValidationError('');
@@ -56,6 +69,10 @@ export function StockLoginPage({
     setIsPINSubmitting(true);
     const name = username.trim();
     try {
+      if (step === 'staff-pin') {
+        await onStaffPIN?.(value);
+        return;
+      }
       if (step === 'pin') {
         await onPIN(name, value);
         window.sessionStorage.setItem('sbc-stock-username', name);
@@ -120,19 +137,24 @@ export function StockLoginPage({
   };
 
   const isUsernameStep = step === 'username';
+  const isStaffPIN = step === 'staff-pin';
   const isPINSetup = step === 'setup-pin' || step === 'confirm-pin';
-  const heading = isUsernameStep
-    ? 'พร้อมตรวจนับสต๊อก'
-    : isPINSetup
-      ? step === 'setup-pin'
-        ? 'ตั้ง PIN ของคุณ'
-        : 'ยืนยัน PIN อีกครั้ง'
-      : 'กรอก PIN เพื่อเข้าใช้งาน';
-  const description = isUsernameStep
-    ? 'ใช้ชื่อผู้ใช้ของคุณเพื่อบันทึกยอดคงเหลือ\nและตัดวัตถุดิบตามเมนูที่ขาย'
-    : isPINSetup
-      ? 'ตั้งรหัส PIN ตัวเลข 6 หลักสำหรับใช้เข้า Stock ในครั้งถัดไป'
-      : `สวัสดี ${username.trim()} กรุณากรอก PIN 6 หลัก`;
+  const heading = isStaffPIN
+    ? 'ยืนยัน PIN เพื่อเข้า Stock'
+    : isUsernameStep
+      ? 'พร้อมตรวจนับสต๊อก'
+      : isPINSetup
+        ? step === 'setup-pin'
+          ? 'ตั้ง PIN ของคุณ'
+          : 'ยืนยัน PIN อีกครั้ง'
+        : 'กรอก PIN เพื่อเข้าใช้งาน';
+  const description = isStaffPIN
+    ? `สวัสดี ${staffSession?.user.name ?? ''}\nกรุณากรอก PIN 6 หลักเพื่อเปิดใช้งาน Stock`
+    : isUsernameStep
+      ? 'ใช้ชื่อผู้ใช้ของคุณเพื่อบันทึกยอดคงเหลือ\nและตัดวัตถุดิบตามเมนูที่ขาย'
+      : isPINSetup
+        ? 'ตั้งรหัส PIN ตัวเลข 6 หลักสำหรับใช้เข้า Stock ในครั้งถัดไป'
+        : `สวัสดี ${username.trim()} กรุณากรอก PIN 6 หลัก`;
 
   return (
     <Box
@@ -178,7 +200,7 @@ export function StockLoginPage({
         >
           {heading}
         </Typography>
-        {(isUsernameStep || isPINSetup) && (
+        {(isUsernameStep || isPINSetup || isStaffPIN) && (
           <Typography
             color="text.secondary"
             sx={{ textAlign: 'center', whiteSpace: 'pre-line' }}

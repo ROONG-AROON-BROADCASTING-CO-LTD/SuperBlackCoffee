@@ -77,6 +77,51 @@ describe('PromotionsManagementPage', () => {
     expect(screen.getByRole('button', { name: 'ปิดรายละเอียด' })).toBeTruthy();
   });
 
+  it('prefills a Stock promotion from an expiring-inventory suggestion', async () => {
+    render(
+      <PromotionsManagementPage
+        mode="stock"
+        branchName="อยุธยา"
+        expiryPromotionSuggestions={[
+          {
+            menuId: 88,
+            menuName: 'ลาเต้เย็น',
+            category: 'เมนูกาแฟเย็น',
+            storePrice: 70,
+            lotId: 19,
+            inventoryItemId: 56,
+            ingredientName: 'นมสด',
+            lotNumber: 'LOT-88',
+            expiryDate: '2026-10-06',
+            quantityRemaining: 12,
+            unit: 'กล่อง',
+            daysUntilExpiry: 7,
+            suggestedDiscountPercent: 25,
+            reason: 'ใกล้หมดอายุ',
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole('region', {
+        name: 'คำแนะนำโปรโมชั่นจากวันหมดอายุ',
+      }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'สร้างโปรโมชั่น' }));
+
+    expect(
+      (screen.getByLabelText('ชื่อโปรโมชั่น') as HTMLInputElement).value,
+    ).toBe('ลาเต้เย็น ลด 25%');
+    expect(
+      (screen.getByLabelText('สิทธิพิเศษ / รายละเอียด') as HTMLInputElement)
+        .value,
+    ).toBe('ลด 25% เพื่อใช้ นมสด ล็อตใกล้หมดอายุ');
+    expect(
+      screen.getByText('สร้างโปรโมชั่นจากวัตถุดิบใกล้หมดอายุ'),
+    ).toBeTruthy();
+  });
+
   it('renders the promotion skeleton as a four-card grid', () => {
     render(<PromotionsSkeleton />);
 

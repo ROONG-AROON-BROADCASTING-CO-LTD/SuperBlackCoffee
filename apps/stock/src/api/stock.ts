@@ -19,6 +19,10 @@ export type StockPINChallenge = {
 
 export type StockLoginResult = StockSession | StockPINChallenge;
 
+export type StockStaffSession = {
+  user: { name: string };
+};
+
 export const isStockSession = (
   result: StockLoginResult,
 ): result is StockSession =>
@@ -38,8 +42,36 @@ export type InventoryItem = {
   reorderLevel: number;
   status: 'ready' | 'low' | 'out' | 'stale' | 'cost_only';
   trackStock?: boolean;
+  manufacturedAt?: string | null;
   expiryDate?: string | null;
   expiryStatus?: 'none' | 'expiring_soon' | 'expired';
+};
+
+export type StockDateDetails = {
+  manufacturedAt?: string;
+  expiryDate?: string;
+};
+
+export type ExpiryPromotionSuggestion = {
+  menuId: number;
+  menuName: string;
+  category: string;
+  storePrice: number;
+  lotId: number;
+  inventoryItemId: number;
+  ingredientName: string;
+  lotNumber: string;
+  expiryDate: string;
+  quantityRemaining: number;
+  unit: string;
+  daysUntilExpiry: number;
+  suggestedDiscountPercent: number;
+  reason: string;
+};
+
+export type ExpiryPromotionSuggestionsResponse = {
+  warningDays: number;
+  suggestions: ExpiryPromotionSuggestion[];
 };
 
 // Count and ordering screens are branch operations.  A cost-only input can
@@ -96,6 +128,16 @@ export const setupStockPIN = (username: string, pin: string) =>
   });
 export const restoreStockSession = () =>
   request<StockSession>('/stock/session');
+export const restoreStaffSessionForStock = () =>
+  request<StockStaffSession>('/stock/staff-session', {
+    headers: { 'X-SBC-Session-Role': 'attendance' },
+  });
+export const confirmStaffSessionForStock = (pin: string) =>
+  request<StockSession>('/stock/staff-session/confirm', {
+    method: 'POST',
+    headers: { 'X-SBC-Session-Role': 'attendance' },
+    body: JSON.stringify({ pin }),
+  });
 export const logoutStock = () =>
   request<void>('/stock/logout', { method: 'POST' });
 export const listInventory = (
@@ -105,13 +147,22 @@ export const listInventory = (
   request<InventoryItem[]>(
     `/inventory?kind=${kind}${stockCategory ? `&stockCategory=${stockCategory}` : ''}`,
   );
-export const adjustInventory = (id: number, quantity: number, note: string) =>
+export const adjustInventory = (
+  id: number,
+  quantity: number,
+  note: string,
+  dates?: StockDateDetails,
+) =>
   request<{ id: number; quantity: number }>(`/inventory/${id}/adjust`, {
     method: 'POST',
-    body: JSON.stringify({ quantity, note }),
+    body: JSON.stringify({ quantity, note, ...dates }),
   });
 export const listMyStockMovements = () =>
   request<StockMovement[]>('/stock-movements?limit=100');
+export const listExpiryPromotionSuggestions = () =>
+  request<ExpiryPromotionSuggestionsResponse>(
+    '/inventory/expiry-promotion-suggestions',
+  );
 export const createStockRequest = (data: {
   note: string;
   items: Array<{

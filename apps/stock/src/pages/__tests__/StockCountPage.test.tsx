@@ -41,7 +41,10 @@ describe('StockCountPage', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
     await vi.waitFor(() =>
-      expect(onAdjust).toHaveBeenCalledWith(ingredient, 6, 'ตรวจนับสิ้นกะ'),
+      expect(onAdjust).toHaveBeenCalledWith(ingredient, 6, 'ตรวจนับสิ้นกะ', {
+        manufacturedAt: '',
+        expiryDate: '',
+      }),
     );
   });
 
@@ -65,6 +68,7 @@ describe('StockCountPage', () => {
     expect(
       screen.getAllByRole('button', { name: 'บันทึกยอดจริง' }),
     ).toHaveLength(2);
+    expect(screen.getAllByText('ผลิต: ไม่ระบุ')).toHaveLength(2);
     expect(screen.getAllByText('หมดอายุ: ไม่ระบุ')).toHaveLength(2);
     expect(
       screen.getAllByRole('button', { name: 'สั่งซื้อวัตถุดิบ' }),
@@ -73,6 +77,67 @@ describe('StockCountPage', () => {
       screen.getAllByRole('button', { name: 'สั่งซื้อวัตถุดิบ' })[0],
     );
     expect(onOrderIngredients).toHaveBeenCalledWith(ingredient);
+  });
+
+  it('uses a category dropdown and toggleable status filter pills', () => {
+    render(
+      <StockCountPage
+        ingredients={[
+          ingredient,
+          { ...ingredient, id: 2, name: 'นมใกล้หมด', status: 'low' },
+        ]}
+        drinkStock={[
+          {
+            ...ingredient,
+            id: 3,
+            name: 'แก้วเครื่องดื่ม',
+            kind: 'stock',
+            stockCategory: 'drink_equipment',
+          },
+        ]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
+    expect(screen.getByText('นมใกล้หมด')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'วัตถุดิบใกล้หมด 1 รายการ' }),
+    );
+    expect(screen.queryByText('เมล็ดกาแฟ')).toBeNull();
+    expect(screen.getByText('นมใกล้หมด')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'ทั้งหมด 2 รายการ' }));
+    expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'กรองประเภท' }));
+    fireEvent.click(screen.getByRole('option', { name: 'อุปกรณ์เครื่องดื่ม' }));
+    expect(screen.queryByText('นมใกล้หมด')).toBeNull();
+    expect(screen.getByText('แก้วเครื่องดื่ม')).toBeTruthy();
+  });
+
+  it('explains an empty result according to the selected stock filter', () => {
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'วัตถุดิบใกล้หมด 0 รายการ' }),
+    );
+
+    expect(
+      screen.getByText('ไม่มีวัตถุดิบใกล้หมดในวัตถุดิบขณะนี้'),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('ไม่มีรายการที่เปิดใช้งานในหมวดวัตถุดิบสำหรับสาขานี้'),
+    ).toBeNull();
   });
 
   it('uses an inventory image from the API when one is available', () => {
@@ -136,6 +201,99 @@ describe('StockCountPage', () => {
     );
 
     expect(screen.getByText('หมดอายุ: 30 ก.ย. 2569')).toBeTruthy();
+  });
+
+  it('sends production and expiry dates with the counted quantity', async () => {
+    const onAdjust = vi.fn().mockResolvedValue(undefined);
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={onAdjust}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+    fireEvent.change(screen.getByLabelText('วันผลิต'), {
+      target: { value: '2026-09-01' },
+    });
+    fireEvent.change(screen.getByLabelText('วันหมดอายุ'), {
+      target: { value: '2026-10-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+
+    await waitFor(() =>
+      expect(onAdjust).toHaveBeenCalledWith(ingredient, 10, 'ตรวจนับสิ้นกะ', {
+        manufacturedAt: '2026-09-01',
+        expiryDate: '2026-10-01',
+      }),
+    );
+  });
+
+  it('opens the shared calendar picker when a production date field is tapped', () => {
+    const originalShowPicker = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'showPicker',
+    );
+    const showPicker = vi.fn();
+    Object.defineProperty(HTMLInputElement.prototype, 'showPicker', {
+      configurable: true,
+      value: showPicker,
+    });
+    try {
+      render(
+        <StockCountPage
+          ingredients={[ingredient]}
+          drinkStock={[]}
+          postalStock={[]}
+          loading={false}
+          onAdjust={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+      fireEvent.click(screen.getByLabelText('วันผลิต'));
+
+      expect(showPicker).toHaveBeenCalledOnce();
+    } finally {
+      if (originalShowPicker) {
+        Object.defineProperty(
+          HTMLInputElement.prototype,
+          'showPicker',
+          originalShowPicker,
+        );
+      } else {
+        delete (HTMLInputElement.prototype as { showPicker?: unknown })
+          .showPicker;
+      }
+    }
+  });
+
+  it('rejects an expiry date before the production date', () => {
+    const onAdjust = vi.fn().mockResolvedValue(undefined);
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={onAdjust}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+    fireEvent.change(screen.getByLabelText('วันผลิต'), {
+      target: { value: '2026-10-01' },
+    });
+    fireEvent.change(screen.getByLabelText('วันหมดอายุ'), {
+      target: { value: '2026-09-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+
+    expect(screen.getByText('วันผลิตต้องไม่เกินวันหมดอายุ')).toBeTruthy();
+    expect(onAdjust).not.toHaveBeenCalled();
   });
 
   it('labels a well-stocked ingredient as expiring soon when its expiry warning is active', () => {
@@ -245,7 +403,10 @@ describe('StockCountPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
 
     await waitFor(() =>
-      expect(onAdjust).toHaveBeenCalledWith(ingredient, 0, 'ตรวจนับสิ้นกะ'),
+      expect(onAdjust).toHaveBeenCalledWith(ingredient, 0, 'ตรวจนับสิ้นกะ', {
+        manufacturedAt: '',
+        expiryDate: '',
+      }),
     );
   });
 

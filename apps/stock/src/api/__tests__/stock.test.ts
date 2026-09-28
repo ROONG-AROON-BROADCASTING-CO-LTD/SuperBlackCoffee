@@ -4,12 +4,15 @@ import {
   createExpenseRequest,
   createStockRequest,
   consumeStockFromMenus,
+  confirmStaffSessionForStock,
   listInventory,
+  listExpiryPromotionSuggestions,
   listMenuItems,
   listMyStockMovements,
   loginStock,
   logoutStock,
   restoreStockSession,
+  restoreStaffSessionForStock,
   setupStockPIN,
 } from '../stock';
 
@@ -41,6 +44,91 @@ describe('stock mutation API contracts', () => {
     );
   });
 
+  it('uses only the Staff session when confirming the PIN for a Stock session', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: { user: { name: 'พนักงานอยุธยา' } },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              user: {
+                id: 7,
+                name: 'พนักงานอยุธยา',
+                role: 'cashier',
+                branchId: 4,
+                branchName: 'อยุธยา',
+                isFranchise: false,
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(restoreStaffSessionForStock()).resolves.toEqual({
+      user: { name: 'พนักงานอยุธยา' },
+    });
+    await confirmStaffSessionForStock('123456');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('/stock/staff-session'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('/stock/staff-session/confirm'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ pin: '123456' }),
+        credentials: 'include',
+      }),
+    );
+    for (const [, options] of fetchMock.mock.calls) {
+      expect(new Headers(options?.headers).get('X-SBC-Session-Role')).toBe(
+        'attendance',
+      );
+    }
+  });
+
+  it('includes production and expiry dates when staff record them', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ success: true, data: { id: 9, quantity: 12 } }),
+          { status: 200 },
+        ),
+      );
+
+    await adjustInventory(9, 12, 'รับของเข้าร้าน', {
+      manufacturedAt: '2026-09-01',
+      expiryDate: '2026-10-01',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/inventory/9/adjust'),
+      expect.objectContaining({
+        body: JSON.stringify({
+          quantity: 12,
+          note: 'รับของเข้าร้าน',
+          manufacturedAt: '2026-09-01',
+          expiryDate: '2026-10-01',
+        }),
+      }),
+    );
+  });
+
   it('uses the capped movement history and menu endpoints for the signed-in branch', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
@@ -67,6 +155,30 @@ describe('stock mutation API contracts', () => {
       2,
       expect.stringContaining('/menu-items'),
       expect.objectContaining({ credentials: 'include' }),
+    );
+  });
+
+  it('loads expiry-promotion suggestions within the signed-in branch scope', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { warningDays: 30, suggestions: [] },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(listExpiryPromotionSuggestions()).resolves.toEqual({
+      warningDays: 30,
+      suggestions: [],
+    });
+
+    const [url, options] = fetchMock.mock.calls[0] ?? [];
+    expect(String(url)).toContain('/inventory/expiry-promotion-suggestions');
+    expect(String(url)).not.toContain('branch');
+    expect(new Headers(options?.headers).get('X-SBC-Session-Role')).toBe(
+      'stock',
     );
   });
 

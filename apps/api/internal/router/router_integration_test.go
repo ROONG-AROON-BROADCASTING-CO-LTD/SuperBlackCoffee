@@ -699,6 +699,17 @@ func TestStockSessionUsesOnlyTheDedicatedStockCookie(t *testing.T) {
 			t.Fatalf("status = %d, want %d", res.Code, http.StatusServiceUnavailable)
 		}
 	})
+
+	t.Run("attendance role header does not accept the stock cookie", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stock/staff-session", nil)
+		req.Header.Set("X-SBC-Session-Role", "attendance")
+		req.AddCookie(&http.Cookie{Name: "sbc_stock_session", Value: testToken(t, "cashier")})
+		res := httptest.NewRecorder()
+		r.ServeHTTP(res, req)
+		if res.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+		}
+	})
 }
 
 func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
@@ -1004,6 +1015,62 @@ func TestStockPINSetupChallengesNewStaffAndIssuesStockSession(t *testing.T) {
 	}
 }
 
+func TestStaffSessionCanOpenStockOnlyAfterPINConfirmation(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "STAFF-TO-STOCK")
+	pinHash, err := bcrypt.GenerateFromPassword([]byte("123456"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedUser(t, db, 82, "staff-to-stock", "cashier", branchID, nil)
+	if _, err := db.Exec(`UPDATE users SET attendance_pin_hash=$1 WHERE id=82`, string(pinHash)); err != nil {
+		t.Fatal(err)
+	}
+	r := New(db, nil)
+	login := requestJSON(r, http.MethodPost, "/api/v1/attendance/login", `{"username":"staff-to-stock","pin":"123456"}`, "")
+	if login.Code != http.StatusOK {
+		t.Fatalf("staff login = %d: %s", login.Code, login.Body.String())
+	}
+	staffCookies := login.Result().Cookies()
+	if len(staffCookies) != 1 || staffCookies[0].Name != "sbc_attendance_session" {
+		t.Fatalf("staff login cookie = %#v", staffCookies)
+	}
+
+	staffSessionRequest := httptest.NewRequest(http.MethodGet, "/api/v1/stock/staff-session", nil)
+	staffSessionRequest.Header.Set("X-SBC-Session-Role", "attendance")
+	staffSessionRequest.AddCookie(staffCookies[0])
+	staffSessionResponse := httptest.NewRecorder()
+	r.ServeHTTP(staffSessionResponse, staffSessionRequest)
+	if staffSessionResponse.Code != http.StatusOK || !strings.Contains(staffSessionResponse.Body.String(), `"name":"staff-to-stock"`) {
+		t.Fatalf("staff session lookup = %d: %s", staffSessionResponse.Code, staffSessionResponse.Body.String())
+	}
+
+	wrongPINRequest := httptest.NewRequest(http.MethodPost, "/api/v1/stock/staff-session/confirm", strings.NewReader(`{"pin":"000000"}`))
+	wrongPINRequest.Header.Set("Content-Type", "application/json")
+	wrongPINRequest.Header.Set("X-SBC-Session-Role", "attendance")
+	wrongPINRequest.AddCookie(staffCookies[0])
+	wrongPINResponse := httptest.NewRecorder()
+	r.ServeHTTP(wrongPINResponse, wrongPINRequest)
+	if wrongPINResponse.Code != http.StatusUnauthorized || len(wrongPINResponse.Result().Cookies()) != 0 {
+		t.Fatalf("wrong PIN confirmation = %d: %s", wrongPINResponse.Code, wrongPINResponse.Body.String())
+	}
+
+	confirmRequest := httptest.NewRequest(http.MethodPost, "/api/v1/stock/staff-session/confirm", strings.NewReader(`{"pin":"123456"}`))
+	confirmRequest.Header.Set("Content-Type", "application/json")
+	confirmRequest.Header.Set("X-SBC-Session-Role", "attendance")
+	confirmRequest.AddCookie(staffCookies[0])
+	confirmResponse := httptest.NewRecorder()
+	r.ServeHTTP(confirmResponse, confirmRequest)
+	stockCookies := confirmResponse.Result().Cookies()
+	if confirmResponse.Code != http.StatusOK || len(stockCookies) != 1 || stockCookies[0].Name != "sbc_stock_session" {
+		t.Fatalf("stock PIN confirmation = %d: %s cookies=%#v", confirmResponse.Code, confirmResponse.Body.String(), stockCookies)
+	}
+}
+
 func TestAttendancePINLoginRateLimitResetsAfterSuccessfulLogin(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {
@@ -1216,6 +1283,42 @@ func TestInventoryRouteReadsFromIsolatedPostgres(t *testing.T) {
 	postal := requestJSON(r, http.MethodGet, "/api/v1/inventory?branchId=1&kind=stock&stockCategory=postal_equipment", "", testToken(t, "admin"))
 	if postal.Code != http.StatusOK || !strings.Contains(postal.Body.String(), "กล่องพัสดุ") || strings.Contains(postal.Body.String(), "แก้วเครื่องดื่ม") {
 		t.Fatalf("postal stock filter = %d: %s", postal.Code, postal.Body.String())
+	}
+}
+
+func TestStockAdjustmentPersistsProductionAndExpiryDates(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("กำหนด TEST_DATABASE_URL เพื่อทดสอบ PostgreSQL integration")
+	}
+	db := openRouterTestDB(t, url)
+	branchID := seedBranch(t, db, "STOCK-DATES")
+	seedUser(t, db, 7, "stock-dates-manager", "branch_manager", branchID, nil)
+	inventoryID := seedInventory(t, db, branchID, "นมสด", 10)
+	r := New(db, nil)
+	token := testTokenWithBranch(t, "branch_manager", branchID)
+
+	response := requestJSON(
+		r,
+		http.MethodPost,
+		"/api/v1/inventory/"+strconv.FormatInt(inventoryID, 10)+"/adjust",
+		`{"quantity":10,"note":"บันทึกวันบนฉลาก","manufacturedAt":"2026-09-01","expiryDate":"2026-10-01"}`,
+		token,
+	)
+	if response.Code != http.StatusOK {
+		t.Fatalf("adjust inventory dates = %d: %s", response.Code, response.Body.String())
+	}
+
+	var manufacturedAt, expiryDate string
+	if err := db.QueryRow(`SELECT manufactured_at::text,expiry_date::text FROM inventory_items WHERE id=$1`, inventoryID).Scan(&manufacturedAt, &expiryDate); err != nil {
+		t.Fatalf("read saved inventory dates: %v", err)
+	}
+	if manufacturedAt != "2026-09-01" || expiryDate != "2026-10-01" {
+		t.Fatalf("saved dates = %q, %q", manufacturedAt, expiryDate)
+	}
+	var movementCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM stock_movements WHERE inventory_item_id=$1`, inventoryID).Scan(&movementCount); err != nil || movementCount != 0 {
+		t.Fatalf("date-only adjustment created stock movements = %d, err=%v", movementCount, err)
 	}
 }
 

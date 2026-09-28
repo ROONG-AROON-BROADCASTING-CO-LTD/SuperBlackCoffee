@@ -8,9 +8,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   listInventory,
+  listExpiryPromotionSuggestions,
   listMenuItems,
   listMyStockMovements,
   logoutStock,
+  restoreStaffSessionForStock,
   restoreStockSession,
 } from '../api/stock';
 import { ApiRequestError } from '../api/client';
@@ -28,6 +30,7 @@ vi.mock('@stackbuild/ui', () => ({
   }),
   snackbarBelowTopbarSx: {},
   snackbarBottomSx: {},
+  useServiceWorkerUpdateAvailable: () => false,
 }));
 vi.mock('../components/StockNavigation', () => ({
   stockNavigation: [{ page: 'sales', label: 'บันทึกเมนูที่ขาย' }],
@@ -41,11 +44,16 @@ vi.mock('../api/stock', () => ({
   adjustInventory: vi.fn(),
   consumeStockFromMenus: vi.fn(),
   listInventory: vi.fn().mockResolvedValue([]),
+  listExpiryPromotionSuggestions: vi.fn().mockResolvedValue({
+    warningDays: 30,
+    suggestions: [],
+  }),
   listMenuItems: vi.fn().mockResolvedValue([]),
   listMyStockMovements: vi.fn().mockResolvedValue([]),
   isStockSession: (value: { user?: { id?: number } }) =>
     typeof value.user?.id === 'number',
   loginStock: vi.fn(),
+  confirmStaffSessionForStock: vi.fn(),
   logoutStock: vi.fn().mockResolvedValue(undefined),
   restoreStockSession: vi.fn().mockResolvedValue({
     user: {
@@ -57,10 +65,20 @@ vi.mock('../api/stock', () => ({
       isFranchise: false,
     },
   }),
+  restoreStaffSessionForStock: vi.fn(),
   setupStockPIN: vi.fn(),
 }));
 vi.mock('../features/auth/StockLoginPage', () => ({
-  StockLoginPage: () => <div>stock-login</div>,
+  StockLoginPage: ({
+    staffSession,
+  }: {
+    staffSession?: { user: { name: string } };
+  }) => (
+    <div>
+      stock-login
+      {staffSession ? <output>{staffSession.user.name}</output> : null}
+    </div>
+  ),
 }));
 vi.mock('../layouts/StockAppLayout', () => ({
   StockAppLayout: ({
@@ -156,6 +174,7 @@ describe('Stock App session and loading', () => {
       );
       expect(listMyStockMovements).toHaveBeenCalledOnce();
       expect(listMenuItems).toHaveBeenCalledOnce();
+      expect(listExpiryPromotionSuggestions).toHaveBeenCalledOnce();
     });
   });
 
@@ -167,7 +186,7 @@ describe('Stock App session and loading', () => {
     expect((await screen.findByTestId('stock-page')).textContent).toBe('sales');
   });
 
-  it('opens the read-only promotions page from its dedicated route', async () => {
+  it('opens the promotions workspace from its dedicated route', async () => {
     window.history.replaceState(null, '', '/promotions');
     render(<App />);
 
@@ -205,6 +224,7 @@ describe('Stock App session and loading', () => {
     expect(listInventory).toHaveBeenCalledTimes(6);
     expect(listMyStockMovements).toHaveBeenCalledTimes(2);
     expect(listMenuItems).toHaveBeenCalledTimes(2);
+    expect(listExpiryPromotionSuggestions).toHaveBeenCalledTimes(2);
   });
 
   it.each([401, 403])(
@@ -219,6 +239,20 @@ describe('Stock App session and loading', () => {
       expect(await screen.findByText('stock-login')).toBeTruthy();
     },
   );
+
+  it('offers the Staff PIN flow when the dedicated Stock session is missing', async () => {
+    vi.mocked(restoreStockSession).mockRejectedValueOnce(
+      new ApiRequestError('ไม่พบเซสชันหรือเซสชันหมดอายุ', 401),
+    );
+    vi.mocked(restoreStaffSessionForStock).mockResolvedValueOnce({
+      user: { name: 'พนักงานอยุธยา' },
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('พนักงานอยุธยา')).toBeTruthy();
+    expect(restoreStaffSessionForStock).toHaveBeenCalledOnce();
+  });
 
   it('logs out locally and resets the browser route to sales', async () => {
     window.history.replaceState(null, '', '/history');

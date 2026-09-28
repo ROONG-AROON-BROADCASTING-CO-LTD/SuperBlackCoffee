@@ -7,20 +7,43 @@ import {
   Chip,
   Divider,
   Drawer,
+  MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import { ActionSnackbar, SearchField, selectionPillSx } from '@stackbuild/ui';
+import {
+  ActionSnackbar,
+  DateField,
+  FilterPill,
+  SearchField,
+} from '@stackbuild/ui';
 import { imagePlaceholderImage } from '@stackbuild/management/assets';
-import { isCountableStockItem, type InventoryItem } from '../api/stock';
+import {
+  isCountableStockItem,
+  type InventoryItem,
+  type StockDateDetails,
+} from '../api/stock';
 
 type InventoryGroup = 'ingredient' | 'drink_equipment' | 'postal_equipment';
 const groups: Array<{ id: InventoryGroup; label: string }> = [
   { id: 'ingredient', label: 'วัตถุดิบ' },
   { id: 'drink_equipment', label: 'อุปกรณ์เครื่องดื่ม' },
   { id: 'postal_equipment', label: 'อุปกรณ์ไปรษณีย์' },
+];
+type InventoryStatusFilter =
+  'all' | 'low' | 'out' | 'stale' | 'expiring_soon' | 'expired';
+const statusFilters: Array<{
+  id: InventoryStatusFilter;
+  label: string;
+}> = [
+  { id: 'all', label: 'ทั้งหมด' },
+  { id: 'low', label: 'วัตถุดิบใกล้หมด' },
+  { id: 'out', label: 'วัตถุดิบหมด' },
+  { id: 'stale', label: 'วัตถุดิบค้างสต๊อก' },
+  { id: 'expiring_soon', label: 'ใกล้หมดอายุ' },
+  { id: 'expired', label: 'หมดอายุ' },
 ];
 
 const formatExpiryDate = (expiryDate?: string | null) => {
@@ -33,6 +56,18 @@ const formatExpiryDate = (expiryDate?: string | null) => {
     year: 'numeric',
   }).format(date);
 };
+
+const dateInputValue = (date?: string | null) =>
+  date?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? '';
+
+const matchesStatusFilter = (
+  item: InventoryItem,
+  filter: InventoryStatusFilter,
+) =>
+  filter === 'all' ||
+  item.status === filter ||
+  (filter === 'expiring_soon' && item.expiryStatus === 'expiring_soon') ||
+  (filter === 'expired' && item.expiryStatus === 'expired');
 
 export function StockCountPage({
   ingredients,
@@ -50,15 +85,20 @@ export function StockCountPage({
     item: InventoryItem,
     quantity: number,
     note: string,
+    dates?: StockDateDetails,
   ) => Promise<void>;
   onOrderIngredients?: (item: InventoryItem) => void;
 }) {
   const [group, setGroup] = useState<InventoryGroup>('ingredient');
+  const [statusFilter, setStatusFilter] =
+    useState<InventoryStatusFilter>('all');
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<InventoryItem | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('ตรวจนับสิ้นกะ');
+  const [manufacturedAt, setManufacturedAt] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const items =
@@ -72,10 +112,41 @@ export function StockCountPage({
       items.filter(
         (item) =>
           isCountableStockItem(item) &&
-          item.name.toLowerCase().includes(query.trim().toLowerCase()),
+          item.name.toLowerCase().includes(query.trim().toLowerCase()) &&
+          matchesStatusFilter(item, statusFilter),
       ),
-    [items, query],
+    [items, query, statusFilter],
   );
+  const filterCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        statusFilters.map(({ id }) => [
+          id,
+          items.filter(
+            (item) =>
+              isCountableStockItem(item) && matchesStatusFilter(item, id),
+          ).length,
+        ]),
+      ) as Record<InventoryStatusFilter, number>,
+    [items],
+  );
+  const countableItems = useMemo(
+    () => items.filter(isCountableStockItem),
+    [items],
+  );
+  const selectedGroupLabel =
+    groups.find((item) => item.id === group)?.label ?? 'ประเภทที่เลือก';
+  const selectedStatusLabel =
+    statusFilters.find((item) => item.id === statusFilter)?.label ??
+    'ตัวกรองที่เลือก';
+  const emptyStateMessage =
+    countableItems.length === 0
+      ? `ไม่มีรายการที่เปิดใช้งานในหมวด${selectedGroupLabel}สำหรับสาขานี้`
+      : query.trim()
+        ? `ไม่พบรายการที่ตรงกับ “${query.trim()}” ใน${selectedGroupLabel}`
+        : statusFilter !== 'all'
+          ? `ไม่มี${selectedStatusLabel}ใน${selectedGroupLabel}ขณะนี้`
+          : `ไม่มีรายการใน${selectedGroupLabel}สำหรับสาขานี้`;
   const closeEditor = () => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
@@ -87,6 +158,8 @@ export function StockCountPage({
     setEditorOpen(true);
     setQuantity(String(item.quantity));
     setNote('ตรวจนับสิ้นกะ');
+    setManufacturedAt(dateInputValue(item.manufacturedAt));
+    setExpiryDate(dateInputValue(item.expiryDate));
     setError('');
   };
   const save = async () => {
@@ -100,10 +173,17 @@ export function StockCountPage({
       setError('ระบุหมายเหตุของการปรับยอด');
       return;
     }
+    if (manufacturedAt && expiryDate && manufacturedAt > expiryDate) {
+      setError('วันผลิตต้องไม่เกินวันหมดอายุ');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      await onAdjust(editing, next, note.trim());
+      await onAdjust(editing, next, note.trim(), {
+        manufacturedAt,
+        expiryDate,
+      });
       closeEditor();
     } catch (cause) {
       setError(
@@ -122,38 +202,64 @@ export function StockCountPage({
           border: '1px solid #e8ddd5',
         }}
       >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          sx={{ gap: 1.25, justifyContent: 'space-between' }}
-        >
-          <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1 }}>
-            {groups.map((item) => (
-              <Button
+        <Stack sx={{ gap: 1.25 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ gap: 1.25 }}>
+            <TextField
+              select
+              label="กรองประเภท"
+              value={group}
+              onChange={(event) => {
+                setGroup(event.target.value as InventoryGroup);
+                setStatusFilter('all');
+                closeEditor();
+              }}
+              sx={{ minWidth: { sm: 250 } }}
+            >
+              {groups.map((item) => (
+                <MenuItem key={item.id} value={item.id}>
+                  {item.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <SearchField
+              size="small"
+              fullWidth
+              placeholder="ค้นหารายการ"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </Stack>
+          <Box
+            aria-label="ตัวกรองสถานะสต๊อก"
+            sx={{
+              display: 'flex',
+              gap: 1,
+              overflowX: 'auto',
+              overflowY: 'visible',
+              pt: 1.5,
+              pb: 0.25,
+              '&::-webkit-scrollbar': { display: 'none' },
+            }}
+          >
+            {statusFilters.map((item) => (
+              <FilterPill
                 key={item.id}
-                variant={group === item.id ? 'contained' : 'outlined'}
-                onClick={() => {
-                  setGroup(item.id);
-                  closeEditor();
-                }}
-                sx={selectionPillSx(group === item.id)}
+                selected={statusFilter === item.id}
+                count={item.id === 'all' ? undefined : filterCounts[item.id]}
+                aria-label={`${item.label} ${filterCounts[item.id]} รายการ`}
+                sx={{ flex: '0 0 auto' }}
+                onClick={() => setStatusFilter(item.id)}
               >
                 {item.label}
-              </Button>
+              </FilterPill>
             ))}
-          </Stack>
-          <SearchField
-            size="small"
-            fullWidth
-            placeholder="ค้นหารายการ"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          </Box>
         </Stack>
       </Paper>
       {loading ? (
         <Typography color="text.secondary">กำลังโหลดรายการสต๊อก…</Typography>
       ) : filtered.length === 0 ? (
-        <Alert severity="info">ไม่มีรายการที่เปิดใช้งานสำหรับสาขานี้</Alert>
+        <Alert severity="info">{emptyStateMessage}</Alert>
       ) : (
         <Box
           aria-label="รายการตรวจนับสต๊อก"
@@ -275,6 +381,17 @@ export function StockCountPage({
                   <Typography
                     sx={{
                       mt: 0.3,
+                      color: '#5f4030',
+                      fontSize: { xs: 12.5, sm: 14 },
+                      fontWeight: 700,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    ผลิต: {formatExpiryDate(item.manufacturedAt)}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.15,
                       color: '#5f4030',
                       fontSize: { xs: 12.5, sm: 14 },
                       fontWeight: 700,
@@ -421,6 +538,27 @@ export function StockCountPage({
               onChange={(event) => setQuantity(event.target.value)}
               slotProps={{ htmlInput: { min: 0, step: 'any' } }}
             />
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                gap: 1.25,
+              }}
+            >
+              <DateField
+                label="วันผลิต"
+                value={manufacturedAt}
+                onChange={(event) => setManufacturedAt(event.target.value)}
+              />
+              <DateField
+                label="วันหมดอายุ"
+                value={expiryDate}
+                onChange={(event) => setExpiryDate(event.target.value)}
+              />
+            </Box>
+            <Typography color="text.secondary" sx={{ fontSize: 12 }}>
+              เว้นว่างได้หากสินค้าไม่มีวันที่บนฉลาก
+            </Typography>
             <TextField
               label="หมายเหตุ"
               value={note}

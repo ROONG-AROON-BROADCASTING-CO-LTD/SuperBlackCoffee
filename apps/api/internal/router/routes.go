@@ -30,6 +30,10 @@ func registerPublicRoutes(r *gin.Engine, deps routeDependencies) {
 	v1.POST("/stock/setup-pin", deps.platform.SetupStockPIN)
 	v1.POST("/stock/logout", deps.platform.StockLogout)
 	v1.GET("/stock/session", middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.StockSession)
+	// A Staff session can identify the employee, but a PIN confirmation is still
+	// required before issuing the separate, shorter-lived Stock session.
+	v1.GET("/stock/staff-session", middleware.RequireSessionRole("attendance"), middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.StockStaffSession)
+	v1.POST("/stock/staff-session/confirm", middleware.RequireSessionRole("attendance"), middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.ConfirmStockStaffSession)
 	v1.POST("/stock/consume", middleware.RequireAuth(deps.secret, "cashier", "branch_manager"), deps.platform.ConsumeStockFromMenus)
 }
 

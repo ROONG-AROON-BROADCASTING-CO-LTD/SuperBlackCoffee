@@ -129,6 +129,72 @@ func (h *PlatformHandler) StockSession(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"id": claims.UserID, "name": name, "role": role, "branchId": *claims.BranchID, "branchName": branchName, "isFranchise": isFranchise}}})
 }
 
+// StockStaffSession exposes only the staff member's display name to the Stock
+// login screen. The route is server-scoped to sbc_attendance_session, so a
+// Stock or platform session cannot impersonate Staff here.
+func (h *PlatformHandler) StockStaffSession(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	claims := middleware.ClaimsFrom(c)
+	if claims == nil || claims.BranchID == nil || (claims.Role != "cashier" && claims.Role != "branch_manager") {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีนี้ไม่สามารถจัดการสต๊อกได้"})
+		return
+	}
+	var name string
+	err := h.db.QueryRowContext(c.Request.Context(), `
+		SELECT name FROM users
+		WHERE id=$1 AND branch_id=$2 AND role IN ('cashier','branch_manager')`, claims.UserID, *claims.BranchID).Scan(&name)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"user": gin.H{"name": name}}})
+}
+
+// ConfirmStockStaffSession turns an active Staff session into a dedicated
+// Stock session only after the employee re-enters their shared six-digit PIN.
+func (h *PlatformHandler) ConfirmStockStaffSession(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	claims := middleware.ClaimsFrom(c)
+	if claims == nil || claims.BranchID == nil || (claims.Role != "cashier" && claims.Role != "branch_manager") {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "บัญชีนี้ไม่สามารถจัดการสต๊อกได้"})
+		return
+	}
+	var input struct {
+		PIN string `json:"pin"`
+	}
+	if c.ShouldBindJSON(&input) != nil || len(input.PIN) != 6 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
+		return
+	}
+	for _, digit := range input.PIN {
+		if digit < '0' || digit > '9' {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
+			return
+		}
+	}
+
+	var name, role, branchName string
+	var isFranchise bool
+	var pinHash *string
+	err := h.db.QueryRowContext(c.Request.Context(), `
+		SELECT u.name,u.role,b.name,b.franchisee_id IS NOT NULL,u.attendance_pin_hash
+		FROM users u JOIN branches b ON b.id=u.branch_id
+		WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, *claims.BranchID).Scan(&name, &role, &branchName, &isFranchise, &pinHash)
+	if err != nil || pinHash == nil || *pinHash == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
+		return
+	}
+	if bcrypt.CompareHashAndPassword([]byte(*pinHash), []byte(input.PIN)) != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "PIN ไม่ถูกต้อง"})
+		return
+	}
+	h.respondStockSession(c, claims.UserID, *claims.BranchID, name, role, branchName, isFranchise)
+}
+
 func (h *PlatformHandler) StockLogout(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("sbc_stock_session", "", -1, "/api/v1", "", os.Getenv("APP_ENV") == "production", true)

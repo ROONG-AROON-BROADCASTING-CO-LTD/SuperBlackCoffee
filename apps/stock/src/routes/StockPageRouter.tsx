@@ -1,7 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { Box } from '@mui/material';
 import { StockOrderCartDrawer } from '../components/StockOrderCartDrawer';
-import type { InventoryItem, MenuItem, StockMovement } from '../api/stock';
+import type {
+  InventoryItem,
+  ExpiryPromotionSuggestion,
+  MenuItem,
+  StockDateDetails,
+  StockMovement,
+} from '../api/stock';
 import { StockPageSkeleton } from '../components/skeletons/StockPageSkeleton';
 import type { StockPage } from '../types/stock';
 
@@ -32,6 +38,7 @@ type StockPageRouterProps = {
   drinkStock: InventoryItem[];
   postalStock: InventoryItem[];
   menus: MenuItem[];
+  expiryPromotionSuggestions: ExpiryPromotionSuggestion[];
   onRefreshMenus: () => Promise<MenuItem[]>;
   movements: StockMovement[];
   isInitialLoading: boolean;
@@ -39,6 +46,7 @@ type StockPageRouterProps = {
     item: InventoryItem,
     quantity: number,
     note: string,
+    dates?: StockDateDetails,
   ) => Promise<void>;
   onConsume: (
     items: Array<{
@@ -83,6 +91,7 @@ export function StockPageRouter({
   drinkStock,
   postalStock,
   menus,
+  expiryPromotionSuggestions,
   onRefreshMenus,
   movements,
   isInitialLoading,
@@ -145,8 +154,9 @@ export function StockPageRouter({
     case 'promotions':
       content = (
         <PromotionsManagementPage
-          mode="franchise"
+          mode="stock"
           branchName={branchName}
+          expiryPromotionSuggestions={expiryPromotionSuggestions}
           embedded
         />
       );
