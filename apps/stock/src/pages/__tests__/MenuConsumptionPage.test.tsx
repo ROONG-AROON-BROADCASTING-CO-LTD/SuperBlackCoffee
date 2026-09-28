@@ -50,9 +50,11 @@ describe('MenuConsumptionPage', () => {
       />,
     );
 
-    expect(screen.getByText('ราคาหน้าร้าน ฿65')).toBeTruthy();
+    expect(screen.getByText('ราคาหน้าร้าน')).toBeTruthy();
+    expect(screen.getByText('฿65')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'LINE MAN' }));
-    expect(screen.getByText('ราคาLINE MAN ฿75')).toBeTruthy();
+    expect(screen.getByText('ราคาLINE MAN')).toBeTruthy();
+    expect(screen.getByText('฿75')).toBeTruthy();
   });
 
   it('shows the image sent for a menu and retains a fallback for menus without one', () => {
@@ -74,7 +76,7 @@ describe('MenuConsumptionPage', () => {
     ).toBe('/images/americano.jpg');
     expect(
       screen.getByRole('img', { name: 'รูปชาไทยเย็น' }).getAttribute('src'),
-    ).toContain('coffee-ingredients');
+    ).toContain('data:image/svg+xml');
   });
 
   it('submits selected menu quantities instead of asking staff to edit ingredients', async () => {

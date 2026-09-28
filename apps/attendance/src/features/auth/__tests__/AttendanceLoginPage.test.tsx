@@ -54,20 +54,13 @@ describe('AttendanceLoginPage', () => {
     expect(screen.queryByText('PIN ไม่ถูกต้อง')).toBeNull();
   });
 
-  it('clears a PIN error before returning to the username step', () => {
+  it('does not offer a username switch from the PIN step', () => {
     sessionStorage.setItem('sbc-attendance-username', 'staff_ayutthaya');
-    const onClearError = vi.fn();
-    render(
-      <AttendanceLoginPage
-        {...defaultProps}
-        error="PIN ไม่ถูกต้อง"
-        onClearError={onClearError}
-      />,
-    );
+    render(<AttendanceLoginPage {...defaultProps} error="PIN ไม่ถูกต้อง" />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'เปลี่ยนชื่อผู้ใช้' }));
-
-    expect(onClearError).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole('button', { name: 'เปลี่ยนชื่อผู้ใช้' }),
+    ).toBeNull();
   });
 
   it('accepts and removes PIN digits through the number keypad', async () => {

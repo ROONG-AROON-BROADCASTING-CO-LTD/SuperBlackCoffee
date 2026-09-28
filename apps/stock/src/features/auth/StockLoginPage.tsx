@@ -100,17 +100,6 @@ export function StockLoginPage({
     onClearError?.();
   };
 
-  const changeUsername = () => {
-    window.sessionStorage.removeItem('sbc-stock-username');
-    setUsername('');
-    setPIN('');
-    setFirstPIN('');
-    setValidationError('');
-    setPinHasError(false);
-    onClearError?.();
-    setStep('username');
-  };
-
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const name = username.trim();
@@ -401,24 +390,7 @@ export function StockLoginPage({
               </Box>
             </Box>
           </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="outlined"
-            onClick={changeUsername}
-            sx={{
-              width: '100%',
-              mt: 0.5,
-              height: 56,
-              minHeight: '56px !important',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 500,
-            }}
-          >
-            เปลี่ยนชื่อผู้ใช้
-          </Button>
-        )}
+        ) : null}
       </Paper>
       <ActionSnackbar
         notice={

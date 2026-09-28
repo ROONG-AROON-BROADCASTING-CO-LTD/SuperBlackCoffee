@@ -61,6 +61,7 @@ import {
 } from '../components/BranchOverviewList';
 import { useAutoRetry } from '../hooks/useAutoRetry';
 import { createStockRequest } from '../api/stock-requests';
+import { imagePlaceholderImage } from '../assets/index';
 
 type StockItem = {
   id: number;
@@ -581,7 +582,23 @@ export function StockManagementPage({
                                 objectFit: 'cover',
                               }}
                             />
-                          ) : null}
+                          ) : (
+                            <Box
+                              component="img"
+                              src={imagePlaceholderImage}
+                              alt="ภาพประกอบสต๊อก"
+                              sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                width: '100%',
+                                height: '100%',
+                                p: '27%',
+                                boxSizing: 'border-box',
+                                bgcolor: '#f5eee8',
+                                objectFit: 'contain',
+                              }}
+                            />
+                          )}
                           <Chip
                             label={item.status}
                             size="small"

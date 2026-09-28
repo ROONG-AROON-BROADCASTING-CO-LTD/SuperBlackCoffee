@@ -22,11 +22,11 @@ import {
   SearchField,
   selectionPillSx,
   XIcon,
-  coffeeIngredientsImage,
   type IngredientStatus,
   type PlusIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management';
 import {
   ingredientBranches,
   type IngredientBranch,
@@ -123,7 +123,7 @@ export function AdminStockPage({
     activeBranch === 'ทุกสาขา' ? ingredientBranches.slice(1) : [activeBranch];
   const drawerTitle = editingItem ? 'แก้ไขสต๊อก' : 'เพิ่มสต๊อก';
   const imageSource =
-    imagePreviewUrl ?? (editingItem ? coffeeIngredientsImage : null);
+    imagePreviewUrl ?? (editingItem ? imagePlaceholderImage : null);
 
   useEffect(
     () => () => {
@@ -262,7 +262,7 @@ export function AdminStockPage({
                     <Box sx={{ position: 'relative' }}>
                       <Box
                         component="img"
-                        src={coffeeIngredientsImage}
+                        src={imagePlaceholderImage}
                         alt={item.name}
                         loading="lazy"
                         decoding="async"

@@ -14,10 +14,10 @@ import {
 import {
   ActionSnackbar,
   CartIcon,
-  coffeeIngredientsImage,
   SearchField,
   selectionPillSx,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management/assets';
 import { isCountableStockItem, type InventoryItem } from '../api/stock';
 
 type InventoryGroup = 'ingredient' | 'drink_equipment' | 'postal_equipment';
@@ -232,10 +232,10 @@ export function StockOrderPage({
             gap: { xs: 1.25, sm: 2 },
           }}
         >
-          {visibleItems.map((item, index) => {
+          {visibleItems.map((item) => {
             const selectedQuantityForItem =
               orderItems[item.id]?.quantityToOrder ?? 0;
-            const imageUrl = item.imageUrl?.trim() || coffeeIngredientsImage;
+            const imageUrl = item.imageUrl?.trim() || imagePlaceholderImage;
             return (
               <Card
                 key={item.id}
@@ -253,18 +253,21 @@ export function StockOrderPage({
                     src={imageUrl}
                     alt={`รูป${item.name}`}
                     onError={(event) => {
-                      if (event.currentTarget.src !== coffeeIngredientsImage)
-                        event.currentTarget.src = coffeeIngredientsImage;
+                      if (event.currentTarget.src !== imagePlaceholderImage)
+                        event.currentTarget.src = imagePlaceholderImage;
                     }}
                     sx={{
                       display: 'block',
                       width: '100%',
                       aspectRatio: '1 / 1',
-                      objectFit: 'cover',
-                      objectPosition:
-                        imageUrl === coffeeIngredientsImage
-                          ? `${15 + (index % 4) * 20}% 50%`
-                          : 'center',
+                      objectFit:
+                        imageUrl === imagePlaceholderImage
+                          ? 'contain'
+                          : 'cover',
+                      objectPosition: 'center',
+                      p: imageUrl === imagePlaceholderImage ? '25%' : 0,
+                      boxSizing: 'border-box',
+                      bgcolor: '#f5eee8',
                     }}
                   />
                   {selectedQuantityForItem ? (

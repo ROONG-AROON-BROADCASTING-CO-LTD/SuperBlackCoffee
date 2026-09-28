@@ -399,29 +399,6 @@ export function AttendanceLoginPage({
             </Box>
           </Button>
         ) : null}
-        {!isUsernameStep ? (
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setPIN('');
-              setValidationError('');
-              setPinHasError(false);
-              onClearError?.();
-              setStep('username');
-            }}
-            sx={{
-              width: '100%',
-              mt: 0.5,
-              height: 56,
-              minHeight: '56px !important',
-              justifyContent: 'center',
-              fontSize: 16,
-              fontWeight: 500,
-            }}
-          >
-            เปลี่ยนชื่อผู้ใช้
-          </Button>
-        ) : null}
       </Paper>
       <ActionSnackbar
         notice={

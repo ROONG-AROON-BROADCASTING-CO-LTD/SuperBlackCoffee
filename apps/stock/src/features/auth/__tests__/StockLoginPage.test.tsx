@@ -45,15 +45,13 @@ describe('StockLoginPage', () => {
     );
   });
 
-  it('shows a PIN error on the PIN cells and lets staff change username', async () => {
+  it('shows a PIN error on the PIN cells without offering a username switch', async () => {
     sessionStorage.setItem('sbc-stock-username', 'stock_ayutthaya');
-    const onClearError = vi.fn();
     render(
       <StockLoginPage
         onUsername={vi.fn()}
         onPIN={vi.fn()}
         onSetupPIN={vi.fn()}
-        onClearError={onClearError}
         error="PIN ไม่ถูกต้อง"
         loading={false}
       />,
@@ -66,14 +64,9 @@ describe('StockLoginPage', () => {
           .getAttribute('aria-invalid'),
       ).toBe('true'),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'เปลี่ยนชื่อผู้ใช้' }));
-
-    expect(onClearError).toHaveBeenCalled();
     expect(
-      (screen.getByRole('textbox', { name: 'ชื่อผู้ใช้' }) as HTMLInputElement)
-        .value,
-    ).toBe('');
-    expect(sessionStorage.getItem('sbc-stock-username')).toBeNull();
+      screen.queryByRole('button', { name: 'เปลี่ยนชื่อผู้ใช้' }),
+    ).toBeNull();
   });
 
   it('asks a new user to set and confirm a PIN before starting Stock', async () => {

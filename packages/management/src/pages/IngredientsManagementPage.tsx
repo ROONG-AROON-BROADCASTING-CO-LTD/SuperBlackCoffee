@@ -75,6 +75,7 @@ import {
   type InventoryInput,
 } from '../api/inventory';
 import { createStockRequest } from '../api/stock-requests';
+import { imagePlaceholderImage } from '../assets/index';
 
 type Ingredient = {
   id: number;
@@ -1280,7 +1281,23 @@ export function IngredientsManagementPage({
                                   objectFit: 'cover',
                                 }}
                               />
-                            ) : null}
+                            ) : (
+                              <Box
+                                component="img"
+                                src={imagePlaceholderImage}
+                                alt="ภาพประกอบวัตถุดิบ"
+                                sx={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  p: '27%',
+                                  boxSizing: 'border-box',
+                                  bgcolor: '#f5eee8',
+                                  objectFit: 'contain',
+                                }}
+                              />
+                            )}
                             {ingredient.category === 'fresh' ? (
                               <Chip
                                 label="ของสด"

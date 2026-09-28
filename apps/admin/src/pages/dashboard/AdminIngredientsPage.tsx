@@ -15,7 +15,6 @@ import {
   DashboardDrawerHeader,
   DrawerActionBar,
   ItemActionButtons,
-  coffeeIngredientsImage,
   INGREDIENT_STATUS_BADGES,
   INVENTORY_UNIT_OPTIONS,
   inventoryUnitSelectSlotProps,
@@ -27,6 +26,7 @@ import {
   type PlusIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management';
 import {
   ingredientBranches,
   type IngredientBranch,
@@ -185,7 +185,7 @@ export function AdminIngredientsPage({
     activeBranch === 'ทุกสาขา' ? ingredientBranches.slice(1) : [activeBranch];
   const drawerTitle = editingIngredient ? 'แก้ไขวัตถุดิบ' : 'เพิ่มวัตถุดิบ';
   const imageSource =
-    imagePreviewUrl ?? (editingIngredient ? coffeeIngredientsImage : null);
+    imagePreviewUrl ?? (editingIngredient ? imagePlaceholderImage : null);
 
   return (
     <DashboardMain>
@@ -338,7 +338,7 @@ export function AdminIngredientsPage({
                           <Box sx={{ position: 'relative' }}>
                             <Box
                               component="img"
-                              src={coffeeIngredientsImage}
+                              src={imagePlaceholderImage}
                               alt={ingredient.name}
                               loading="lazy"
                               decoding="async"
@@ -346,8 +346,10 @@ export function AdminIngredientsPage({
                                 display: 'block',
                                 width: '100%',
                                 aspectRatio: { xs: '1 / 1', md: '4 / 3' },
-                                objectFit: 'cover',
-                                objectPosition: ingredient.imagePosition,
+                                objectFit: 'contain',
+                                bgcolor: '#f5eee8',
+                                p: '24%',
+                                boxSizing: 'border-box',
                               }}
                             />
                             <Chip

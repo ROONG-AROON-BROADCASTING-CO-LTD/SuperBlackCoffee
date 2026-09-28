@@ -19,10 +19,10 @@ import {
   SearchField,
   selectionPillSx,
   XIcon,
-  coffeeIngredientsImage,
   type PlusIconHandle,
   type XIconHandle,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management';
 import {
   ingredientBranches,
   type IngredientBranch,
@@ -353,7 +353,7 @@ export function AdminProductsPage({
                         <Box sx={{ position: 'relative' }}>
                           <Box
                             component="img"
-                            src={coffeeIngredientsImage}
+                            src={imagePlaceholderImage}
                             alt={item.name}
                             loading="lazy"
                             decoding="async"
@@ -361,8 +361,10 @@ export function AdminProductsPage({
                               display: 'block',
                               width: '100%',
                               aspectRatio: { xs: '1 / 1', md: '4 / 3' },
-                              objectFit: 'cover',
-                              objectPosition: item.position,
+                              objectFit: 'contain',
+                              bgcolor: '#f5eee8',
+                              p: '24%',
+                              boxSizing: 'border-box',
                             }}
                           />
                           <Chip
@@ -638,7 +640,7 @@ export function AdminProductsPage({
               {preview || editing ? (
                 <Box
                   component="img"
-                  src={preview ?? coffeeIngredientsImage}
+                  src={preview ?? imagePlaceholderImage}
                   alt="ตัวอย่างรูปสินค้า"
                   sx={{
                     position: 'absolute',

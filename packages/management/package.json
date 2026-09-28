@@ -16,7 +16,8 @@
     "./skeletons/ingredients": "./src/components/skeletons/IngredientsSkeleton.tsx",
     "./skeletons/products": "./src/components/skeletons/ProductsSkeleton.tsx",
     "./skeletons/stock": "./src/components/skeletons/StockSkeleton.tsx",
-    "./skeletons/promotions": "./src/components/skeletons/PromotionsSkeleton.tsx"
+    "./skeletons/promotions": "./src/components/skeletons/PromotionsSkeleton.tsx",
+    "./assets": "./src/assets/index.ts"
   },
   "dependencies": {
     "@emotion/react": "latest",

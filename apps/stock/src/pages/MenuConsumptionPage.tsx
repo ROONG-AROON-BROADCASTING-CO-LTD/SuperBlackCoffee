@@ -17,10 +17,10 @@ import {
   CartIcon,
   HistoryIcon,
   XIcon,
-  coffeeIngredientsImage,
   SearchField,
   selectionPillSx,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management/assets';
 import type { MenuItem } from '../api/stock';
 import {
   matchWorkbookSales,
@@ -408,7 +408,7 @@ export function MenuConsumptionPage({
               alignContent: 'start',
             }}
           >
-            {list.map((menu, index) => {
+            {list.map((menu) => {
               const channelSellable =
                 channel === 'lineman'
                   ? (menu.linemanSellable ?? menu.sellable)
@@ -423,7 +423,7 @@ export function MenuConsumptionPage({
                 channel === 'lineman'
                   ? menu.linemanPriceAvailable
                   : menu.storePriceAvailable;
-              const imageUrl = menu.imageUrl?.trim() || coffeeIngredientsImage;
+              const imageUrl = menu.imageUrl?.trim() || imagePlaceholderImage;
               const unavailableLabel =
                 channelRecipeStatus === 'missing_recipe'
                   ? 'ไม่มีสูตร'
@@ -450,18 +450,21 @@ export function MenuConsumptionPage({
                       decoding="async"
                       alt={`รูป${menu.name}`}
                       onError={(event) => {
-                        if (event.currentTarget.src !== coffeeIngredientsImage)
-                          event.currentTarget.src = coffeeIngredientsImage;
+                        if (event.currentTarget.src !== imagePlaceholderImage)
+                          event.currentTarget.src = imagePlaceholderImage;
                       }}
                       sx={{
                         display: 'block',
                         width: '100%',
                         aspectRatio: '1 / 1',
-                        objectFit: 'cover',
-                        objectPosition:
-                          imageUrl === coffeeIngredientsImage
-                            ? `${15 + (index % 4) * 20}% 50%`
-                            : 'center',
+                        objectFit:
+                          imageUrl === imagePlaceholderImage
+                            ? 'contain'
+                            : 'cover',
+                        objectPosition: 'center',
+                        p: imageUrl === imagePlaceholderImage ? '25%' : 0,
+                        boxSizing: 'border-box',
+                        bgcolor: '#f5eee8',
                         filter: channelSellable ? 'none' : 'grayscale(.45)',
                       }}
                     />
@@ -498,26 +501,59 @@ export function MenuConsumptionPage({
                     >
                       {menu.name}
                     </Typography>
-                    <Typography
+                    <Box
                       sx={{
-                        mt: { xs: 0.35, sm: 0.6 },
-                        color: channelPriceAvailable ? '#805637' : '#8a7d74',
-                        fontSize: { xs: 11, sm: 14 },
-                        fontWeight: 700,
-                        lineHeight: 1.3,
+                        mt: 'auto',
+                        pt: { xs: 1.25, sm: 1.75 },
                       }}
                     >
-                      {channelPriceAvailable && channelPrice !== undefined
-                        ? `ราคา${channelLabel(channel)} ฿${formatSalePrice(channelPrice)}`
-                        : `ยังไม่กำหนดราคา${channelLabel(channel)}`}
-                    </Typography>
+                      <Box
+                        sx={{
+                          pt: { xs: 0.5, sm: 0.75 },
+                          borderTop: '1px solid',
+                          borderColor: '#eaded6',
+                        }}
+                      >
+                        <Typography
+                          component="div"
+                          sx={{
+                            color: channelPriceAvailable
+                              ? '#805637'
+                              : '#8a7d74',
+                            fontSize: { xs: 14, sm: 16 },
+                            fontWeight: 600,
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {channelPriceAvailable &&
+                          channelPrice !== undefined ? (
+                            <>
+                              ราคา{channelLabel(channel)}{' '}
+                              <Box
+                                component="span"
+                                sx={{
+                                  color: '#5f4030',
+                                  fontSize: { xs: 18, sm: 22 },
+                                  fontWeight: 800,
+                                  letterSpacing: '-0.02em',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                ฿{formatSalePrice(channelPrice)}
+                              </Box>
+                            </>
+                          ) : (
+                            `ยังไม่กำหนดราคา${channelLabel(channel)}`
+                          )}
+                        </Typography>
+                      </Box>
+                    </Box>
                     <Box
                       sx={{
                         display: 'flex',
                         flexDirection: { xs: 'column', sm: 'row' },
                         gap: { xs: 0.75, sm: 1 },
-                        mt: 'auto',
-                        pt: { xs: 1.25, sm: 2 },
+                        pt: { xs: 0.75, sm: 1 },
                       }}
                     >
                       <Button
@@ -688,11 +724,11 @@ export function MenuConsumptionPage({
                   >
                     <Box
                       component="img"
-                      src={item.menu.imageUrl?.trim() || coffeeIngredientsImage}
+                      src={item.menu.imageUrl?.trim() || imagePlaceholderImage}
                       alt={`รูป${item.menu.name}`}
                       onError={(event) => {
-                        if (event.currentTarget.src !== coffeeIngredientsImage)
-                          event.currentTarget.src = coffeeIngredientsImage;
+                        if (event.currentTarget.src !== imagePlaceholderImage)
+                          event.currentTarget.src = imagePlaceholderImage;
                       }}
                       sx={{
                         width: 64,

@@ -36,9 +36,9 @@ import {
   selectionPillSx,
   XIcon,
   useMinimumLoading,
-  coffeeIngredientsImage,
   inventoryUnitSelectSlotProps,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management';
 import {
   createCatalogTemplateInventoryItem,
   createCatalogTemplateMenuItem,
@@ -234,14 +234,15 @@ function CatalogThumbnail({
   return (
     <Box
       component="img"
-      src={hasItemImage ? imageUrl : coffeeIngredientsImage}
+      src={hasItemImage ? imageUrl : imagePlaceholderImage}
       alt={hasItemImage ? `รูป${name}` : 'ภาพประกอบรายการ'}
       onError={() => setImageFailed(true)}
       sx={{
         width: 52,
         height: 52,
         borderRadius: '10px',
-        objectFit: 'cover',
+        objectFit: hasItemImage ? 'cover' : 'contain',
+        p: hasItemImage ? 0 : 1.25,
         bgcolor: '#f5eee8',
         border: '1px solid #eadfd7',
       }}

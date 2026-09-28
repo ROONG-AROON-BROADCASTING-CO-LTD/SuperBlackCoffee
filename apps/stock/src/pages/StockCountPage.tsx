@@ -12,12 +12,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import {
-  ActionSnackbar,
-  coffeeIngredientsImage,
-  SearchField,
-  selectionPillSx,
-} from '@stackbuild/ui';
+import { ActionSnackbar, SearchField, selectionPillSx } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '@stackbuild/management/assets';
 import { isCountableStockItem, type InventoryItem } from '../api/stock';
 
 type InventoryGroup = 'ingredient' | 'drink_equipment' | 'postal_equipment';
@@ -173,8 +169,8 @@ export function StockCountPage({
             alignContent: 'start',
           }}
         >
-          {filtered.map((item, index) => {
-            const imageUrl = item.imageUrl?.trim() || coffeeIngredientsImage;
+          {filtered.map((item) => {
+            const imageUrl = item.imageUrl?.trim() || imagePlaceholderImage;
             return (
               <Card
                 key={item.id}
@@ -201,18 +197,21 @@ export function StockCountPage({
                     src={imageUrl}
                     alt={`รูป${item.name}`}
                     onError={(event) => {
-                      if (event.currentTarget.src !== coffeeIngredientsImage)
-                        event.currentTarget.src = coffeeIngredientsImage;
+                      if (event.currentTarget.src !== imagePlaceholderImage)
+                        event.currentTarget.src = imagePlaceholderImage;
                     }}
                     sx={{
                       display: 'block',
                       width: '100%',
                       aspectRatio: '1 / 1',
-                      objectFit: 'cover',
-                      objectPosition:
-                        imageUrl === coffeeIngredientsImage
-                          ? `${15 + (index % 4) * 20}% 50%`
-                          : 'center',
+                      objectFit:
+                        imageUrl === imagePlaceholderImage
+                          ? 'contain'
+                          : 'cover',
+                      objectPosition: 'center',
+                      p: imageUrl === imagePlaceholderImage ? '25%' : 0,
+                      boxSizing: 'border-box',
+                      bgcolor: '#f5eee8',
                       filter: item.status === 'out' ? 'grayscale(.45)' : 'none',
                     }}
                   />

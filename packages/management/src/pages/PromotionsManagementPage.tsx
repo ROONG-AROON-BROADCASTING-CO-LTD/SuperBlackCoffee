@@ -19,9 +19,9 @@ import {
   FilterPill,
   PlusIcon,
   XIcon,
-  coffeeIngredientsImage,
   type XIconHandle,
 } from '@stackbuild/ui';
+import { imagePlaceholderImage } from '../assets/index';
 
 type PromotionStatus = 'active' | 'upcoming' | 'expired';
 type PromotionType = 'ส่วนลด' | 'ซื้อ 1 แถม 1' | 'สิทธิพิเศษ';
@@ -234,6 +234,7 @@ function PromotionCard({
 }) {
   const leadMenu = promotion.menuItems[0];
   const ingredients = leadMenu.ingredients;
+  const hasLeadMenuImage = Boolean(leadMenu.imageUrl?.trim());
   return (
     <Card
       variant="outlined"
@@ -256,9 +257,16 @@ function PromotionCard({
       >
         <Box
           component="img"
-          src={leadMenu.imageUrl ?? coffeeIngredientsImage}
+          src={hasLeadMenuImage ? leadMenu.imageUrl : imagePlaceholderImage}
           alt={`รูป${leadMenu.name}`}
-          sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: hasLeadMenuImage ? 'cover' : 'contain',
+            p: hasLeadMenuImage ? 0 : '27%',
+            boxSizing: 'border-box',
+            bgcolor: '#f5eee8',
+          }}
         />
         <Chip
           label={promotion.type}
@@ -715,9 +723,21 @@ export function PromotionsManagementPage({
               >
                 <Box
                   component="img"
-                  src={selected.menuItems[0].imageUrl ?? coffeeIngredientsImage}
+                  src={
+                    selected.menuItems[0].imageUrl?.trim() ||
+                    imagePlaceholderImage
+                  }
                   alt={`รูป${selected.menuItems[0].name}`}
-                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: selected.menuItems[0].imageUrl?.trim()
+                      ? 'cover'
+                      : 'contain',
+                    p: selected.menuItems[0].imageUrl?.trim() ? 0 : '27%',
+                    boxSizing: 'border-box',
+                    bgcolor: '#f5eee8',
+                  }}
                 />
                 <Box sx={{ position: 'absolute', top: 12, left: 12 }}>
                   <StatusChip status={selected.status} />
@@ -987,9 +1007,20 @@ export function PromotionsManagementPage({
             >
               <Box
                 component="img"
-                src={selectedMenuDraft.imageUrl ?? coffeeIngredientsImage}
+                src={
+                  selectedMenuDraft.imageUrl?.trim() || imagePlaceholderImage
+                }
                 alt={`รูป${selectedMenuDraft.name}`}
-                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: selectedMenuDraft.imageUrl?.trim()
+                    ? 'cover'
+                    : 'contain',
+                  p: selectedMenuDraft.imageUrl?.trim() ? 0 : '27%',
+                  boxSizing: 'border-box',
+                  bgcolor: '#f5eee8',
+                }}
               />
               <Box
                 sx={{
