@@ -36,7 +36,7 @@ func (h *PlatformHandler) StockLogin(c *gin.Context) {
 	err := h.db.QueryRowContext(c.Request.Context(), `
 		SELECT u.id,u.name,u.role,u.branch_id,b.name,b.franchisee_id IS NOT NULL,u.attendance_pin_hash
 		FROM users u JOIN branches b ON b.id=u.branch_id
-		WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &isFranchise, &pinHash)
+		WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager') AND NOT COALESCE(b.is_headquarters,false)`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &isFranchise, &pinHash)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -81,7 +81,7 @@ func (h *PlatformHandler) SetupStockPIN(c *gin.Context) {
 	err := h.db.QueryRowContext(c.Request.Context(), `
 		SELECT u.id,u.name,u.role,u.branch_id,b.name,b.franchisee_id IS NOT NULL,u.attendance_pin_hash
 		FROM users u JOIN branches b ON b.id=u.branch_id
-		WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager')`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &isFranchise, &existing)
+		WHERE lower(u.username)=lower($1) AND u.role IN ('cashier','branch_manager') AND NOT COALESCE(b.is_headquarters,false)`, strings.TrimSpace(input.Username)).Scan(&userID, &name, &role, &branchID, &branchName, &isFranchise, &existing)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "ไม่พบชื่อผู้ใช้พนักงาน"})
 		return
@@ -121,7 +121,7 @@ func (h *PlatformHandler) StockSession(c *gin.Context) {
 	}
 	var name, role, branchName string
 	var isFranchise bool
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,b.name,b.franchisee_id IS NOT NULL FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, *claims.BranchID).Scan(&name, &role, &branchName, &isFranchise)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT u.name,u.role,b.name,b.franchisee_id IS NOT NULL FROM users u JOIN branches b ON b.id=u.branch_id WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager') AND NOT COALESCE(b.is_headquarters,false)`, claims.UserID, *claims.BranchID).Scan(&name, &role, &branchName, &isFranchise)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
 		return
@@ -144,7 +144,7 @@ func (h *PlatformHandler) StockStaffSession(c *gin.Context) {
 	var name string
 	err := h.db.QueryRowContext(c.Request.Context(), `
 		SELECT name FROM users
-		WHERE id=$1 AND branch_id=$2 AND role IN ('cashier','branch_manager')`, claims.UserID, *claims.BranchID).Scan(&name)
+		WHERE id=$1 AND branch_id=$2 AND role IN ('cashier','branch_manager') AND NOT EXISTS (SELECT 1 FROM branches WHERE id=$2 AND COALESCE(is_headquarters,false))`, claims.UserID, *claims.BranchID).Scan(&name)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
 		return
@@ -183,7 +183,7 @@ func (h *PlatformHandler) ConfirmStockStaffSession(c *gin.Context) {
 	err := h.db.QueryRowContext(c.Request.Context(), `
 		SELECT u.name,u.role,b.name,b.franchisee_id IS NOT NULL,u.attendance_pin_hash
 		FROM users u JOIN branches b ON b.id=u.branch_id
-		WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager')`, claims.UserID, *claims.BranchID).Scan(&name, &role, &branchName, &isFranchise, &pinHash)
+		WHERE u.id=$1 AND u.branch_id=$2 AND u.role IN ('cashier','branch_manager') AND NOT COALESCE(b.is_headquarters,false)`, claims.UserID, *claims.BranchID).Scan(&name, &role, &branchName, &isFranchise, &pinHash)
 	if err != nil || pinHash == nil || *pinHash == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "เซสชันพนักงานไม่พร้อมใช้งาน"})
 		return
