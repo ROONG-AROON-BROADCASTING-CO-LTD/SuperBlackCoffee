@@ -4,11 +4,29 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"y/internal/middleware"
 )
+
+func TestStockLoginRejectsMalformedPINBeforeDatabaseAccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, pin := range []string{"12345", "1234567", "12a456", "１２３４５６"} {
+		t.Run(pin, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			context, _ := gin.CreateTestContext(response)
+			context.Request = httptest.NewRequest(http.MethodPost, "/stock/login", strings.NewReader(`{"username":"staff","pin":"`+pin+`"}`))
+			context.Request.Header.Set("Content-Type", "application/json")
+
+			(&PlatformHandler{db: &sql.DB{}}).StockLogin(context)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d; want bad request before database access", response.Code)
+			}
+		})
+	}
+}
 
 func TestStockSessionRejectsUnscopedAndNonStaffClaimsBeforeReadingUser(t *testing.T) {
 	gin.SetMode(gin.TestMode)

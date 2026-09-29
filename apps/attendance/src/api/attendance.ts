@@ -22,6 +22,8 @@ export type AttendanceStatus = {
   checkedIn: boolean;
   shiftStatus: string;
   canRecordAttendance: boolean;
+  canCheckOut?: boolean;
+  checkoutAvailableAt?: string;
 };
 
 export type AttendanceHistoryItem = {

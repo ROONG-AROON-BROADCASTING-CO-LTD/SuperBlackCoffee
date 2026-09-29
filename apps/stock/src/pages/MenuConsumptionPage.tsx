@@ -6,7 +6,6 @@ import {
   Card,
   Chip,
   Divider,
-  Drawer,
   Paper,
   Stack,
   TextField,
@@ -15,6 +14,7 @@ import {
 import {
   ActionSnackbar,
   CartIcon,
+  DashboardFormDrawer,
   HistoryIcon,
   XIcon,
   SearchField,
@@ -582,57 +582,52 @@ export function MenuConsumptionPage({
           </Box>
         )}
       </Stack>
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={cartOpen && cartMode === 'consume'}
         onClose={() => setCartVisibility(false)}
-        ModalProps={{
+        modalProps={{
           disableAutoFocus: true,
           disableRestoreFocus: true,
         }}
         // Match the Admin add-ingredient drawer: its longer slide and matching
         // backdrop fade feel deliberate instead of snapping into place.
         transitionDuration={{ enter: 360, exit: 280 }}
-        slotProps={{
-          paper: {
-            sx: {
-              maxWidth: { xs: 720, md: 'none' },
-              mx: { xs: 'auto', md: 0 },
-              left: { md: '280px' },
-              width: { xs: '100%', md: 'calc(100% - 304px)' },
-              // Sit above the mobile navigation; it must never cover it.
-              bottom: {
-                xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
-                md: 0,
-                lg: 0,
-              },
-              height: {
-                xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                md: 'calc(100dvh - 72px)',
-              },
-              maxHeight: {
-                xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                md: 'calc(100dvh - 72px)',
-              },
-              top: { md: 'auto' },
-              overflowY: { md: 'auto' },
-              borderRadius: { xs: 0, md: '22px 22px 0 0' },
-              p: { xs: 2, sm: 3, md: 0 },
-              px: { md: 4 },
-              pt: { md: 1.5 },
-              pb: { md: 3.5 },
-              bgcolor: '#fffaf7',
-              // The visual viewport becomes shorter while a phone keyboard is
-              // open. Fill the navigation gap so the sales grid never peeks
-              // through between the sheet and keyboard. Tablet layout is kept
-              // unchanged.
-              '@media (max-width: 599.95px)': {
-                '&:has(textarea:focus)': {
-                  bottom: 0,
-                  height: '100dvh',
-                  maxHeight: '100dvh',
-                },
-              },
+        paperSx={{
+          maxWidth: { xs: 720, md: 'none' },
+          mx: { xs: 'auto', md: 0 },
+          left: { md: '280px' },
+          width: { xs: '100%', md: 'calc(100% - 304px)' },
+          // Sit above the mobile navigation; it must never cover it.
+          bottom: {
+            xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+            md: 0,
+            lg: 0,
+          },
+          height: {
+            xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+            md: 'calc(100dvh - 72px)',
+          },
+          maxHeight: {
+            xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+            md: 'calc(100dvh - 72px)',
+          },
+          top: { md: 'auto' },
+          overflowY: { md: 'auto' },
+          borderRadius: { xs: 0, md: '22px 22px 0 0' },
+          p: { xs: 2, sm: 3, md: 0 },
+          px: { md: 4 },
+          pt: { md: 1.5 },
+          pb: { md: 3.5 },
+          bgcolor: '#fffaf7',
+          // The visual viewport becomes shorter while a phone keyboard is
+          // open. Fill the navigation gap so the sales grid never peeks
+          // through between the sheet and keyboard. Tablet layout is kept
+          // unchanged.
+          '@media (max-width: 599.95px)': {
+            '&:has(textarea:focus)': {
+              bottom: 0,
+              height: '100dvh',
+              maxHeight: '100dvh',
             },
           },
         }}
@@ -837,7 +832,7 @@ export function MenuConsumptionPage({
             ยืนยันตัดวัตถุดิบตามสูตร
           </Button>
         </Stack>
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={
           error || receiptError

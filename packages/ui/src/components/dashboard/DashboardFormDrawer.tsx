@@ -17,6 +17,8 @@ type DashboardFormDrawerProps = {
   children: ReactNode;
   paperSx?: SxProps<Theme>;
   transitionDuration?: DrawerProps['transitionDuration'];
+  modalProps?: DrawerProps['ModalProps'];
+  onTransitionExited?: () => void;
   zIndex?: number;
 };
 
@@ -27,6 +29,8 @@ export function DashboardFormDrawer({
   children,
   paperSx,
   transitionDuration = { enter: 360, exit: 280 },
+  modalProps,
+  onTransitionExited,
   zIndex = 1300,
 }: DashboardFormDrawerProps) {
   return (
@@ -35,8 +39,10 @@ export function DashboardFormDrawer({
       open={open}
       onClose={onClose}
       transitionDuration={transitionDuration}
+      ModalProps={modalProps}
       sx={{ zIndex }}
       slotProps={{
+        transition: { onExited: onTransitionExited },
         paper: {
           sx: [
             {
@@ -61,19 +67,22 @@ export function DashboardFormDrawer({
   );
 }
 
-export function DashboardDrawerHandle() {
+export function DashboardDrawerHandle({ sx }: { sx?: SxProps<Theme> } = {}) {
   return (
     <Box
       aria-hidden="true"
-      sx={{
-        width: 44,
-        height: 5,
-        mx: 'auto',
-        mb: 2.5,
-        flexShrink: 0,
-        borderRadius: 99,
-        bgcolor: '#d8c8bd',
-      }}
+      sx={[
+        {
+          width: 44,
+          height: 5,
+          mx: 'auto',
+          mb: 2.5,
+          flexShrink: 0,
+          borderRadius: 99,
+          bgcolor: '#d8c8bd',
+        },
+        ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+      ]}
     />
   );
 }

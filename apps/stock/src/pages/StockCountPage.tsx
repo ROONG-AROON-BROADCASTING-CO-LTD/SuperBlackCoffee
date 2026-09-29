@@ -6,7 +6,6 @@ import {
   Card,
   Chip,
   Divider,
-  Drawer,
   MenuItem,
   Paper,
   Stack,
@@ -15,6 +14,7 @@ import {
 } from '@mui/material';
 import {
   ActionSnackbar,
+  DashboardFormDrawer,
   DateField,
   FilterPill,
   SearchField,
@@ -447,46 +447,39 @@ export function StockCountPage({
           })}
         </Box>
       )}
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={editorOpen}
         onClose={closeEditor}
         transitionDuration={{ enter: 360, exit: 280 }}
-        slotProps={{
-          transition: {
-            onExited: () => setEditing(null),
+        onTransitionExited={() => setEditing(null)}
+        paperSx={{
+          maxWidth: { xs: 720, lg: 'none' },
+          mx: 'auto',
+          left: { lg: '230px' },
+          width: { xs: '100%', lg: 'calc(100% - 230px)' },
+          bottom: {
+            xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+            md: 0,
+            lg: 0,
           },
-          paper: {
-            sx: {
-              maxWidth: { xs: 720, lg: 'none' },
-              mx: 'auto',
-              left: { lg: '230px' },
-              width: { xs: '100%', lg: 'calc(100% - 230px)' },
-              bottom: {
-                xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
-                md: 0,
-                lg: 0,
-              },
-              height: { xs: 'auto', md: 'auto', lg: 'auto' },
-              maxHeight: {
-                xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                md: '82dvh',
-                lg: 'calc(100dvh - 72px)',
-              },
-              top: { lg: 'auto' },
-              borderRadius: { xs: 0, lg: '24px 24px 0 0' },
-              p: { xs: 2, sm: 3 },
-              bgcolor: '#fffaf7',
-              // The phone navigation is deliberately reserved while the
-              // sheet is idle. Once an editor field opens the keyboard,
-              // that reserve leaves a visible gap below the sheet, making it
-              // appear to float. Let the sheet meet the keyboard instead.
-              // Larger breakpoints retain their existing desktop placement.
-              '@media (max-width: 599.95px)': {
-                '&:has(input:focus, textarea:focus)': {
-                  bottom: 0,
-                },
-              },
+          height: { xs: 'auto', md: 'auto', lg: 'auto' },
+          maxHeight: {
+            xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+            md: '82dvh',
+            lg: 'calc(100dvh - 72px)',
+          },
+          top: { lg: 'auto' },
+          borderRadius: { xs: 0, lg: '24px 24px 0 0' },
+          p: { xs: 2, sm: 3 },
+          bgcolor: '#fffaf7',
+          // The phone navigation is deliberately reserved while the
+          // sheet is idle. Once an editor field opens the keyboard,
+          // that reserve leaves a visible gap below the sheet, making it
+          // appear to float. Let the sheet meet the keyboard instead.
+          // Larger breakpoints retain their existing desktop placement.
+          '@media (max-width: 599.95px)': {
+            '&:has(input:focus, textarea:focus)': {
+              bottom: 0,
             },
           },
         }}
@@ -583,7 +576,7 @@ export function StockCountPage({
             </Button>
           </Stack>
         ) : null}
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={error ? { message: error, severity: 'error' } : null}
         onClose={() => setError('')}

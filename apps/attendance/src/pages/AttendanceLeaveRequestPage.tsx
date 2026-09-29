@@ -36,12 +36,6 @@ const defaultLeaveDate = (() => {
   return `${get('year')}-${get('month')}-${get('day')}`;
 })();
 
-function nextCalendarDay(date: string) {
-  const value = new Date(`${date}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + 1);
-  return value.toISOString().slice(0, 10);
-}
-
 export function AttendanceLeaveRequestPage({
   onSuccess,
 }: {
@@ -60,9 +54,7 @@ export function AttendanceLeaveRequestPage({
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [leaveDate, setLeaveDate] = useState(defaultLeaveDate);
-  const [leaveEndDate, setLeaveEndDate] = useState(() =>
-    nextCalendarDay(defaultLeaveDate),
-  );
+  const [leaveEndDate, setLeaveEndDate] = useState(defaultLeaveDate);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [previewError, setPreviewError] = useState('');
   const submit = async () => {
@@ -182,13 +174,13 @@ export function AttendanceLeaveRequestPage({
               value={leaveDate}
               onChange={(event) => {
                 setLeaveDate(event.target.value);
-                if (event.target.value >= leaveEndDate)
-                  setLeaveEndDate(nextCalendarDay(event.target.value));
+                if (event.target.value > leaveEndDate)
+                  setLeaveEndDate(event.target.value);
               }}
             />
             <DateField
               label="ถึงวันที่"
-              min={nextCalendarDay(leaveDate)}
+              min={leaveDate}
               value={leaveEndDate}
               onChange={(event) => setLeaveEndDate(event.target.value)}
             />

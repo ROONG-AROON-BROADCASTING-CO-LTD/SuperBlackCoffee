@@ -7,8 +7,9 @@ export type DrawerActionBarProps = {
 };
 
 /**
- * Shared action footer for bottom drawers. It is anchored to the drawer itself
- * so it remains at the lower-right edge without separating during transitions.
+ * Shared action footer for bottom drawers. It stays in the document flow and
+ * sticks to the lower edge while its scroll container is active, so it never
+ * covers form controls that appear after it on smaller screens.
  */
 export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
   return (
@@ -19,15 +20,15 @@ export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
           justifyContent: { xs: 'stretch', sm: 'flex-end' },
           alignItems: 'center',
           gap: 1.25,
-          position: 'absolute',
+          position: 'sticky',
           width: { xs: '100%', sm: 'fit-content' },
           maxWidth: '100%',
           flexWrap: { xs: 'wrap', sm: 'nowrap' },
           gridColumn: 'auto',
           gridRow: 'auto',
-          left: { xs: 0, sm: 'auto' },
-          right: { xs: 0, sm: 32 },
           bottom: 0,
+          mt: 1.5,
+          alignSelf: { xs: 'stretch', sm: 'end' },
           zIndex: 1301,
           px: 1.5,
           py: 1.25,
@@ -39,8 +40,7 @@ export function DrawerActionBar({ children, sx }: DrawerActionBarProps) {
           '& > button': { flex: { xs: '1 1 auto', sm: '0 0 auto' } },
         },
         ...(Array.isArray(sx) ? sx : [sx]),
-        // An absolute action bar must not inherit a full-width grid placement
-        // from the form it is rendered in.
+        // Keep the footer in its intended grid cell when rendered in a form.
         { gridColumn: 'auto', gridRow: 'auto' },
       ]}
     >

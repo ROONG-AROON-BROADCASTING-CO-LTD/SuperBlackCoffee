@@ -89,10 +89,46 @@ export default function App() {
       'ภาพรวม',
     [page],
   );
+  const checkoutAvailableAt =
+    status?.checkoutAvailableAt || session?.user.endsAt || '';
+  const checkoutTimeReached = (() => {
+    if (!checkoutAvailableAt) return false;
+    const [hour, minute] = checkoutAvailableAt
+      .slice(0, 5)
+      .split(':')
+      .map(Number);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
+    const now = new Date();
+    const endMinutes = hour * 60 + minute;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const [startHour, startMinute] = (session?.user.startsAt || '00:00')
+      .slice(0, 5)
+      .split(':')
+      .map(Number);
+    const startMinutes = startHour * 60 + startMinute;
+    if (
+      status?.checkInAt &&
+      Number.isFinite(startMinutes) &&
+      endMinutes <= startMinutes
+    ) {
+      const checkInDate = new Date(status.checkInAt);
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const checkInDay = new Date(
+        checkInDate.getFullYear(),
+        checkInDate.getMonth(),
+        checkInDate.getDate(),
+      );
+      return today > checkInDay && nowMinutes >= endMinutes;
+    }
+    return nowMinutes >= endMinutes;
+  })();
+  const canCheckOut =
+    !status?.checkedIn || status.canCheckOut === true || checkoutTimeReached;
   const attendanceActionDisabled =
     loading ||
     !status ||
     !status.canRecordAttendance ||
+    !canCheckOut ||
     Boolean(status.checkInAt && status.checkOutAt);
   const attendanceScheduleLabel = session?.user.isHeadquarters
     ? 'เวลาทำงานมาตรฐาน'
@@ -101,16 +137,20 @@ export default function App() {
     ? 'กำลังตรวจสอบตำแหน่งปัจจุบัน'
     : status?.checkInAt && status.checkOutAt
       ? ''
-      : status?.shiftStatus === 'day_off'
-        ? `วันนี้เป็นวันหยุดตาม${attendanceScheduleLabel}`
-        : `ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบ${attendanceScheduleLabel}`;
+      : status?.checkedIn && !canCheckOut
+        ? `เช็กเอาต์ได้ตั้งแต่เวลา ${checkoutAvailableAt.slice(0, 5)} น.`
+        : status?.shiftStatus === 'day_off'
+          ? `วันนี้เป็นวันหยุดตาม${attendanceScheduleLabel}`
+          : `ยังไม่สามารถบันทึกเวลาได้ กรุณารอให้ระบบตรวจสอบ${attendanceScheduleLabel}`;
   const attendanceActionDisabledLabel = loading
     ? 'กำลังตรวจสอบตำแหน่ง...'
     : status?.checkInAt && status.checkOutAt
       ? 'ลงเวลาวันนี้ครบแล้ว'
-      : status?.shiftStatus === 'day_off'
-        ? 'วันนี้เป็นวันหยุด'
-        : 'ยังไม่สามารถลงเวลาได้';
+      : status?.checkedIn && !canCheckOut
+        ? `เช็กเอาต์ได้เวลา ${checkoutAvailableAt.slice(0, 5)} น.`
+        : status?.shiftStatus === 'day_off'
+          ? 'วันนี้เป็นวันหยุด'
+          : 'ยังไม่สามารถลงเวลาได้';
   const outsideAttendanceRadiusNotice = notice.match(
     outsideAttendanceRadiusPattern,
   );

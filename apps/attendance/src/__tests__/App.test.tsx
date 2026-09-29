@@ -241,6 +241,7 @@ describe('Attendance App session', () => {
       checkOutAt: null,
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
+      canCheckOut: true,
     });
     vi.mocked(checkOut).mockRejectedValueOnce(new Error('network unavailable'));
 
@@ -268,6 +269,7 @@ describe('Attendance App session', () => {
       checkOutAt: null,
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
+      canCheckOut: true,
     });
     vi.mocked(getAttendanceSummary)
       .mockResolvedValueOnce({
@@ -291,6 +293,7 @@ describe('Attendance App session', () => {
       checkedIn: true,
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
+      canCheckOut: true,
     });
 
     render(<App />);
@@ -319,6 +322,7 @@ describe('Attendance App session', () => {
       checkOutAt: null,
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
+      canCheckOut: true,
     });
     vi.mocked(checkOut).mockResolvedValueOnce({
       date: '2026-09-08',
@@ -353,6 +357,32 @@ describe('Attendance App session', () => {
     });
   });
 
+  it('keeps checkout disabled until the scheduled end time', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: true,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+      canCheckOut: false,
+      checkoutAvailableAt: '17:00',
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'true',
+      );
+      expect(
+        screen.getByTestId('attendance-action-disabled-label').textContent,
+      ).toBe('เช็กเอาต์ได้เวลา 17:00 น.');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+    expect(checkOut).not.toHaveBeenCalled();
+  });
+
   it('offers checkout for an overnight shift whose work date is yesterday', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-23',
@@ -361,6 +391,7 @@ describe('Attendance App session', () => {
       checkOutAt: null,
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
+      canCheckOut: true,
     });
     vi.mocked(checkOut).mockResolvedValueOnce({
       date: '2026-09-23',
@@ -483,6 +514,7 @@ describe('Attendance App session', () => {
       checkOutAt: null,
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
+      canCheckOut: true,
     });
     vi.mocked(checkOut).mockRejectedValueOnce(
       new ApiRequestError('คุณอยู่นอกรัศมีลงเวลา', 403),

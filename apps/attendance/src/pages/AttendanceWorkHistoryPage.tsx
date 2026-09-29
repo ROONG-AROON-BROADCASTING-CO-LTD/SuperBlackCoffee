@@ -27,10 +27,9 @@ export function AttendanceWorkHistoryPage({
       </Typography>
       <Box
         sx={{
-          borderBottom: '1px solid #e8ddd5',
-          bgcolor: '#fffdfb',
-          borderRadius: '15px 15px 0 0',
-          px: { xs: 1, sm: 2 },
+          bgcolor: '#fff',
+          borderRadius: { xs: '14px 14px 0 0', md: '15px 15px 0 0' },
+          px: { xs: 0.5, sm: 2 },
         }}
       >
         <Tabs
@@ -39,11 +38,18 @@ export function AttendanceWorkHistoryPage({
           aria-label="ประวัติการทำงาน"
           variant="fullWidth"
           sx={{
-            minHeight: 48,
+            minHeight: 54,
             '& .MuiTab-root': {
-              minHeight: 48,
-              fontWeight: 600,
-              fontSize: 16,
+              minHeight: 54,
+              color: 'rgba(23, 20, 17, .5)',
+              fontWeight: 700,
+              fontSize: { xs: 17, sm: 18 },
+              letterSpacing: '-0.01em',
+              '&.Mui-selected': { color: '#171411' },
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+              bgcolor: '#171411',
             },
           }}
         >
@@ -51,7 +57,7 @@ export function AttendanceWorkHistoryPage({
           <Tab value="leave" label="ใบลา" />
         </Tabs>
       </Box>
-      <Box sx={{ mt: { xs: 1.5, md: 0 } }}>
+      <Box sx={{ mt: 0 }}>
         {activeTab === 'attendance' ? (
           <AttendanceHistoryList history={history} />
         ) : (

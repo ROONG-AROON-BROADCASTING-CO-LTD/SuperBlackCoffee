@@ -27,8 +27,6 @@ describe('AttendanceLeaveRequestPage', () => {
     const leaveDate = (
       screen.getByLabelText('ตั้งแต่วันที่') as HTMLInputElement
     ).value;
-    const leaveEndDate = new Date(`${leaveDate}T00:00:00Z`);
-    leaveEndDate.setUTCDate(leaveEndDate.getUTCDate() + 1);
 
     fireEvent.click(screen.getByRole('button', { name: 'ลากิจ' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'เหตุผลการลา' }), {
@@ -41,7 +39,7 @@ describe('AttendanceLeaveRequestPage', () => {
     await waitFor(() =>
       expect(onSuccess).toHaveBeenCalledWith({
         leaveDate,
-        leaveEndDate: leaveEndDate.toISOString().slice(0, 10),
+        leaveEndDate: leaveDate,
         leaveType: 'personal',
         reason: 'ไปติดต่อราชการ',
         contactPhone: '',
@@ -137,14 +135,14 @@ describe('AttendanceLeaveRequestPage', () => {
     }
   });
 
-  it('moves the end date to the next calendar day across a year boundary', () => {
+  it('keeps a one-day leave request on the selected start date across a year boundary', () => {
     render(<AttendanceLeaveRequestPage onSuccess={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('ตั้งแต่วันที่'), {
       target: { value: '2026-12-31' },
     });
 
     expect((screen.getByLabelText('ถึงวันที่') as HTMLInputElement).value).toBe(
-      '2027-01-01',
+      '2026-12-31',
     );
   });
 

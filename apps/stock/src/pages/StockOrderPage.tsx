@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Chip,
-  Drawer,
   Paper,
   Stack,
   TextField,
@@ -14,6 +13,7 @@ import {
 import {
   ActionSnackbar,
   CartIcon,
+  DashboardFormDrawer,
   SearchField,
   selectionPillSx,
 } from '@stackbuild/ui';
@@ -317,21 +317,16 @@ export function StockOrderPage({
         <Alert severity="info">ไม่พบสินค้าที่ตรงกับคำค้นหา</Alert>
       )}
 
-      <Drawer
-        anchor="bottom"
+      <DashboardFormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        slotProps={{
-          paper: {
-            sx: {
-              maxWidth: 720,
-              width: '100%',
-              mx: 'auto',
-              p: { xs: 2, sm: 3 },
-              borderRadius: '24px 24px 0 0',
-              bgcolor: '#fffaf7',
-            },
-          },
+        paperSx={{
+          maxWidth: 720,
+          width: '100%',
+          mx: 'auto',
+          p: { xs: 2, sm: 3 },
+          borderRadius: '24px 24px 0 0',
+          bgcolor: '#fffaf7',
         }}
       >
         <Stack sx={{ gap: 2 }}>
@@ -425,7 +420,7 @@ export function StockOrderPage({
             </Button>
           </Stack>
         </Stack>
-      </Drawer>
+      </DashboardFormDrawer>
       <ActionSnackbar
         notice={error ? { message: error, severity: 'error' } : null}
         onClose={() => setError('')}

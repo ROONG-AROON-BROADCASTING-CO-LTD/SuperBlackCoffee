@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PromotionsSkeleton } from '../../components/skeletons/PromotionsSkeleton';
 import { PromotionsManagementPage } from '../PromotionsManagementPage';
 
@@ -30,8 +30,11 @@ describe('PromotionsManagementPage', () => {
     fireEvent.change(screen.getByLabelText('สิทธิพิเศษ / รายละเอียด'), {
       target: { value: 'ลดค่าจัดส่ง 20 บาท' },
     });
-    fireEvent.change(screen.getByLabelText('ช่วงเวลาแคมเปญ'), {
-      target: { value: '1 ธ.ค. 2569 – 31 ธ.ค. 2569' },
+    fireEvent.change(screen.getByLabelText('เริ่มแคมเปญ'), {
+      target: { value: '2026-12-01' },
+    });
+    fireEvent.change(screen.getByLabelText('สิ้นสุดแคมเปญ'), {
+      target: { value: '2026-12-31' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' }));
 
@@ -43,6 +46,70 @@ describe('PromotionsManagementPage', () => {
         hidden: true,
       }),
     ).toBeTruthy();
+  });
+
+  it('requires an ordered campaign date range before saving', async () => {
+    render(<PromotionsManagementPage mode="stock" />);
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มโปรโมชั่น' }));
+    fireEvent.change(screen.getByLabelText('ชื่อโปรโมชั่น'), {
+      target: { value: 'โปรโมชั่นทดสอบ' },
+    });
+    fireEvent.change(screen.getByLabelText('สิทธิพิเศษ / รายละเอียด'), {
+      target: { value: 'ลด 10 บาท' },
+    });
+
+    const save = screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' });
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByLabelText('สิ้นสุดแคมเปญ') as HTMLInputElement).disabled,
+    ).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('เริ่มแคมเปญ'), {
+      target: { value: '2026-12-31' },
+    });
+    const end = screen.getByLabelText('สิ้นสุดแคมเปญ') as HTMLInputElement;
+    expect(end.disabled).toBe(false);
+    expect(end.min).toBe('2026-12-31');
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('shows an uploaded promotion image in the saved promotion', async () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:promotion-photo');
+    vi.stubGlobal('URL', { ...URL, createObjectURL });
+    try {
+      render(<PromotionsManagementPage mode="stock" />);
+      fireEvent.click(screen.getByRole('button', { name: 'เพิ่มโปรโมชั่น' }));
+      fireEvent.change(screen.getByLabelText('อัปโหลดรูปโปรโมชั่น'), {
+        target: {
+          files: [new File(['image'], 'promotion.png', { type: 'image/png' })],
+        },
+      });
+      expect(createObjectURL).toHaveBeenCalledOnce();
+      fireEvent.change(screen.getByLabelText('ชื่อโปรโมชั่น'), {
+        target: { value: 'โปรโมชั่นมีรูป' },
+      });
+      fireEvent.change(screen.getByLabelText('สิทธิพิเศษ / รายละเอียด'), {
+        target: { value: 'ลด 10 บาท' },
+      });
+      fireEvent.change(screen.getByLabelText('เริ่มแคมเปญ'), {
+        target: { value: '2026-12-01' },
+      });
+      fireEvent.change(screen.getByLabelText('สิ้นสุดแคมเปญ'), {
+        target: { value: '2026-12-31' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' }));
+
+      expect(await screen.findAllByText('โปรโมชั่นมีรูป')).toHaveLength(2);
+      expect(
+        screen
+          .getAllByRole('img', { name: /รูปอเมริกาโน่เย็น/u })
+          .some(
+            (image) => image.getAttribute('src') === 'blob:promotion-photo',
+          ),
+      ).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('uses the shared menu-style close control for the promotion drawer', async () => {

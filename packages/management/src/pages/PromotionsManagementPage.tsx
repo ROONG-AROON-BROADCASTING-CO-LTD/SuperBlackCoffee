@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@mui/material';
 import {
+  DateField,
   DashboardMain,
   DrawerActionBar,
   DashboardFormDrawer,
@@ -38,6 +39,7 @@ type Promotion = {
   id: number;
   name: string;
   type: PromotionType;
+  imageUrl?: string;
   benefit: string;
   branches: string;
   period: string;
@@ -212,7 +214,43 @@ const blankPromotion = {
   benefit: '',
   branches: 'ทุกสาขา',
   period: '',
+  startDate: '',
+  endDate: '',
+  imageUrl: '',
   menuId: menuTemplates[0].id,
+};
+
+/** The Stock app's full-height sheet, kept above its persistent mobile nav. */
+const stockCartDrawerPaperSx = {
+  maxWidth: { xs: 720, md: 'none' },
+  mx: { xs: 'auto', md: 0 },
+  left: { md: '280px' },
+  width: { xs: '100%', md: 'calc(100% - 304px)' },
+  bottom: {
+    xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
+    md: 0,
+  },
+  height: {
+    xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+    md: 'calc(100dvh - 72px)',
+  },
+  maxHeight: {
+    xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
+    md: 'calc(100dvh - 72px)',
+  },
+  top: { md: 'auto' },
+  overflowY: 'auto',
+  borderRadius: { xs: 0, md: '22px 22px 0 0' },
+  p: 0,
+  // The Stock navigation hides while the mobile keyboard is open. Reclaim its
+  // reserved space for every form control so a gap never remains above the keyboard.
+  '@media (max-width: 599.95px)': {
+    '&:has(input:focus), &:has(textarea:focus)': {
+      bottom: 0,
+      height: '100dvh',
+      maxHeight: '100dvh',
+    },
+  },
 };
 
 const formatExpiryDate = (date: string) =>
@@ -221,6 +259,19 @@ const formatExpiryDate = (date: string) =>
     month: 'short',
     year: 'numeric',
   }).format(new Date(`${date}T00:00:00`));
+
+const formatCampaignPeriod = (startDate: string, endDate: string) =>
+  startDate && endDate
+    ? `${formatExpiryDate(startDate)} – ${formatExpiryDate(endDate)}`
+    : '';
+
+const todayDateInputValue = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 function StatusChip({
   status,
@@ -258,7 +309,8 @@ function PromotionCard({
 }) {
   const leadMenu = promotion.menuItems[0];
   const ingredients = leadMenu.ingredients;
-  const hasLeadMenuImage = Boolean(leadMenu.imageUrl?.trim());
+  const leadImageUrl = promotion.imageUrl?.trim() || leadMenu.imageUrl?.trim();
+  const hasLeadMenuImage = Boolean(leadImageUrl);
   return (
     <Card
       variant="outlined"
@@ -281,7 +333,7 @@ function PromotionCard({
       >
         <Box
           component="img"
-          src={hasLeadMenuImage ? leadMenu.imageUrl : imagePlaceholderImage}
+          src={leadImageUrl || imagePlaceholderImage}
           alt={`รูป${leadMenu.name}`}
           sx={{
             width: '100%',
@@ -522,6 +574,7 @@ export function PromotionsManagementPage({
       id: Math.max(...promotions.map((promotion) => promotion.id)) + 1,
       name: draft.name.trim(),
       type: draft.type,
+      imageUrl: draft.imageUrl.trim() || undefined,
       benefit: draft.benefit.trim(),
       branches: draft.branches.trim() || 'ทุกสาขา',
       period: draft.period.trim(),
@@ -543,12 +596,16 @@ export function PromotionsManagementPage({
   const createFromExpirySuggestion = (
     suggestion: ExpiryPromotionSuggestion,
   ) => {
+    const startDate = todayDateInputValue();
     setDraft({
       name: `${suggestion.menuName} ลด ${suggestion.suggestedDiscountPercent}%`,
       type: 'ส่วนลด',
       benefit: `ลด ${suggestion.suggestedDiscountPercent}% เพื่อใช้ ${suggestion.ingredientName} ล็อตใกล้หมดอายุ`,
       branches: `สาขา${branchName}`,
-      period: `วันนี้ – ${formatExpiryDate(suggestion.expiryDate)}`,
+      startDate,
+      endDate: suggestion.expiryDate,
+      period: formatCampaignPeriod(startDate, suggestion.expiryDate),
+      imageUrl: '',
       menuId: `expiry-${suggestion.menuId}-${suggestion.lotId || suggestion.inventoryItemId}`,
     });
     setCreateOpen(true);
@@ -562,6 +619,8 @@ export function PromotionsManagementPage({
   const selectedMenuDraft =
     promotionMenus.find((menu) => menu.id === draft.menuId) ??
     promotionMenus[0];
+  const draftPromotionImageUrl =
+    draft.imageUrl.trim() || selectedMenuDraft.imageUrl?.trim() || '';
 
   const content = (
     <>
@@ -772,7 +831,7 @@ export function PromotionsManagementPage({
                 alignSelf: { xs: 'stretch', sm: 'auto' },
                 minHeight: 42,
                 px: 2.25,
-                borderRadius: '12px',
+                borderRadius: '16px',
                 bgcolor: '#3c2d24',
                 boxShadow: 'none',
                 fontFamily: 'Kanit, sans-serif',
@@ -862,27 +921,13 @@ export function PromotionsManagementPage({
       <DashboardFormDrawer
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        paperSx={{
-          ...(embedded
-            ? {
-                left: { md: 0, lg: '230px' },
-                width: { md: '100%', lg: 'calc(100% - 230px)' },
-                bottom: {
-                  xs: 'calc(var(--stock-mobile-nav-height, 82px) + env(safe-area-inset-bottom))',
-                  md: 0,
-                },
-                height: {
-                  xs: 'calc(100dvh - var(--stock-mobile-nav-height, 82px) - env(safe-area-inset-bottom))',
-                  md: 'calc(100dvh - 72px)',
-                },
-              }
-            : {}),
-          overflowY: 'auto',
-        }}
+        paperSx={embedded ? stockCartDrawerPaperSx : { overflowY: 'auto' }}
       >
         {selected && (
           <Box sx={{ width: '100%', px: { xs: 2.5, sm: 4 }, pt: 1.5, pb: 3.5 }}>
-            <DashboardDrawerHandle />
+            <DashboardDrawerHandle
+              sx={{ display: { xs: 'none', md: 'block' } }}
+            />
             <DashboardDrawerHeader
               title="รายละเอียดโปรโมชั่น"
               closeLabel="ปิดรายละเอียดโปรโมชั่น"
@@ -917,6 +962,7 @@ export function PromotionsManagementPage({
                 <Box
                   component="img"
                   src={
+                    selected.imageUrl?.trim() ||
                     selected.menuItems[0].imageUrl?.trim() ||
                     imagePlaceholderImage
                   }
@@ -924,10 +970,16 @@ export function PromotionsManagementPage({
                   sx={{
                     width: '100%',
                     height: '100%',
-                    objectFit: selected.menuItems[0].imageUrl?.trim()
-                      ? 'cover'
-                      : 'contain',
-                    p: selected.menuItems[0].imageUrl?.trim() ? 0 : '27%',
+                    objectFit:
+                      selected.imageUrl?.trim() ||
+                      selected.menuItems[0].imageUrl?.trim()
+                        ? 'cover'
+                        : 'contain',
+                    p:
+                      selected.imageUrl?.trim() ||
+                      selected.menuItems[0].imageUrl?.trim()
+                        ? 0
+                        : '27%',
                     boxSizing: 'border-box',
                     bgcolor: '#f5eee8',
                   }}
@@ -1157,271 +1209,361 @@ export function PromotionsManagementPage({
       <DashboardFormDrawer
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        paperSx={{ overflowY: 'auto' }}
+        paperSx={embedded ? stockCartDrawerPaperSx : { overflowY: 'auto' }}
       >
         <Box
           sx={{
             width: '100%',
-            px: { xs: 2.5, sm: 4 },
-            pt: 1.5,
-            pb: 3.5,
+            height: '100%',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            '@media (max-width: 599.95px)': {
+              '&:has(.MuiInputBase-root.Mui-focused) [data-promotion-actions]':
+                {
+                  display: 'none',
+                },
+            },
           }}
         >
-          <DashboardDrawerHandle />
-          <DashboardDrawerHeader
-            title={
-              draft.menuId.startsWith('expiry-')
-                ? 'สร้างโปรโมชั่นจากวัตถุดิบใกล้หมดอายุ'
-                : 'เพิ่มโปรโมชั่น'
-            }
-            description={
-              draft.menuId.startsWith('expiry-')
-                ? 'ตรวจสอบส่วนลด ระยะเวลา และสาขาก่อนบันทึกโปรโมชั่น'
-                : 'เลือกเมนูที่มีสูตรแล้ว ระบบจะใช้สูตรเดิมของเมนูนั้นตัดสต๊อกอัตโนมัติ'
-            }
-            onClose={() => setCreateOpen(false)}
-            onCloseMouseEnter={() => createCloseRef.current?.startAnimation()}
-            onCloseMouseLeave={() => createCloseRef.current?.stopAnimation()}
-            closeIcon={<XIcon ref={createCloseRef} size={20} />}
-          />
+          <Box sx={{ px: { xs: 2.5, sm: 4 }, pt: 1.5, flexShrink: 0 }}>
+            <DashboardDrawerHandle
+              sx={{ display: { xs: 'none', md: 'block' } }}
+            />
+            <DashboardDrawerHeader
+              title={
+                draft.menuId.startsWith('expiry-')
+                  ? 'สร้างโปรโมชั่นจากวัตถุดิบใกล้หมดอายุ'
+                  : 'เพิ่มโปรโมชั่น'
+              }
+              description={
+                draft.menuId.startsWith('expiry-')
+                  ? 'ตรวจสอบส่วนลด ระยะเวลา และสาขาก่อนบันทึกโปรโมชั่น'
+                  : 'เลือกเมนูที่มีสูตรแล้ว ระบบจะใช้สูตรเดิมของเมนูนั้นตัดสต๊อกอัตโนมัติ'
+              }
+              onClose={() => setCreateOpen(false)}
+              onCloseMouseEnter={() => createCloseRef.current?.startAnimation()}
+              onCloseMouseLeave={() => createCloseRef.current?.stopAnimation()}
+              closeIcon={<XIcon ref={createCloseRef} size={20} />}
+            />
+          </Box>
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                md: 'minmax(0, 1fr) minmax(0, 2fr)',
-              },
-              gap: 2.5,
-              mt: 2.5,
-              '& .MuiOutlinedInput-root': { borderRadius: '12px' },
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              px: { xs: 2.5, sm: 4 },
+              pb: 2.5,
             }}
           >
-            <Box
-              sx={{
-                position: 'relative',
-                aspectRatio: '1 / 1',
-                overflow: 'hidden',
-                border: '1.5px dashed #c9b6a9',
-                borderRadius: '16px',
-                bgcolor: '#f7eee8',
-              }}
-            >
-              <Box
-                component="img"
-                src={
-                  selectedMenuDraft.imageUrl?.trim() || imagePlaceholderImage
-                }
-                alt={`รูป${selectedMenuDraft.name}`}
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: selectedMenuDraft.imageUrl?.trim()
-                    ? 'cover'
-                    : 'contain',
-                  p: selectedMenuDraft.imageUrl?.trim() ? 0 : '27%',
-                  boxSizing: 'border-box',
-                  bgcolor: '#f5eee8',
-                }}
-              />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  bgcolor: 'rgba(32, 25, 20, .42)',
-                  color: '#fff',
-                  fontFamily: 'Kanit, sans-serif',
-                  fontWeight: 600,
-                }}
-              >
-                ใช้รูปจากเมนูที่เลือก
-              </Box>
-            </Box>
             <Box
               sx={{
                 display: 'grid',
                 gridTemplateColumns: {
                   xs: '1fr',
-                  sm: 'repeat(2, minmax(0, 1fr))',
+                  md: 'minmax(0, 1fr) minmax(0, 2fr)',
                 },
-                gap: 2,
+                gap: 2.5,
+                mt: 2.5,
+                '& .MuiOutlinedInput-root': { borderRadius: '12px' },
               }}
             >
-              <TextField
-                label="ชื่อโปรโมชั่น"
-                value={draft.name}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
-                fullWidth
-                sx={{ gridColumn: { sm: '1 / -1' } }}
-              />
-              <TextField
-                select
-                label="ประเภทโปรโมชั่น"
-                value={draft.type}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    type: event.target.value as PromotionType,
-                  }))
-                }
-                fullWidth
+              <Box
+                component="label"
+                sx={{
+                  position: 'relative',
+                  aspectRatio: '1 / 1',
+                  overflow: 'hidden',
+                  border: '1.5px dashed #c9b6a9',
+                  borderRadius: '16px',
+                  bgcolor: '#f7eee8',
+                  cursor: 'pointer',
+                }}
               >
-                {(
-                  ['ส่วนลด', 'ซื้อ 1 แถม 1', 'สิทธิพิเศษ'] as PromotionType[]
-                ).map((type) => (
-                  <MenuItem key={type} value={type}>
-                    {type}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="เมนูที่ร่วมโปรโมชั่น"
-                value={draft.menuId}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    menuId: event.target.value,
-                  }))
-                }
-                fullWidth
-                sx={{ gridColumn: { sm: '1 / -1' } }}
-              >
-                {promotionMenus.map((menu) => (
-                  <MenuItem key={menu.id} value={menu.id}>
-                    {menu.name} · สูตร {menu.ingredients.length} รายการ
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label="สิทธิพิเศษ / รายละเอียด"
-                value={draft.benefit}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    benefit: event.target.value,
-                  }))
-                }
-                fullWidth
-              />
-              <TextField
-                label="สาขาที่เข้าร่วม"
-                value={draft.branches}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    branches: event.target.value,
-                  }))
-                }
-                fullWidth
-              />
-              <TextField
-                label="ช่วงเวลาแคมเปญ"
-                placeholder="เช่น 1 ธ.ค. 2569 – 31 ธ.ค. 2569"
-                value={draft.period}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    period: event.target.value,
-                  }))
-                }
-                fullWidth
-              />
+                <Box
+                  component="img"
+                  src={draftPromotionImageUrl || imagePlaceholderImage}
+                  alt={`รูป${selectedMenuDraft.name}`}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: draftPromotionImageUrl ? 'cover' : 'contain',
+                    p: draftPromotionImageUrl ? 0 : '27%',
+                    boxSizing: 'border-box',
+                    bgcolor: '#f5eee8',
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: 'rgba(32, 25, 20, .42)',
+                    color: '#fff',
+                    fontFamily: 'Kanit, sans-serif',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    px: 2,
+                  }}
+                >
+                  {draft.imageUrl
+                    ? 'แตะเพื่อเปลี่ยนรูปโปรโมชั่น'
+                    : 'ใช้รูปเมนูอยู่ • แตะเพื่อเพิ่มรูปโปรโมชั่น'}
+                </Box>
+                <input
+                  hidden
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  aria-label="อัปโหลดรูปโปรโมชั่น"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    setDraft((current) => ({
+                      ...current,
+                      imageUrl: URL.createObjectURL(file),
+                    }));
+                    event.target.value = '';
+                  }}
+                />
+              </Box>
               <Box
                 sx={{
-                  gridColumn: { sm: '1 / -1' },
-                  p: 1.5,
-                  border: '1px solid #e8ddd5',
-                  borderRadius: '12px',
-                  bgcolor: '#fff',
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, minmax(0, 1fr))',
+                  },
+                  gap: 2,
                 }}
               >
-                <Typography
-                  sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
-                >
-                  สูตรที่ระบบจะใช้ตัดสต๊อก
-                </Typography>
-                <Typography
-                  sx={{
-                    mt: 0.3,
-                    color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
-                    fontSize: 12,
-                  }}
-                >
-                  {selectedMenuDraft.name} · {selectedMenuDraft.category}
-                </Typography>
-                <Stack
-                  direction="row"
-                  spacing={0.75}
-                  useFlexGap
-                  sx={{ mt: 1, flexWrap: 'wrap' }}
-                >
-                  {selectedMenuDraft.ingredients.map((ingredient) => (
-                    <Chip
-                      key={ingredient.name}
-                      label={`${ingredient.name} ${ingredient.quantity}`}
-                      size="small"
-                      sx={{
-                        bgcolor: '#f7eee8',
-                        color: '#5f4b3d',
-                        fontFamily: 'Kanit, sans-serif',
-                        fontSize: 11,
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-              <DrawerActionBar
-                sx={{
-                  gridColumn: { sm: '1 / -1' },
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  onClick={() => setCreateOpen(false)}
-                  sx={{
-                    minHeight: 40,
-                    px: 2.5,
-                    borderColor: '#d8c8bd',
-                    color: '#5f4b3d',
-                    borderRadius: '12px',
-                    bgcolor: '#fffaf7',
-                    '&:hover': { borderColor: '#cbb8aa', bgcolor: '#f7eee8' },
-                  }}
-                >
-                  ยกเลิก
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={createPromotion}
-                  disabled={
-                    !draft.name.trim() ||
-                    !draft.benefit.trim() ||
-                    !draft.period.trim()
+                <TextField
+                  label="ชื่อโปรโมชั่น"
+                  value={draft.name}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
                   }
+                  fullWidth
+                  sx={{ gridColumn: { sm: '1 / -1' } }}
+                />
+                <TextField
+                  select
+                  label="ประเภทโปรโมชั่น"
+                  value={draft.type}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      type: event.target.value as PromotionType,
+                    }))
+                  }
+                  fullWidth
+                >
+                  {(
+                    ['ส่วนลด', 'ซื้อ 1 แถม 1', 'สิทธิพิเศษ'] as PromotionType[]
+                  ).map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  select
+                  label="เมนูที่ร่วมโปรโมชั่น"
+                  value={draft.menuId}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      menuId: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                  sx={{ gridColumn: { sm: '1 / -1' } }}
+                >
+                  {promotionMenus.map((menu) => (
+                    <MenuItem key={menu.id} value={menu.id}>
+                      {menu.name} · สูตร {menu.ingredients.length} รายการ
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="สิทธิพิเศษ / รายละเอียด"
+                  value={draft.benefit}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      benefit: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                />
+                <TextField
+                  label="สาขาที่เข้าร่วม"
+                  value={draft.branches}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      branches: event.target.value,
+                    }))
+                  }
+                  fullWidth
+                />
+                <Box
                   sx={{
-                    minHeight: 40,
-                    px: 2.5,
-                    color: '#fff',
-                    bgcolor: '#3c2d24',
-                    borderRadius: '12px',
-                    boxShadow: 'none',
-                    fontFamily: 'Kanit, sans-serif',
-                    '&:hover': { bgcolor: '#201914', boxShadow: 'none' },
-                    '&.Mui-disabled': { bgcolor: '#eadfd7', color: '#8b7567' },
+                    gridColumn: { sm: '1 / -1' },
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                    gap: 1.25,
                   }}
                 >
-                  บันทึกโปรโมชั่น
-                </Button>
-              </DrawerActionBar>
+                  <DateField
+                    label="เริ่มแคมเปญ"
+                    value={draft.startDate}
+                    onChange={(event) =>
+                      setDraft((current) => {
+                        const startDate = event.target.value;
+                        const endDate =
+                          current.endDate && current.endDate < startDate
+                            ? ''
+                            : current.endDate;
+                        return {
+                          ...current,
+                          startDate,
+                          endDate,
+                          period: formatCampaignPeriod(startDate, endDate),
+                        };
+                      })
+                    }
+                  />
+                  <DateField
+                    label="สิ้นสุดแคมเปญ"
+                    value={draft.endDate}
+                    min={draft.startDate || undefined}
+                    disabled={!draft.startDate}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        endDate: event.target.value,
+                        period: formatCampaignPeriod(
+                          current.startDate,
+                          event.target.value,
+                        ),
+                      }))
+                    }
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    gridColumn: { sm: '1 / -1' },
+                    p: 1.5,
+                    border: '1px solid #e8ddd5',
+                    borderRadius: '12px',
+                    bgcolor: '#fff',
+                  }}
+                >
+                  <Typography
+                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                  >
+                    สูตรที่ระบบจะใช้ตัดสต๊อก
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.3,
+                      color: 'text.secondary',
+                      fontFamily: 'Kanit, sans-serif',
+                      fontSize: 12,
+                    }}
+                  >
+                    {selectedMenuDraft.name} · {selectedMenuDraft.category}
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    useFlexGap
+                    sx={{ mt: 1, flexWrap: 'wrap' }}
+                  >
+                    {selectedMenuDraft.ingredients.map((ingredient) => (
+                      <Chip
+                        key={ingredient.name}
+                        label={`${ingredient.name} ${ingredient.quantity}`}
+                        size="small"
+                        sx={{
+                          bgcolor: '#f7eee8',
+                          color: '#5f4b3d',
+                          fontFamily: 'Kanit, sans-serif',
+                          fontSize: 11,
+                        }}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              </Box>
             </Box>
+          </Box>
+          <Box data-promotion-actions sx={{ flexShrink: 0 }}>
+            <DrawerActionBar
+              sx={{
+                position: 'static',
+                width: '100%',
+                mt: 0,
+                borderRadius: 0,
+                gap: 1.5,
+                px: { xs: 2, sm: 3 },
+                py: 1.5,
+                flexDirection: 'row',
+                '& > button': {
+                  flex: '1 1 0',
+                  width: 'auto',
+                  height: 64,
+                  minHeight: 64,
+                  minWidth: 0,
+                },
+              }}
+            >
+              <Button
+                variant="outlined"
+                onClick={() => setCreateOpen(false)}
+                sx={{
+                  minHeight: 64,
+                  px: 2,
+                  borderColor: '#d8c8bd',
+                  color: '#5f4b3d',
+                  borderRadius: '16px',
+                  bgcolor: '#fffaf7',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  '&:hover': { borderColor: '#cbb8aa', bgcolor: '#f7eee8' },
+                }}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                variant="contained"
+                onClick={createPromotion}
+                disabled={
+                  !draft.name.trim() ||
+                  !draft.benefit.trim() ||
+                  !draft.period.trim()
+                }
+                sx={{
+                  minHeight: 64,
+                  px: 2,
+                  color: '#fff',
+                  bgcolor: '#3c2d24',
+                  borderRadius: '16px',
+                  boxShadow: 'none',
+                  fontFamily: 'Kanit, sans-serif',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: '#201914', boxShadow: 'none' },
+                  '&.Mui-disabled': { bgcolor: '#eadfd7', color: '#8b7567' },
+                }}
+              >
+                บันทึกโปรโมชั่น
+              </Button>
+            </DrawerActionBar>
           </Box>
         </Box>
       </DashboardFormDrawer>

@@ -187,6 +187,34 @@ func canRecordAttendance(shiftStatus string) bool {
 	return shiftStatus == "scheduled" || shiftStatus == "compensatory_work"
 }
 
+func scheduledCheckoutAt(workDate, startsAt, endsAt string) (time.Time, error) {
+	date, err := time.ParseInLocation("2006-01-02", workDate, thailandLocation)
+	if err != nil {
+		return time.Time{}, err
+	}
+	parseClock := func(value string) (time.Time, error) {
+		for _, layout := range []string{"15:04:05", "15:04"} {
+			if parsed, parseErr := time.ParseInLocation(layout, value, thailandLocation); parseErr == nil {
+				return parsed, nil
+			}
+		}
+		return time.Time{}, fmt.Errorf("invalid shift time %q", value)
+	}
+	start, err := parseClock(startsAt)
+	if err != nil {
+		return time.Time{}, err
+	}
+	end, err := parseClock(endsAt)
+	if err != nil {
+		return time.Time{}, err
+	}
+	checkoutAt := time.Date(date.Year(), date.Month(), date.Day(), end.Hour(), end.Minute(), end.Second(), 0, thailandLocation)
+	if end.Hour()*60+end.Minute() <= start.Hour()*60+start.Minute() {
+		checkoutAt = checkoutAt.AddDate(0, 0, 1)
+	}
+	return checkoutAt, nil
+}
+
 func (h *PlatformHandler) isHeadquartersBranch(c *gin.Context, branchID int64) (bool, error) {
 	var isHeadquarters bool
 	err := h.db.QueryRowContext(c.Request.Context(), `SELECT is_headquarters FROM branches WHERE id=$1`, branchID).Scan(&isHeadquarters)
@@ -299,6 +327,27 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 		}
 	}
 	canActToday := (canRecordAttendance(shiftStatus) || shiftStatus == "office_workday") && (checkIn == nil || checkOut == nil)
+	canCheckOut := false
+	checkoutAvailableAt := ""
+	if checkIn != nil && checkOut == nil {
+		var startsAt, endsAt string
+		scheduleErr := h.db.QueryRowContext(c.Request.Context(), `
+			SELECT COALESCE(s.starts_at,u.default_starts_at)::text,COALESCE(s.ends_at,u.default_ends_at)::text
+			FROM users u
+			LEFT JOIN staff_shifts s ON s.user_id=u.id AND s.branch_id=u.branch_id AND s.shift_date=$3
+			WHERE u.id=$1 AND u.branch_id=$2`, claims.UserID, claims.BranchID, workDate).Scan(&startsAt, &endsAt)
+		if scheduleErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลาเลิกงานได้"})
+			return
+		}
+		checkoutAt, parseErr := scheduledCheckoutAt(workDate, startsAt, endsAt)
+		if parseErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลาเลิกงานได้"})
+			return
+		}
+		canCheckOut = !now.Before(checkoutAt)
+		checkoutAvailableAt = checkoutAt.Format("15:04")
+	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
 		"date":                workDate,
 		"checkInAt":           checkIn,
@@ -306,6 +355,8 @@ func (h *PlatformHandler) AttendanceToday(c *gin.Context) {
 		"checkedIn":           checkIn != nil && checkOut == nil,
 		"shiftStatus":         shiftStatus,
 		"canRecordAttendance": canActToday,
+		"canCheckOut":         canCheckOut,
+		"checkoutAvailableAt": checkoutAvailableAt,
 	}})
 }
 
@@ -435,23 +486,41 @@ func (h *PlatformHandler) CheckOut(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณาอนุญาตตำแหน่งและส่งพิกัดที่ถูกต้องก่อนลงเวลา"})
 		return
 	}
+	now := attendanceToday()
+	var workDate, startsAt, endsAt string
+	err := h.db.QueryRowContext(c.Request.Context(), `
+		SELECT a.work_date::text,COALESCE(s.starts_at,u.default_starts_at)::text,COALESCE(s.ends_at,u.default_ends_at)::text
+		FROM staff_attendance a
+		JOIN users u ON u.id=a.user_id AND u.branch_id=a.branch_id
+		LEFT JOIN staff_shifts s ON s.user_id=a.user_id AND s.branch_id=a.branch_id AND s.shift_date=a.work_date
+		WHERE a.user_id=$1 AND a.branch_id=$2 AND a.check_in_at IS NOT NULL AND a.check_out_at IS NULL
+			AND (a.work_date=$3 OR (a.work_date=$4 AND COALESCE(s.ends_at,u.default_ends_at) <= COALESCE(s.starts_at,u.default_starts_at)))
+		ORDER BY a.work_date DESC LIMIT 1`, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now.AddDate(0, 0, -1).Format("2006-01-02")).Scan(&workDate, &startsAt, &endsAt)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบรายการเช็กอินที่ยังไม่ได้เช็กเอาต์"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลาเลิกงานได้"})
+		return
+	}
+	checkoutAt, parseErr := scheduledCheckoutAt(workDate, startsAt, endsAt)
+	if parseErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบเวลาเลิกงานได้"})
+		return
+	}
+	if now.Before(checkoutAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "เช็กเอาต์ได้ตั้งแต่เวลา " + checkoutAt.Format("15:04") + " น."})
+		return
+	}
 	if !h.validateAttendanceLocation(c, *claims.BranchID, location) {
 		return
 	}
-	now := attendanceToday()
 	var checkOut *time.Time
-	err := h.db.QueryRowContext(c.Request.Context(), `
+	err = h.db.QueryRowContext(c.Request.Context(), `
 		UPDATE staff_attendance SET check_out_at=$1,check_out_latitude=$2,check_out_longitude=$3,check_out_accuracy_m=$4,updated_at=now()
-		WHERE branch_id=$6 AND check_in_at IS NOT NULL AND check_out_at IS NULL
-			AND (user_id, work_date) IN (
-			SELECT user_id, work_date FROM staff_attendance
-			WHERE user_id=$5 AND branch_id=$6 AND check_in_at IS NOT NULL AND check_out_at IS NULL
-			AND (work_date=$7 OR (work_date=$8 AND EXISTS (
-				SELECT 1 FROM staff_shifts s WHERE s.user_id=staff_attendance.user_id
-					AND s.branch_id=staff_attendance.branch_id AND s.shift_date=staff_attendance.work_date
-					AND s.ends_at <= s.starts_at AND s.status IN ('scheduled','compensatory_work')
-			))) ORDER BY work_date DESC LIMIT 1)
-		RETURNING check_out_at`, now, location.Latitude, location.Longitude, location.AccuracyM, claims.UserID, claims.BranchID, now.Format("2006-01-02"), now.AddDate(0, 0, -1).Format("2006-01-02")).Scan(&checkOut)
+		WHERE user_id=$5 AND branch_id=$6 AND work_date=$7 AND check_in_at IS NOT NULL AND check_out_at IS NULL
+		RETURNING check_out_at`, now, location.Latitude, location.Longitude, location.AccuracyM, claims.UserID, claims.BranchID, workDate).Scan(&checkOut)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบรายการเช็กอินที่ยังไม่ได้เช็กเอาต์"})
 		return

@@ -1,4 +1,14 @@
-import { Box, Paper, Typography } from '@mui/material';
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@mui/material';
 import type { AttendanceHistoryItem } from '../api/attendance';
 
 export function AttendanceHistoryList({
@@ -43,7 +53,7 @@ export function AttendanceHistoryList({
         p: compact ? { xs: 2, sm: '18px 22px' } : 0,
         overflowX: 'auto',
         borderColor: '#e8ddd5',
-        borderRadius: '15px',
+        borderRadius: compact ? '15px' : '0 0 15px 15px',
         bgcolor: '#fffdfb',
       }}
     >
@@ -62,44 +72,76 @@ export function AttendanceHistoryList({
           <Typography color="secondary.main">ดูทั้งหมด</Typography>
         </Box>
       ) : null}
-      <Box sx={{ minWidth: 580 }}>
-        <Box
+      <TableContainer>
+        <Table
+          size="small"
           sx={{
-            display: 'grid',
-            gridTemplateColumns: '1.7fr 1fr 1fr 1.3fr',
-            gap: 1.5,
-            px: compact ? 0 : { xs: 2.5, sm: 3.5 },
-            py: 1.25,
-            color: '#76675d',
-            fontSize: 16,
-            fontWeight: 600,
+            minWidth: { xs: 0, sm: 580 },
+            tableLayout: { xs: 'fixed', sm: 'auto' },
           }}
+          aria-label="ประวัติการลงเวลา"
         >
-          <span>วันที่</span>
-          <span>เช็กอิน</span>
-          <span>เช็กเอาต์</span>
-          <span>รวมเวลา</span>
-        </Box>
-        {items.map(({ date, checkInAt, checkOutAt }) => (
-          <Box
-            key={date}
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '1.7fr 1fr 1fr 1.3fr',
-              gap: 1.5,
-              px: compact ? 0 : { xs: 2.5, sm: 3.5 },
-              py: 1.25,
-              borderTop: '1px solid #eee3dc',
-              fontSize: 14,
-            }}
-          >
-            <span>{formatDate(date)}</span>
-            <span>{formatTime(checkInAt)}</span>
-            <span>{formatTime(checkOutAt)}</span>
-            <span>{totalTime(checkInAt, checkOutAt)}</span>
-          </Box>
-        ))}
-      </Box>
+          <TableHead>
+            <TableRow sx={{ bgcolor: '#f7f3f0' }}>
+              {['วันที่', 'เช็กอิน', 'เช็กเอาต์', 'รวมเวลา'].map(
+                (label, index) => (
+                  <TableCell
+                    key={label}
+                    sx={{
+                      borderColor: '#eee3dc',
+                      color: '#76675d',
+                      display: { xs: index === 3 ? 'none' : 'table-cell' },
+                      fontSize: { xs: 12, sm: 14 },
+                      fontWeight: 700,
+                      py: 1.25,
+                      width: { xs: index === 0 ? '50%' : '25%', sm: 'auto' },
+                      whiteSpace: 'nowrap',
+                      ...(compact ? { px: 0 } : { px: { xs: 2.5, sm: 3.5 } }),
+                    }}
+                  >
+                    {label}
+                  </TableCell>
+                ),
+              )}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {items.map(({ date, checkInAt, checkOutAt }) => (
+              <TableRow key={date} hover>
+                <TableCell sx={cellStyle(compact)}>
+                  {formatDate(date)}
+                </TableCell>
+                <TableCell sx={cellStyle(compact)}>
+                  {formatTime(checkInAt)}
+                </TableCell>
+                <TableCell sx={cellStyle(compact)}>
+                  {formatTime(checkOutAt)}
+                </TableCell>
+                <TableCell
+                  sx={{
+                    ...cellStyle(compact),
+                    display: { xs: 'none', sm: 'table-cell' },
+                    fontWeight: 600,
+                  }}
+                >
+                  {totalTime(checkInAt, checkOutAt)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Paper>
   );
+}
+
+function cellStyle(compact: boolean) {
+  return {
+    borderColor: '#eee3dc',
+    color: '#2a221d',
+    fontSize: { xs: 12, sm: 14 },
+    py: 1.5,
+    whiteSpace: 'nowrap',
+    ...(compact ? { px: 0 } : { px: { xs: 2.5, sm: 3.5 } }),
+  };
 }

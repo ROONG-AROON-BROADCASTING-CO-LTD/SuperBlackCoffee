@@ -727,8 +727,15 @@ func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	if _, err := db.Exec(`UPDATE users SET attendance_pin_hash=$1 WHERE id=7`, string(pinHash)); err != nil {
 		t.Fatal(err)
 	}
-	today := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Format("2006-01-02")
-	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'08:00','17:00','scheduled')`, branchID, today); err != nil {
+	localNow := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60))
+	if localNow.Hour() == 0 && localNow.Minute() == 0 {
+		t.Skip("same-day checkout flow needs a completed minute after midnight")
+	}
+	today := localNow.Format("2006-01-02")
+	// This flow verifies duplicate submissions, so schedule a shift whose end
+	// has already passed rather than depending on the test runner's clock time.
+	shiftEnd := localNow.Add(-time.Minute).Format("15:04")
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'00:00',$3,'scheduled')`, branchID, today, shiftEnd); err != nil {
 		t.Fatal(err)
 	}
 	r := New(db, nil)
@@ -758,6 +765,18 @@ func TestAttendanceCookieFlowPreventsDuplicateCheckInAndCheckOut(t *testing.T) {
 	}
 	if duplicateCheckIn := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-in", location, cookies[0]); duplicateCheckIn.Code != http.StatusBadRequest {
 		t.Fatalf("duplicate check in = %d: %s", duplicateCheckIn.Code, duplicateCheckIn.Body.String())
+	}
+	if localNow.Hour() != 23 || localNow.Minute() < 58 {
+		futureEnd := localNow.Add(2 * time.Minute).Format("15:04")
+		if _, err := db.Exec(`UPDATE staff_shifts SET ends_at=$1 WHERE user_id=7 AND shift_date=$2`, futureEnd, today); err != nil {
+			t.Fatal(err)
+		}
+		if early := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", location, cookies[0]); early.Code != http.StatusBadRequest {
+			t.Fatalf("early check out = %d: %s", early.Code, early.Body.String())
+		}
+		if _, err := db.Exec(`UPDATE staff_shifts SET ends_at=$1 WHERE user_id=7 AND shift_date=$2`, shiftEnd, today); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if checkOut := requestJSONWithCookie(r, http.MethodPost, "/api/v1/attendance/check-out", location, cookies[0]); checkOut.Code != http.StatusOK {
 		t.Fatalf("check out = %d: %s", checkOut.Code, checkOut.Body.String())

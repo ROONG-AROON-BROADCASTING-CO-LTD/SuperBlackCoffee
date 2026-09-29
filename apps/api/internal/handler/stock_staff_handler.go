@@ -24,9 +24,18 @@ func (h *PlatformHandler) StockLogin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ต้องระบุชื่อผู้ใช้"})
 		return
 	}
-	if input.PIN != "" && len(input.PIN) != 6 {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
-		return
+	if input.PIN != "" {
+		validPIN := len(input.PIN) == 6
+		for _, digit := range input.PIN {
+			if digit < '0' || digit > '9' {
+				validPIN = false
+				break
+			}
+		}
+		if !validPIN {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "PIN ต้องเป็นตัวเลข 6 หลัก"})
+			return
+		}
 	}
 
 	var userID, branchID int64
