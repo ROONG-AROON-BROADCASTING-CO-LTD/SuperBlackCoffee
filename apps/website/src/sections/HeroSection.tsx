@@ -115,7 +115,7 @@ export function HeroSection() {
         }}
       >
         <Image
-          src="/coffee-ingredients.png"
+          src="/coffee/coffee-bean-ingredients.png"
           alt="เมล็ดกาแฟและวัตถุดิบ Super Black Coffee"
           fill
           priority

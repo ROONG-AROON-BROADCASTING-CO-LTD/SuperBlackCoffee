@@ -15,7 +15,7 @@ const branches = [
     phone: '061-884-9960',
     hours: '08:00–20:30 น.',
     map: 'https://maps.app.goo.gl/B2sXw1XnoACsmphA9',
-    image: '/coffee/storefront.png',
+    image: '/coffee/coffee-storefront.png',
     status: 'เปิดทุกวัน',
   },
   {
@@ -25,7 +25,7 @@ const branches = [
     phone: '080-174-7757',
     hours: '08:00–20:30 น.',
     map: 'https://maps.app.goo.gl/rbCG1HbrHJXHffSk6',
-    image: '/brand-hero.png',
+    image: '/hero/superblackcoffee-brand-hero.png?v=20260930',
     status: 'เปิดทุกวัน',
   },
   {
@@ -34,7 +34,7 @@ const branches = [
     phone: '',
     hours: '',
     map: '',
-    image: '/coffee-gallery.png',
+    image: '/coffee/coffee-cup-gallery.png',
     status: 'พบกันเร็ว ๆ นี้',
   },
 ];
@@ -70,7 +70,7 @@ const plans = [
     area: '20–40 ตร.ม.',
     service: 'Coffee & Beverage',
     cost: '1.2–2.2 ล้านบาท',
-    image: '/franchise-s.png',
+    image: '/franchise/superblackcoffee-franchise-s.png',
   },
   {
     size: 'M',
@@ -78,7 +78,7 @@ const plans = [
     area: '40–100 ตร.ม.',
     service: 'Coffee, Food & Bakery',
     cost: '2.5–4.5 ล้านบาท',
-    image: '/franchise-m.png',
+    image: '/franchise/superblackcoffee-franchise-m.png',
   },
   {
     size: 'L',
@@ -86,7 +86,7 @@ const plans = [
     area: '100 ตร.ม. ขึ้นไป',
     service: 'ครบทุกบริการของเรา',
     cost: '5–10 ล้านบาท+',
-    image: '/franchise-l.png',
+    image: '/franchise/superblackcoffee-franchise-l.png',
   },
 ];
 
@@ -94,27 +94,60 @@ const serviceItems = [
   {
     title: 'Coffee & Beverage',
     detail: 'กาแฟคุณภาพและเครื่องดื่มที่ตั้งใจทำในทุกแก้ว',
-    image: '/service-coffee.png',
+    image: '/services/superblackcoffee-service-coffee.png',
   },
   {
     title: 'Food & Bakery',
     detail: 'อาหารและเบเกอรี่สำหรับทุกช่วงเวลาของวัน',
-    image: '/service-bakery.png',
+    image: '/services/superblackcoffee-service-bakery.png',
   },
   {
     title: 'BPOST65 Express',
     detail: 'บริการที่เติมความสะดวกให้การเดินทางและการใช้ชีวิต',
-    image: '/service-lifestyle.png',
+    image: '/services/superblackcoffee-service-bpost65-express.png',
   },
   {
     title: 'EV Charging',
     detail: 'จุดพักและชาร์จพลังให้พร้อมเดินทางต่อ',
-    image: '/service-ev.png',
+    image: '/services/superblackcoffee-service-ev-charging.png',
   },
   {
     title: 'Mobile Café',
     detail: 'ประสบการณ์กาแฟที่เดินทางไปกับคุณ',
-    image: '/service-work.png',
+    image: '/services/superblackcoffee-service-control.png',
+  },
+];
+
+const heroServiceCards = [
+  {
+    title: 'PREMIUM COFFEE',
+    detail: 'กาแฟพรีเมียมคัดสรร เพื่อทุกช่วงเวลาของคุณ',
+    image: '/services/superblackcoffee-service-coffee.png',
+    href: '/menu',
+  },
+  {
+    title: 'EV CHARGING',
+    detail: 'สถานีชาร์จรถยนต์ไฟฟ้า มาตรฐาน ปลอดภัย',
+    image: '/services/superblackcoffee-service-ev-charging.png',
+    href: '/services',
+  },
+  {
+    title: 'BPOST65 EXPRESS',
+    detail: 'บริการจัดส่งพัสดุที่สะดวกในทุกเส้นทาง',
+    image: '/services/superblackcoffee-service-bpost65-express.png',
+    href: '/services',
+  },
+  {
+    title: 'FRANCHISE',
+    detail: 'ร่วมเติบโตไปด้วยกัน กับธุรกิจที่มั่นคง',
+    image: '/franchise/superblackcoffee-franchise-m.png',
+    href: '/franchise',
+  },
+  {
+    title: 'SUPERBLACK CONTROL',
+    detail: 'ระบบบริหารจัดการร้านค้าและแฟรนไชส์ครบวงจร',
+    image: '/services/superblackcoffee-service-control.png',
+    href: '/franchise',
   },
 ];
 
@@ -145,11 +178,19 @@ function Photo({
   className?: string;
   priority?: boolean;
 }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
   return (
     <Box
       component="div"
       sx={[
         websiteSx['sb-photo'],
+        {
+          backgroundImage: `url("${src}")`,
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover',
+        },
         ...(className === 'sb-home-hero-photo'
           ? [websiteSx['sb-home-hero-photo']]
           : []),
@@ -161,7 +202,12 @@ function Photo({
         alt={alt}
         fill
         priority={priority}
+        loading={priority ? undefined : 'eager'}
+        unoptimized
+        decoding="sync"
         sizes="(max-width: 800px) 100vw, 60vw"
+        onLoad={() => setIsLoaded(true)}
+        style={{ opacity: isLoaded ? 1 : 0 }}
       />
     </Box>
   );
@@ -305,7 +351,7 @@ export function HomeContent() {
         className="sb-home-hero"
       >
         <Photo
-          src="/brand-hero.png"
+          src="/hero/superblackcoffee-brand-hero.png?v=20260930"
           alt="ร้าน Super Black Coffee และจุดชาร์จ EV"
           className="sb-home-hero-photo"
           priority
@@ -361,6 +407,31 @@ export function HomeContent() {
         >
           SUPER BLACK COFFEE · EVERY JOURNEY
         </Box>
+        <Box
+          component="nav"
+          aria-label="บริการของ Super Black Coffee"
+          sx={[websiteSx['sb-hero-services']]}
+          className="sb-hero-services"
+        >
+          {heroServiceCards.map((card) => (
+            <Box
+              component={Link}
+              href={card.href}
+              key={card.title}
+              sx={[websiteSx['sb-hero-service-card']]}
+              className="sb-hero-service-card"
+            >
+              <Photo src={card.image} alt="" />
+              <Box component="div" className="sb-hero-service-card-copy">
+                <h2>{card.title}</h2>
+                <p>{card.detail}</p>
+                <span>
+                  ดูรายละเอียด <Arrow />
+                </span>
+              </Box>
+            </Box>
+          ))}
+        </Box>
       </Box>
       <Box
         component="section"
@@ -388,7 +459,10 @@ export function HomeContent() {
           มาบรรจบกัน เราเชื่อในศักยภาพของกาแฟไทย และเชื่อว่าการเดินทางที่ดี
           เริ่มต้นจากพลังดี ๆ ในทุกช่วงเวลา
         </p>
-        <Photo src="/coffee-gallery.png" alt="กาแฟ Super Black Coffee" />
+        <Photo
+          src="/coffee/coffee-cup-gallery.png"
+          alt="กาแฟ Super Black Coffee"
+        />
       </Box>
       <Box
         component="section"
@@ -396,7 +470,7 @@ export function HomeContent() {
         className="sb-menu-feature"
       >
         <Photo
-          src="/service-coffee.png"
+          src="/services/superblackcoffee-service-coffee.png"
           alt="เครื่องดื่มกาแฟ Super Black Coffee"
         />
         <Box
@@ -432,8 +506,11 @@ export function HomeContent() {
           sx={[websiteSx['sb-menu-feature-mini']]}
           className="sb-menu-feature-mini"
         >
-          <Photo src="/service-bakery.png" alt="เบเกอรี่" />
-          <Photo src="/coffee-ingredients.png" alt="เมล็ดกาแฟ" />
+          <Photo
+            src="/services/superblackcoffee-service-bakery.png"
+            alt="เบเกอรี่"
+          />
+          <Photo src="/coffee/coffee-bean-ingredients.png" alt="เมล็ดกาแฟ" />
         </Box>
       </Box>
       <Box
@@ -456,7 +533,7 @@ export function HomeContent() {
           className="sb-services-grid"
         >
           <Link href="/services">
-            <Photo src="/coffee/storefront.png" alt="พื้นที่ร้านกาแฟ" />
+            <Photo src="/coffee/coffee-storefront.png" alt="พื้นที่ร้านกาแฟ" />
             <div>
               <h3>กาแฟคุณภาพ</h3>
               <p>พื้นที่สำหรับคนรักกาแฟในบรรยากาศที่ผ่อนคลาย</p>
@@ -464,7 +541,10 @@ export function HomeContent() {
             </div>
           </Link>
           <Link href="/services">
-            <Photo src="/service-ev.png" alt="จุดชาร์จ EV" />
+            <Photo
+              src="/services/superblackcoffee-service-ev-charging.png"
+              alt="จุดชาร์จ EV"
+            />
             <div>
               <h3>EV Charging</h3>
               <p>เติมพลังให้ทุกการเดินทาง ด้วยสถานีชาร์จมาตรฐาน</p>
@@ -478,7 +558,10 @@ export function HomeContent() {
         sx={[websiteSx['sb-branch-banner']]}
         className="sb-branch-banner"
       >
-        <Photo src="/brand-hero.png" alt="ร้าน Super Black Coffee" />
+        <Photo
+          src="/hero/superblackcoffee-brand-hero.png?v=20260930"
+          alt="ร้าน Super Black Coffee"
+        />
         <div>
           <Box
             component="span"
@@ -528,7 +611,10 @@ export function HomeContent() {
             สำรวจแฟรนไชส์ <Arrow />
           </Box>
         </div>
-        <Photo src="/franchise-m.png" alt="รูปแบบแฟรนไชส์ Super Black Coffee" />
+        <Photo
+          src="/franchise/superblackcoffee-franchise-m.png"
+          alt="รูปแบบแฟรนไชส์ Super Black Coffee"
+        />
       </Box>
     </>
   );
@@ -540,7 +626,7 @@ export function AboutContent() {
       <InnerHero
         title="เรื่องราวที่เริ่มจากแก้วกาแฟ"
         text="เราอยากสร้างพื้นที่ที่กาแฟดี ผู้คนดี และธุรกิจที่ดีเติบโตไปพร้อมกัน"
-        image="/coffee-gallery.png"
+        image="/coffee/coffee-cup-gallery.png"
       />
       <Box
         component="section"
@@ -571,7 +657,10 @@ export function AboutContent() {
         sx={[websiteSx['sb-about-photo']]}
         className="sb-about-photo"
       >
-        <Photo src="/brand-hero.png" alt="หน้าร้าน Super Black Coffee" />
+        <Photo
+          src="/hero/superblackcoffee-brand-hero.png?v=20260930"
+          alt="หน้าร้าน Super Black Coffee"
+        />
       </Box>
       <Box
         component="section"
@@ -599,7 +688,7 @@ export function MenuContent() {
       <InnerHero
         title="เมนูที่ตั้งใจในทุกแก้ว"
         text="รสชาติที่ชัดเจน จากวัตถุดิบที่เราเลือกเอง"
-        image="/service-coffee.png"
+        image="/services/superblackcoffee-service-coffee.png"
         dark
       />
       <Box
@@ -660,10 +749,10 @@ export function MenuContent() {
           <Photo
             src={
               active === 'เบเกอรี่'
-                ? '/service-bakery.png'
+                ? '/services/superblackcoffee-service-bakery.png'
                 : active === 'ชาและมัทฉะ'
-                  ? '/coffee/drinks.png'
-                  : '/coffee/espresso.png'
+                  ? '/coffee/coffee-drinks.png'
+                  : '/coffee/coffee-espresso.png'
             }
             alt={`เมนู${active}`}
           />
@@ -685,7 +774,7 @@ export function BranchesContent() {
       <InnerHero
         title="พบกับเราได้ทุกวัน"
         text="ค้นหาสาขาและบริการที่ใกล้คุณที่สุด"
-        image="/brand-hero.png"
+        image="/hero/superblackcoffee-brand-hero.png?v=20260930"
         dark
       />
       <Box
@@ -795,7 +884,7 @@ export function FranchiseContent() {
       <InnerHero
         title="ธุรกิจที่เติบโตไปด้วยกัน"
         text="เริ่มต้นแฟรนไชส์ในรูปแบบที่เหมาะกับพื้นที่และเป้าหมายของคุณ"
-        image="/franchise-m.png"
+        image="/franchise/superblackcoffee-franchise-m.png"
         dark
       />
       <Box
@@ -808,7 +897,10 @@ export function FranchiseContent() {
           เลือกรูปแบบที่เข้ากับทำเลของคุณ
           พร้อมระบบและประสบการณ์ที่พัฒนาจากการทำร้านกาแฟจริง
         </p>
-        <Photo src="/coffee/storefront.png" alt="ร้าน Super Black Coffee" />
+        <Photo
+          src="/coffee/coffee-storefront.png"
+          alt="ร้าน Super Black Coffee"
+        />
       </Box>
       <Box
         component="section"
@@ -1007,7 +1099,7 @@ export function ServicesContent() {
       <InnerHero
         title="มากกว่ากาแฟในทุกพื้นที่"
         text="บริการที่ออกแบบให้ทุกทำเลมีศักยภาพมากขึ้น"
-        image="/service-ev.png"
+        image="/services/superblackcoffee-service-ev-charging.png"
         dark
       />
       <Box
@@ -1055,7 +1147,7 @@ export function NewsContent() {
       <InnerHero
         title="เรื่องราวจาก SUPER BLACK COFFEE"
         text="ข่าวสาร โปรโมชัน และเรื่องราวที่เราอยากแบ่งปัน"
-        image="/coffee-gallery.png"
+        image="/coffee/coffee-cup-gallery.png"
         dark
       />
       <Box
@@ -1123,7 +1215,7 @@ export function ContactContent() {
       <InnerHero
         title="เริ่มต้นบทสนทนากับเรา"
         text="ไม่ว่าจะเป็นเรื่องสาขา แฟรนไชส์ หรือความร่วมมือ เรายินดีรับฟัง"
-        image="/coffee/storefront.png"
+        image="/coffee/coffee-storefront.png"
         dark
       />
       <Box

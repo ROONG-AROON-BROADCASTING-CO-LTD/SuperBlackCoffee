@@ -47,7 +47,7 @@ export function WebsiteFooter() {
             }}
           >
             <Image
-              src="/superblack-logo.png"
+              src="/brand/superblackcoffee-logo.png"
               alt="Super Black Coffee"
               width={48}
               height={48}

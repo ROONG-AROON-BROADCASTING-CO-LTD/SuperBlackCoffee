@@ -16,7 +16,8 @@ export const websiteBaseline = {
   html: {
     margin: '0',
     padding: '0',
-    scrollBehavior: 'smooth',
+    scrollBehavior: 'auto',
+    overscrollBehaviorY: 'none',
     minHeight: '100%',
   },
   body: {
@@ -24,10 +25,11 @@ export const websiteBaseline = {
     margin: '0',
     padding: '0',
     minWidth: '320px',
-    background: 'var(--sb-white)',
+    background: '#171914',
     fontFamily: 'var(--font-kanit), sans-serif',
     color: 'var(--sb-ink)',
     textRendering: 'optimizeLegibility',
+    overscrollBehaviorY: 'none',
   },
   main: {
     margin: '0',

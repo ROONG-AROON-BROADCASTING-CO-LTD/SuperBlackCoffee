@@ -36,17 +36,13 @@ export function WebsiteNav() {
           aria-label="หน้าแรก Super Black Coffee"
         >
           <Image
-            src="/superblack-logo.png"
+            src="/brand/superblackcoffee-logo.png"
             alt=""
             width={42}
             height={42}
             priority
           />
-          <span>
-            SUPER BLACK
-            <br />
-            COFFEE
-          </span>
+          <span>SUPER BLACK COFFEE</span>
         </Box>
         <Box
           component="div"
@@ -77,17 +73,7 @@ export function WebsiteNav() {
           className="sb-nav-action"
           href="/franchise#apply"
         >
-          สนใจแฟรนไชส์{' '}
-          <span aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M5 19 19 5M8 5h11v11" />
-            </svg>
-          </span>
+          สนใจแฟรนไชส์
         </Box>
         <Box
           component="button"
@@ -125,17 +111,7 @@ export function WebsiteNav() {
             href="/franchise#apply"
             onClick={() => setOpen(false)}
           >
-            สนใจแฟรนไชส์{' '}
-            <span aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M5 19 19 5M8 5h11v11" />
-              </svg>
-            </span>
+            สนใจแฟรนไชส์
           </Box>
           <Box
             component="a"

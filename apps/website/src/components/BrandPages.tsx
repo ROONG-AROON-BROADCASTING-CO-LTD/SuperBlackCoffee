@@ -213,14 +213,18 @@ function BrandGallery() {
       >
         <Box sx={{ gridRow: { md: 'span 2' } }}>
           {photo(
-            '/coffee/espresso.png',
+            '/coffee/coffee-espresso.png',
             'กาแฟเอสเพรสโซ่',
             'กาแฟที่ตั้งใจในทุกแก้ว',
           )}
         </Box>
-        {photo('/coffee/drinks.png', 'เครื่องดื่มกาแฟและมัทฉะ', 'สดใหม่ทุกวัน')}
         {photo(
-          '/coffee/storefront.png',
+          '/coffee/coffee-drinks.png',
+          'เครื่องดื่มกาแฟและมัทฉะ',
+          'สดใหม่ทุกวัน',
+        )}
+        {photo(
+          '/coffee/coffee-storefront.png',
           'หน้าร้าน Super Black Coffee',
           'พื้นที่สำหรับทุกช่วงเวลา',
         )}
@@ -457,7 +461,7 @@ function BrandStory() {
         }}
       >
         <Image
-          src="/coffee/storefront.png"
+          src="/coffee/coffee-storefront.png"
           alt="หน้าร้าน Super Black Coffee"
           fill
           sizes="(max-width: 900px) 100vw, 52vw"
@@ -523,7 +527,7 @@ function MenuHighlight() {
             }}
           >
             <Image
-              src="/coffee/espresso.png"
+              src="/coffee/coffee-espresso.png"
               alt="เอสเพรสโซ่"
               fill
               sizes="(max-width: 900px) 50vw, 30vw"
@@ -561,15 +565,27 @@ function MenuHighlight() {
 function ServicesStrip() {
   const services = [
     [
-      '/service-coffee.png',
+      '/services/superblackcoffee-service-coffee.png',
       'COFFEE & BEVERAGE',
       'กาแฟพรีเมียมที่คัดสรรอย่างตั้งใจ',
     ],
-    ['/service-ev.png', 'EV CHARGING', 'ชาร์จพลังให้ชีวิตระหว่างการเดินทาง'],
-    ['/service-work.png', 'WORK & RELAX', 'พื้นที่ทำงานและพักผ่อนที่มี Wi‑Fi'],
-    ['/service-bakery.png', 'BAKERY & FOOD', 'เบเกอรี่และอาหารที่ทำสดใหม่'],
     [
-      '/service-lifestyle.png',
+      '/services/superblackcoffee-service-ev-charging.png',
+      'EV CHARGING',
+      'ชาร์จพลังให้ชีวิตระหว่างการเดินทาง',
+    ],
+    [
+      '/services/superblackcoffee-service-control.png',
+      'WORK & RELAX',
+      'พื้นที่ทำงานและพักผ่อนที่มี Wi‑Fi',
+    ],
+    [
+      '/services/superblackcoffee-service-bakery.png',
+      'BAKERY & FOOD',
+      'เบเกอรี่และอาหารที่ทำสดใหม่',
+    ],
+    [
+      '/services/superblackcoffee-service-bpost65-express.png',
       'LIFESTYLE GOODS',
       'สินค้าและของใช้ที่สะท้อนตัวตน',
     ],
@@ -791,7 +807,9 @@ function BranchAndFranchiseSection() {
               >
                 <Image
                   src={
-                    i === 1 ? '/coffee/drinks.png' : '/coffee/storefront.png'
+                    i === 1
+                      ? '/coffee/coffee-drinks.png'
+                      : '/coffee/coffee-storefront.png'
                   }
                   alt={name}
                   fill
@@ -869,9 +887,9 @@ function BranchAndFranchiseSection() {
           >
             {plans.map(([size, name, area, service, cost], i) => {
               const images = [
-                '/franchise-s.png',
-                '/franchise-m.png',
-                '/franchise-l.png',
+                '/franchise/superblackcoffee-franchise-s.png',
+                '/franchise/superblackcoffee-franchise-m.png',
+                '/franchise/superblackcoffee-franchise-l.png',
               ];
               const tones = ['#3f7d3c', '#b37a18', '#b72d24'];
               const title =
@@ -1171,7 +1189,7 @@ export function HomeContent() {
           }}
         >
           <Image
-            src="/brand-hero.png"
+            src="/hero/superblackcoffee-brand-hero.png?v=20260930"
             alt="ร้าน Super Black Coffee พร้อมจุดชาร์จรถยนต์ไฟฟ้า"
             fill
             priority
@@ -1193,7 +1211,7 @@ export function AboutContent() {
     <PageIntro
       title="เรื่องราวที่เริ่มจากแก้วกาแฟ"
       text="เราอยากสร้างพื้นที่ที่กาแฟดี ผู้คนดี และธุรกิจที่ดีเติบโตไปพร้อมกัน"
-      image="/brand-hero.png"
+      image="/hero/superblackcoffee-brand-hero.png?v=20260930"
     >
       <ContentSection title="คุณภาพไม่ใช่ทางเลือก">
         <Typography>
@@ -1232,7 +1250,7 @@ export function MenuContent() {
     <PageIntro
       title="เมนูที่ตั้งใจในทุกแก้ว"
       text="รสชาติที่ชัดเจน จากวัตถุดิบที่เราเลือกเอง"
-      image="/coffee-ingredients.png"
+      image="/coffee/coffee-bean-ingredients.png"
     >
       <Box sx={{ ...shell, py: { xs: 7, md: 10 } }}>
         <Stack direction="row" gap={1} sx={{ mb: 5, flexWrap: 'wrap' }}>
@@ -1299,7 +1317,7 @@ export function BranchesContent() {
     <PageIntro
       title="พบกับเราได้ทุกวัน"
       text="ค้นหาสาขาและบริการที่ใกล้คุณที่สุด"
-      image="/brand-hero.png"
+      image="/hero/superblackcoffee-brand-hero.png?v=20260930"
     >
       <Box sx={{ ...shell, py: { xs: 7, md: 10 } }}>
         <TextField
@@ -1462,7 +1480,7 @@ export function FranchiseContent() {
       <PageIntro
         title="ธุรกิจที่เติบโตไปด้วยกัน"
         text="เริ่มต้นแฟรนไชส์ในรูปแบบที่เหมาะกับพื้นที่และเป้าหมายของคุณ"
-        image="/brand-hero.png"
+        image="/hero/superblackcoffee-brand-hero.png?v=20260930"
       />
       <Box sx={{ ...shell, py: { xs: 7, md: 10 } }}>
         <Typography variant="h2" sx={{ ...heading, mb: 4.5 }}>
@@ -1628,7 +1646,7 @@ export function ServicesContent() {
     <PageIntro
       title="มากกว่ากาแฟในทุกพื้นที่"
       text="บริการที่ออกแบบให้ทุกทำเลมีศักยภาพมากขึ้น"
-      image="/brand-hero.png"
+      image="/hero/superblackcoffee-brand-hero.png?v=20260930"
     >
       <Box sx={{ ...shell, py: 8 }}>
         {services.map((item, i) => (
@@ -1670,7 +1688,7 @@ export function NewsContent() {
       dark
       title="เรื่องราวจาก SUPER BLACK COFFEE"
       text="ข่าวสาร โปรโมชัน และเรื่องราวที่เราอยากแบ่งปัน"
-      image="/brand-hero.png"
+      image="/hero/superblackcoffee-brand-hero.png?v=20260930"
     >
       <Box sx={{ ...shell, py: 8, color: '#fff' }}>
         {posts.map((title, i) => (
@@ -1698,7 +1716,7 @@ export function ContactContent() {
       dark
       title="เริ่มต้นบทสนทนากับเรา"
       text="ไม่ว่าจะเป็นเรื่องสาขา แฟรนไชส์ หรือความร่วมมือ เรายินดีรับฟัง"
-      image="/brand-hero.png"
+      image="/hero/superblackcoffee-brand-hero.png?v=20260930"
     >
       <Box
         sx={{

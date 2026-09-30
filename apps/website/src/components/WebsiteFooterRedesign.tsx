@@ -20,7 +20,12 @@ export function WebsiteFooter() {
           className="sb-footer-brand"
           href="/"
         >
-          <Image src="/superblack-logo.png" alt="" width={58} height={58} />
+          <Image
+            src="/brand/superblackcoffee-logo.png"
+            alt=""
+            width={58}
+            height={58}
+          />
           <span>
             SUPER BLACK
             <br />

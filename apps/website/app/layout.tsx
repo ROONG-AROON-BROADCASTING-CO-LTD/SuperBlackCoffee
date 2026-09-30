@@ -50,8 +50,15 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="th" className={`${kanit.variable} ${inter.variable}`}>
-      <body>
+    <html
+      lang="th"
+      className={`${kanit.variable} ${inter.variable}`}
+      style={{ backgroundColor: '#171914' }}
+    >
+      <head>
+        <style>{'html,body{margin:0;background:#171914!important;}'}</style>
+      </head>
+      <body style={{ backgroundColor: '#171914' }}>
         <GoogleAnalytics />
         <AppRouterCacheProvider>
           <WebsiteThemeProvider>{children}</WebsiteThemeProvider>

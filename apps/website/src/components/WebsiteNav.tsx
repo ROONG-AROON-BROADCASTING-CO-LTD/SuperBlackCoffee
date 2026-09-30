@@ -115,7 +115,7 @@ export function WebsiteNav() {
           }}
         >
           <Image
-            src="/superblack-logo.png"
+            src="/brand/superblackcoffee-logo.png"
             alt=""
             width={42}
             height={42}
