@@ -1505,20 +1505,22 @@ export function PromotionsManagementPage({
           <Box data-promotion-actions sx={{ flexShrink: 0 }}>
             <DrawerActionBar
               sx={{
-                position: 'static',
-                width: '100%',
+                position: { xs: 'static', sm: 'absolute' },
+                width: { xs: '100%', sm: 'fit-content' },
+                right: { sm: 32 },
+                bottom: { sm: 0 },
                 mt: 0,
-                borderRadius: 0,
+                borderRadius: { xs: 0, sm: '14px 14px 0 0' },
                 gap: 1.5,
                 px: { xs: 2, sm: 3 },
                 py: 1.5,
                 flexDirection: 'row',
                 '& > button': {
-                  flex: '1 1 0',
-                  width: 'auto',
+                  flex: { xs: '1 1 0', sm: '0 0 auto' },
+                  width: { xs: 'auto', sm: 128 },
                   height: 64,
                   minHeight: 64,
-                  minWidth: 0,
+                  minWidth: { xs: 0, sm: 128 },
                 },
               }}
             >

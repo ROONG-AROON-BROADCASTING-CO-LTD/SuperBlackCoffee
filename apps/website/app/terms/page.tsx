@@ -1,20 +1,19 @@
-import { Box, Typography } from '@mui/material';
-import { WebsiteFooter } from '../../src/components/WebsiteFooter';
-import { WebsiteNav } from '../../src/components/WebsiteNav';
+import Box from '@mui/material/Box';
+import { WebsiteFooter } from '../../src/components/WebsiteFooterRedesign';
+import { WebsiteNav } from '../../src/components/WebsiteNavRedesign';
 export default function TermsPage() {
   return (
-    <main>
+    <Box component="main" sx={{ m: 0, p: 0 }}>
       <WebsiteNav />
-      <Box sx={{ maxWidth: 900, mx: 'auto', px: 3, py: 12 }}>
-        <Typography variant="h1" sx={{ fontWeight: 700, mb: 3 }}>
-          ข้อกำหนดการใช้งาน
-        </Typography>
-        <Typography color="text.secondary">
+      <section className="sb-legal sb-container">
+        <span className="sb-rule" />
+        <h1>ข้อกำหนดการใช้งาน</h1>
+        <p>
           เนื้อหาบนเว็บไซต์นี้จัดทำขึ้นเพื่อให้ข้อมูลเกี่ยวกับ SUPER BLACK
           COFFEE และอาจมีการปรับปรุงได้ตามความเหมาะสม
-        </Typography>
-      </Box>
+        </p>
+      </section>
       <WebsiteFooter />
-    </main>
+    </Box>
   );
 }

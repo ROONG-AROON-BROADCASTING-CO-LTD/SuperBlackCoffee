@@ -56,6 +56,9 @@ export function DashboardFormDrawer({
               overflow: 'hidden',
               borderRadius: '16px 16px 0 0',
               bgcolor: '#fffaf7',
+              '& form': {
+                pb: { xs: 'calc(96px + env(safe-area-inset-bottom))', sm: 12 },
+              },
             },
             ...(Array.isArray(paperSx) ? paperSx : paperSx ? [paperSx] : []),
           ],

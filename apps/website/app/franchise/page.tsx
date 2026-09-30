@@ -1,12 +1,13 @@
-import { FranchiseContent } from '../../src/components/BrandPages';
-import { WebsiteFooter } from '../../src/components/WebsiteFooter';
-import { WebsiteNav } from '../../src/components/WebsiteNav';
+import Box from '@mui/material/Box';
+import { FranchiseContent } from '../../src/components/BrandPagesRedesign';
+import { WebsiteFooter } from '../../src/components/WebsiteFooterRedesign';
+import { WebsiteNav } from '../../src/components/WebsiteNavRedesign';
 export default function FranchisePage() {
   return (
-    <main>
+    <Box component="main" sx={{ m: 0, p: 0 }}>
       <WebsiteNav />
       <FranchiseContent />
       <WebsiteFooter />
-    </main>
+    </Box>
   );
 }

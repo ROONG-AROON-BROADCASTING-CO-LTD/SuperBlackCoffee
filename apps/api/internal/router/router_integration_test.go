@@ -1901,7 +1901,7 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 			t.Fatalf("seed franchise catalog identity: %v", err)
 		}
 		fixtureCatalogIDs = append(fixtureCatalogIDs, catalogID)
-		if _, err := db.Exec(`INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,stock_category,kind,unit,unit_cost,reorder_level,track_stock) VALUES($1,$2,$3,$4,'stock','ใบ',$5,1,true)`, franchiseTemplateID, catalogID, category, stockCategory, index*3+2); err != nil {
+		if _, err := db.Exec(`INSERT INTO catalog_template_inventory_items(template_id,catalog_item_id,category,stock_category,kind,unit,unit_cost,reorder_level,track_stock,available_sizes) VALUES($1,$2,$3,$4,'stock','ใบ',$5,1,true,CASE WHEN $4='postal_equipment' THEN ARRAY['M','L'] ELSE ARRAY['S','M','L'] END)`, franchiseTemplateID, catalogID, category, stockCategory, index*3+2); err != nil {
 			t.Fatalf("seed franchise central template: %v", err)
 		}
 	}
@@ -1931,7 +1931,7 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if err := db.QueryRow(`SELECT id,status,size FROM branches WHERE code=$1`, franchiseBranchCode).Scan(&franchiseBranchID, &branchStatus, &branchSize); err != nil || branchStatus != "inactive" || branchSize != "S" {
 		t.Fatalf("franchise branch status/size = %q/%q, err = %v", branchStatus, branchSize, err)
 	}
-	var drinkStockCategory, postalStockCategory string
+	var drinkStockCategory string
 	var startingQuantity float64
 	var startingExpiry sql.NullTime
 	if err := db.QueryRow(`SELECT stock_category,quantity,expiry_date FROM inventory_items WHERE branch_id=$1 AND name=$2`, franchiseBranchID, fixtureCatalogNames[0]).Scan(&drinkStockCategory, &startingQuantity, &startingExpiry); err != nil || drinkStockCategory != "drink_equipment" {
@@ -1940,8 +1940,9 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	if startingQuantity != 0 || startingExpiry.Valid {
 		t.Fatalf("franchise template copied physical stock: quantity=%v expiry=%v", startingQuantity, startingExpiry)
 	}
-	if err := db.QueryRow(`SELECT stock_category FROM inventory_items WHERE branch_id=$1 AND name=$2`, franchiseBranchID, fixtureCatalogNames[1]).Scan(&postalStockCategory); err != nil || postalStockCategory != "postal_equipment" {
-		t.Fatalf("franchise postal stock category = %q, err = %v", postalStockCategory, err)
+	var postalStockCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM inventory_items WHERE branch_id=$1 AND name=$2 AND template_enabled`, franchiseBranchID, fixtureCatalogNames[1]).Scan(&postalStockCount); err != nil || postalStockCount != 0 {
+		t.Fatalf("size S franchise postal stock count = %d, err = %v", postalStockCount, err)
 	}
 	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", fmt.Sprintf(`{"username":%q,"password":"Password123!"}`, franchiseUsername), ""); login.Code != http.StatusForbidden {
 		t.Fatalf("inactive franchise login = %d: %s", login.Code, login.Body.String())
@@ -1959,7 +1960,7 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 		t.Fatalf("franchise drink stock = %d: %s", drinkStock.Code, drinkStock.Body.String())
 	}
 	postalStock := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=postal_equipment", "", franchiseToken)
-	if postalStock.Code != http.StatusOK || !strings.Contains(postalStock.Body.String(), fixtureCatalogNames[1]) {
+	if postalStock.Code != http.StatusOK || strings.Contains(postalStock.Body.String(), fixtureCatalogNames[1]) {
 		t.Fatalf("franchise postal stock = %d: %s", postalStock.Code, postalStock.Body.String())
 	}
 	if resized := requestJSON(r, http.MethodPatch, "/api/v1/branches/"+strconv.FormatInt(franchiseBranchID, 10)+"/size", `{"size":"M"}`, testToken(t, "admin")); resized.Code != http.StatusOK {
@@ -1967,6 +1968,10 @@ func TestWebsiteLeadRateLimitAndFranchiseCreation(t *testing.T) {
 	}
 	if err := db.QueryRow(`SELECT size FROM branches WHERE id=$1`, franchiseBranchID).Scan(&branchSize); err != nil || branchSize != "M" {
 		t.Fatalf("resized franchise branch = %q, err = %v", branchSize, err)
+	}
+	postalStockAfterResize := requestJSON(r, http.MethodGet, "/api/v1/inventory?kind=stock&stockCategory=postal_equipment", "", franchiseToken)
+	if postalStockAfterResize.Code != http.StatusOK || !strings.Contains(postalStockAfterResize.Body.String(), fixtureCatalogNames[1]) {
+		t.Fatalf("size M franchise postal stock = %d: %s", postalStockAfterResize.Code, postalStockAfterResize.Body.String())
 	}
 	if login := requestJSON(r, http.MethodPost, "/api/v1/auth/login", fmt.Sprintf(`{"username":%q,"password":"Password123!"}`, franchiseUsername), ""); login.Code != http.StatusOK {
 		t.Fatalf("active franchise login = %d: %s", login.Code, login.Body.String())

@@ -16,6 +16,7 @@ import {
   branchCodeByBranch,
   branches,
 } from '@stackbuild/management';
+import { listBranches, type Branch } from '../../api/branches';
 import {
   createAsset,
   createServiceInvoice,
@@ -91,6 +92,12 @@ type Tab = (typeof tabs)[number][0] | 'assets' | 'billing';
 const operationsTabStorageKey = 'admin.operations.active-tab';
 const isOperationsTab = (value: string | null): value is Tab =>
   tabs.some(([id]) => id === value);
+const randomDueDate = (windowDays: number) => {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + Math.floor(Math.random() * windowDays) + 1);
+  return date.toISOString().slice(0, 10);
+};
 const inputSx = { minWidth: 0 };
 const formCardSx = {
   p: { xs: 2, sm: 2.5 },
@@ -338,6 +345,10 @@ export function AdminOperationsPage() {
   });
   const [notice, setNotice] = useState('');
   const [assignment, setAssignment] = useState<RandomInspection | null>(null);
+  const [branchScope, setBranchScope] = useState<
+    'all' | 'sbc' | 'franchise' | 'branch'
+  >('all');
+  const [branchCode, setBranchCode] = useState('');
   const [assetToTransfer, setAssetToTransfer] = useState<OperationRow | null>(
     null,
   );
@@ -365,6 +376,10 @@ export function AdminOperationsPage() {
       ]);
       return { maintenance, inspections, assets, invoices };
     },
+  });
+  const branchDirectory = useQuery<Branch[]>({
+    queryKey: ['operation-branches'],
+    queryFn: listBranches,
   });
   const showSkeleton = useMinimumLoading(data.isLoading);
   const key =
@@ -452,9 +467,18 @@ export function AdminOperationsPage() {
   const randomize = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const dueAt = String(form.get('dueAt') ?? '').trim();
+    const requestedDueAt = String(form.get('dueAt') ?? '').trim();
+    const windowDays = Number(form.get('scheduleWindowDays')) || 7;
+    const dueAt =
+      isInspectionTab && !requestedDueAt
+        ? randomDueDate(windowDays)
+        : requestedDueAt;
     if (!dueAt) {
       setNotice('กรุณาเลือกวันกำหนดตรวจก่อนสร้างใบงาน');
+      return;
+    }
+    if (branchScope === 'branch' && !branchCode) {
+      setNotice('กรุณาเลือกสาขาที่ต้องการตรวจ');
       return;
     }
     try {
@@ -463,6 +487,8 @@ export function AdminOperationsPage() {
         branchSize: String(form.get('branchSize')) as 'all' | 'S' | 'M' | 'L',
         dueAt,
         excludeDays: Number(form.get('excludeDays')) || 30,
+        branchScope,
+        ...(branchScope === 'branch' && branchCode ? { branchCode } : {}),
       };
       const nextAssignment = await (isIngredientInspectionTab
         ? randomizeIngredientInspection(request)
@@ -474,6 +500,8 @@ export function AdminOperationsPage() {
         `มอบหมายงาน${isIngredientInspectionTab ? 'ตรวจคุณภาพวัตถุดิบ' : isCafeStandardInspectionTab ? 'ตรวจมาตรฐานและบริการ' : 'ตรวจสภาพอุปกรณ์'}ให้สาขา ${nextAssignment.branchName} แล้ว`,
       );
       void client.invalidateQueries({ queryKey: ['operations'] });
+      setBranchScope('all');
+      setBranchCode('');
     } catch (error) {
       setNotice(
         error instanceof Error ? error.message : 'ไม่สามารถสุ่มงานตรวจได้',
@@ -696,10 +724,68 @@ export function AdminOperationsPage() {
                 />
                 <DateField
                   name="dueAt"
-                  label="กำหนดตรวจ"
-                  required
+                  label={
+                    isInspectionTab
+                      ? 'กำหนดตรวจเอง (ไม่กรอก = สุ่มวัน)'
+                      : 'กำหนดตรวจ'
+                  }
+                  required={!isInspectionTab}
                   sx={inputSx}
                 />
+                {isInspectionTab ? (
+                  <TextField
+                    select
+                    name="scheduleWindowDays"
+                    label="สุ่มวันเข้าตรวจภายใน"
+                    defaultValue="7"
+                    sx={inputSx}
+                  >
+                    <MenuItem value="7">7 วัน</MenuItem>
+                    <MenuItem value="14">14 วัน</MenuItem>
+                  </TextField>
+                ) : null}
+                <TextField
+                  select
+                  label="ขอบเขตการตรวจ"
+                  value={branchScope}
+                  onChange={(event) => {
+                    const value = event.target.value as typeof branchScope;
+                    setBranchScope(value);
+                    if (value !== 'branch') setBranchCode('');
+                  }}
+                  sx={inputSx}
+                >
+                  <MenuItem value="all">ทุกสาขา</MenuItem>
+                  <MenuItem value="sbc">เฉพาะสาขา SBC</MenuItem>
+                  <MenuItem value="franchise">เฉพาะสาขาแฟรนไชส์</MenuItem>
+                  <MenuItem value="branch">
+                    เลือกสาขา/แฟรนไชส์แบบเจาะจง
+                  </MenuItem>
+                </TextField>
+                {branchScope === 'branch' ? (
+                  <TextField
+                    select
+                    label="เลือกสาขา/แฟรนไชส์ที่ต้องการตรวจ"
+                    value={branchCode}
+                    onChange={(event) => setBranchCode(event.target.value)}
+                    required
+                    disabled={branchDirectory.isLoading}
+                    sx={inputSx}
+                  >
+                    {(branchDirectory.data ?? [])
+                      .filter((branch) => branch.status !== 'inactive')
+                      .map((branch) => (
+                        <MenuItem key={branch.code} value={branch.code}>
+                          {branch.name} ({branch.code})
+                          {branch.franchiseeId
+                            ? ` · แฟรนไชส์${branch.franchiseeName ? `: ${branch.franchiseeName}` : ''}`
+                            : branch.isHeadquarters
+                              ? ' · สำนักงานใหญ่'
+                              : ' · SBC'}
+                        </MenuItem>
+                      ))}
+                  </TextField>
+                ) : null}
                 <TextField
                   select
                   name="branchSize"

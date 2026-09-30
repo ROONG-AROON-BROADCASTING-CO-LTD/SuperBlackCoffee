@@ -62,6 +62,12 @@ func menuAllowedForPlan(plan, category string) bool {
 	return category != "อาหาร" && category != "food" && category != "เบเกอรี่" && category != "bakery"
 }
 
+// Size S branches do not offer postal services, so they must not receive or
+// expose the postal-equipment stock catalogue.
+func stockAllowedForPlan(plan, stockCategory string) bool {
+	return plan != franchisePlanS || stockCategory != "postal_equipment"
+}
+
 func (h *PlatformHandler) filterMenuForPlan(plan string, items []model.MenuItem) []model.MenuItem {
 	if plan == franchisePlanL {
 		return items
@@ -103,7 +109,9 @@ func (h *PlatformHandler) filterInventoryForPlan(c *gin.Context, plan string, br
 	filtered := make([]model.InventoryItem, 0, len(items))
 	for _, item := range items {
 		if item.Kind == model.InventoryKindStock {
-			filtered = append(filtered, item)
+			if stockAllowedForPlan(plan, item.StockCategory) {
+				filtered = append(filtered, item)
+			}
 			continue
 		}
 		if item.Kind == model.InventoryKindIngredient {

@@ -100,7 +100,11 @@ export default function App() {
     if (!Number.isFinite(hour) || !Number.isFinite(minute)) return false;
     const now = new Date();
     const endMinutes = hour * 60 + minute;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const [clockHour, clockMinute] = clock.slice(0, 5).split(':').map(Number);
+    const nowMinutes =
+      Number.isFinite(clockHour) && Number.isFinite(clockMinute)
+        ? clockHour * 60 + clockMinute
+        : now.getHours() * 60 + now.getMinutes();
     const [startHour, startMinute] = (session?.user.startsAt || '00:00')
       .slice(0, 5)
       .split(':')

@@ -93,6 +93,8 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.GET("/expense-requests", middleware.RequireAuth(deps.secret, "admin", "franchise_owner", "branch_manager"), deps.platform.ListExpenseRequests)
 	protected.GET("/franchise/maintenance-tickets", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.ListFranchiseMaintenanceTickets)
 	protected.POST("/franchise/maintenance-tickets", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.CreateFranchiseMaintenanceTicket)
+	protected.GET("/franchise/account-settings", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.GetFranchiseAccountSettings)
+	protected.PATCH("/franchise/account-settings/password", middleware.RequireAuth(deps.secret, "franchise_owner"), deps.platform.UpdateFranchiseAccountPassword)
 	protected.GET("/audit-events", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListAuditEvents)
 	protected.GET("/assets", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListAssets)
 	protected.GET("/assets/:id/events", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListAssetEvents)
@@ -135,6 +137,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 }
 
 func registerAdminRoutes(protected *gin.RouterGroup, deps routeDependencies) {
+	protected.POST("/catalog-images", middleware.RequireAuth(deps.secret, "admin"), deps.platform.UploadCatalogImage)
 	protected.GET("/catalog-templates", middleware.RequireAuth(deps.secret, "admin"), deps.platform.ListCatalogTemplates)
 	protected.GET("/catalog-templates/:id", middleware.RequireAuth(deps.secret, "admin"), deps.platform.GetCatalogTemplate)
 	protected.GET("/catalog-templates/:id/impact", middleware.RequireAuth(deps.secret, "admin"), deps.platform.GetCatalogTemplateImpact)
@@ -165,6 +168,7 @@ func registerAdminRoutes(protected *gin.RouterGroup, deps routeDependencies) {
 	admin.Use(middleware.RequireAuth(deps.secret, "admin"))
 	admin.GET("", deps.platform.ListFranchisees)
 	admin.POST("", deps.platform.CreateFranchisee)
+	admin.PATCH("/:id", deps.platform.UpdateFranchiseeDetails)
 	admin.PATCH("/:id/status", deps.platform.UpdateFranchiseeStatus)
 }
 

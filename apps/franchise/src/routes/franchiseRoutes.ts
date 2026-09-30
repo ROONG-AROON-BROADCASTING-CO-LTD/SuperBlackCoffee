@@ -12,6 +12,7 @@ export const franchisePagePaths = {
   ลงเวลาพนักงาน: '/attendance',
   คำขอลาพนักงาน: '/leave-requests',
   เอกสารส่วนกลาง: '/documents',
+  ตั้งค่าระบบ: '/settings',
 } as const;
 
 export type FranchisePage = keyof typeof franchisePagePaths;

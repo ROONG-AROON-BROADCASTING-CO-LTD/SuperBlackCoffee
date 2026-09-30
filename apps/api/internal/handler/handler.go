@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"y/internal/cache"
+	"y/internal/media"
 	"y/internal/middleware"
 	"y/internal/service"
 )
@@ -20,6 +22,7 @@ type PlatformHandler struct {
 	inventory *service.InventoryService
 	auth      *service.AuthService
 	menu      *service.MenuService
+	images    media.ImageStore
 }
 
 func (h *PlatformHandler) recordAudit(c *gin.Context, branchID int64, entityType string, entityID int64, action string, metadata any) {
@@ -52,7 +55,8 @@ func NewPlatformHandler(db *sql.DB, redisCache *cache.Client, inventoryService *
 	if secret == "" {
 		secret = "development-only-change-me"
 	}
-	return &PlatformHandler{db: db, jwtSecret: secret, cache: redisCache, inventory: inventoryService, auth: authService, menu: menuService}
+	images, _ := media.NewR2ImageStoreFromEnv(context.Background())
+	return &PlatformHandler{db: db, jwtSecret: secret, cache: redisCache, inventory: inventoryService, auth: authService, menu: menuService, images: images}
 }
 
 func (h *PlatformHandler) invalidateBranchCache(c *gin.Context, branchID int64) {

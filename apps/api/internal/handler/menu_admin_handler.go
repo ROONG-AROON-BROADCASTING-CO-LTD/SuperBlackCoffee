@@ -10,6 +10,7 @@ import (
 	"image/jpeg"
 	_ "image/png"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -131,6 +132,13 @@ func (h *PlatformHandler) GetMenuItemImage(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
+	if hostedImageURL(imageURL) {
+		// R2 URLs are already public. Redirecting preserves branch/plan checks
+		// while allowing browsers to load the original image instead of trying to
+		// decode the URL as a legacy data URL.
+		c.Redirect(http.StatusTemporaryRedirect, imageURL)
+		return
+	}
 	thumbnail, err := menuImageThumbnail(imageURL)
 	if err != nil {
 		c.Status(http.StatusUnsupportedMediaType)
@@ -139,6 +147,11 @@ func (h *PlatformHandler) GetMenuItemImage(c *gin.Context) {
 	c.Header("Content-Type", "image/jpeg")
 	c.Header("Cache-Control", "private, max-age=30")
 	c.Data(http.StatusOK, "image/jpeg", thumbnail)
+}
+
+func hostedImageURL(value string) bool {
+	parsed, err := url.Parse(value)
+	return err == nil && parsed.Host != "" && (parsed.Scheme == "https" || parsed.Scheme == "http")
 }
 
 func menuImageThumbnail(imageURL string) ([]byte, error) {

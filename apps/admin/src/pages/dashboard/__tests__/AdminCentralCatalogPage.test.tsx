@@ -79,6 +79,12 @@ const mockedUpdateCatalogTemplateMenuItem = vi.mocked(
   updateCatalogTemplateMenuItem,
 );
 
+function submitCentralCatalogEditor() {
+  const form = document.getElementById('central-catalog-editor-form');
+  if (!form) throw new Error('Central catalog editor form is not rendered');
+  fireEvent.submit(form);
+}
+
 describe('AdminCentralCatalogPage', () => {
   beforeEach(() => {
     mockedListCatalogTemplates.mockResolvedValue([template]);
@@ -96,6 +102,10 @@ describe('AdminCentralCatalogPage', () => {
           reorderLevel: 20,
           trackStock: true,
           availableSizes: ['S', 'M'],
+          supplierSku: '',
+          supplierPrice: 0,
+          supplierMarkup: 0,
+          supplierStock: 0,
         },
       ],
       menuItems: [
@@ -394,9 +404,7 @@ describe('AdminCentralCatalogPage', () => {
       fireEvent.change(screen.getByRole('textbox', { name: `ชื่อ${label}` }), {
         target: { value: `${label}ทดสอบ` },
       });
-      fireEvent.submit(
-        screen.getByRole('button', { name: `บันทึก${label}` }).closest('form')!,
-      );
+      submitCentralCatalogEditor();
       await waitFor(() =>
         expect(mockedCreateCatalogTemplateInventoryItem).toHaveBeenCalledWith(
           21,
@@ -868,9 +876,7 @@ describe('AdminCentralCatalogPage', () => {
         target: { value: '30' },
       },
     );
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
-    );
+    submitCentralCatalogEditor();
 
     await waitFor(() =>
       expect(mockedUpdateCatalogTemplateInventoryItem).toHaveBeenCalledWith(
@@ -887,6 +893,10 @@ describe('AdminCentralCatalogPage', () => {
           reorderLevel: 30,
           trackStock: true,
           availableSizes: ['S', 'M'],
+          supplierSku: '',
+          supplierPrice: 0,
+          supplierMarkup: 0,
+          supplierStock: 0,
         },
       ),
     );
@@ -926,9 +936,7 @@ describe('AdminCentralCatalogPage', () => {
         target: { value: '2.5' },
       },
     );
-    fireEvent.submit(
-      screen.getByRole('button', { name: 'บันทึกการแก้ไข' }).closest('form')!,
-    );
+    submitCentralCatalogEditor();
 
     await waitFor(() =>
       expect(mockedUpdateCatalogTemplateInventoryItem).toHaveBeenCalledWith(

@@ -56,6 +56,7 @@ import {
   syncCatalogTemplate,
   updateCatalogTemplateInventoryItem,
   updateCatalogTemplateMenuItem,
+  uploadCatalogImage,
   type CatalogTemplate,
   type CatalogTemplateImpact,
   type CatalogTemplateInventoryItem,
@@ -82,6 +83,13 @@ const menuCategories = [
   'อาหาร',
   'เบเกอรี่',
 ];
+
+const postalEquipmentCategoryLabels: Record<string, string> = {
+  postal_box: 'กล่องพัสดุ',
+  postal_envelope: 'ซองและวัสดุกันกระแทก',
+  postal_tape: 'เทปและวัสดุสิ้นเปลือง',
+  postal_service: 'บริการไปรษณีย์',
+};
 
 const catalogTabs = [
   { value: 'menu', label: 'เมนูและสินค้า' },
@@ -160,6 +168,10 @@ type InventoryEditorState = {
     imageUrl: string;
     category: string;
     stockCategory: string;
+    supplierSku: string;
+    supplierMarkup: string;
+    supplierPrice: string;
+    supplierStock: string;
     kind: 'ingredient' | 'stock';
     unit: string;
     unitCost: string;
@@ -310,6 +322,15 @@ function TemplateDetail({
       .toLocaleLowerCase('th-TH')
       .includes(normalizedSearch);
   const isMenuSection = section === 'menus';
+  const isPostalEquipmentSection = section === 'postal-equipment';
+  const inventoryTableColumns = isPostalEquipmentSection
+    ? {
+        ...tableColumns,
+        xl: '48px minmax(150px,1fr) 92px 76px 52px 78px 70px 78px 84px 84px 200px',
+      }
+    : tableColumns;
+  const tableGridColumns = isMenuSection ? tableColumns : inventoryTableColumns;
+  const tableColumnCount = isPostalEquipmentSection ? 11 : 7;
   const menuCategoryOptions = [
     ...new Set(template.menuItems.map((item) => item.category).filter(Boolean)),
   ].sort((left, right) => left.localeCompare(right, 'th-TH'));
@@ -409,7 +430,7 @@ function TemplateDetail({
           role="row"
           sx={{
             display: { xs: 'none', lg: 'grid' },
-            gridTemplateColumns: tableColumns,
+            gridTemplateColumns: tableGridColumns,
             alignItems: 'center',
             columnGap: 2,
             px: 2,
@@ -419,21 +440,41 @@ function TemplateDetail({
           }}
         >
           {[
-            'รูป',
-            'ชื่อรายการ',
-            'หมวดหมู่',
-            'ขนาดที่ใช้',
-            isMenuSection ? 'ราคาหน้าร้าน' : 'ต้นทุนต่อหน่วย',
-            isMenuSection ? 'ราคา LINE MAN' : 'จุดสั่งซื้อ',
-            'จัดการ',
-          ].map((label, index) => (
+            { label: 'รูป' },
+            { label: 'ชื่อรายการ' },
+            ...(isPostalEquipmentSection
+              ? [{ label: 'รหัสผู้จำหน่าย', xlOnly: true }]
+              : []),
+            { label: 'หมวดหมู่' },
+            { label: 'ขนาดที่ใช้' },
+            { label: isMenuSection ? 'ราคาหน้าร้าน' : 'ต้นทุนต่อหน่วย' },
+            ...(isPostalEquipmentSection
+              ? [
+                  { label: 'ส่วนเพิ่ม', xlOnly: true },
+                  { label: 'ราคาขาย', xlOnly: true },
+                  { label: 'คงเหลืออ้างอิง', xlOnly: true },
+                ]
+              : []),
+            { label: isMenuSection ? 'ราคา LINE MAN' : 'จุดสั่งซื้อ' },
+            { label: 'จัดการ', action: true },
+          ].map(({ label, xlOnly, action }, index) => (
             <Typography
               key={label}
               role="columnheader"
               sx={{
                 ...itemMetaSx,
-                textAlign: index === 4 || index === 5 ? 'right' : 'left',
-                ...(index === 6 && {
+                display: xlOnly ? { xs: 'none', xl: 'block' } : undefined,
+                textAlign:
+                  label === 'ต้นทุนต่อหน่วย' ||
+                  label === 'ราคาหน้าร้าน' ||
+                  label === 'ราคา LINE MAN' ||
+                  label === 'ส่วนเพิ่ม' ||
+                  label === 'ราคาขาย' ||
+                  label === 'คงเหลืออ้างอิง' ||
+                  label === 'จุดสั่งซื้อ'
+                    ? 'right'
+                    : 'left',
+                ...(action && {
                   borderLeft: '1px solid #eee3dc',
                   pl: 2,
                 }),
@@ -479,7 +520,7 @@ function TemplateDetail({
                         sx={{
                           position: 'relative',
                           display: 'grid',
-                          gridTemplateColumns: tableColumns,
+                          gridTemplateColumns: tableGridColumns,
                           alignItems: 'center',
                           columnGap: 2,
                           px: 2,
@@ -668,7 +709,7 @@ function TemplateDetail({
                         sx={{
                           position: 'relative',
                           display: 'grid',
-                          gridTemplateColumns: tableColumns,
+                          gridTemplateColumns: tableGridColumns,
                           alignItems: 'center',
                           columnGap: 2,
                           px: 2,
@@ -686,9 +727,11 @@ function TemplateDetail({
                               {item.name}
                             </Typography>
                             <Typography sx={itemMetaSx}>
-                              {item.trackStock === false
-                                ? 'คิดต้นทุนเท่านั้น'
-                                : 'ติดตามสต๊อก'}
+                              {isPostalEquipmentSection
+                                ? `${item.supplierSku || 'ไม่มีรหัส'} · เพิ่ม ${formatCurrency(item.supplierMarkup ?? 0)} · ขาย ${formatCurrency(item.supplierPrice ?? 0)} · อ้างอิง ${numberFormatter.format(item.supplierStock ?? 0)}`
+                                : item.trackStock === false
+                                  ? 'คิดต้นทุนเท่านั้น'
+                                  : 'ติดตามสต๊อก'}
                             </Typography>
                             <Typography
                               sx={{
@@ -696,21 +739,54 @@ function TemplateDetail({
                                 display: { xs: 'block', lg: 'none' },
                               }}
                             >
-                              {item.category} ·{' '}
-                              {item.availableSizes.join(' / ')} ·{' '}
+                              {isPostalEquipmentSection
+                                ? (postalEquipmentCategoryLabels[
+                                    item.category
+                                  ] ?? item.category)
+                                : item.category}{' '}
+                              · {item.availableSizes.join(' / ')} ·{' '}
                               {formatCurrency(item.unitCost)}/{item.unit}
+                              {isPostalEquipmentSection ? (
+                                <>
+                                  <br />
+                                  {item.supplierSku
+                                    ? `${item.supplierSku} · `
+                                    : ''}
+                                  เพิ่ม{' '}
+                                  {formatCurrency(item.supplierMarkup ?? 0)} ·
+                                  ราคาขาย{' '}
+                                  {formatCurrency(item.supplierPrice ?? 0)} ·
+                                  คงเหลืออ้างอิง{' '}
+                                  {numberFormatter.format(
+                                    item.supplierStock ?? 0,
+                                  )}
+                                </>
+                              ) : null}
                               {item.trackStock !== false
                                 ? ` · จุดสั่งซื้อ ${numberFormatter.format(item.reorderLevel)} ${item.unit}`
                                 : ''}
                             </Typography>
                           </Box>
+                          {isPostalEquipmentSection ? (
+                            <Typography
+                              sx={{
+                                ...itemMetaSx,
+                                display: { xs: 'none', xl: 'block' },
+                              }}
+                            >
+                              {item.supplierSku || '—'}
+                            </Typography>
+                          ) : null}
                           <Typography
                             sx={{
                               ...itemMetaSx,
                               display: { xs: 'none', lg: 'block' },
                             }}
                           >
-                            {item.category}
+                            {isPostalEquipmentSection
+                              ? (postalEquipmentCategoryLabels[item.category] ??
+                                item.category)
+                              : item.category}
                           </Typography>
                           <Typography
                             sx={{
@@ -729,6 +805,39 @@ function TemplateDetail({
                           >
                             {formatCurrency(item.unitCost)}/{item.unit}
                           </Typography>
+                          {isPostalEquipmentSection ? (
+                            <>
+                              <Typography
+                                sx={{
+                                  ...itemTitleSx,
+                                  display: { xs: 'none', xl: 'block' },
+                                  textAlign: 'right',
+                                }}
+                              >
+                                {formatCurrency(item.supplierMarkup ?? 0)}
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  ...itemTitleSx,
+                                  display: { xs: 'none', xl: 'block' },
+                                  textAlign: 'right',
+                                }}
+                              >
+                                {formatCurrency(item.supplierPrice ?? 0)}
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  ...itemTitleSx,
+                                  display: { xs: 'none', xl: 'block' },
+                                  textAlign: 'right',
+                                }}
+                              >
+                                {numberFormatter.format(
+                                  item.supplierStock ?? 0,
+                                )}
+                              </Typography>
+                            </>
+                          ) : null}
                           <Typography
                             sx={{
                               ...itemTitleSx,
@@ -765,7 +874,7 @@ function TemplateDetail({
                               inset: 0,
                               zIndex: 2,
                               display: 'grid',
-                              gridTemplateColumns: tableColumns,
+                              gridTemplateColumns: tableGridColumns,
                               alignItems: 'center',
                               columnGap: 2,
                               px: 2,
@@ -775,7 +884,13 @@ function TemplateDetail({
                           >
                             <Box
                               sx={{
-                                gridColumn: { xs: '1 / 3', lg: '1 / 7' },
+                                gridColumn: {
+                                  xs: '1 / 3',
+                                  lg: '1 / 7',
+                                  xl: isPostalEquipmentSection
+                                    ? `1 / ${tableColumnCount}`
+                                    : '1 / 7',
+                                },
                                 minWidth: 0,
                                 textAlign: 'center',
                               }}
@@ -801,7 +916,13 @@ function TemplateDetail({
                             </Box>
                             <Box
                               sx={{
-                                gridColumn: { xs: 3, lg: 7 },
+                                gridColumn: {
+                                  xs: 3,
+                                  lg: 7,
+                                  xl: isPostalEquipmentSection
+                                    ? tableColumnCount
+                                    : 7,
+                                },
                                 display: 'flex',
                                 gap: 1,
                                 minWidth: 0,
@@ -1367,6 +1488,10 @@ export function AdminCentralCatalogPage({
         imageUrl: item.imageUrl ?? '',
         category: item.category,
         stockCategory: item.stockCategory ?? '',
+        supplierSku: item.supplierSku ?? '',
+        supplierMarkup: String(item.supplierMarkup ?? 0),
+        supplierPrice: String(item.supplierPrice ?? 0),
+        supplierStock: String(item.supplierStock ?? 0),
         kind: item.kind ?? 'ingredient',
         unit: item.unit,
         unitCost: String(item.unitCost),
@@ -1420,6 +1545,10 @@ export function AdminCentralCatalogPage({
               : stockSection
                 ? 'drink_equipment'
                 : undefined,
+          supplierSku: '',
+          supplierMarkup: 0,
+          supplierPrice: 0,
+          supplierStock: 0,
           kind: stockSection ? 'stock' : 'ingredient',
           unit: stockSection ? 'ชิ้น' : 'กรัม',
           unitCost: 0,
@@ -1437,6 +1566,10 @@ export function AdminCentralCatalogPage({
               : stockSection
                 ? 'drink_equipment'
                 : '',
+          supplierSku: '',
+          supplierMarkup: '0',
+          supplierPrice: '0',
+          supplierStock: '0',
           kind: stockSection ? 'stock' : 'ingredient',
           unit: stockSection ? 'ชิ้น' : 'กรัม',
           unitCost: '0',
@@ -1495,6 +1628,16 @@ export function AdminCentralCatalogPage({
       editor.type === 'inventory'
         ? nonNegativeNumber(editor.draft.reorderLevel)
         : null;
+    const supplierMarkup =
+      editor.type === 'inventory'
+        ? nonNegativeNumber(editor.draft.supplierMarkup)
+        : null;
+    const supplierPrice =
+      editor.type === 'inventory'
+        ? nonNegativeNumber(editor.draft.supplierPrice)
+        : null;
+    const supplierStock =
+      editor.type === 'inventory' ? Number(editor.draft.supplierStock) : null;
     const storePrice =
       editor.type === 'menu'
         ? nonNegativeNumber(editor.draft.storePrice)
@@ -1511,7 +1654,11 @@ export function AdminCentralCatalogPage({
         : null;
     if (
       (editor.type === 'inventory' &&
-        (unitCost === null || reorderLevel === null)) ||
+        (unitCost === null ||
+          reorderLevel === null ||
+          supplierMarkup === null ||
+          supplierPrice === null ||
+          !Number.isFinite(supplierStock))) ||
       (editor.type === 'menu' &&
         (storePrice === null ||
           linemanPrice === null ||
@@ -1530,6 +1677,10 @@ export function AdminCentralCatalogPage({
           category: editor.draft.category.trim(),
           imageUrl: editor.draft.imageUrl,
           stockCategory: editor.draft.stockCategory || undefined,
+          supplierSku: editor.draft.supplierSku.trim(),
+          supplierMarkup: supplierMarkup!,
+          supplierPrice: supplierPrice!,
+          supplierStock: supplierStock!,
           kind: editor.draft.kind,
           unit: editor.draft.unit.trim(),
           unitCost: unitCost!,
@@ -2552,7 +2703,7 @@ export function AdminCentralCatalogPage({
               display: 'flex',
               flexDirection: 'column',
               px: { xs: 2.5, sm: 4 },
-              pt: 0.75,
+              pt: 1.5,
               pb: 3.5,
             }}
           >
@@ -2576,7 +2727,7 @@ export function AdminCentralCatalogPage({
                 flex: 1,
                 minHeight: 0,
                 overflowY: 'auto',
-                pt: 1,
+                pt: 2.5,
                 pr: 0.5,
               }}
             >
@@ -2649,21 +2800,25 @@ export function AdminCentralCatalogPage({
                     hidden
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
-                    onChange={(event) => {
+                    onChange={async (event) => {
                       const file = event.target.files?.[0];
                       if (!file) return;
                       if (file.size > 5 * 1024 * 1024) {
                         setEditorError('รูปสินค้าต้องไม่เกิน 5 MB');
                         return;
                       }
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        if (typeof reader.result === 'string')
-                          updateMenuDraft({ imageUrl: reader.result });
-                      };
-                      reader.onerror = () =>
-                        setEditorError('ไม่สามารถอ่านรูปสินค้าได้');
-                      reader.readAsDataURL(file);
+                      try {
+                        const { url } = await uploadCatalogImage(file);
+                        updateMenuDraft({ imageUrl: url });
+                      } catch (error) {
+                        setEditorError(
+                          error instanceof Error
+                            ? error.message
+                            : 'ไม่สามารถอัปโหลดรูปสินค้าได้',
+                        );
+                      } finally {
+                        event.target.value = '';
+                      }
                     }}
                   />
                 </Box>
@@ -3388,19 +3543,28 @@ function CentralInventoryEditorDrawer({
         : fresh
           ? 'วัตถุดิบของสด'
           : 'วัตถุดิบ';
-  const categoryChoices = equipment
-    ? [
-        ['cup', 'แก้วและบรรจุภัณฑ์'],
-        ['delivery', 'อุปกรณ์จัดส่ง'],
-        ['store', 'อุปกรณ์หน้าร้าน'],
-        ['other', 'อื่น ๆ'],
-      ]
-    : [
-        ['coffee', 'เมล็ดกาแฟ'],
-        ['milk', 'นมและครีม'],
-        ['syrup', 'ไซรัปและผงชง'],
-        ['other', 'อื่น ๆ'],
-      ];
+  const categoryChoices =
+    section === 'postal-equipment'
+      ? [
+          ['postal_box', 'กล่องพัสดุ'],
+          ['postal_envelope', 'ซองและวัสดุกันกระแทก'],
+          ['postal_tape', 'เทปและวัสดุสิ้นเปลือง'],
+          ['postal_service', 'บริการไปรษณีย์'],
+          ['other', 'อื่น ๆ'],
+        ]
+      : equipment
+        ? [
+            ['cup', 'แก้วและบรรจุภัณฑ์'],
+            ['delivery', 'อุปกรณ์จัดส่ง'],
+            ['store', 'อุปกรณ์หน้าร้าน'],
+            ['other', 'อื่น ๆ'],
+          ]
+        : [
+            ['coffee', 'เมล็ดกาแฟ'],
+            ['milk', 'นมและครีม'],
+            ['syrup', 'ไซรัปและผงชง'],
+            ['other', 'อื่น ๆ'],
+          ];
   const categories = editor?.draft.category
     ? categoryChoices.some(([value]) => value === editor.draft.category)
       ? categoryChoices
@@ -3461,6 +3625,7 @@ function CentralInventoryEditorDrawer({
           >
             <Box
               component="form"
+              id="central-catalog-editor-form"
               onSubmit={(event) => {
                 event.preventDefault();
                 onSave();
@@ -3542,19 +3707,25 @@ function CentralInventoryEditorDrawer({
                   hidden
                   type="file"
                   accept="image/png,image/jpeg"
-                  onChange={(event) => {
+                  onChange={async (event) => {
                     const file = event.target.files?.[0];
                     if (!file) return;
                     if (file.size > 5 * 1024 * 1024) {
                       onError('รูปภาพต้องมีขนาดไม่เกิน 5 MB');
                       return;
                     }
-                    const reader = new FileReader();
-                    reader.addEventListener('load', () => {
-                      if (typeof reader.result === 'string')
-                        onChange({ imageUrl: reader.result });
-                    });
-                    reader.readAsDataURL(file);
+                    try {
+                      const { url } = await uploadCatalogImage(file);
+                      onChange({ imageUrl: url });
+                    } catch (error) {
+                      onError(
+                        error instanceof Error
+                          ? error.message
+                          : 'ไม่สามารถอัปโหลดรูปภาพได้',
+                      );
+                    } finally {
+                      event.target.value = '';
+                    }
                   }}
                 />
               </Box>
@@ -3641,6 +3812,50 @@ function CentralInventoryEditorDrawer({
                   }
                   slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
                 />
+                {section === 'postal-equipment' ? (
+                  <>
+                    <TextField
+                      fullWidth
+                      label="รหัสสินค้าผู้จำหน่าย"
+                      value={editor.draft.supplierSku}
+                      onChange={(event) =>
+                        onChange({ supplierSku: event.target.value })
+                      }
+                      helperText="เช่น PDC00001"
+                    />
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="ส่วนเพิ่มราคา"
+                      value={editor.draft.supplierMarkup}
+                      onChange={(event) =>
+                        onChange({ supplierMarkup: event.target.value })
+                      }
+                      slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                    />
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="ราคาขายอ้างอิง"
+                      value={editor.draft.supplierPrice}
+                      onChange={(event) =>
+                        onChange({ supplierPrice: event.target.value })
+                      }
+                      slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                    />
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="จำนวนคงเหลืออ้างอิง"
+                      value={editor.draft.supplierStock}
+                      onChange={(event) =>
+                        onChange({ supplierStock: event.target.value })
+                      }
+                      helperText="อาจเป็นค่าติดลบเมื่อผู้จำหน่ายแจ้งสินค้าขาด"
+                      slotProps={{ htmlInput: { step: '1' } }}
+                    />
+                  </>
+                ) : null}
                 <TextField
                   fullWidth
                   type="number"
@@ -3703,50 +3918,60 @@ function CentralInventoryEditorDrawer({
                     fontSize: 12,
                   }}
                 >
-                  คลังกลางเก็บข้อมูลรายการและต้นทุนเท่านั้น
-                  ยอดคงเหลือและวันหมดอายุจัดการที่สาขา
+                  {section === 'postal-equipment'
+                    ? 'รหัส ราคา และจำนวนคงเหลือนี้เป็นข้อมูลอ้างอิงจากผู้จำหน่าย ยอดสต๊อกจริงจัดการแยกที่สาขา'
+                    : 'คลังกลางเก็บข้อมูลรายการและต้นทุนเท่านั้น ยอดคงเหลือและวันหมดอายุจัดการที่สาขา'}
                 </Typography>
-                <DrawerActionBar
-                  sx={{
-                    gridColumn: { sm: '1 / -1' },
-                  }}
-                >
-                  <Button
-                    variant="outlined"
-                    onClick={onClose}
-                    disabled={isSaving}
-                    sx={{
-                      minHeight: 40,
-                      borderRadius: '12px',
-                      color: '#5f4b3d',
-                      fontFamily: 'Kanit, sans-serif',
-                    }}
-                  >
-                    {editor.item.id === 0 ? 'ยกเลิกเพิ่ม' : 'ยกเลิกแก้ไข'}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={isSaving}
-                    sx={{
-                      minHeight: 40,
-                      borderRadius: '12px',
-                      bgcolor: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
-                      boxShadow: 'none',
-                      '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
-                    }}
-                  >
-                    {isSaving
-                      ? 'กำลังบันทึก…'
-                      : editor.item.id === 0
-                        ? `บันทึก${itemLabel}`
-                        : 'บันทึกการแก้ไข'}
-                  </Button>
-                </DrawerActionBar>
               </Box>
             </Box>
           </Box>
+          <DrawerActionBar
+            sx={{
+              width: { xs: '100%', sm: 'fit-content' },
+              alignSelf: { xs: 'stretch', sm: 'flex-end' },
+              mt: 0,
+              mx: { xs: -2.5, sm: 0 },
+              px: { xs: 2.5, sm: 1.5 },
+              py: 2,
+              borderRadius: { xs: 0, sm: '14px 14px 0 0' },
+              '& > button': {
+                flex: { xs: '1 1 0', sm: '0 0 auto' },
+                minWidth: { sm: 128 },
+                minHeight: 56,
+                borderRadius: '16px',
+              },
+            }}
+          >
+            <Button
+              variant="outlined"
+              onClick={onClose}
+              disabled={isSaving}
+              sx={{
+                color: '#5f4b3d',
+                fontFamily: 'Kanit, sans-serif',
+              }}
+            >
+              {editor.item.id === 0 ? 'ยกเลิกเพิ่ม' : 'ยกเลิกแก้ไข'}
+            </Button>
+            <Button
+              type="submit"
+              form="central-catalog-editor-form"
+              variant="contained"
+              disabled={isSaving}
+              sx={{
+                bgcolor: '#201914',
+                fontFamily: 'Kanit, sans-serif',
+                boxShadow: 'none',
+                '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
+              }}
+            >
+              {isSaving
+                ? 'กำลังบันทึก…'
+                : editor.item.id === 0
+                  ? `บันทึก${itemLabel}`
+                  : 'บันทึกการแก้ไข'}
+            </Button>
+          </DrawerActionBar>
         </Box>
       ) : null}
     </DashboardFormDrawer>

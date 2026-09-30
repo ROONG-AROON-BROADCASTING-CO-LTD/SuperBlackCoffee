@@ -3,10 +3,10 @@ import { secured } from './client';
 export type CreateFranchiseeInput = {
   name: string;
   email: string;
+  username: string;
   plan: 'S' | 'M' | 'L';
   branchName: string;
   branchCode: string;
-  username: string;
   password: string;
 };
 
@@ -14,10 +14,16 @@ export type Franchisee = {
   id: number;
   name: string;
   email: string;
+  username?: string;
   plan: 'S' | 'M' | 'L';
   status: 'active' | 'inactive' | 'invited';
   createdAt: string;
 };
+
+export type UpdateFranchiseeInput = Pick<
+  CreateFranchiseeInput,
+  'name' | 'email' | 'plan' | 'branchName' | 'branchCode'
+> & { password?: string };
 
 export const listFranchisees = () => secured<Franchisee[]>('/franchisees');
 
@@ -35,3 +41,12 @@ export const updateFranchiseeStatus = (
     `/franchisees/${id}/status`,
     { method: 'PATCH', data: { status } },
   );
+
+export const updateFranchiseeDetails = (
+  id: number,
+  input: UpdateFranchiseeInput,
+) =>
+  secured<{ id: number; branchId: number }>(`/franchisees/${id}`, {
+    method: 'PATCH',
+    data: input,
+  });

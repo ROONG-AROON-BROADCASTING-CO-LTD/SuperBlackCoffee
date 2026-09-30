@@ -80,6 +80,7 @@ vi.mock('@stackbuild/management/pages/stock', () => ({
   StockManagementPage: ({
     activeBranch,
     readOnly,
+    allowEditing,
     allowOrdering,
     stockCategory,
     branchCodes,
@@ -87,13 +88,14 @@ vi.mock('@stackbuild/management/pages/stock', () => ({
   }: {
     activeBranch: string;
     readOnly: boolean;
+    allowEditing?: boolean;
     allowOrdering?: boolean;
     stockCategory: string;
     branchCodes: Record<string, string>;
     cardColumns?: number;
   }) => (
     <output data-testid="stock-page">
-      {`${activeBranch}:${branchCodes[activeBranch]}:${String(readOnly)}:${String(allowOrdering ?? false)}:${stockCategory}:${cardColumns}`}
+      {`${activeBranch}:${branchCodes[activeBranch]}:${String(readOnly)}:${String(allowEditing ?? false)}:${String(allowOrdering ?? false)}:${stockCategory}:${cardColumns}`}
     </output>
   ),
 }));
@@ -229,16 +231,16 @@ describe('FranchiseDashboard plan restrictions', () => {
       path: '/stock',
       plan: 'M' as const,
       page: 'stock-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:true:drink_equipment:5',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:false:true:drink_equipment:5',
     },
     {
       path: '/postal-stock',
       plan: 'L' as const,
       page: 'stock-page',
-      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:false:postal_equipment:undefined',
+      scope: 'สุพรรณบุรี S:FR-SUP-001-S:true:true:false:postal_equipment:5',
     },
   ])(
-    'keeps $path branch-scoped and read-only for a franchise workspace',
+    'keeps $path branch-scoped with the appropriate franchise actions',
     async ({ path, plan, page, scope }) => {
       render(
         <MemoryRouter initialEntries={[path]}>

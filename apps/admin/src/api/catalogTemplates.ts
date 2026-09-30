@@ -1,4 +1,4 @@
-import { secured } from './client';
+import { secured, uploadSecuredFile } from './client';
 
 export type CatalogTemplateSize = 'S' | 'M' | 'L';
 
@@ -19,6 +19,13 @@ export type CatalogTemplateInventoryItem = {
   imageUrl?: string;
   category: string;
   stockCategory?: string;
+  supplierSku?: string;
+  supplierMarkup?: number;
+  supplierPrice?: number;
+  // This is the supplier's reported balance. It never replaces a branch's
+  // physical stock balance and may be negative when the supplier signals a
+  // backorder.
+  supplierStock?: number;
   kind?: 'ingredient' | 'stock';
   unit: string;
   unitCost: number;
@@ -89,6 +96,10 @@ export type CatalogTemplateInventoryPatch = {
   category: string;
   imageUrl?: string;
   stockCategory?: string;
+  supplierSku?: string;
+  supplierMarkup?: number;
+  supplierPrice?: number;
+  supplierStock?: number;
   kind: 'ingredient' | 'stock';
   unit: string;
   unitCost: number;
@@ -120,6 +131,9 @@ export type CatalogTemplateMenuCreate = CatalogTemplateMenuPatch & {
 export type CatalogTemplateRecipePatch = Omit<CatalogTemplateRecipe, 'name'>;
 
 const templatePath = (templateId: number) => `/catalog-templates/${templateId}`;
+
+export const uploadCatalogImage = (file: File) =>
+  uploadSecuredFile<{ url: string }>('/catalog-images', file);
 
 export const listCatalogTemplates = () =>
   secured<CatalogTemplateSummary[]>('/catalog-templates');

@@ -537,6 +537,8 @@ func (h *PlatformHandler) randomizeInspection(c *gin.Context, items []string, te
 		BranchSize    string `json:"branchSize"`
 		DueAt         string `json:"dueAt"`
 		ExcludeDays   int    `json:"excludeDays"`
+		BranchScope   string `json:"branchScope"`
+		BranchCode    string `json:"branchCode"`
 	}
 	if c.ShouldBindJSON(&in) != nil {
 		c.JSON(400, gin.H{"success": false, "message": "ข้อมูลการสุ่มตรวจไม่ถูกต้อง"})
@@ -544,10 +546,14 @@ func (h *PlatformHandler) randomizeInspection(c *gin.Context, items []string, te
 	}
 	in.InspectorName = strings.TrimSpace(in.InspectorName)
 	in.BranchSize = defaultString(strings.TrimSpace(in.BranchSize), "all")
+	in.BranchScope = defaultString(strings.TrimSpace(in.BranchScope), "all")
+	in.BranchCode = strings.TrimSpace(in.BranchCode)
 	if in.ExcludeDays == 0 {
 		in.ExcludeDays = 30
 	}
-	if in.InspectorName == "" || !isInspectionTemplateSize(in.BranchSize) || in.ExcludeDays < 0 || in.ExcludeDays > 365 {
+	if in.InspectorName == "" || !isInspectionTemplateSize(in.BranchSize) || in.ExcludeDays < 0 || in.ExcludeDays > 365 ||
+		(in.BranchScope != "all" && in.BranchScope != "sbc" && in.BranchScope != "franchise" && in.BranchScope != "branch") ||
+		(in.BranchScope == "branch" && in.BranchCode == "") {
 		c.JSON(400, gin.H{"success": false, "message": "ข้อมูลการสุ่มตรวจไม่ถูกต้อง"})
 		return
 	}
@@ -560,10 +566,10 @@ func (h *PlatformHandler) randomizeInspection(c *gin.Context, items []string, te
 		code, name, size string
 	}
 	findBranch := func(ignoreRecent bool) (branchCandidate, error) {
-		base := `SELECT b.id,b.code,b.name,b.size FROM branches b WHERE b.status='active' AND ($1='all' OR b.size=$1)` + randomInspectionBranchScope(inspectionType)
-		arguments := []any{in.BranchSize}
+		base := `SELECT b.id,b.code,b.name,b.size FROM branches b WHERE b.status='active' AND ($1='all' OR b.size=$1) AND ($2='all' OR ($2='sbc' AND COALESCE(b.franchisee_id,0)=0 AND COALESCE(b.is_headquarters,false)=false) OR ($2='franchise' AND b.franchisee_id IS NOT NULL) OR ($2='branch' AND b.code=$3))` + randomInspectionBranchScope(inspectionType)
+		arguments := []any{in.BranchSize, in.BranchScope, in.BranchCode}
 		if !ignoreRecent {
-			base += ` AND NOT EXISTS (SELECT 1 FROM inspections i WHERE i.branch_id=b.id AND i.created_at >= now()-make_interval(days => $2))`
+			base += ` AND NOT EXISTS (SELECT 1 FROM inspections i WHERE i.branch_id=b.id AND i.created_at >= now()-make_interval(days => $4))`
 			arguments = append(arguments, in.ExcludeDays)
 		}
 		base += ` ORDER BY random() LIMIT 1`

@@ -57,9 +57,10 @@ export function WebsiteNav() {
         minHeight: mobile ? 52 : 40,
         px: mobile ? 0 : { md: 1.25, lg: 1.5 },
         borderRadius: mobile ? 0 : 999,
-        color: isActive(href) ? '#d09a3f' : mobile ? '#171411' : '#e9e1d9',
+        color: isActive(href) ? '#e2b96c' : mobile ? '#171411' : '#e6e2dc',
         fontSize: mobile ? '1.1rem' : 14,
         fontWeight: 500,
+        transition: 'color 180ms ease, background-color 180ms ease',
         '&:hover': {
           color: '#d09a3f',
           bgcolor: mobile ? 'transparent' : 'rgba(208,154,63,.12)',
@@ -74,7 +75,7 @@ export function WebsiteNav() {
     <Box
       component="header"
       sx={{
-        bgcolor: '#171411',
+        bgcolor: '#161715',
         color: '#fff',
         position: 'sticky',
         top: 0,
@@ -86,10 +87,10 @@ export function WebsiteNav() {
         component="nav"
         aria-label="เมนูหลัก"
         sx={{
-          minHeight: 68,
-          maxWidth: 1440,
+          minHeight: 72,
+          maxWidth: 1600,
           mx: 'auto',
-          px: { xs: 2.5, md: '5vw' },
+          px: { xs: 2.5, md: '4.5vw' },
           display: 'flex',
           alignItems: 'center',
           gap: 2.5,
@@ -116,8 +117,8 @@ export function WebsiteNav() {
           <Image
             src="/superblack-logo.png"
             alt=""
-            width={38}
-            height={38}
+            width={42}
+            height={42}
             priority
           />
           <span>SUPER BLACK COFFEE</span>
@@ -149,16 +150,17 @@ export function WebsiteNav() {
           variant="outlined"
           sx={{
             display: { xs: 'none', sm: 'inline-flex' },
-            minHeight: 38,
-            px: 2.2,
+            minHeight: 40,
+            px: 2.5,
             ml: 'auto',
-            color: '#fff',
-            borderColor: 'rgba(255,255,255,.52)',
+            color: '#171411',
+            bgcolor: '#d9af64',
+            borderColor: '#d9af64',
             fontSize: 13,
             '&:hover': {
-              borderColor: '#d09a3f',
-              color: '#d09a3f',
-              bgcolor: 'rgba(208,154,63,.08)',
+              borderColor: '#e9c887',
+              color: '#171411',
+              bgcolor: '#e9c887',
             },
           }}
         >

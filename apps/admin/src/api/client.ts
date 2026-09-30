@@ -64,6 +64,31 @@ export async function secured<T>(
   return request;
 }
 
+export async function uploadSecuredFile<T>(
+  path: string,
+  file: File,
+): Promise<T> {
+  const form = new FormData();
+  form.append('image', file);
+  try {
+    const response = await apiClient.request<ApiEnvelope<T>>({
+      url: path,
+      method: 'POST',
+      data: form,
+      headers: { 'Content-Type': undefined },
+    });
+    if (!response.data.success)
+      throw new Error(response.data.message ?? 'ไม่สามารถอัปโหลดรูปภาพได้');
+    return response.data.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      window.dispatchEvent(new Event('sbc:session-expired'));
+      throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+    }
+    throw new Error(messageFrom(error));
+  }
+}
+
 async function performSecuredRequest<T>(
   path: string,
   options: AxiosRequestConfig,

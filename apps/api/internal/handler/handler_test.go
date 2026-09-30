@@ -58,6 +58,25 @@ func TestMenuImageURLsUseCurrentRequestOrigin(t *testing.T) {
 	}
 }
 
+func TestHostedImageURL(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{value: "https://pub-example.r2.dev/catalog/menu.png", want: true},
+		{value: "http://localhost:8080/menu.png", want: true},
+		{value: "data:image/png;base64,abc", want: false},
+		{value: "/api/v1/menu-items/1/image", want: false},
+		{value: "javascript:alert(1)", want: false},
+	} {
+		t.Run(test.value, func(t *testing.T) {
+			if got := hostedImageURL(test.value); got != test.want {
+				t.Fatalf("hostedImageURL(%q) = %t, want %t", test.value, got, test.want)
+			}
+		})
+	}
+}
+
 func TestPlatformHandlerRejectsDatabaseDependentRequestsWhenDatabaseIsMissing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	handler := NewPlatformHandler(nil, nil, nil, nil, nil)
@@ -105,6 +124,24 @@ func TestMenuPlanAccess(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if got := menuAllowedForPlan(test.plan, test.category); got != test.allowed {
 				t.Fatalf("menuAllowedForPlan(%q, %q) = %t, want %t", test.plan, test.category, got, test.allowed)
+			}
+		})
+	}
+}
+
+func TestStockPlanAccess(t *testing.T) {
+	for _, test := range []struct {
+		name, plan, stockCategory string
+		allowed                   bool
+	}{
+		{"S excludes postal equipment", franchisePlanS, "postal_equipment", false},
+		{"S keeps drink equipment", franchisePlanS, "drink_equipment", true},
+		{"M keeps postal equipment", franchisePlanM, "postal_equipment", true},
+		{"L keeps postal equipment", franchisePlanL, "postal_equipment", true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := stockAllowedForPlan(test.plan, test.stockCategory); got != test.allowed {
+				t.Fatalf("stockAllowedForPlan(%q, %q) = %t, want %t", test.plan, test.stockCategory, got, test.allowed)
 			}
 		})
 	}

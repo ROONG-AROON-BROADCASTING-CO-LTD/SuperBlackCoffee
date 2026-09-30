@@ -4,6 +4,7 @@ import {
   BoxesIcon,
   ClockIcon,
   FilePenLineIcon,
+  FingerprintIcon,
   LayoutGridIcon,
   ReceiptIcon,
   ReceiptTextIcon,
@@ -36,6 +37,7 @@ export const navigation = [
   { label: 'ลงเวลาพนักงาน', icon: <ClockIcon />, group: 'บุคลากร' },
   { label: 'คำขอลาพนักงาน', icon: <ReceiptTextIcon />, group: 'บุคลากร' },
   { label: 'เอกสารส่วนกลาง', icon: <FilePenLineIcon />, group: 'บุคลากร' },
+  { label: 'ตั้งค่าระบบ', icon: <FingerprintIcon />, group: 'บัญชี' },
 ] as const;
 
 export type FranchisePlan = 'S' | 'M' | 'L';

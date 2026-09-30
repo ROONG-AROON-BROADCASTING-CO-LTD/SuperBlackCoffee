@@ -58,6 +58,11 @@ const PromotionsManagementPage = lazy(() =>
     default: module.PromotionsManagementPage,
   })),
 );
+const FranchiseSettingsPage = lazy(() =>
+  import('../../pages/dashboard/FranchiseSettingsPage').then((module) => ({
+    default: module.FranchiseSettingsPage,
+  })),
+);
 
 function FranchisePageSkeleton({
   page,
@@ -186,6 +191,8 @@ export function FranchiseDashboard({
             activeBranch={branchName}
             branchCodes={{ [branchName]: branchCode }}
             readOnly
+            allowEditing
+            cardColumns={5}
             stockCategory="postal_equipment"
             stockLabel="สต๊อกอุปกรณ์ไปรษณีย์"
           />
@@ -197,6 +204,8 @@ export function FranchiseDashboard({
           <LeaveRequestsManagementPage franchiseMode />
         ) : activePage === 'เอกสารส่วนกลาง' ? (
           <CompanyDocumentsPage readOnly />
+        ) : activePage === 'ตั้งค่าระบบ' ? (
+          <FranchiseSettingsPage />
         ) : (
           <DashboardMain>
             <FranchiseOverviewPage

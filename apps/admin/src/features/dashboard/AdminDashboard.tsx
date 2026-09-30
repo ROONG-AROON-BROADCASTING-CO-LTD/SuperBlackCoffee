@@ -335,6 +335,16 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     setBranchReloadKey((current) => current + 1),
   );
   useEffect(() => {
+    const refreshBranchDirectory = () =>
+      setBranchReloadKey((current) => current + 1);
+    window.addEventListener('sbc:branches-updated', refreshBranchDirectory);
+    return () =>
+      window.removeEventListener(
+        'sbc:branches-updated',
+        refreshBranchDirectory,
+      );
+  }, []);
+  useEffect(() => {
     let active = true;
     void listBranches()
       .then((branches) => {
@@ -350,7 +360,7 @@ export function AdminDashboard({ logout }: { logout: () => void }) {
     return () => {
       active = false;
     };
-  }, [branchReloadKey]);
+  }, [activePage, branchReloadKey]);
   useEffect(() => {
     if (activePage !== 'คำสั่งซื้อ' || selectedBranch === 'ทุกสาขา') return;
     const selected = branchDirectory.find(

@@ -66,6 +66,8 @@ describe('AdminBranchesPage', () => {
   });
 
   it('creates an SBC branch with the selected size and places it in the grid', async () => {
+    const branchUpdateListener = vi.fn();
+    window.addEventListener('sbc:branches-updated', branchUpdateListener);
     renderPage();
     await waitFor(() => expect(screen.getByText('สาขาเดิม')).toBeTruthy());
 
@@ -89,6 +91,8 @@ describe('AdminBranchesPage', () => {
     );
     expect(screen.getByText('สาขาเชียงใหม่')).toBeTruthy();
     expect(screen.getByText('SBC-CNX-001')).toBeTruthy();
+    expect(branchUpdateListener).toHaveBeenCalledTimes(1);
+    window.removeEventListener('sbc:branches-updated', branchUpdateListener);
   });
 
   it('shows only company branches on the SBC branches page', async () => {

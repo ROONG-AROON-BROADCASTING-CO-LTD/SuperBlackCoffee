@@ -260,6 +260,7 @@ export function AdminBranchesPage() {
           branch.id === branchId ? { ...branch, size } : branch,
         ),
       );
+      window.dispatchEvent(new Event('sbc:branches-updated'));
       await queryClient.invalidateQueries({ queryKey: ['branches'] });
       setActionNotice({ message: 'บันทึกขนาดสาขาแล้ว' });
     } catch (error) {
@@ -321,6 +322,7 @@ export function AdminBranchesPage() {
       setNewBranch(emptyBranchForm());
       setEditingBranchId(null);
       setIsCreateDrawerOpen(false);
+      window.dispatchEvent(new Event('sbc:branches-updated'));
       await queryClient.invalidateQueries({ queryKey: ['branches'] });
       setActionNotice({
         message:

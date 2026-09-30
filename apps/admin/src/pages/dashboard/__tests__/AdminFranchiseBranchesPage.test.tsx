@@ -11,6 +11,7 @@ import {
   createFranchisee,
   listBranches,
   listFranchisees,
+  updateFranchiseeDetails,
   updateFranchiseeStatus,
 } from '../../../api';
 
@@ -18,12 +19,14 @@ vi.mock('../../../api', () => ({
   listBranches: vi.fn(),
   listFranchisees: vi.fn(),
   createFranchisee: vi.fn(),
+  updateFranchiseeDetails: vi.fn(),
   updateFranchiseeStatus: vi.fn(),
 }));
 
 const mockedListBranches = vi.mocked(listBranches);
 const mockedListFranchisees = vi.mocked(listFranchisees);
 const mockedCreateFranchisee = vi.mocked(createFranchisee);
+const mockedUpdateFranchiseeDetails = vi.mocked(updateFranchiseeDetails);
 const mockedUpdateFranchiseeStatus = vi.mocked(updateFranchiseeStatus);
 
 describe('AdminFranchiseBranchesPage', () => {
@@ -33,6 +36,7 @@ describe('AdminFranchiseBranchesPage', () => {
         id: 22,
         name: 'แฟรนไชส์สุพรรณบุรี',
         email: 'suphan@example.com',
+        username: 'suphan.owner',
         plan: 'S',
         status: 'active',
         createdAt: '2026-09-04T00:00:00Z',
@@ -54,6 +58,7 @@ describe('AdminFranchiseBranchesPage', () => {
       id: 22,
       status: 'active',
     });
+    mockedUpdateFranchiseeDetails.mockResolvedValue({ id: 22, branchId: 51 });
   });
 
   afterEach(() => {
@@ -70,6 +75,7 @@ describe('AdminFranchiseBranchesPage', () => {
     expect(screen.getByText('สาขาสุพรรณบุรี')).toBeTruthy();
     expect(screen.queryByText('สาขาอยุธยา')).toBeNull();
     expect(screen.getByText('แพ็กเกจ S')).toBeTruthy();
+    expect(screen.getByText('Username: suphan.owner')).toBeTruthy();
   });
 
   it('keeps the franchise card grid while loading', () => {
@@ -160,6 +166,57 @@ describe('AdminFranchiseBranchesPage', () => {
       expect(mockedUpdateFranchiseeStatus).toHaveBeenCalledWith(22, 'active'),
     );
     expect(screen.getByText('ใช้งานแล้ว')).toBeTruthy();
+  });
+
+  it('edits a franchise account and branch from its card', async () => {
+    render(<AdminFranchiseBranchesPage />);
+    const editButton = await screen.findByRole('button', {
+      name: 'แก้ไขรายละเอียด',
+    });
+
+    fireEvent.click(editButton);
+    expect(await screen.findByText('แก้ไขรายละเอียดแฟรนไชส์')).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: /ชื่อสาขา/ }), {
+      target: { value: 'สาขาสุพรรณบุรีใหม่' },
+    });
+    const saveButton = screen.getByRole('button', { name: 'บันทึกการแก้ไข' });
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(saveButton);
+
+    await waitFor(() =>
+      expect(mockedUpdateFranchiseeDetails).toHaveBeenCalledWith(22, {
+        name: 'แฟรนไชส์สุพรรณบุรี',
+        email: 'suphan@example.com',
+        plan: 'S',
+        branchName: 'สาขาสุพรรณบุรีใหม่',
+        branchCode: 'SBC-SPB-001',
+      }),
+    );
+  });
+
+  it('shows the username and submits a new password only when supplied', async () => {
+    render(<AdminFranchiseBranchesPage />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'แก้ไขรายละเอียด' }),
+    );
+
+    const username = screen.getByDisplayValue('suphan.owner');
+    expect(username).toHaveProperty('disabled', true);
+    fireEvent.change(screen.getByLabelText('รหัสผ่านใหม่'), {
+      target: { value: 'NewPassword123!' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกการแก้ไข' }));
+
+    await waitFor(() =>
+      expect(mockedUpdateFranchiseeDetails).toHaveBeenCalledWith(22, {
+        name: 'แฟรนไชส์สุพรรณบุรี',
+        email: 'suphan@example.com',
+        plan: 'S',
+        branchName: 'สาขาสุพรรณบุรี',
+        branchCode: 'SBC-SPB-001',
+        password: 'NewPassword123!',
+      }),
+    );
   });
 
   it('keeps the page layout and shows a short error when data cannot load', async () => {

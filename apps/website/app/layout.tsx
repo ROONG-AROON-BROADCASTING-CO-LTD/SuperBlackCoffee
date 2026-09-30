@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import localFont from 'next/font/local';
-import './globals.css';
 import { WebsiteThemeProvider } from './WebsiteThemeProvider';
 import { GoogleAnalytics } from '../src/components/GoogleAnalytics';
 

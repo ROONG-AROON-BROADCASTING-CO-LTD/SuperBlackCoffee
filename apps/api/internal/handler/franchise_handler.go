@@ -18,7 +18,7 @@ func (h *PlatformHandler) ListFranchisees(c *gin.Context) {
 	if h.unavailable(c) {
 		return
 	}
-	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT id,name,email,plan,status,created_at FROM franchisees ORDER BY created_at DESC`)
+	rows, err := h.db.QueryContext(c.Request.Context(), `SELECT f.id,f.name,f.email,f.plan,f.status,f.created_at,COALESCE((SELECT u.username FROM users u WHERE u.franchisee_id=f.id AND u.role='franchise_owner' ORDER BY u.id LIMIT 1),'') FROM franchisees f ORDER BY f.created_at DESC`)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถดึงรายชื่อแฟรนไชส์ได้"})
 		return
@@ -27,10 +27,10 @@ func (h *PlatformHandler) ListFranchisees(c *gin.Context) {
 	result := []gin.H{}
 	for rows.Next() {
 		var id int64
-		var name, email, plan, status string
+		var name, email, plan, status, username string
 		var created time.Time
-		_ = rows.Scan(&id, &name, &email, &plan, &status, &created)
-		result = append(result, gin.H{"id": id, "name": name, "email": email, "plan": plan, "status": status, "createdAt": created})
+		_ = rows.Scan(&id, &name, &email, &plan, &status, &created, &username)
+		result = append(result, gin.H{"id": id, "name": name, "email": email, "username": username, "plan": plan, "status": status, "createdAt": created})
 	}
 	c.JSON(200, gin.H{"success": true, "data": result})
 }
@@ -48,6 +48,15 @@ type franchiseInput struct {
 
 type franchiseStatusInput struct {
 	Status string `json:"status" binding:"required,oneof=active inactive"`
+}
+
+type franchiseDetailsInput struct {
+	Name       string `json:"name" binding:"required"`
+	Email      string `json:"email" binding:"required,email"`
+	Plan       string `json:"plan" binding:"required,oneof=S M L"`
+	BranchName string `json:"branchName" binding:"required"`
+	BranchCode string `json:"branchCode" binding:"required"`
+	Password   string `json:"password"`
 }
 
 type branchSizeInput struct {
@@ -240,6 +249,80 @@ func (h *PlatformHandler) UpdateFranchiseeStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"success": true, "data": gin.H{"id": franchiseeID, "status": input.Status}})
+}
+
+// UpdateFranchiseeDetails keeps the franchise account, its owner profile, and
+// its single branch in sync. The plan is also the branch size used to assign
+// the appropriate central catalog.
+func (h *PlatformHandler) UpdateFranchiseeDetails(c *gin.Context) {
+	if h.unavailable(c) {
+		return
+	}
+	franchiseeID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || franchiseeID < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสแฟรนไชส์ไม่ถูกต้อง"})
+		return
+	}
+	var input franchiseDetailsInput
+	if c.ShouldBindJSON(&input) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ข้อมูลแฟรนไชส์ไม่ถูกต้อง"})
+		return
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Email = strings.TrimSpace(input.Email)
+	input.BranchName = strings.TrimSpace(input.BranchName)
+	input.BranchCode = strings.ToUpper(strings.TrimSpace(input.BranchCode))
+	input.Password = strings.TrimSpace(input.Password)
+	if input.Name == "" || input.Email == "" || input.BranchName == "" || input.BranchCode == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณากรอกข้อมูลให้ครบถ้วน"})
+		return
+	}
+	if input.Password != "" && len(input.Password) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร"})
+		return
+	}
+	tx, err := h.db.BeginTx(c.Request.Context(), nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถแก้ไขข้อมูลแฟรนไชส์ได้"})
+		return
+	}
+	defer tx.Rollback()
+	var branchID int64
+	if err = tx.QueryRowContext(c.Request.Context(), `SELECT id FROM branches WHERE franchisee_id=$1`, franchiseeID).Scan(&branchID); err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "ไม่พบสาขาแฟรนไชส์"})
+		return
+	} else if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถแก้ไขข้อมูลแฟรนไชส์ได้"})
+		return
+	}
+	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE franchisees SET name=$1,email=$2,plan=$3 WHERE id=$4`, input.Name, input.Email, input.Plan, franchiseeID); err == nil {
+		_, err = tx.ExecContext(c.Request.Context(), `UPDATE branches SET name=$1,code=$2,size=$3 WHERE id=$4`, input.BranchName, input.BranchCode, input.Plan, branchID)
+	}
+	if err == nil {
+		_, err = tx.ExecContext(c.Request.Context(), `UPDATE users SET name=$1,email=$2 WHERE franchisee_id=$3 AND role='franchise_owner'`, input.Name, input.Email, franchiseeID)
+	}
+	if err == nil && input.Password != "" {
+		var passwordHash []byte
+		passwordHash, err = bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err == nil {
+			_, err = tx.ExecContext(c.Request.Context(), `UPDATE users SET password_hash=$1 WHERE franchisee_id=$2 AND role='franchise_owner'`, string(passwordHash), franchiseeID)
+		}
+	}
+	if err == nil {
+		err = copyFranchiseCatalog(c.Request.Context(), tx, branchID, input.Plan)
+	}
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบอีเมลและรหัสสาขา"})
+		return
+	}
+	if err = tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกข้อมูลแฟรนไชส์ได้"})
+		return
+	}
+	h.invalidateBranchCache(c, branchID)
+	h.invalidateMenuSummaryCache(c)
+	h.recordAudit(c, branchID, "franchise", franchiseeID, "updated", gin.H{"name": input.Name, "branchName": input.BranchName, "branchCode": input.BranchCode, "plan": input.Plan})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": franchiseeID, "branchId": branchID}})
 }
 
 func (h *PlatformHandler) ListBranches(c *gin.Context) {

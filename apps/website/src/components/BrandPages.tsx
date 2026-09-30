@@ -322,19 +322,19 @@ function BrandPromise() {
 
 function BrandStats() {
   const stats = [
-    ['☕', '120+', 'สาขาทั่วประเทศ', 'กาแฟคุณภาพในทุกพื้นที่'],
-    ['◒', '100%', 'เมล็ดกาแฟคุณภาพ', 'คัดสรรอย่างพิถีพิถัน'],
-    ['ϟ', '80+', 'จุดชาร์จ EV', 'พลังงานสะอาดเพื่อทุกการเดินทาง'],
-    ['♧', '20,000+', 'ลูกค้าประจำ', 'ประสบการณ์ที่กลับมาได้เสมอ'],
+    ['120+', 'สาขาทั่วประเทศ', 'กาแฟคุณภาพในทุกพื้นที่'],
+    ['100%', 'เมล็ดกาแฟคุณภาพ', 'คัดสรรอย่างพิถีพิถัน'],
+    ['80+', 'จุดชาร์จ EV', 'พลังงานสะอาดเพื่อทุกการเดินทาง'],
+    ['20,000+', 'ลูกค้าประจำ', 'ประสบการณ์ที่กลับมาได้เสมอ'],
   ];
   return (
     <Box
       component="section"
       sx={{
-        bgcolor: brown,
-        color: '#fff',
-        py: { xs: 2.5, md: 3 },
-        borderBottom: '1px solid rgba(255,255,255,.08)',
+        bgcolor: '#f8f4ef',
+        color: '#171411',
+        py: { xs: 4, md: 5 },
+        borderBottom: '1px solid #dfd8cd',
       }}
     >
       <Box sx={{ ...shell }}>
@@ -344,70 +344,56 @@ function BrandStats() {
             gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
           }}
         >
-          {stats.map(([icon, value, label, description], i) => (
+          {stats.map(([value, label, description], i) => (
             <Box
               key={label}
               sx={{
-                minHeight: { xs: 112, md: 100 },
-                px: { xs: 1.5, md: 3 },
+                minHeight: { xs: 112, md: 108 },
+                px: { xs: 1.5, md: 3.5 },
                 py: { xs: 1.5, md: 1 },
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: '42px 1fr' },
-                gap: { xs: 0.5, md: 1.25 },
-                alignItems: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
                 borderRight: {
-                  xs: i % 2 === 0 ? '1px solid rgba(255,255,255,.18)' : 'none',
-                  md: i !== 3 ? '1px solid rgba(255,255,255,.18)' : 'none',
+                  xs: i % 2 === 0 ? '1px solid #dfd8cd' : 'none',
+                  md: i !== 3 ? '1px solid #dfd8cd' : 'none',
                 },
                 borderBottom: {
-                  xs: i < 2 ? '1px solid rgba(255,255,255,.18)' : 'none',
+                  xs: i < 2 ? '1px solid #dfd8cd' : 'none',
                   md: 'none',
                 },
               }}
             >
               <Typography
-                aria-hidden
                 sx={{
-                  color: gold,
-                  fontSize: { xs: 27, md: 34 },
-                  lineHeight: 1,
-                  textAlign: { xs: 'left', md: 'center' },
+                  color: '#1b1b18',
+                  fontSize: { xs: '1.7rem', md: '2.15rem' },
+                  fontWeight: 700,
+                  lineHeight: 1.08,
                 }}
               >
-                {icon}
+                {value}
               </Typography>
-              <Box>
-                <Typography
-                  sx={{
-                    color: '#fff',
-                    fontSize: { xs: '1.35rem', md: '1.55rem' },
-                    fontWeight: 700,
-                    lineHeight: 1,
-                  }}
-                >
-                  {value}
-                </Typography>
-                <Typography
-                  sx={{
-                    color: '#d09a3f',
-                    fontSize: { xs: 10, md: 11 },
-                    fontWeight: 700,
-                    mt: 0.65,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {label}
-                </Typography>
-                <Typography
-                  sx={{
-                    color: 'rgba(255,255,255,.6)',
-                    fontSize: { xs: 10, md: 11 },
-                    mt: 0.35,
-                  }}
-                >
-                  {description}
-                </Typography>
-              </Box>
+              <Typography
+                sx={{
+                  color: '#5b4230',
+                  fontSize: { xs: 12, md: 14 },
+                  fontWeight: 600,
+                  mt: 0.7,
+                  lineHeight: 1.35,
+                }}
+              >
+                {label}
+              </Typography>
+              <Typography
+                sx={{
+                  color: '#776d62',
+                  fontSize: { xs: 11, md: 12 },
+                  mt: 0.4,
+                }}
+              >
+                {description}
+              </Typography>
             </Box>
           ))}
         </Box>
@@ -422,21 +408,28 @@ function BrandStory() {
       component="section"
       sx={{
         ...shell,
-        py: { xs: 8, md: 12 },
+        py: { xs: 10, md: 16 },
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', md: '.95fr 1.05fr' },
-        gap: { xs: 5, md: 7 },
+        gap: { xs: 6, md: 10 },
         alignItems: 'center',
       }}
     >
       <Box>
         <Typography
           variant="h2"
-          sx={{ ...heading, fontSize: 'clamp(1.8rem, 3vw, 3rem)', mt: 1.5 }}
+          sx={{ ...heading, fontSize: 'clamp(2.1rem, 3.4vw, 3.8rem)', mt: 1.5 }}
         >
           เริ่มต้นจากความตั้งใจ สู่แบรนด์ที่พร้อมเติบโต
         </Typography>
-        <Typography sx={{ mt: 3, color: '#6b625c', lineHeight: 1.85 }}>
+        <Typography
+          sx={{
+            mt: 3,
+            color: '#6b625c',
+            lineHeight: 1.85,
+            fontSize: { xs: 16, md: 18 },
+          }}
+        >
           กาแฟที่ดีเริ่มจากรายละเอียดที่ใส่ใจ
           และธุรกิจที่ดีต้องมีระบบที่ทำให้ทุกคนเติบโตได้จริง
           เราจึงออกแบบทุกขั้นตอน ตั้งแต่วัตถุดิบไปจนถึงประสบการณ์หน้าร้าน
@@ -459,7 +452,7 @@ function BrandStory() {
         sx={{
           position: 'relative',
           minHeight: { xs: 300, md: 500 },
-          borderRadius: 5,
+          borderRadius: { xs: 2, md: 3 },
           overflow: 'hidden',
         }}
       >
@@ -571,43 +564,31 @@ function ServicesStrip() {
       '/service-coffee.png',
       'COFFEE & BEVERAGE',
       'กาแฟพรีเมียมที่คัดสรรอย่างตั้งใจ',
-      '#d09a3f',
     ],
-    [
-      '/service-ev.png',
-      'EV CHARGING',
-      'ชาร์จพลังให้ชีวิตระหว่างการเดินทาง',
-      '#71b65e',
-    ],
-    [
-      '/service-work.png',
-      'WORK & RELAX',
-      'พื้นที่ทำงานและพักผ่อนที่มี Wi‑Fi',
-      '#d09a3f',
-    ],
-    [
-      '/service-bakery.png',
-      'BAKERY & FOOD',
-      'เบเกอรี่และอาหารที่ทำสดใหม่',
-      '#e1a447',
-    ],
+    ['/service-ev.png', 'EV CHARGING', 'ชาร์จพลังให้ชีวิตระหว่างการเดินทาง'],
+    ['/service-work.png', 'WORK & RELAX', 'พื้นที่ทำงานและพักผ่อนที่มี Wi‑Fi'],
+    ['/service-bakery.png', 'BAKERY & FOOD', 'เบเกอรี่และอาหารที่ทำสดใหม่'],
     [
       '/service-lifestyle.png',
       'LIFESTYLE GOODS',
       'สินค้าและของใช้ที่สะท้อนตัวตน',
-      '#d09a3f',
     ],
   ];
   return (
     <Box
       component="section"
-      sx={{ bgcolor: cream, color: brown, py: { xs: 7, md: 10 } }}
+      sx={{ bgcolor: '#eee9e1', color: brown, py: { xs: 9, md: 14 } }}
     >
       <Box sx={{ ...shell }}>
-        <Box sx={{ textAlign: 'center', mb: 4 }}>
+        <Box sx={{ mb: { xs: 5, md: 7 } }}>
           <Typography
-            variant="h3"
-            sx={{ ...heading, fontSize: 'clamp(1.6rem, 2.6vw, 2.4rem)' }}
+            component="h2"
+            sx={{
+              ...heading,
+              fontSize: 'clamp(2.1rem, 3.5vw, 3.6rem)',
+              maxWidth: 1000,
+              textWrap: 'balance',
+            }}
           >
             มากกว่ากาแฟ เพื่อไลฟ์สไตล์ของคุณ
           </Typography>
@@ -617,91 +598,155 @@ function ServicesStrip() {
             display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
-              sm: 'repeat(2, 1fr)',
-              lg: 'repeat(5, 1fr)',
+              md: 'minmax(0, 1.05fr) minmax(0, .95fr)',
             },
-            gap: 1.5,
+            gap: { xs: 5, md: 8 },
           }}
         >
-          {services.map(([image, title, text, accent]) => (
+          <Box>
             <Box
-              key={title}
               sx={{
-                bgcolor: brown,
-                color: '#fff',
+                position: 'relative',
+                aspectRatio: { xs: '4 / 3', md: '1 / 1' },
                 overflow: 'hidden',
-                borderRadius: 2.5,
-                display: 'flex',
-                flexDirection: 'column',
-                border: '1px solid rgba(208,154,63,.55)',
-                '&:hover img': { transform: 'scale(1.04)' },
+                borderRadius: 3,
               }}
             >
-              <Box
-                sx={{
-                  position: 'relative',
-                  width: '100%',
-                  aspectRatio: '1 / 1',
-                  overflow: 'hidden',
-                }}
-              >
-                <Image
-                  src={image}
-                  alt={title}
-                  fill
-                  sizes="(max-width: 900px) 50vw, 20vw"
-                  style={{
-                    objectFit: 'cover',
-                    transition: 'transform .45s ease',
-                  }}
-                />
-              </Box>
-              <Box
-                sx={{
-                  p: 2.25,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  flex: 1,
-                }}
-              >
+              <Image
+                src={services[0][0]}
+                alt={services[0][1]}
+                fill
+                sizes="(max-width: 900px) 100vw, 50vw"
+                style={{ objectFit: 'cover' }}
+              />
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'end',
+                gap: 2,
+                pt: 2.5,
+              }}
+            >
+              <Box>
                 <Typography
                   sx={{
-                    color: accent,
+                    fontFamily: 'var(--font-inter)',
+                    fontSize: 12,
                     fontWeight: 700,
-                    fontSize: 15,
-                    lineHeight: 1.2,
+                    letterSpacing: '.1em',
+                    color: '#815c35',
                   }}
                 >
-                  {title}
+                  {services[0][1]}
                 </Typography>
                 <Typography
+                  sx={{ mt: 1, fontSize: { xs: 18, md: 23 }, fontWeight: 600 }}
+                >
+                  {services[0][2]}
+                </Typography>
+              </Box>
+              <Button
+                component="a"
+                href="/services"
+                sx={{
+                  flexShrink: 0,
+                  color: brown,
+                  borderBottom: '1px solid currentColor',
+                  borderRadius: 0,
+                  px: 0,
+                  minWidth: 0,
+                }}
+              >
+                ดูบริการ
+              </Button>
+            </Box>
+          </Box>
+          <Box sx={{ borderTop: '1px solid #c9beb1' }}>
+            {services.slice(1).map(([image, title, text], index) => (
+              <Box
+                key={title}
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '72px minmax(0, 1fr) auto',
+                  gap: { xs: 2, md: 2.5 },
+                  alignItems: 'center',
+                  py: { xs: 2.5, md: 3.25 },
+                  borderBottom: '1px solid #c9beb1',
+                }}
+              >
+                <Box
                   sx={{
-                    mt: 1,
-                    color: 'rgba(255,255,255,.82)',
-                    fontSize: 14,
-                    lineHeight: 1.55,
+                    position: 'relative',
+                    width: 72,
+                    height: 72,
+                    overflow: 'hidden',
+                    borderRadius: 1.5,
                   }}
                 >
-                  {text}
-                </Typography>
-                <Typography
+                  <Image
+                    src={image}
+                    alt=""
+                    fill
+                    sizes="72px"
+                    style={{ objectFit: 'cover' }}
+                  />
+                </Box>
+                <Box>
+                  <Typography
+                    sx={{
+                      color: '#815c35',
+                      fontFamily: 'var(--font-inter)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '.08em',
+                    }}
+                  >
+                    0{index + 2} · {title}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      mt: 0.75,
+                      fontSize: { xs: 15, md: 18 },
+                      fontWeight: 500,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {text}
+                  </Typography>
+                </Box>
+                <Button
                   component="a"
                   href="/services"
+                  aria-label={`ดูบริการ ${title}`}
                   sx={{
-                    display: 'inline-block',
-                    mt: 'auto',
-                    pt: 2,
-                    color: accent,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textDecoration: 'none',
+                    minWidth: 42,
+                    width: 42,
+                    height: 42,
+                    p: 0,
+                    border: '1px solid #a99c8d',
+                    color: brown,
+                    '&:hover': { borderColor: brown, bgcolor: '#fffaf4' },
                   }}
                 >
-                  LEARN MORE&nbsp; ↗
-                </Typography>
+                  <svg
+                    aria-hidden="true"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14m-6-6 6 6-6 6" />
+                  </svg>
+                </Button>
               </Box>
-            </Box>
-          ))}
+            ))}
+          </Box>
         </Box>
       </Box>
     </Box>
@@ -1056,73 +1101,52 @@ export function HomeContent() {
       <Box
         component="section"
         sx={{
-          position: 'relative',
-          color: '#fff',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: 'minmax(0, 42%) minmax(0, 58%)',
+          },
+          minHeight: { xs: 'auto', md: 'min(760px, calc(100svh - 72px))' },
+          color: '#f8f4ef',
           overflow: 'hidden',
-          textAlign: 'center',
-          bgcolor: brown,
+          bgcolor: '#161715',
         }}
       >
-        <Image
-          src="/brand-hero.png"
-          alt="ร้าน Super Black Coffee"
-          width={1672}
-          height={941}
-          priority
-          unoptimized
-          sizes="100vw"
-          style={{ display: 'block', width: '100%', height: 'auto' }}
-        />
-        <Box
-          sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(12,10,8,.52)' }}
-        />
         <Box
           sx={{
-            ...shell,
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
             justifyContent: 'center',
-            py: 6,
+            alignItems: 'flex-start',
+            px: { xs: 3, sm: 5, md: 'clamp(48px, 5.6vw, 100px)' },
+            py: { xs: 8, sm: 10, md: 8 },
+            minHeight: { xs: 500, sm: 540, md: 620 },
           }}
         >
           <Typography
             component="h1"
             sx={{
               ...heading,
-              letterSpacing: { xs: '-.01em', md: 0 },
-              lineHeight: 1.18,
-              fontWeight: 500,
-              fontSize: 'clamp(2rem, 4vw, 4.15rem)',
-              maxWidth: 760,
+              color: '#fffaf4',
+              letterSpacing: '-.035em',
+              lineHeight: 1.14,
+              fontWeight: 600,
+              fontSize: 'clamp(2.8rem, 4vw, 4.5rem)',
+              maxWidth: 620,
               textWrap: 'balance',
             }}
           >
             กาแฟไทย พลังสะอาด
             <br />
-            <Box
-              component="em"
-              sx={{
-                color: '#fff',
-                fontStyle: 'normal',
-                display: 'inline-block',
-                mt: { xs: 0.5, md: 0.75 },
-              }}
-            >
-              เพื่อทุกการเดินทาง
-            </Box>
+            เพื่อทุกการเดินทาง
           </Typography>
           <Typography
             sx={{
-              mt: 2.5,
-              maxWidth: 'none',
-              whiteSpace: { xs: 'normal', md: 'nowrap' },
-              color: 'rgba(255,255,255,.8)',
-              fontSize: { xs: '.98rem', md: '1rem' },
-              lineHeight: 1.7,
+              mt: { xs: 3, md: 4 },
+              maxWidth: 460,
+              color: '#c4c5c0',
+              fontSize: { xs: '1rem', md: '1.15rem' },
+              lineHeight: 1.8,
             }}
           >
             สัมผัสประสบการณ์กาแฟพรีเมียม พลังงานสะอาด
@@ -1131,13 +1155,29 @@ export function HomeContent() {
           <Stack
             direction="row"
             spacing={1.5}
-            sx={{ mt: 3.5, justifyContent: 'center', flexWrap: 'wrap' }}
+            sx={{ mt: { xs: 4, md: 5 }, flexWrap: 'wrap', gap: 1 }}
           >
             <CTA href="/branches">ค้นหาสาขาใกล้คุณ</CTA>
-            <CTA href="/services" outline>
+            <CTA href="/menu" outline>
               ดูเมนูทั้งหมด
             </CTA>
           </Stack>
+        </Box>
+        <Box
+          sx={{
+            position: 'relative',
+            minHeight: { xs: 330, sm: 430, md: 620 },
+            overflow: 'hidden',
+          }}
+        >
+          <Image
+            src="/brand-hero.png"
+            alt="ร้าน Super Black Coffee พร้อมจุดชาร์จรถยนต์ไฟฟ้า"
+            fill
+            priority
+            sizes="(max-width: 900px) 100vw, 58vw"
+            style={{ objectFit: 'cover', objectPosition: 'center center' }}
+          />
         </Box>
       </Box>
       <BrandStats />
@@ -1746,7 +1786,12 @@ function PageIntro({
   children?: React.ReactNode;
 }) {
   return (
-    <Box sx={{ bgcolor: dark ? brown : cream, color: dark ? '#fff' : brown }}>
+    <Box
+      sx={{
+        bgcolor: dark ? '#171816' : '#f8f4ef',
+        color: dark ? '#fff' : brown,
+      }}
+    >
       <Box
         component="section"
         sx={{
@@ -1756,9 +1801,9 @@ function PageIntro({
             xs: '1fr',
             md: 'minmax(0, .9fr) minmax(0, 1.1fr)',
           },
-          gap: { xs: 4, md: 7 },
+          gap: { xs: 5, md: 9 },
           alignItems: 'center',
-          py: { xs: 7, md: 11 },
+          py: { xs: 8, md: 13 },
         }}
       >
         <Box>
@@ -1766,7 +1811,8 @@ function PageIntro({
             component="h1"
             sx={{
               ...heading,
-              fontSize: 'clamp(1.95rem, 3.5vw, 3.5rem)',
+              fontSize: 'clamp(2.4rem, 4vw, 4.35rem)',
+              lineHeight: 1.12,
               textWrap: 'balance',
             }}
           >
@@ -1776,7 +1822,7 @@ function PageIntro({
             sx={{
               mt: 2.5,
               color: dark ? 'rgba(255,255,255,.72)' : '#6b625c',
-              fontSize: { xs: '1rem', md: '1.1rem' },
+              fontSize: { xs: '1rem', md: '1.15rem' },
               lineHeight: 1.75,
               maxWidth: 520,
             }}
@@ -1787,9 +1833,9 @@ function PageIntro({
         <Box
           sx={{
             position: 'relative',
-            minHeight: { xs: 280, md: 420 },
+            minHeight: { xs: 300, md: 490 },
             overflow: 'hidden',
-            borderRadius: 4,
+            borderRadius: { xs: 2, md: 3 },
           }}
         >
           <Image

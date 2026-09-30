@@ -203,16 +203,17 @@ describe('AdminOperationsPage', () => {
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
       target: { value: 'QA Team' },
     });
-    fireEvent.change(document.querySelector('input[name="dueAt"]')!, {
-      target: { value: '2026-09-20' },
-    });
     fireEvent.click(
       screen.getByRole('button', { name: 'สร้างใบงานตรวจสภาพอุปกรณ์' }),
     );
 
     await waitFor(() =>
       expect(randomizeInspection).toHaveBeenCalledWith(
-        expect.objectContaining({ inspectorName: 'QA Team', excludeDays: 30 }),
+        expect.objectContaining({
+          inspectorName: 'QA Team',
+          excludeDays: 30,
+          dueAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        }),
       ),
     );
     expect(
@@ -312,7 +313,7 @@ describe('AdminOperationsPage', () => {
     ).toBeTruthy();
   });
 
-  it('requires a due date before creating either inspection work order', async () => {
+  it('offers the same 7 or 14-day random inspection schedule on every inspection tab', async () => {
     vi.mocked(listMaintenanceTickets).mockResolvedValue([]);
     vi.mocked(listInspections).mockResolvedValue([]);
     vi.mocked(listAssets).mockResolvedValue([]);
@@ -326,11 +327,13 @@ describe('AdminOperationsPage', () => {
       target: { value: 'QA Team' },
     });
     const dueDateInput = document.querySelector('input[name="dueAt"]')!;
-    expect(dueDateInput.hasAttribute('required')).toBe(true);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'สร้างใบงานตรวจสภาพอุปกรณ์' }),
+    expect(dueDateInput.hasAttribute('required')).toBe(false);
+    expect(screen.getAllByText('สุ่มวันเข้าตรวจภายใน').length).toBeGreaterThan(
+      0,
     );
-    expect(randomizeInspection).not.toHaveBeenCalled();
+    expect(
+      document.querySelector('input[name="scheduleWindowDays"]'),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'ตรวจคุณภาพวัตถุดิบ' }));
     fireEvent.change(document.querySelector('input[name="inspectorName"]')!, {
@@ -338,10 +341,9 @@ describe('AdminOperationsPage', () => {
     });
     expect(
       document.querySelector('input[name="dueAt"]')?.hasAttribute('required'),
-    ).toBe(true);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'สร้างใบงานตรวจคุณภาพวัตถุดิบ' }),
+    ).toBe(false);
+    expect(screen.getAllByText('สุ่มวันเข้าตรวจภายใน').length).toBeGreaterThan(
+      0,
     );
-    expect(randomizeIngredientInspection).not.toHaveBeenCalled();
   });
 });

@@ -1,17 +1,19 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme, type Shadows } from '@mui/material/styles';
+import { websiteBaseline } from './websiteBaseline';
 
 const shadowlessTheme = Array.from({ length: 25 }, () => 'none') as Shadows;
 
 const theme = createTheme({
   palette: {
     mode: 'light',
-    primary: { main: '#171411', contrastText: '#ffffff' },
-    secondary: { main: '#d09a3f', contrastText: '#171411' },
-    background: { default: '#f8f4ef', paper: '#fffdf9' },
-    text: { primary: '#171411', secondary: '#70655c' },
+    primary: { main: '#11120f', contrastText: '#ffffff' },
+    secondary: { main: '#c7a467', contrastText: '#11120f' },
+    background: { default: '#ffffff', paper: '#ffffff' },
+    text: { primary: '#1b1c18', secondary: '#686962' },
   },
   shape: { borderRadius: 14 },
   shadows: shadowlessTheme,
@@ -24,6 +26,9 @@ const theme = createTheme({
     h4: { fontSize: 'clamp(1.35rem, 2vw, 2rem)' },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: websiteBaseline,
+    },
     MuiButton: {
       styleOverrides: {
         root: { borderRadius: 999, minHeight: 44, boxShadow: 'none' },
@@ -38,5 +43,10 @@ const theme = createTheme({
 });
 
 export function WebsiteThemeProvider({ children }: { children: ReactNode }) {
-  return <ThemeProvider theme={theme}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  );
 }

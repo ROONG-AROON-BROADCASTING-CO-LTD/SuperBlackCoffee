@@ -60,6 +60,7 @@ export type RandomInspection = {
   checklist: string[];
   dueAt: string;
 };
+export type InspectionBranchScope = 'all' | 'sbc' | 'franchise' | 'branch';
 export const listAssets = () => secured<OperationRow[]>('/assets');
 export const listMaintenanceTickets = () =>
   secured<OperationRow[]>('/maintenance-tickets');
@@ -77,6 +78,8 @@ export const randomizeInspection = (data: {
   branchSize: InspectionTemplate['branchSize'];
   dueAt: string;
   excludeDays: number;
+  branchScope?: InspectionBranchScope;
+  branchCode?: string;
 }) =>
   secured<RandomInspection>('/inspections/randomize', { method: 'POST', data });
 export const randomizeIngredientInspection = (data: {
@@ -84,6 +87,8 @@ export const randomizeIngredientInspection = (data: {
   branchSize: InspectionTemplate['branchSize'];
   dueAt: string;
   excludeDays: number;
+  branchScope?: InspectionBranchScope;
+  branchCode?: string;
 }) =>
   secured<RandomInspection>('/inspections/randomize-ingredients', {
     method: 'POST',
@@ -94,6 +99,8 @@ export const randomizeCafeStandardInspection = (data: {
   branchSize: InspectionTemplate['branchSize'];
   dueAt: string;
   excludeDays: number;
+  branchScope?: InspectionBranchScope;
+  branchCode?: string;
 }) =>
   secured<RandomInspection>('/inspections/randomize-cafe-standard', {
     method: 'POST',

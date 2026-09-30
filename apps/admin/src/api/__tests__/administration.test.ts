@@ -10,6 +10,7 @@ import { login, logout, restoreSession } from '../auth';
 import {
   createFranchisee,
   listFranchisees,
+  updateFranchiseeDetails,
   updateFranchiseeStatus,
 } from '../franchisees';
 import { createEmployee, listEmployees } from '../users';
@@ -52,6 +53,14 @@ describe('admin administration API', () => {
 
     await createFranchisee(franchise);
     await updateFranchiseeStatus(9, 'inactive');
+    await updateFranchiseeDetails(9, {
+      name: franchise.name,
+      email: franchise.email,
+      plan: franchise.plan,
+      branchName: franchise.branchName,
+      branchCode: franchise.branchCode,
+      password: 'new-safe-password',
+    });
 
     expect(secured).toHaveBeenNthCalledWith(1, '/franchisees', {
       method: 'POST',
@@ -60,6 +69,17 @@ describe('admin administration API', () => {
     expect(secured).toHaveBeenNthCalledWith(2, '/franchisees/9/status', {
       method: 'PATCH',
       data: { status: 'inactive' },
+    });
+    expect(secured).toHaveBeenNthCalledWith(3, '/franchisees/9', {
+      method: 'PATCH',
+      data: {
+        name: franchise.name,
+        email: franchise.email,
+        plan: franchise.plan,
+        branchName: franchise.branchName,
+        branchCode: franchise.branchCode,
+        password: 'new-safe-password',
+      },
     });
   });
 

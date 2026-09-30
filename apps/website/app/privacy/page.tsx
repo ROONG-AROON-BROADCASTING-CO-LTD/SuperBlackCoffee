@@ -1,19 +1,18 @@
-import { Box, Typography } from '@mui/material';
-import { WebsiteFooter } from '../../src/components/WebsiteFooter';
-import { WebsiteNav } from '../../src/components/WebsiteNav';
+import Box from '@mui/material/Box';
+import { WebsiteFooter } from '../../src/components/WebsiteFooterRedesign';
+import { WebsiteNav } from '../../src/components/WebsiteNavRedesign';
 export default function PrivacyPage() {
   return (
-    <main>
+    <Box component="main" sx={{ m: 0, p: 0 }}>
       <WebsiteNav />
-      <Box sx={{ maxWidth: 900, mx: 'auto', px: 3, py: 12 }}>
-        <Typography variant="h1" sx={{ fontWeight: 700, mb: 3 }}>
-          นโยบายความเป็นส่วนตัว
-        </Typography>
-        <Typography color="text.secondary">
+      <section className="sb-legal sb-container">
+        <span className="sb-rule" />
+        <h1>นโยบายความเป็นส่วนตัว</h1>
+        <p>
           เราใช้ข้อมูลที่คุณส่งผ่านแบบฟอร์มติดต่อเพื่อประสานงานและตอบกลับตามความสนใจของคุณเท่านั้น
-        </Typography>
-      </Box>
+        </p>
+      </section>
       <WebsiteFooter />
-    </main>
+    </Box>
   );
 }

@@ -209,7 +209,7 @@ func scheduledCheckoutAt(workDate, startsAt, endsAt string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	checkoutAt := time.Date(date.Year(), date.Month(), date.Day(), end.Hour(), end.Minute(), end.Second(), 0, thailandLocation)
-	if end.Hour()*60+end.Minute() <= start.Hour()*60+start.Minute() {
+	if !end.After(start) {
 		checkoutAt = checkoutAt.AddDate(0, 0, 1)
 	}
 	return checkoutAt, nil

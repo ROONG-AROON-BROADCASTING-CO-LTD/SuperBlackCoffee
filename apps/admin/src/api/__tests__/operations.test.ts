@@ -1,13 +1,70 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const downloadSecuredPDF = vi.hoisted(() => vi.fn());
+const secured = vi.hoisted(() => vi.fn());
 
 vi.mock('../client', () => ({
   downloadSecuredPDF,
-  secured: vi.fn(),
+  secured,
 }));
 
-import { downloadInspectionPDF, downloadMaintenancePDF } from '../operations';
+import {
+  downloadInspectionPDF,
+  downloadMaintenancePDF,
+  randomizeCafeStandardInspection,
+  randomizeIngredientInspection,
+  randomizeInspection,
+} from '../operations';
+
+describe('inspection assignment API', () => {
+  it.each([
+    ['technician', randomizeInspection, '/inspections/randomize'],
+    [
+      'ingredients',
+      randomizeIngredientInspection,
+      '/inspections/randomize-ingredients',
+    ],
+    [
+      'cafe standard',
+      randomizeCafeStandardInspection,
+      '/inspections/randomize-cafe-standard',
+    ],
+  ])(
+    'preserves exact branch selection for %s work orders',
+    async (_name, create, endpoint) => {
+      const assignment = { id: 11, branchCode: 'FRA-SPB-S' };
+      secured.mockResolvedValueOnce(assignment);
+      const input = {
+        inspectorName: 'ออม',
+        branchSize: 'S' as const,
+        dueAt: '2026-10-01',
+        excludeDays: 30,
+        branchScope: 'branch' as const,
+        branchCode: 'FRA-SPB-S',
+      };
+
+      await expect(create(input)).resolves.toBe(assignment);
+      expect(secured).toHaveBeenLastCalledWith(endpoint, {
+        method: 'POST',
+        data: input,
+      });
+    },
+  );
+
+  it('propagates a server rejection instead of reporting a created assignment', async () => {
+    secured.mockRejectedValueOnce(new Error('ไม่มีสิทธิ์สร้างใบงาน'));
+
+    await expect(
+      randomizeInspection({
+        inspectorName: 'ออม',
+        branchSize: 'all',
+        dueAt: '',
+        excludeDays: 30,
+        branchScope: 'franchise',
+      }),
+    ).rejects.toThrow('ไม่มีสิทธิ์สร้างใบงาน');
+  });
+});
 
 describe('inspection PDF download', () => {
   it('uses a descriptive, filesystem-safe file name with work and branch details', async () => {
