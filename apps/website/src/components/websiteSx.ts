@@ -4,11 +4,24 @@ export const websiteSx = {
   'sb-mobile-login': {},
   'sb-header': {
     height: '72px',
-    background: 'var(--sb-black)',
+    backgroundColor: 'rgb(0, 0, 0)',
+    backdropFilter: 'none',
+    WebkitBackdropFilter: 'none',
     color: '#fff',
     position: 'sticky',
     top: '0',
     zIndex: '40',
+    willChange: 'auto',
+    transition: 'none',
+  },
+  'sb-header-overlay': {
+    marginBottom: '-72px',
+  },
+  'sb-header-transparent': {
+    backgroundColor: 'rgba(12, 14, 12, 0)',
+    backdropFilter: 'none',
+    WebkitBackdropFilter: 'none',
+    boxShadow: 'none',
   },
   'sb-nav': {
     width: '100%',
@@ -72,20 +85,20 @@ export const websiteSx = {
   'sb-nav-action': {
     marginLeft: '-18px',
     fontSize: '13px',
-    color: 'var(--sb-gold)',
-    border: '1px solid rgba(199, 164, 103, 0.5)',
+    color: 'var(--sb-black)',
+    border: '1px solid var(--sb-gold)',
     borderRadius: '10px',
-    padding: '9px 14px 9px 17px',
-    background: 'rgba(199, 164, 103, 0.08)',
+    padding: '9px 16px',
+    background: 'var(--sb-gold)',
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
     whiteSpace: 'nowrap',
     transition: 'background 180ms ease, border-color 180ms ease',
     '&:hover': {
-      color: '#171411',
-      background: 'var(--sb-gold)',
-      borderColor: 'var(--sb-gold)',
+      color: 'var(--sb-black)',
+      background: '#e1bf80',
+      borderColor: '#e1bf80',
     },
     '& svg': {
       display: 'block',
@@ -112,12 +125,53 @@ export const websiteSx = {
     transition:
       'background 180ms ease, border-color 180ms ease, color 180ms ease',
     '&:hover': {
-      borderColor: 'var(--sb-gold)',
-      color: 'var(--sb-gold)',
-      background: 'rgba(199, 164, 103, 0.08)',
+      borderColor: '#fff',
+      color: 'var(--sb-black)',
+      background: '#fff',
     },
     '@media (max-width: 1100px)': {
       display: 'none',
+    },
+  },
+  'sb-language-switcher': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '5px',
+    minHeight: '40px',
+    padding: '0 12px',
+    border: '1px solid rgba(226, 227, 222, 0.55)',
+    borderRadius: '10px',
+    background: 'rgba(255, 255, 255, 0.03)',
+    color: 'rgba(226, 227, 222, 0.58)',
+    cursor: 'pointer',
+    fontFamily: 'var(--font-kanit), sans-serif',
+    fontSize: '12px',
+    lineHeight: '1',
+    transition:
+      'background 180ms ease, border-color 180ms ease, color 180ms ease',
+    '& span.active': {
+      color: '#fff',
+      fontWeight: '700',
+    },
+    '& i': {
+      color: 'rgba(226, 227, 222, 0.38)',
+      fontStyle: 'normal',
+    },
+    '&:hover': {
+      background: '#fff',
+      borderColor: '#fff',
+      color: 'rgba(23, 20, 17, 0.56)',
+    },
+    '&:hover span.active': {
+      color: 'var(--sb-black)',
+    },
+    '&:hover i': {
+      color: 'rgba(23, 20, 17, 0.38)',
+    },
+    '@media (max-width: 600px)': {
+      minHeight: '36px',
+      padding: '0 10px',
     },
   },
   'sb-mobile-cta': {
@@ -302,8 +356,8 @@ export const websiteSx = {
   'sb-button': {
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '34px',
+    justifyContent: 'flex-start',
+    gap: '12px',
     minHeight: '52px',
     padding: '0 23px',
     fontWeight: '600',
@@ -312,7 +366,7 @@ export const websiteSx = {
     transition: 'background 0.2s,\n    color 0.2s,\n    border-color 0.2s',
     cursor: 'pointer',
     border: '1px solid transparent',
-    borderRadius: '0',
+    borderRadius: '10px',
     whiteSpace: 'nowrap',
     '& svg': {
       width: '19px',
@@ -379,6 +433,7 @@ export const websiteSx = {
     '&:hover': {
       background: '#fff',
       color: 'var(--sb-black)',
+      borderColor: '#fff',
     },
   },
   'sb-button-outline-light': {
@@ -388,6 +443,7 @@ export const websiteSx = {
     '&:hover': {
       background: '#fff',
       color: 'var(--sb-black)',
+      borderColor: '#fff',
     },
   },
   'sb-actions': {
@@ -409,6 +465,10 @@ export const websiteSx = {
       letterSpacing: '-0.05em',
       margin: '0',
       textWrap: 'balance',
+      fontFamily: 'var(--font-kanit), sans-serif',
+      '& .sb-hero-title-accent': {
+        color: 'var(--sb-gold)',
+      },
     },
     '& p': {
       maxWidth: '515px',
@@ -573,6 +633,9 @@ export const websiteSx = {
       font: '700 clamp(12px, 1.05vw, 16px)/1.1 var(--font-inter), sans-serif',
       letterSpacing: '0.015em',
       margin: '0',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
     },
     '& p': {
       color: 'rgba(255, 255, 255, 0.82)',
@@ -585,13 +648,19 @@ export const websiteSx = {
       alignItems: 'center',
       gap: '8px',
       color: '#d6ae62',
-      font: '700 10px var(--font-inter), sans-serif',
+      font: '700 10px var(--font-kanit), sans-serif',
       letterSpacing: '0.06em',
       textTransform: 'uppercase',
     },
     '& span svg': {
       width: '14px',
       height: '14px',
+    },
+    '&.sb-hero-service-card-ev h2, &.sb-hero-service-card-ev span': {
+      color: '#74c86a',
+    },
+    '&.sb-hero-service-card-bpost h2, &.sb-hero-service-card-bpost span': {
+      color: '#e34b45',
     },
     '&:hover': {
       borderColor: 'rgba(222, 186, 111, 0.8)',
@@ -603,6 +672,101 @@ export const websiteSx = {
       '& .sb-hero-service-card-copy': { padding: '14px' },
       '& p': { display: 'none' },
       '& span': { marginTop: '8px' },
+    },
+  },
+  'sb-hero-stats': {
+    margin: 'clamp(18px, 2vw, 32px) var(--sb-gutter) clamp(58px, 6vw, 100px)',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+    background: '#080908',
+    border: '1px solid rgba(208, 177, 112, 0.32)',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    color: '#fff',
+    '@media (max-width: 1050px)': {
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    },
+    '@media (max-width: 600px)': {
+      display: 'flex',
+      margin: '18px var(--sb-gutter) 54px',
+      overflowX: 'auto',
+      scrollbarWidth: 'none',
+      '&::-webkit-scrollbar': { display: 'none' },
+    },
+  },
+  'sb-hero-stat': {
+    minWidth: '0',
+    minHeight: '132px',
+    padding: '22px clamp(16px, 1.6vw, 28px)',
+    overflow: 'hidden',
+    borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+    transition: 'background-color 260ms ease',
+    '&:last-child': { borderRight: '0' },
+    '& .sb-hero-stat-content': {
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      transition: 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)',
+    },
+    '& .sb-stat-icon': {
+      flex: '0 0 auto',
+      width: '46px',
+      height: '46px',
+      color: 'var(--sb-gold)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      transition: 'color 220ms ease',
+    },
+    '& .sb-stat-icon svg': {
+      width: '46px',
+      height: '46px',
+    },
+    '& strong, & span, & p': {
+      display: 'block',
+      margin: '0',
+      whiteSpace: 'nowrap',
+    },
+    '& strong': {
+      color: '#fff',
+      font: '700 clamp(24px, 2vw, 36px)/1 var(--font-inter), sans-serif',
+      letterSpacing: '-0.04em',
+    },
+    '& span': {
+      marginTop: '5px',
+      color: 'rgba(255, 255, 255, 0.88)',
+      font: '700 10px/1.2 var(--font-inter), sans-serif',
+      letterSpacing: '0.04em',
+    },
+    '& p': {
+      marginTop: '8px',
+      color: 'rgba(255, 255, 255, 0.6)',
+      font: '500 12px/1.2 var(--font-kanit), sans-serif',
+    },
+    '&:hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.045)',
+    },
+    '&:hover .sb-hero-stat-content': {
+      transform: 'scale(1.04)',
+    },
+    '&:hover .sb-stat-icon': {
+      color: '#e4bf76',
+    },
+    '@media (max-width: 1050px)': {
+      borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+      '&:nth-of-type(3n)': { borderRight: '0' },
+      '&:nth-last-of-type(-n + 3)': { borderBottom: '0' },
+    },
+    '@media (max-width: 600px)': {
+      flex: '0 0 240px',
+      minHeight: '115px',
+      borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+      borderBottom: '0',
+      '&:nth-of-type(3n)': {
+        borderRight: '1px solid rgba(255, 255, 255, 0.12)',
+      },
+      '&:last-child': { borderRight: '0' },
     },
   },
   'sb-story-strip': {

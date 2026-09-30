@@ -5,7 +5,7 @@ import { websiteSx } from './websiteSx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { franchiseLoginUrl } from './franchise-login-url';
 
 const links = [
@@ -20,8 +20,29 @@ const links = [
 export function WebsiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [language, setLanguage] = useState<'TH' | 'EN'>('TH');
+  const isHome = pathname === '/';
+  const isTransparent = isHome && !isScrolled && !open;
+
+  useEffect(() => {
+    const updateScrolledState = () => setIsScrolled(window.scrollY > 8);
+
+    updateScrolledState();
+    window.addEventListener('scroll', updateScrolledState, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrolledState);
+  }, [pathname]);
+
   return (
-    <Box component="header" sx={[websiteSx['sb-header']]} className="sb-header">
+    <Box
+      component="header"
+      sx={[
+        websiteSx['sb-header'],
+        isHome && websiteSx['sb-header-overlay'],
+        isTransparent && websiteSx['sb-header-transparent'],
+      ]}
+      className="sb-header"
+    >
       <Box
         component="nav"
         sx={[websiteSx['sb-nav']]}
@@ -74,6 +95,18 @@ export function WebsiteNav() {
           href="/franchise#apply"
         >
           สนใจแฟรนไชส์
+        </Box>
+        <Box
+          component="button"
+          type="button"
+          sx={[websiteSx['sb-language-switcher']]}
+          className="sb-language-switcher"
+          aria-label="เปลี่ยนภาษา"
+          onClick={() => setLanguage(language === 'TH' ? 'EN' : 'TH')}
+        >
+          <span className={language === 'TH' ? 'active' : ''}>TH</span>
+          <i>/</i>
+          <span className={language === 'EN' ? 'active' : ''}>EN</span>
         </Box>
         <Box
           component="button"

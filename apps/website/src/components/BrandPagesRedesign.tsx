@@ -5,6 +5,14 @@ import { websiteSx } from './websiteSx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, type FormEvent, type ReactNode } from 'react';
+import {
+  BadgeIcon,
+  BoxIcon,
+  CoffeeIcon,
+  EvChargerIcon,
+  MapPinHouseIcon,
+  UsersIcon,
+} from '@stackbuild/ui/icons';
 import { trackEvent } from './GoogleAnalytics';
 
 const branches = [
@@ -150,6 +158,55 @@ const heroServiceCards = [
     href: '/franchise',
   },
 ];
+
+const heroStats = [
+  { icon: 'branch', value: '50+', label: 'BRANCHES', detail: 'สาขาทั่วประเทศ' },
+  {
+    icon: 'coffee',
+    value: '1M+',
+    label: 'CUPS SERVED',
+    detail: 'แก้วที่เราเสิร์ฟ',
+  },
+  {
+    icon: 'customers',
+    value: '100K+',
+    label: 'HAPPY CUSTOMERS',
+    detail: 'ลูกค้าที่พึงพอใจ',
+  },
+  { icon: 'ev', value: '30+', label: 'EV STATIONS', detail: 'สถานีชาร์จ EV' },
+  {
+    icon: 'parcel',
+    value: '200K+',
+    label: 'PARCELS DELIVERED',
+    detail: 'พัสดุที่จัดส่ง',
+  },
+  { icon: 'award', value: 'AWARD', label: 'WINNER', detail: 'รางวัลคุณภาพ' },
+] as const;
+
+type HeroStatIconName = (typeof heroStats)[number]['icon'];
+
+function HeroStatIcon({
+  icon,
+  animate,
+}: {
+  icon: HeroStatIconName;
+  animate: boolean;
+}) {
+  switch (icon) {
+    case 'branch':
+      return <MapPinHouseIcon size={46} animate={animate} />;
+    case 'coffee':
+      return <CoffeeIcon size={46} animate={animate} />;
+    case 'customers':
+      return <UsersIcon size={46} animate={animate} />;
+    case 'ev':
+      return <EvChargerIcon size={46} isAnimating={animate} />;
+    case 'parcel':
+      return <BoxIcon size={46} animate={animate} />;
+    case 'award':
+      return <BadgeIcon size={46} animate={animate} />;
+  }
+}
 
 function Arrow() {
   return (
@@ -343,6 +400,8 @@ function BranchRow({
 }
 
 export function HomeContent() {
+  const [hoveredStat, setHoveredStat] = useState<string | null>(null);
+
   return (
     <>
       <Box
@@ -367,11 +426,9 @@ export function HomeContent() {
           className="sb-home-hero-content"
         >
           <h1>
-            กาแฟไทย
+            <span className="sb-hero-title-accent">พรีเมียมเหนือระดับ</span>
             <br />
-            พลังสะอาด
-            <br />
-            เพื่อทุกการเดินทาง
+            <span>ในทุกช่วงเวลา</span>
           </h1>
           <p>
             สัมผัสประสบการณ์กาแฟพรีเมียม พลังงานสะอาด
@@ -419,7 +476,13 @@ export function HomeContent() {
               href={card.href}
               key={card.title}
               sx={[websiteSx['sb-hero-service-card']]}
-              className="sb-hero-service-card"
+              className={`sb-hero-service-card ${
+                card.title === 'EV CHARGING'
+                  ? 'sb-hero-service-card-ev'
+                  : card.title === 'BPOST65 EXPRESS'
+                    ? 'sb-hero-service-card-bpost'
+                    : ''
+              }`}
             >
               <Photo src={card.image} alt="" />
               <Box component="div" className="sb-hero-service-card-copy">
@@ -432,6 +495,38 @@ export function HomeContent() {
             </Box>
           ))}
         </Box>
+      </Box>
+      <Box
+        component="section"
+        aria-label="สถิติของ Super Black Coffee"
+        sx={[websiteSx['sb-hero-stats']]}
+        className="sb-hero-stats"
+      >
+        {heroStats.map((stat) => {
+          const isHovered = hoveredStat === stat.label;
+
+          return (
+            <Box
+              component="article"
+              key={stat.label}
+              sx={[websiteSx['sb-hero-stat']]}
+              className="sb-hero-stat"
+              onMouseEnter={() => setHoveredStat(stat.label)}
+              onMouseLeave={() => setHoveredStat(null)}
+            >
+              <Box component="div" className="sb-hero-stat-content">
+                <Box component="span" className="sb-stat-icon">
+                  <HeroStatIcon icon={stat.icon} animate={isHovered} />
+                </Box>
+                <Box component="div">
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
+                  <p>{stat.detail}</p>
+                </Box>
+              </Box>
+            </Box>
+          );
+        })}
       </Box>
       <Box
         component="section"
