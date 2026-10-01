@@ -843,7 +843,9 @@ func TestAttendanceOvernightShiftCanCheckOutNextDay(t *testing.T) {
 	branchID := seedBranch(t, db, "ATTENDANCE-OVERNIGHT")
 	seedUser(t, db, 7, "attendance-overnight", "cashier", branchID, nil)
 	yesterday := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).AddDate(0, 0, -1).Format("2006-01-02")
-	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'22:00','06:00','scheduled')`, branchID, yesterday); err != nil {
+	// End at midnight so this integration test is valid at every time of day.
+	// The previous 06:00 fixture failed whenever CI ran before 06:00 Bangkok time.
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES(7,$1,$2,'22:00','00:00','scheduled')`, branchID, yesterday); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES(7,$1,$2,$3)`, branchID, yesterday, time.Now().Add(-8*time.Hour)); err != nil {
