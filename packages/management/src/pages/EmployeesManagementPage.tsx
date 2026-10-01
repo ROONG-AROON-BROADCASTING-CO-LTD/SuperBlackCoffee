@@ -30,6 +30,7 @@ import {
   listStaffSchedules,
   replaceStaffShift,
   updateStaffShift,
+  exportStaffSchedulesXlsx,
   type StaffShift,
 } from '../api/staff-schedules';
 import { listPublicHolidays } from '../api/public-holidays';
@@ -47,19 +48,8 @@ import {
   type ActionNotice,
 } from '../components/ActionSnackbar';
 import { usePersistedScheduleBranch } from '../hooks/usePersistedScheduleBranch';
-import {
-  exportDailyReportAsPdf,
-  type DailyPdfEntryTone,
-  type DailyPdfSection,
-} from '../utils/exportCalendarPdf';
 
 const thaiMonth = new Intl.DateTimeFormat('th-TH', {
-  month: 'long',
-  year: 'numeric',
-});
-const thaiDate = new Intl.DateTimeFormat('th-TH', {
-  weekday: 'long',
-  day: 'numeric',
   month: 'long',
   year: 'numeric',
 });
@@ -346,36 +336,6 @@ export function EmployeesManagementPage({
       new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
     [holidays.data],
   );
-  const dailyScheduleReport = useMemo<DailyPdfSection[]>(
-    () =>
-      calendarDays
-        .filter((day) => day.getMonth() === month.getMonth())
-        .map((day) => {
-          const key = dateKey(day);
-          const holiday = holidaysByDate.get(key);
-          return {
-            date: thaiDate.format(day),
-            holidayName: holiday?.name,
-            entries: (shiftsByDate.get(key) ?? []).map((shift) => {
-              const tone: DailyPdfEntryTone =
-                shift.status === 'compensatory_work'
-                  ? 'success'
-                  : shift.status === 'scheduled'
-                    ? 'neutral'
-                    : 'warning';
-              return {
-                name: shift.name,
-                detail: isWorkingShift(shift.status)
-                  ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
-                  : leaveLabels[shift.status],
-                tone,
-              };
-            }),
-          };
-        })
-        .filter((day) => day.entries.length > 0 || day.holidayName),
-    [calendarDays, holidaysByDate, month, shiftsByDate],
-  );
   const shiftColorsByUser = useMemo(() => {
     const userIds = [
       ...new Set(
@@ -533,7 +493,8 @@ export function EmployeesManagementPage({
                     color="text.secondary"
                     sx={{ alignSelf: 'center', fontSize: 12 }}
                   >
-                    หากสาขามีพนักงาน 2 คน ระบบจะสลับกะเป็นรายสัปดาห์
+                    วันนักขัตฤกษ์จัดกะปกติ หากต้องหยุดให้แก้ไขสถานะในไฟล์ Excel
+                    หลังส่งออก
                   </Typography>
                   <Button
                     variant="outlined"
@@ -986,19 +947,50 @@ export function EmployeesManagementPage({
                     </Box>
                   </Box>
                   <Button
-                    data-export-pdf-control
+                    data-export-excel-control
                     size="small"
                     variant="outlined"
-                    onClick={() =>
-                      exportDailyReportAsPdf({
-                        title: 'รายงานตารางงานพนักงาน',
-                        period: thaiMonth.format(month),
-                        branchName: activeBranch?.name,
-                        days: dailyScheduleReport,
-                      })
-                    }
+                    disabled={activeBranchId === null || Boolean(loadError)}
+                    onClick={() => {
+                      if (activeBranchId === null) return;
+                      void exportStaffSchedulesXlsx(monthKey, activeBranchId)
+                        .then((file) => {
+                          const url = URL.createObjectURL(file);
+                          const link = document.createElement('a');
+                          const safeBranchName = (
+                            activeBranch?.name ?? 'ไม่ระบุสาขา'
+                          )
+                            .trim()
+                            .replace(/[\\/]/g, '-');
+                          const monthLabel = thaiMonth
+                            .format(month)
+                            .replace(' ', '-');
+                          link.href = url;
+                          link.download = `ตารางงานพนักงาน-สาขา${safeBranchName}-${monthLabel}.xlsx`;
+                          link.style.display = 'none';
+                          document.body.appendChild(link);
+                          link.click();
+                          link.remove();
+                          window.setTimeout(
+                            () => URL.revokeObjectURL(url),
+                            1_000,
+                          );
+                          setActionNotice({
+                            message: 'ดาวน์โหลดไฟล์ Excel แล้ว',
+                          });
+                        })
+                        .catch((exportError: unknown) =>
+                          setActionNotice({
+                            message:
+                              exportError instanceof Error
+                                ? exportError.message
+                                : 'ไม่สามารถส่งออกไฟล์ Excel ได้',
+                            severity: 'error',
+                          }),
+                        );
+                    }}
                   >
-                    ส่งออก PDF
+                    ส่งออก Excel
                   </Button>
                 </Box>
               </Box>
@@ -1071,11 +1063,6 @@ export function EmployeesManagementPage({
                         const holiday = loadError
                           ? undefined
                           : holidaysByDate.get(dateKey(day));
-                        const visibleShifts = holiday
-                          ? shifts.filter((shift) =>
-                              isWorkingShift(shift.status),
-                            )
-                          : shifts;
                         return (
                           <Box
                             key={day.toISOString()}
@@ -1135,9 +1122,7 @@ export function EmployeesManagementPage({
                               >
                                 โหลดข้อมูลไม่สำเร็จ
                               </Typography>
-                            ) : isCurrentMonth &&
-                              shifts.length === 0 &&
-                              !holiday ? (
+                            ) : isCurrentMonth && shifts.length === 0 ? (
                               <Typography
                                 sx={{
                                   mt: 2.5,
@@ -1150,7 +1135,7 @@ export function EmployeesManagementPage({
                               </Typography>
                             ) : null}
                             {!loadError &&
-                              visibleShifts.map((shift) => (
+                              shifts.map((shift) => (
                                 <Box
                                   key={shift.id}
                                   component="button"

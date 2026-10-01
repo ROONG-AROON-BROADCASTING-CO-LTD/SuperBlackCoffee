@@ -17,10 +17,10 @@ import {
 } from '../../api/users';
 import { listBranches } from '../../api/branches';
 import {
+  exportStaffSchedulesXlsx,
   generateStaffSchedules,
   listStaffSchedules,
 } from '../../api/staff-schedules';
-import { exportDailyReportAsPdf } from '../../utils/exportCalendarPdf';
 
 vi.mock('../../api/users', () => ({
   createEmployee: vi.fn(),
@@ -30,13 +30,11 @@ vi.mock('../../api/users', () => ({
 }));
 vi.mock('../../api/branches', () => ({ listBranches: vi.fn() }));
 vi.mock('../../api/staff-schedules', () => ({
+  exportStaffSchedulesXlsx: vi.fn(),
   generateStaffSchedules: vi.fn(),
   listStaffSchedules: vi.fn(),
   replaceStaffShift: vi.fn(),
   updateStaffShift: vi.fn(),
-}));
-vi.mock('../../utils/exportCalendarPdf', () => ({
-  exportDailyReportAsPdf: vi.fn(),
 }));
 
 const mockedListEmployees = vi.mocked(listEmployees);
@@ -46,7 +44,7 @@ const mockedUpdateEmployee = vi.mocked(updateEmployee);
 const mockedListBranches = vi.mocked(listBranches);
 const mockedListStaffSchedules = vi.mocked(listStaffSchedules);
 const mockedGenerateStaffSchedules = vi.mocked(generateStaffSchedules);
-const exportPdf = vi.mocked(exportDailyReportAsPdf);
+const exportXlsx = vi.mocked(exportStaffSchedulesXlsx);
 
 const employee = {
   id: 90,
@@ -110,6 +108,11 @@ describe('EmployeesManagementPage', () => {
       created: 31,
       month,
     });
+    exportXlsx.mockResolvedValue(
+      new Blob(['schedule'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+    );
     mockedUpdateEmployee.mockResolvedValue({ id: employee.id });
     mockedCreateEmployee.mockResolvedValue({ id: 91 });
     mockedDeleteEmployee.mockResolvedValue();
@@ -128,24 +131,35 @@ describe('EmployeesManagementPage', () => {
     expect(screen.getByText('08:00 น. - 17:00 น.')).toBeTruthy();
   });
 
-  it('exports only the staff schedule calendar as a PDF', async () => {
+  it('exports the selected branch schedule as an Excel file', async () => {
+    let downloadedFilename = '';
+    const downloadClick = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        downloadedFilename = this.download;
+      });
     renderPage();
     await waitForPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'ส่งออก PDF' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งออก Excel' }));
 
-    expect(exportPdf).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'รายงานตารางงานพนักงาน',
-        days: expect.arrayContaining([
-          expect.objectContaining({
-            entries: expect.arrayContaining([
-              expect.objectContaining({ name: employee.name }),
-            ]),
-          }),
-        ]),
-      }),
+    await waitFor(() =>
+      expect(exportXlsx).toHaveBeenCalledWith(
+        new Date().toISOString().slice(0, 7),
+        employee.branchId,
+      ),
     );
+    await waitFor(() => expect(downloadClick).toHaveBeenCalled());
+    const monthLabel = new Intl.DateTimeFormat('th-TH', {
+      month: 'long',
+      year: 'numeric',
+    })
+      .format(new Date())
+      .replace(' ', '-');
+    expect(downloadedFilename).toBe(
+      `ตารางงานพนักงาน-สาขาสาขาทดสอบ-${monthLabel}.xlsx`,
+    );
+    downloadClick.mockRestore();
   });
 
   it('explains the weekly rotation rule before automatically generating schedules', async () => {
@@ -155,7 +169,9 @@ describe('EmployeesManagementPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'จัดตารางอัตโนมัติ' }));
 
     expect(
-      screen.getByText('หากสาขามีพนักงาน 2 คน ระบบจะสลับกะเป็นรายสัปดาห์'),
+      screen.getByText(
+        'วันนักขัตฤกษ์จัดกะปกติ หากต้องหยุดให้แก้ไขสถานะในไฟล์ Excel หลังส่งออก',
+      ),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' })).toBeTruthy();
     expect(mockedGenerateStaffSchedules).not.toHaveBeenCalled();

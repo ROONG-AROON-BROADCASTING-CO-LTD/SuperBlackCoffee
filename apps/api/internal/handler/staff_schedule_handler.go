@@ -65,66 +65,6 @@ func employeeUsernamePrefix(branchCode string) string {
 	return prefix
 }
 
-// reconcileScheduledHolidayShifts converts only unworked, automatically scheduled
-// shifts to a public holiday day off. A shift with an attendance record is kept as-is
-// so historical attendance is never silently rewritten.
-func (h *PlatformHandler) reconcileScheduledHolidayShifts(c *gin.Context, year int) error {
-	_, err := h.db.ExecContext(c.Request.Context(), `UPDATE staff_shifts s
-	SET status = 'day_off', leave_type = h.name
-	FROM public_holidays h
-	WHERE s.shift_date = h.holiday_date
-	  AND EXTRACT(YEAR FROM h.holiday_date) = $1
-	  AND s.status = 'scheduled'
-	  AND NOT EXISTS (
-		SELECT 1 FROM staff_attendance a
-		WHERE a.user_id = s.user_id
-		  AND a.work_date = s.shift_date
-		  AND a.check_in_at IS NOT NULL
-	)`, year)
-	return err
-}
-
-// scheduleCompensatoryWorkAfterHolidays marks the first scheduled workday after
-// each public holiday as compensatory work. It never replaces a holiday, a
-// monthly quota day off, or a shift that already has attendance.
-func (h *PlatformHandler) scheduleCompensatoryWorkAfterHolidays(c *gin.Context, branchID int64, month, monthEnd time.Time) error {
-	_, err := h.db.ExecContext(c.Request.Context(), `UPDATE staff_shifts s
-	SET status = 'compensatory_work', leave_type = 'ทำงานชดเชยหลังวันหยุดนักขัตฤกษ์'
-	FROM users u
-	WHERE s.user_id = u.id
-	  AND s.branch_id = $1
-	  AND s.shift_date >= $2::date
-	  AND s.shift_date < $3::date
-	  AND s.status = 'scheduled'
-	  AND NOT EXISTS (
-		SELECT 1 FROM staff_attendance a
-		WHERE a.user_id = s.user_id
-		  AND a.work_date = s.shift_date
-		  AND a.check_in_at IS NOT NULL
-	  )
-	  AND NOT EXISTS (
-		SELECT 1 FROM public_holidays same_day
-		WHERE same_day.holiday_date = s.shift_date
-	  )
-	  AND EXISTS (
-		SELECT 1
-		FROM public_holidays holiday
-		WHERE holiday.holiday_date < s.shift_date
-		  AND NOT EXISTS (
-			SELECT 1
-			FROM generate_series(
-				holiday.holiday_date + 1,
-				s.shift_date - 1,
-				INTERVAL '1 day'
-			) AS skipped_day(day)
-			LEFT JOIN public_holidays skipped_holiday
-				ON skipped_holiday.holiday_date = skipped_day.day::date
-			WHERE skipped_holiday.holiday_date IS NULL
-		  )
-	  )`, branchID, month.Format("2006-01-02"), monthEnd.Format("2006-01-02"))
-	return err
-}
-
 func (h *PlatformHandler) syncThaiPublicHolidays(c *gin.Context, year int) error {
 	if _, synced := syncedThaiHolidayYears.Load(year); synced {
 		return nil
@@ -134,6 +74,12 @@ func (h *PlatformHandler) syncThaiPublicHolidays(c *gin.Context, year int) error
 	var found bool
 	if err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM public_holidays WHERE holiday_date >= $1::date AND holiday_date < $2::date)`, start, end).Scan(&found); err != nil {
 		return err
+	}
+	// Public holidays are display information only. Branches continue operating
+	// and the schedule generator creates regular shifts on these dates.
+	if found {
+		syncedThaiHolidayYears.Store(year, struct{}{})
+		return nil
 	}
 
 	request, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, "https://calendar.google.com/calendar/ical/th.th%23holiday%40group.v.calendar.google.com/public/basic.ics", nil)
@@ -146,9 +92,6 @@ func (h *PlatformHandler) syncThaiPublicHolidays(c *gin.Context, year int) error
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		if found {
-			return h.reconcileScheduledHolidayShifts(c, year)
-		}
 		return fmt.Errorf("thai holiday calendar returned %s", response.Status)
 	}
 	date, name, count := "", "", 0
@@ -175,11 +118,8 @@ func (h *PlatformHandler) syncThaiPublicHolidays(c *gin.Context, year int) error
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-	if count == 0 && !found {
+	if count == 0 {
 		return fmt.Errorf("thai holiday calendar returned no holidays for %d", year)
-	}
-	if err := h.reconcileScheduledHolidayShifts(c, year); err != nil {
-		return err
 	}
 	syncedThaiHolidayYears.Store(year, struct{}{})
 	return nil
@@ -363,14 +303,20 @@ func (h *PlatformHandler) UpdateStaffMember(c *gin.Context) {
 	_, err = tx.ExecContext(c.Request.Context(), `
 		UPDATE staff_shifts AS shift
 		SET
-			starts_at = CASE WHEN cardinality(staff.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM shift.shift_date)::int = ANY(staff.default_second_shift_days)
-				THEN COALESCE(staff.default_second_starts_at, staff.default_starts_at)
+			starts_at = CASE WHEN cardinality(staff.default_second_shift_days) > 0
+				THEN CASE WHEN EXTRACT(ISODOW FROM shift.shift_date)::int = ANY(staff.default_second_shift_days)
+					THEN COALESCE(staff.default_second_starts_at, staff.default_starts_at)
+					ELSE staff.default_starts_at
+				END
 				WHEN ((EXTRACT(DAY FROM shift.shift_date)::int + shift.user_id) % 2) = 0
 				THEN staff.default_starts_at
 				ELSE COALESCE(staff.default_second_starts_at, staff.default_starts_at)
 			END,
-			ends_at = CASE WHEN cardinality(staff.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM shift.shift_date)::int = ANY(staff.default_second_shift_days)
-				THEN COALESCE(staff.default_second_ends_at, staff.default_ends_at)
+			ends_at = CASE WHEN cardinality(staff.default_second_shift_days) > 0
+				THEN CASE WHEN EXTRACT(ISODOW FROM shift.shift_date)::int = ANY(staff.default_second_shift_days)
+					THEN COALESCE(staff.default_second_ends_at, staff.default_ends_at)
+					ELSE staff.default_ends_at
+				END
 				WHEN ((EXTRACT(DAY FROM shift.shift_date)::int + shift.user_id) % 2) = 0
 				THEN staff.default_ends_at
 				ELSE COALESCE(staff.default_second_ends_at, staff.default_ends_at)
@@ -654,10 +600,7 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
     ROW_NUMBER() OVER (PARTITION BY c.user_id ORDER BY c.shift_date) AS day_number,
     COUNT(*) OVER (PARTITION BY c.user_id) AS eligible_days
   FROM calendar_days c
-  WHERE NOT EXISTS (
-    SELECT 1 FROM public_holidays holiday
-    WHERE holiday.holiday_date=c.shift_date
-  )
+  WHERE NOT EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date)
 ), classified_days AS (
   SELECT c.*,
     e.day_number,
@@ -669,7 +612,11 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
 SELECT c.user_id,c.branch_id,c.shift_date,
   CASE
-    WHEN cardinality(c.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days) THEN COALESCE(c.default_second_starts_at,c.default_starts_at)
+    WHEN cardinality(c.default_second_shift_days) > 0 THEN
+      CASE WHEN EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days)
+        THEN COALESCE(c.default_second_starts_at,c.default_starts_at)
+        ELSE c.default_starts_at
+      END
     WHEN c.branch_staff_count = 2 THEN
       CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
         THEN c.default_starts_at
@@ -679,7 +626,11 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE COALESCE(c.default_second_starts_at,c.default_starts_at)
   END,
   CASE
-    WHEN cardinality(c.default_second_shift_days) > 0 AND EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days) THEN COALESCE(c.default_second_ends_at,c.default_ends_at)
+    WHEN cardinality(c.default_second_shift_days) > 0 THEN
+      CASE WHEN EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days)
+        THEN COALESCE(c.default_second_ends_at,c.default_ends_at)
+        ELSE c.default_ends_at
+      END
     WHEN c.branch_staff_count = 2 THEN
       CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
         THEN c.default_ends_at
@@ -689,7 +640,6 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE COALESCE(c.default_second_ends_at,c.default_ends_at)
   END,
   CASE
-    WHEN h.holiday_date IS NOT NULL THEN 'day_off'
     WHEN c.day_number IS NOT NULL AND c.day_number IN (
       1 + (c.employee_offset % c.quota_segment),
       1 + c.quota_segment + (c.employee_offset % c.quota_segment),
@@ -699,7 +649,6 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE 'scheduled'
   END,
   CASE
-    WHEN h.holiday_date IS NOT NULL THEN 'วันหยุดนักขัตฤกษ์'
     WHEN c.day_number IS NOT NULL AND c.day_number IN (
       1 + (c.employee_offset % c.quota_segment),
       1 + c.quota_segment + (c.employee_offset % c.quota_segment),
@@ -709,7 +658,6 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE NULL
   END
 FROM classified_days c
-LEFT JOIN public_holidays h ON h.holiday_date=c.shift_date
 ON CONFLICT (user_id,shift_date) DO UPDATE SET
   starts_at=EXCLUDED.starts_at,ends_at=EXCLUDED.ends_at,
   status=EXCLUDED.status,leave_type=EXCLUDED.leave_type
@@ -728,10 +676,6 @@ WHERE staff_shifts.status IN ('scheduled','day_off')
 	result, err := h.db.ExecContext(c.Request.Context(), query, args...)
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถจัดตารางอัตโนมัติได้"})
-		return
-	}
-	if err := h.scheduleCompensatoryWorkAfterHolidays(c, input.BranchID, month, monthEnd); err != nil {
-		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถจัดตารางทำงานชดเชยได้"})
 		return
 	}
 	created, _ := result.RowsAffected()

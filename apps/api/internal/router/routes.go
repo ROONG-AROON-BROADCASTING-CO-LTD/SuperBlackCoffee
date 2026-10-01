@@ -61,6 +61,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	protected.GET("/users", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListStaffUsers)
 	protected.GET("/branches/sales", middleware.RequireAuth(deps.secret, "admin"), deps.platform.BranchSales)
 	protected.GET("/staff-schedules", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListStaffSchedules)
+	protected.GET("/staff-schedules/export", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ExportStaffSchedulesXLSX)
 	protected.GET("/public-holidays", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.ListPublicHolidays)
 	protected.POST("/users", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.CreateStaffMember)
 	protected.PATCH("/users/:id", middleware.RequireAuth(deps.secret, "admin", "franchise_owner"), deps.platform.UpdateStaffMember)
@@ -134,6 +135,7 @@ func registerProtectedRoutes(r *gin.Engine, deps routeDependencies) {
 	attendance.POST("/attendance/check-in", deps.platform.CheckIn)
 	attendance.POST("/attendance/check-out", deps.platform.CheckOut)
 	attendance.POST("/attendance/leave-requests", deps.platform.CreateLeaveRequest)
+
 }
 
 func registerAdminRoutes(protected *gin.RouterGroup, deps routeDependencies) {

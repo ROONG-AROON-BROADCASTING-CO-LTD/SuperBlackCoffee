@@ -1,4 +1,4 @@
-import { secured } from './client';
+import { secured, securedBlob } from './client';
 
 export type StaffShift = {
   id: number;
@@ -25,6 +25,8 @@ export const generateStaffSchedules = (month: string, branchId: number) =>
     method: 'POST',
     data: { month, branchId },
   });
+export const exportStaffSchedulesXlsx = (month: string, branchId: number) =>
+  securedBlob(`/staff-schedules/export?month=${month}&branchId=${branchId}`);
 export const updateStaffShift = (
   id: number,
   data: {

@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 	"y/internal/database"
 	"y/internal/middleware"
 )
@@ -33,136 +36,6 @@ func openStaffScheduleTestDB(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	return db
-}
-
-func TestReconcileScheduledHolidayShiftsPreservesWorkedAndExplicitShifts(t *testing.T) {
-	db := openStaffScheduleTestDB(t)
-	const (
-		holidayDate = "2099-12-31"
-		holidayName = "วันหยุดทดสอบ"
-	)
-	fixtureID := time.Now().UnixNano()
-
-	var branchID int64
-	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบวันหยุด-%d", fixtureID), fmt.Sprintf("HOLIDAY-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
-		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = db.Exec(`DELETE FROM public_holidays WHERE holiday_date=$1`, holidayDate)
-		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
-	})
-
-	if _, err := db.Exec(`INSERT INTO public_holidays(holiday_date,name) VALUES($1,$2)`, holidayDate, holidayName); err != nil {
-		t.Fatalf("สร้างวันหยุดทดสอบ: %v", err)
-	}
-	userIDs := make([]int64, 4)
-	for index := range userIDs {
-		username := fmt.Sprintf("holiday-test-%d-%d", fixtureID, index)
-		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id) VALUES($1,$2,$3,'hash','cashier',$4) RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
-			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
-		}
-	}
-	statuses := []string{"scheduled", "compensatory_work", "scheduled", "leave"}
-	for index, status := range statuses {
-		if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type) VALUES($1,$2,$3,'08:00','17:00',$4,NULL)`, userIDs[index], branchID, holidayDate, status); err != nil {
-			t.Fatalf("สร้างกะทดสอบ %d: %v", index, err)
-		}
-	}
-	if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES($1,$2,$3,now())`, userIDs[2], branchID, holidayDate); err != nil {
-		t.Fatalf("สร้างการลงเวลาทดสอบ: %v", err)
-	}
-
-	gin.SetMode(gin.TestMode)
-	response := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(response)
-	ctx.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-	handler := &PlatformHandler{db: db}
-	if err := handler.reconcileScheduledHolidayShifts(ctx, 2099); err != nil {
-		t.Fatalf("reconcile scheduled holiday shifts: %v", err)
-	}
-
-	tests := []struct {
-		name, wantStatus, wantLeaveType string
-		userID                          int64
-	}{
-		{name: "unworked scheduled shift becomes day off", userID: userIDs[0], wantStatus: "day_off", wantLeaveType: holidayName},
-		{name: "compensatory work remains explicit", userID: userIDs[1], wantStatus: "compensatory_work", wantLeaveType: ""},
-		{name: "worked scheduled shift preserves history", userID: userIDs[2], wantStatus: "scheduled", wantLeaveType: ""},
-		{name: "leave remains unchanged", userID: userIDs[3], wantStatus: "leave", wantLeaveType: ""},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			var status, leaveType string
-			if err := db.QueryRow(`SELECT status,COALESCE(leave_type,'') FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, test.userID, holidayDate).Scan(&status, &leaveType); err != nil {
-				t.Fatalf("อ่านกะทดสอบ: %v", err)
-			}
-			if status != test.wantStatus || leaveType != test.wantLeaveType {
-				t.Fatalf("กะ = (%q, %q), want (%q, %q)", status, leaveType, test.wantStatus, test.wantLeaveType)
-			}
-		})
-	}
-}
-
-func TestScheduleCompensatoryWorkAfterHolidaysUsesFirstEligibleWorkday(t *testing.T) {
-	db := openStaffScheduleTestDB(t)
-	fixtureID := time.Now().UnixNano()
-	const holidayDate = "2099-12-20"
-
-	var branchID, userID int64
-	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบกะชดเชย-%d", fixtureID), fmt.Sprintf("COMP-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
-		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
-	}
-	username := fmt.Sprintf("compensatory-test-%d", fixtureID)
-	if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id) VALUES($1,$2,$3,'hash','cashier',$4) RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userID); err != nil {
-		t.Fatalf("สร้างพนักงานทดสอบ: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = db.Exec(`DELETE FROM public_holidays WHERE holiday_date=$1`, holidayDate)
-		_, _ = db.Exec(`DELETE FROM staff_attendance WHERE user_id=$1`, userID)
-		_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
-		_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
-		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
-	})
-	if _, err := db.Exec(`INSERT INTO public_holidays(holiday_date,name) VALUES($1,'วันหยุดทดสอบ')`, holidayDate); err != nil {
-		t.Fatalf("สร้างวันหยุดทดสอบ: %v", err)
-	}
-
-	month, err := time.Parse("2006-01", "2099-12")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for day := 20; day <= 31; day++ {
-		date := fmt.Sprintf("2099-12-%02d", day)
-		if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES($1,$2,$3,'08:00','17:00','scheduled')`, userID, branchID, date); err != nil {
-			t.Fatalf("สร้างกะทดสอบ %s: %v", date, err)
-		}
-	}
-
-	gin.SetMode(gin.TestMode)
-	response := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(response)
-	ctx.Request = httptest.NewRequest(http.MethodPost, "/", nil)
-	handler := &PlatformHandler{db: db}
-	if err := handler.scheduleCompensatoryWorkAfterHolidays(ctx, branchID, month, month.AddDate(0, 1, 0)); err != nil {
-		t.Fatalf("จัดกะทำงานชดเชย: %v", err)
-	}
-
-	expectedDate := time.Date(2099, time.December, 21, 0, 0, 0, 0, time.UTC)
-
-	var compensatoryDate string
-	if err := db.QueryRow(`SELECT shift_date::text FROM staff_shifts WHERE user_id=$1 AND status='compensatory_work'`, userID).Scan(&compensatoryDate); err != nil {
-		t.Fatalf("อ่านกะทำงานชดเชย: %v", err)
-	}
-	if compensatoryDate != expectedDate.Format("2006-01-02") {
-		t.Fatalf("กะทำงานชดเชย = %s, want %s", compensatoryDate, expectedDate.Format("2006-01-02"))
-	}
-	var holidayStatus string
-	if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, userID, holidayDate).Scan(&holidayStatus); err != nil {
-		t.Fatal(err)
-	}
-	if holidayStatus != "scheduled" {
-		t.Fatalf("วันนักขัตฤกษ์ต้องไม่ถูกเปลี่ยนเป็นกะชดเชย, got %s", holidayStatus)
-	}
 }
 
 func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T) {
@@ -210,12 +83,19 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 		if err := db.QueryRow(`SELECT COUNT(*) FILTER (WHERE leave_type='วันหยุดประจำเดือน'),COUNT(*) FILTER (WHERE status='day_off') FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-12-01' AND shift_date < '2100-01-01'`, userID).Scan(&monthlyDaysOff, &totalDaysOff); err != nil {
 			t.Fatalf("อ่านโควตาวันหยุดของ %d: %v", userID, err)
 		}
-		if monthlyDaysOff != 4 || totalDaysOff != 5 {
+		if monthlyDaysOff != 4 || totalDaysOff != 4 {
 			var generatedRows int
 			if err := db.QueryRow(`SELECT COUNT(*) FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-12-01' AND shift_date < '2100-01-01'`, userID).Scan(&generatedRows); err != nil {
 				t.Fatalf("อ่านจำนวนกะของ %d: %v", userID, err)
 			}
-			t.Fatalf("พนักงาน %d ได้กะ=%d วันหยุดรายเดือน=%d รวม=%d, ต้องการ 31, 4 และ 5 (รวมวันนักขัตฤกษ์)", userID, generatedRows, monthlyDaysOff, totalDaysOff)
+			t.Fatalf("พนักงาน %d ได้กะ=%d วันหยุดรายเดือน=%d รวม=%d, ต้องการ 31, 4 และ 4", userID, generatedRows, monthlyDaysOff, totalDaysOff)
+		}
+		var holidayStatus string
+		if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, userID, holidayDate).Scan(&holidayStatus); err != nil {
+			t.Fatalf("อ่านกะวันนักขัตฤกษ์ของ %d: %v", userID, err)
+		}
+		if holidayStatus != "scheduled" {
+			t.Fatalf("วันนักขัตฤกษ์ต้องจัดกะปกติ, got %s", holidayStatus)
 		}
 	}
 	var sharedMonthlyDayOffs int
@@ -224,6 +104,70 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 	}
 	if sharedMonthlyDayOffs != 0 {
 		t.Fatalf("พบวันหยุดประจำเดือนซ้อนกัน %d วัน", sharedMonthlyDayOffs)
+	}
+}
+
+func TestExportStaffSchedulesXLSXCreatesReadableSchedule(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	const holidayDate = "2097-12-08"
+	var branchID, userID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาส่งออก-%d", fixtureID), fmt.Sprintf("EXPORT-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	username := fmt.Sprintf("export-test-%d", fixtureID)
+	if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id) VALUES('พนักงานทดสอบ',$1,$2,'hash','cashier',$3) RETURNING id`, username, username+"@example.com", branchID).Scan(&userID); err != nil {
+		t.Fatalf("สร้างพนักงานทดสอบ: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO public_holidays(holiday_date,name) VALUES($1,'วันหยุดทดสอบ Excel')`, holidayDate); err != nil {
+		t.Fatalf("สร้างวันหยุดทดสอบ: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES($1,$2,$3,'08:00','17:00','scheduled')`, userID, branchID, holidayDate); err != nil {
+		t.Fatalf("สร้างกะทดสอบ: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM public_holidays WHERE holiday_date=$1`, holidayDate)
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/?month=2097-12&branchId=%d", branchID), nil)
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).ExportStaffSchedulesXLSX(ctx)
+	if response.Code != http.StatusOK {
+		t.Fatalf("ส่งออก Excel = %d: %s", response.Code, response.Body.String())
+	}
+	if contentType := response.Header().Get("Content-Type"); contentType != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
+		t.Fatalf("content type = %q", contentType)
+	}
+	workbook, err := excelize.OpenReader(bytes.NewReader(response.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("เปิดไฟล์ Excel ไม่ได้: %v", err)
+	}
+	defer workbook.Close()
+	if value, err := workbook.GetCellValue("ตารางงาน", "A1"); err != nil || value != "ตารางการทำงานประจำเดือน ธันวาคม 2640" {
+		t.Fatalf("หัวรายงาน = %q, err = %v", value, err)
+	}
+	expectedFilename := fmt.Sprintf("ตารางงานพนักงาน-สาขาสาขาส่งออก-%d-ธันวาคม-2640.xlsx", fixtureID)
+	if contentDisposition := response.Header().Get("Content-Disposition"); contentDisposition != "attachment; filename*=UTF-8''"+url.PathEscape(expectedFilename) {
+		t.Fatalf("ชื่อไฟล์ส่งออก = %q", contentDisposition)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "A5"); err != nil || value != "พนักงานทดสอบ" {
+		t.Fatalf("ชื่อพนักงานใน Excel = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "K3"); err != nil || value != "8" {
+		t.Fatalf("หัวคอลัมน์วันที่ใน Excel = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "K4"); err != nil || value != "PH" {
+		t.Fatalf("ป้ายวันนักขัตฤกษ์ใน Excel = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "K5"); err != nil || value != "O" {
+		t.Fatalf("สถานะกะใน Excel = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "A7"); err != nil || !strings.Contains(value, "คำอธิบาย") {
+		t.Fatalf("คำแนะนำใน Excel = %q, err = %v", value, err)
 	}
 }
 
@@ -354,6 +298,62 @@ func TestGenerateStaffSchedulesKeepsDailyAlternationForThreeEmployees(t *testing
 	}
 }
 
+func TestGenerateStaffSchedulesLocksSecondShiftToSelectedWeekdays(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	const monthKey = "2098-02"
+
+	var branchID, userID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบล็อกกะ-%d", fixtureID), fmt.Sprintf("LOCK-SHIFT-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	username := fmt.Sprintf("locked-shift-%d", fixtureID)
+	if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at,default_second_shift_days) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00','13:00','22:00',ARRAY[1]) RETURNING id`, "พนักงานล็อกกะ", username, username+"@example.com", branchID).Scan(&userID); err != nil {
+		t.Fatalf("สร้างพนักงานทดสอบ: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
+		_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	syncedThaiHolidayYears.Store(2098, struct{}{})
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"%s","branchId":%d}`, monthKey, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	month, err := time.Parse("2006-01", monthKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstMonday := month
+	for firstMonday.Weekday() != time.Monday {
+		firstMonday = firstMonday.AddDate(0, 0, 1)
+	}
+	for _, test := range []struct {
+		date               time.Time
+		wantStart, wantEnd string
+	}{
+		{firstMonday, "13:00:00", "22:00:00"},
+		{firstMonday.AddDate(0, 0, 1), "08:00:00", "17:00:00"},
+	} {
+		var startsAt, endsAt string
+		if err := db.QueryRow(`SELECT starts_at::text,ends_at::text FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, userID, test.date.Format("2006-01-02")).Scan(&startsAt, &endsAt); err != nil {
+			t.Fatalf("อ่านกะวันที่ %s: %v", test.date.Format("2006-01-02"), err)
+		}
+		if startsAt != test.wantStart || endsAt != test.wantEnd {
+			t.Errorf("กะวันที่ %s = %s-%s, want %s-%s", test.date.Format("2006-01-02"), startsAt, endsAt, test.wantStart, test.wantEnd)
+		}
+	}
+}
+
 func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 	db := openStaffScheduleTestDB(t)
 	fixtureID := time.Now().UnixNano()
@@ -405,7 +405,15 @@ func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	response := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(response)
-	ctx.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(fmt.Sprintf(`{"name":"พนักงานเวลาใหม่","role":"cashier","branchId":%d,"defaultStartsAt":"09:00","defaultEndsAt":"18:00","defaultSecondStartsAt":"13:00","defaultSecondEndsAt":"22:00","defaultSecondShiftDays":[1,2,3,4,5,6,7]}`, branchID)))
+	firstShiftDate, err := time.Parse("2006-01-02", firstDate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondShiftWeekday := int(firstShiftDate.Weekday())
+	if secondShiftWeekday == 0 {
+		secondShiftWeekday = 7
+	}
+	ctx.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(fmt.Sprintf(`{"name":"พนักงานเวลาใหม่","role":"cashier","branchId":%d,"defaultStartsAt":"09:00","defaultEndsAt":"18:00","defaultSecondStartsAt":"13:00","defaultSecondEndsAt":"22:00","defaultSecondShiftDays":[%d]}`, branchID, secondShiftWeekday)))
 	ctx.Request.Header.Set("Content-Type", "application/json")
 	ctx.Params = gin.Params{{Key: "id", Value: strconv.FormatInt(userID, 10)}}
 	ctx.Set("claims", &middleware.Claims{Role: "admin"})
@@ -415,14 +423,11 @@ func TestUpdateStaffMemberUpdatesUpcomingUnworkedScheduledShifts(t *testing.T) {
 		t.Fatalf("update = %d: %s (%v)", response.Code, response.Body.String(), ctx.Errors.Last())
 	}
 
-	expectedHours := func(string) (string, string) { return "13:00:00", "22:00:00" }
-	firstStart, firstEnd := expectedHours(firstDate)
-	secondStart, secondEnd := expectedHours(secondDate)
 	for _, test := range []struct {
 		date, wantStart, wantEnd string
 	}{
-		{firstDate, firstStart, firstEnd},
-		{secondDate, secondStart, secondEnd},
+		{firstDate, "13:00:00", "22:00:00"},
+		{secondDate, "09:00:00", "18:00:00"},
 		{workedDate, "08:00:00", "17:00:00"},
 		{dayOffDate, "08:00:00", "17:00:00"},
 		{compWorkDate, "08:00:00", "17:00:00"},
