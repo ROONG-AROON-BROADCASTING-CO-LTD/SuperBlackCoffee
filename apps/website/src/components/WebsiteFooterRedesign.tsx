@@ -4,17 +4,6 @@ import Box from '@mui/material/Box';
 import { websiteSx } from './websiteSx';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowUpRightIcon } from '@stackbuild/ui/icons';
-
-function FooterArrow() {
-  return (
-    <ArrowUpRightIcon
-      aria-hidden="true"
-      className="sb-animated-arrow"
-      size={20}
-    />
-  );
-}
 
 export function WebsiteFooter() {
   return (
@@ -62,14 +51,6 @@ export function WebsiteFooter() {
             <p>
               กาแฟไทย พลังสะอาด และพื้นที่ที่ออกแบบมา เพื่อทุกการเดินทางของคุณ
             </p>
-            <Box
-              component={Link}
-              sx={[websiteSx['sb-footer-branch-link']]}
-              href="/branches"
-              className="sb-footer-branch-link"
-            >
-              ค้นหาสาขาใกล้คุณ <FooterArrow />
-            </Box>
           </Box>
         </Box>
         <Box

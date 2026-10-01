@@ -54,6 +54,8 @@ const renderPage = (franchiseMode = false) =>
 
 describe('AttendanceManagementPage', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-15T05:00:00Z'));
     window.history.replaceState({}, '', '/attendance');
     branches.mockResolvedValue([
       { id: 3, name: 'อยุธยา', code: 'SBC-AY' },
@@ -118,6 +120,7 @@ describe('AttendanceManagementPage', () => {
   });
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 

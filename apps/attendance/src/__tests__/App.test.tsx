@@ -357,7 +357,7 @@ describe('Attendance App session', () => {
     });
   });
 
-  it('keeps checkout disabled until the scheduled end time', async () => {
+  it('keeps checkout disabled one minute before the scheduled end time', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',
       checkedIn: true,
@@ -366,7 +366,7 @@ describe('Attendance App session', () => {
       shiftStatus: 'scheduled',
       canRecordAttendance: true,
       canCheckOut: false,
-      checkoutAvailableAt: '17:00',
+      checkoutAvailableAt: '08:01',
     });
 
     render(<App />);
@@ -377,10 +377,42 @@ describe('Attendance App session', () => {
       );
       expect(
         screen.getByTestId('attendance-action-disabled-label').textContent,
-      ).toBe('เช็กเอาต์ได้เวลา 17:00 น.');
+      ).toBe('เช็กเอาต์ได้เวลา 08:01 น.');
     });
     fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
     expect(checkOut).not.toHaveBeenCalled();
+  });
+
+  it('allows checkout exactly at the scheduled end time', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: true,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+      canCheckOut: false,
+      checkoutAvailableAt: '08:00',
+    });
+    vi.mocked(checkOut).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: '2026-09-08T08:00:00Z',
+      shiftStatus: 'scheduled',
+      canRecordAttendance: false,
+    });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+    await waitFor(() => expect(checkOut).toHaveBeenCalledOnce());
+    expect(checkIn).not.toHaveBeenCalled();
   });
 
   it('offers checkout for an overnight shift whose work date is yesterday', async () => {

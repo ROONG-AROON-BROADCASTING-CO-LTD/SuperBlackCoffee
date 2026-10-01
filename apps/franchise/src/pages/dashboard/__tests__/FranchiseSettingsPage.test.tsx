@@ -86,6 +86,15 @@ describe('FranchiseSettingsPage', () => {
     expect(
       await screen.findByText('เปลี่ยนรหัสผ่านเรียบร้อยแล้ว'),
     ).toBeTruthy();
+    expect(screen.getByLabelText(/รหัสผ่านปัจจุบัน/)).toHaveProperty(
+      'value',
+      '',
+    );
+    expect(screen.getByLabelText(/^รหัสผ่านใหม่/)).toHaveProperty('value', '');
+    expect(screen.getByLabelText(/ยืนยันรหัสผ่านใหม่/)).toHaveProperty(
+      'value',
+      '',
+    );
   });
 
   it('does not submit when password confirmation differs', async () => {

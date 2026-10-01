@@ -518,17 +518,23 @@ func TestStockConsumptionRouteEnforcesStaffScopeAndValidatesInput(t *testing.T) 
 	r := New(nil, nil)
 	validBody := `{"items":[{"menuItemId":1,"quantity":1}],"note":"ปิดกะ","channel":"storefront"}`
 	for _, test := range []struct {
-		name, role, body string
-		want             int
+		name, role, cookieName, body string
+		want                         int
 	}{
 		{name: "requires authentication", body: validBody, want: http.StatusUnauthorized},
-		{name: "blocks platform admin", role: "admin", body: validBody, want: http.StatusForbidden},
-		{name: "reaches unavailable handler for a valid staff request", role: "cashier", body: validBody, want: http.StatusServiceUnavailable},
+		{name: "platform bearer cannot replace the stock cookie", role: "admin", body: validBody, want: http.StatusUnauthorized},
+		{name: "cashier bearer cannot replace the stock cookie", role: "cashier", body: validBody, want: http.StatusUnauthorized},
+		{name: "attendance cookie cannot consume stock", role: "cashier", cookieName: "sbc_attendance_session", body: validBody, want: http.StatusUnauthorized},
+		{name: "reaches unavailable handler for a valid stock session", role: "cashier", cookieName: "sbc_stock_session", body: validBody, want: http.StatusServiceUnavailable},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/stock/consume", strings.NewReader(test.body))
 			if test.role != "" {
-				req.Header.Set("Authorization", "Bearer "+testToken(t, test.role))
+				if test.cookieName == "" {
+					req.Header.Set("Authorization", "Bearer "+testToken(t, test.role))
+				} else {
+					req.AddCookie(&http.Cookie{Name: test.cookieName, Value: testToken(t, test.role)})
+				}
 			}
 			req.Header.Set("Content-Type", "application/json")
 			res := httptest.NewRecorder()
@@ -674,6 +680,16 @@ func TestAttendanceSessionSelectsStaffCookieWhenPlatformCookieAlsoExists(t *test
 
 func TestStockSessionUsesOnlyTheDedicatedStockCookie(t *testing.T) {
 	r := New(nil, nil)
+
+	t.Run("attendance cookie without a stock header cannot restore stock", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stock/session", nil)
+		req.AddCookie(&http.Cookie{Name: "sbc_attendance_session", Value: testToken(t, "cashier")})
+		res := httptest.NewRecorder()
+		r.ServeHTTP(res, req)
+		if res.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want %d", res.Code, http.StatusUnauthorized)
+		}
+	})
 
 	t.Run("stock role header does not accept the attendance cookie", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/stock/session", nil)

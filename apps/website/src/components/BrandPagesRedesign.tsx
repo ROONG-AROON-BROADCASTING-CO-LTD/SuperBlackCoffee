@@ -307,11 +307,13 @@ function InnerHero({
   title,
   text,
   image,
-  dark = false,
+  eyebrow,
+  dark = true,
 }: {
   title: string;
   text: string;
   image: string;
+  eyebrow: string;
   dark?: boolean;
 }) {
   return (
@@ -328,8 +330,22 @@ function InnerHero({
         sx={[websiteSx['sb-inner-copy']]}
         className="sb-inner-copy"
       >
+        <Box
+          component="span"
+          sx={[websiteSx['sb-inner-eyebrow']]}
+          className="sb-inner-eyebrow"
+        >
+          {eyebrow}
+        </Box>
         <h1>{title}</h1>
         <p>{text}</p>
+        <Box
+          component="span"
+          sx={[websiteSx['sb-inner-scroll-cue']]}
+          className="sb-inner-scroll-cue"
+        >
+          เลื่อนเพื่อสำรวจ <span>↓</span>
+        </Box>
       </Box>
       <Photo src={image} alt="Super Black Coffee" priority />
     </Box>
@@ -820,7 +836,8 @@ export function AboutContent() {
       <InnerHero
         title="เรื่องราวที่เริ่มจากแก้วกาแฟ"
         text="เราอยากสร้างพื้นที่ที่กาแฟดี ผู้คนดี และธุรกิจที่ดีเติบโตไปพร้อมกัน"
-        image="/coffee/coffee-cup-gallery.png"
+        image="/hero/about-story.png"
+        eyebrow="ABOUT SUPER BLACK COFFEE"
       />
       <Box
         component="section"
@@ -833,35 +850,123 @@ export function AboutContent() {
             sx={[websiteSx['sb-rule']]}
             className="sb-rule"
           />
-          <h2>คุณภาพไม่ใช่ทางเลือก</h2>
+          <h2>เริ่มจากแก้วที่ดี</h2>
         </div>
         <div>
           <p>
-            ตั้งแต่การเลือกเมล็ดกาแฟ การฝึกทีมบาริสต้า ไปจนถึงการดูแลทุกสาขา
-            เราออกแบบทุกขั้นตอนให้ส่งมอบประสบการณ์ที่เหมือนกันในทุกแก้ว
+            Super Black Coffee เริ่มจากความเชื่อเรียบง่ายว่า กาแฟดีหนึ่งแก้ว
+            เปลี่ยนช่วงเวลาธรรมดาให้ดีขึ้นได้
           </p>
           <p>
-            SUPER BLACK COFFEE
-            คือแพลตฟอร์มที่พร้อมเติบโตไปกับชุมชนและผู้ประกอบการ
+            เราจึงสร้างพื้นที่ที่คุณแวะพัก ทำงาน พบปะ และออกเดินทางต่อได้
+            อย่างสบายใจ
           </p>
         </div>
       </Box>
       <Box
         component="section"
-        sx={[websiteSx['sb-about-photo']]}
-        className="sb-about-photo"
+        sx={[websiteSx['sb-about-principles'], websiteSx['sb-container']]}
+        className="sb-about-principles sb-container"
       >
-        <Photo
-          src="/hero/superblackcoffee-brand-hero.png?v=20260930"
-          alt="หน้าร้าน Super Black Coffee"
-        />
+        <Box component="div" className="sb-about-principles-intro">
+          <Box
+            component="span"
+            sx={[websiteSx['sb-rule']]}
+            className="sb-rule"
+          />
+          <h2>มากกว่าร้านกาแฟ</h2>
+          <p>
+            ทุกแก้ว ทุกพื้นที่ และทุกบริการ ถูกออกแบบให้เป็นจุดพักที่ช่วยให้
+            วันของคุณไปต่อได้ดีขึ้น
+          </p>
+        </Box>
+        <Box component="div" className="sb-about-principles-list">
+          <article>
+            <span>01</span>
+            <h3>คุณภาพในทุกแก้ว</h3>
+            <p>
+              คัดสรรเมล็ดกาแฟและพัฒนารสชาติอย่างตั้งใจ ให้คุณมั่นใจได้ในทุกครั้ง
+              ที่แวะมา
+            </p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>พื้นที่สำหรับทุกจังหวะ</h3>
+            <p>
+              จะทำงาน พักผ่อน หรือเจอคนสำคัญ
+              ที่นี่มีพื้นที่ให้คุณใช้เวลาในแบบของตัวเอง
+            </p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>พร้อมไปต่อทุกเส้นทาง</h3>
+            <p>
+              เติมพลังให้ทั้งคุณและรถ ด้วยบริการ EV Charging
+              และสิ่งอำนวยความสะดวก ที่พร้อมสำหรับการเดินทาง
+            </p>
+          </article>
+          <article>
+            <span>04</span>
+            <h3>เติบโตไปด้วยกัน</h3>
+            <p>
+              เราสร้างโอกาสให้ทีมงาน ชุมชน และผู้ประกอบการ
+              เติบโตไปกับแบรนด์อย่างยั่งยืน
+            </p>
+          </article>
+        </Box>
+      </Box>
+      <Box
+        component="section"
+        sx={[websiteSx['sb-about-journey'], websiteSx['sb-container']]}
+        className="sb-about-journey sb-container"
+      >
+        <Box component="div" className="sb-about-journey-heading">
+          <Box
+            component="span"
+            sx={[websiteSx['sb-rule']]}
+            className="sb-rule"
+          />
+          <h2>จากต้นทางถึงทุกการเดินทาง</h2>
+          <p>สิ่งที่เราตั้งใจให้เกิดขึ้นในทุกครั้งที่คุณแวะมา</p>
+        </Box>
+        <Box component="ol" className="sb-about-journey-steps">
+          <li>
+            <span>01</span>
+            <div>
+              <h3>คัดสรร</h3>
+              <p>เลือกวัตถุดิบที่ดี</p>
+            </div>
+          </li>
+          <li>
+            <span>02</span>
+            <div>
+              <h3>รังสรรค์</h3>
+              <p>ทำทุกแก้วด้วยความตั้งใจ</p>
+            </div>
+          </li>
+          <li>
+            <span>03</span>
+            <div>
+              <h3>ส่งต่อ</h3>
+              <p>เติมพลังให้คุณไปต่อ</p>
+            </div>
+          </li>
+        </Box>
+      </Box>
+      <Box
+        component="blockquote"
+        sx={[websiteSx['sb-about-quote'], websiteSx['sb-container']]}
+        className="sb-about-quote sb-container"
+      >
+        <p>เราไม่ได้ทำเพียงกาแฟ แต่สร้างจุดพักที่ทำให้ทุกวันไปต่อได้ดีขึ้น</p>
+        <cite>SUPER BLACK COFFEE</cite>
       </Box>
       <Box
         component="section"
         sx={[websiteSx['sb-bottom-cta'], websiteSx['sb-container']]}
         className="sb-bottom-cta sb-container"
       >
-        <h2>พื้นที่ที่พร้อมไปกับทุกการเดินทาง</h2>
+        <h2>พบกับจุดพักของคุณ</h2>
         <Box
           component={Link}
           sx={[websiteSx['sb-button'], websiteSx['sb-button-dark']]}
@@ -882,7 +987,8 @@ export function MenuContent() {
       <InnerHero
         title="เมนูที่ตั้งใจในทุกแก้ว"
         text="รสชาติที่ชัดเจน จากวัตถุดิบที่เราเลือกเอง"
-        image="/services/superblackcoffee-service-coffee.png"
+        image="/hero/menu-craft.png"
+        eyebrow="OUR MENU"
         dark
       />
       <Box
@@ -968,7 +1074,8 @@ export function BranchesContent() {
       <InnerHero
         title="พบกับเราได้ทุกวัน"
         text="ค้นหาสาขาและบริการที่ใกล้คุณที่สุด"
-        image="/hero/superblackcoffee-brand-hero.png?v=20260930"
+        image="/hero/branches-welcome.png"
+        eyebrow="OUR BRANCHES"
         dark
       />
       <Box
@@ -1078,7 +1185,8 @@ export function FranchiseContent() {
       <InnerHero
         title="ธุรกิจที่เติบโตไปด้วยกัน"
         text="เริ่มต้นแฟรนไชส์ในรูปแบบที่เหมาะกับพื้นที่และเป้าหมายของคุณ"
-        image="/franchise/superblackcoffee-franchise-m.png"
+        image="/hero/franchise-business.png"
+        eyebrow="FRANCHISE OPPORTUNITY"
         dark
       />
       <Box
@@ -1294,6 +1402,7 @@ export function ServicesContent() {
         title="มากกว่ากาแฟในทุกพื้นที่"
         text="บริการที่ออกแบบให้ทุกทำเลมีศักยภาพมากขึ้น"
         image="/services/superblackcoffee-service-ev-charging.png"
+        eyebrow="OUR SERVICES"
         dark
       />
       <Box
@@ -1342,6 +1451,7 @@ export function NewsContent() {
         title="เรื่องราวจาก SUPER BLACK COFFEE"
         text="ข่าวสาร โปรโมชัน และเรื่องราวที่เราอยากแบ่งปัน"
         image="/coffee/coffee-cup-gallery.png"
+        eyebrow="NEWS & STORIES"
         dark
       />
       <Box
@@ -1409,7 +1519,8 @@ export function ContactContent() {
       <InnerHero
         title="เริ่มต้นบทสนทนากับเรา"
         text="ไม่ว่าจะเป็นเรื่องสาขา แฟรนไชส์ หรือความร่วมมือ เรายินดีรับฟัง"
-        image="/coffee/coffee-storefront.png"
+        image="/hero/contact-conversation.png"
+        eyebrow="CONTACT SUPER BLACK COFFEE"
         dark
       />
       <Box

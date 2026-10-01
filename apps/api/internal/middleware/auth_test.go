@@ -153,6 +153,48 @@ func TestRequireAuthStockSessionHeaderOnlyAcceptsDedicatedStockCookie(t *testing
 	}
 }
 
+func TestRequireSessionRoleCannotBeBypassedWithBearerToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	secret := "test-secret"
+	router := gin.New()
+	router.GET("/staff-session", RequireSessionRole("attendance"), RequireAuth(secret, "cashier"), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+	validCashierToken := signedToken(t, secret, "cashier", time.Now().Add(time.Hour))
+
+	for _, test := range []struct {
+		name          string
+		bearer        string
+		cookieName    string
+		cookieValue   string
+		requestedRole string
+		wantStatus    int
+	}{
+		{name: "bearer alone cannot replace the staff cookie", bearer: validCashierToken, wantStatus: http.StatusUnauthorized},
+		{name: "another cookie and spoofed session role cannot replace the staff cookie", bearer: validCashierToken, cookieName: "sbc_stock_session", cookieValue: validCashierToken, requestedRole: "stock", wantStatus: http.StatusUnauthorized},
+		{name: "wrong role in staff cookie remains forbidden", cookieName: "sbc_attendance_session", cookieValue: signedToken(t, secret, "admin", time.Now().Add(time.Hour)), wantStatus: http.StatusForbidden},
+		{name: "staff cookie still works alongside a bearer", bearer: validCashierToken, cookieName: "sbc_attendance_session", cookieValue: validCashierToken, wantStatus: http.StatusNoContent},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/staff-session", nil)
+			if test.bearer != "" {
+				req.Header.Set("Authorization", "Bearer "+test.bearer)
+			}
+			if test.requestedRole != "" {
+				req.Header.Set("X-SBC-Session-Role", test.requestedRole)
+			}
+			if test.cookieName != "" {
+				req.AddCookie(&http.Cookie{Name: test.cookieName, Value: test.cookieValue})
+			}
+			res := httptest.NewRecorder()
+			router.ServeHTTP(res, req)
+			if res.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d", res.Code, test.wantStatus)
+			}
+		})
+	}
+}
+
 func TestRequireAuthImageSessionRoleQueryUsesDedicatedStockCookie(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	secret := "test-secret"

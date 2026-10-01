@@ -11,8 +11,9 @@ export const websiteSx = {
     position: 'sticky',
     top: '0',
     zIndex: '40',
-    willChange: 'auto',
-    transition: 'none',
+    overflow: 'hidden',
+    willChange: 'height, background-color',
+    transition: 'height 220ms ease, background-color 220ms ease',
   },
   'sb-header-overlay': {
     marginBottom: '-104px',
@@ -22,6 +23,21 @@ export const websiteSx = {
     backdropFilter: 'none',
     WebkitBackdropFilter: 'none',
     boxShadow: 'none',
+  },
+  'sb-header-condensed': {
+    height: '72px',
+    backgroundColor: 'rgba(0,0,0,.96)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+    '& .sb-topbar': {
+      height: '0',
+      minHeight: '0',
+      paddingTop: '0',
+      paddingBottom: '0',
+      opacity: '0',
+      borderBottomColor: 'transparent',
+      pointerEvents: 'none',
+    },
   },
   'sb-nav': {
     width: '100%',
@@ -35,6 +51,7 @@ export const websiteSx = {
   },
   'sb-topbar': {
     height: '32px',
+    overflow: 'hidden',
     padding: '0 var(--sb-gutter)',
     background: '#000',
     display: 'flex',
@@ -44,6 +61,8 @@ export const websiteSx = {
     color: 'rgba(255,255,255,.68)',
     font: '500 10px/1 var(--font-kanit), sans-serif',
     letterSpacing: '.025em',
+    transition:
+      'height 220ms ease, opacity 160ms ease, border-color 160ms ease',
     '& .sb-topbar-contact': {
       height: '100%',
       display: 'flex',
@@ -692,7 +711,7 @@ export const websiteSx = {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
-    padding: '50px 0 235px var(--sb-gutter)',
+    padding: '115px 0 235px var(--sb-gutter)',
     '@media (max-width: 800px)': {
       width: 'min(680px, 95vw)',
     },
@@ -1041,6 +1060,7 @@ export const websiteSx = {
     },
   },
   'sb-section-heading': {
+    color: '#fff',
     '& h2': {
       fontWeight: '400',
       fontSize: 'clamp(32px, 3.4vw, 58px)',
@@ -1055,7 +1075,7 @@ export const websiteSx = {
     gap: '40px',
     '& p': {
       margin: '16px 0 0',
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.68)',
       fontSize: '16px',
       lineHeight: '1.7',
     },
@@ -1251,6 +1271,7 @@ export const websiteSx = {
     },
   },
   'sb-about-grid': {
+    color: '#fff',
     '& h2': {
       fontWeight: '400',
       fontSize: 'clamp(32px, 3.4vw, 58px)',
@@ -1267,7 +1288,7 @@ export const websiteSx = {
       fontSize: 'clamp(18px, 1.5vw, 23px)',
       lineHeight: '1.8',
       margin: '0 0 25px',
-      color: '#4c4d47',
+      color: 'rgba(255,255,255,.72)',
     },
     '@media (max-width: 800px)': {
       gridTemplateColumns: '1fr',
@@ -1281,6 +1302,7 @@ export const websiteSx = {
     },
   },
   'sb-bottom-cta': {
+    color: '#fff',
     '& h2': {
       fontWeight: '400',
       fontSize: 'clamp(32px, 3.4vw, 58px)',
@@ -1305,7 +1327,165 @@ export const websiteSx = {
       },
     },
   },
+  'sb-about-principles': {
+    color: '#fff',
+    paddingBlock: '110px',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, .82fr) minmax(0, 1.18fr)',
+    gap: 'clamp(48px, 9vw, 150px)',
+    '& h2': {
+      fontWeight: '500',
+      fontSize: 'clamp(34px, 3.6vw, 58px)',
+      lineHeight: '1.12',
+      letterSpacing: '-.045em',
+      margin: '0',
+      textWrap: 'balance',
+    },
+    '& .sb-about-principles-intro > p': {
+      margin: '22px 0 0',
+      maxWidth: '460px',
+      color: 'rgba(255,255,255,.7)',
+      fontSize: '18px',
+      lineHeight: '1.8',
+    },
+    '& .sb-about-principles-list': {
+      borderTop: '1px solid rgba(202, 164, 94, .48)',
+    },
+    '& article': {
+      display: 'grid',
+      gridTemplateColumns: '54px minmax(0, 1fr)',
+      columnGap: '22px',
+      padding: '27px 0',
+      borderBottom: '1px solid rgba(255,255,255,.22)',
+    },
+    '& article > span': {
+      gridRow: 'span 2',
+      color: 'var(--sb-gold)',
+      font: '500 13px/1 var(--font-inter), sans-serif',
+      paddingTop: '5px',
+      letterSpacing: '.08em',
+    },
+    '& h3': {
+      margin: '0',
+      fontSize: '22px',
+      fontWeight: '500',
+      lineHeight: '1.25',
+    },
+    '& article p': {
+      margin: '9px 0 0',
+      color: 'rgba(255,255,255,.64)',
+      fontSize: '16px',
+      lineHeight: '1.7',
+    },
+    '@media (max-width: 800px)': {
+      gridTemplateColumns: '1fr',
+      gap: '45px',
+      paddingBlock: '80px',
+    },
+    '@media (max-width: 600px)': {
+      paddingBlock: '65px',
+      '& h2': { fontSize: '34px' },
+      '& article': { gridTemplateColumns: '38px minmax(0, 1fr)' },
+      '& article p': { fontSize: '15px' },
+    },
+  },
+  'sb-about-journey': {
+    color: '#fff',
+    paddingBlock: '110px',
+    '& h2': {
+      margin: '0',
+      fontSize: 'clamp(34px, 3.6vw, 58px)',
+      fontWeight: '500',
+      letterSpacing: '-.045em',
+      lineHeight: '1.12',
+      textWrap: 'balance',
+    },
+    '& .sb-about-journey-heading > p': {
+      maxWidth: '460px',
+      margin: '20px 0 0',
+      color: 'rgba(255,255,255,.68)',
+      fontSize: '17px',
+      lineHeight: '1.7',
+    },
+    '& .sb-about-journey-steps': {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gap: '0',
+      listStyle: 'none',
+      margin: '58px 0 0',
+      padding: '0',
+      borderTop: '1px solid rgba(202, 164, 94, .48)',
+      borderBottom: '1px solid rgba(255,255,255,.22)',
+    },
+    '& .sb-about-journey-steps li': {
+      display: 'grid',
+      gridTemplateColumns: '45px minmax(0, 1fr)',
+      gap: '16px',
+      padding: '30px clamp(18px, 3vw, 45px)',
+      borderLeft: '1px solid rgba(255,255,255,.22)',
+      '&:first-child': { borderLeft: '0' },
+    },
+    '& .sb-about-journey-steps li > span': {
+      color: 'var(--sb-gold)',
+      font: '500 12px/1 var(--font-inter), sans-serif',
+      letterSpacing: '.08em',
+      paddingTop: '5px',
+    },
+    '& h3': {
+      margin: '0',
+      fontSize: '23px',
+      fontWeight: '500',
+      lineHeight: '1.2',
+    },
+    '& .sb-about-journey-steps p': {
+      margin: '8px 0 0',
+      color: 'rgba(255,255,255,.62)',
+      fontSize: '15px',
+      lineHeight: '1.6',
+    },
+    '@media (max-width: 600px)': {
+      paddingBlock: '65px',
+      '& h2': { fontSize: '34px' },
+      '& .sb-about-journey-steps': {
+        gridTemplateColumns: '1fr',
+        marginTop: '40px',
+      },
+      '& .sb-about-journey-steps li': {
+        borderLeft: '0',
+        borderTop: '1px solid rgba(255,255,255,.22)',
+        padding: '24px 0',
+        '&:first-child': { borderTop: '0' },
+      },
+    },
+  },
+  'sb-about-quote': {
+    margin: '0 auto',
+    paddingBlock: 'clamp(90px, 11vw, 170px)',
+    textAlign: 'center',
+    '& p': {
+      maxWidth: '1030px',
+      margin: '0 auto',
+      color: '#fff',
+      fontSize: 'clamp(36px, 4.4vw, 72px)',
+      fontWeight: '400',
+      letterSpacing: '-.05em',
+      lineHeight: '1.16',
+      textWrap: 'balance',
+    },
+    '& cite': {
+      display: 'block',
+      marginTop: '30px',
+      color: 'var(--sb-gold)',
+      font: '700 11px/1.2 var(--font-inter), sans-serif',
+      fontStyle: 'normal',
+      letterSpacing: '.16em',
+    },
+    '@media (max-width: 600px)': {
+      '& p': { fontSize: '36px' },
+    },
+  },
   'sb-franchise-intro': {
+    color: '#fff',
     '& h2': {
       fontWeight: '400',
       fontSize: 'clamp(32px, 3.4vw, 58px)',
@@ -1319,10 +1499,10 @@ export const websiteSx = {
     gap: '5vw',
     alignItems: 'center',
     paddingBlock: '90px',
-    borderBottom: '1px solid var(--sb-line)',
+    borderBottom: '1px solid rgba(202, 164, 94, .42)',
     '& p': {
       lineHeight: '1.8',
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.72)',
       fontSize: '17px',
     },
     '& > .sb-photo': {
@@ -1361,6 +1541,7 @@ export const websiteSx = {
     },
   },
   'sb-contact': {
+    color: '#fff',
     '& h2': {
       fontWeight: '400',
       fontSize: 'clamp(32px, 3.4vw, 58px)',
@@ -1718,43 +1899,74 @@ export const websiteSx = {
     },
   },
   'sb-inner-hero': {
-    display: 'grid',
-    gridTemplateColumns: '48% 52%',
-    minHeight: '480px',
-    background: '#f3f2ee',
-    color: 'var(--sb-ink)',
+    position: 'relative',
+    display: 'block',
+    width: '100%',
+    aspectRatio: '2.2 / 1',
+    minHeight: '0',
+    margin: '0',
+    background: 'var(--sb-black)',
+    color: '#fff',
+    overflow: 'hidden',
     '& h1': {
-      fontSize: 'clamp(43px, 5.2vw, 83px)',
+      fontSize: 'clamp(58px, 5vw, 76px)',
       fontWeight: '400',
-      lineHeight: '1.08',
-      letterSpacing: '-0.047em',
+      lineHeight: '1.1',
+      letterSpacing: '-0.05em',
       margin: '0',
       textWrap: 'balance',
     },
     '& p': {
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.74)',
       fontSize: 'clamp(16px, 1.25vw, 19px)',
       lineHeight: '1.75',
       margin: '22px 0 0',
       maxWidth: '500px',
     },
     '& > .sb-photo': {
-      minHeight: '480px',
+      position: 'absolute',
+      inset: '0',
+      zIndex: '0',
+      width: '100%',
+      height: '100%',
+      minHeight: '100%',
+      backgroundImage: 'none !important',
+      '& img': {
+        objectFit: 'cover',
+      },
+      '&::after': {
+        content: '""',
+        position: 'absolute',
+        inset: '0',
+        zIndex: '1',
+        pointerEvents: 'none',
+        background:
+          'linear-gradient(90deg, rgba(0,0,0,.96) 0%, rgba(0,0,0,.84) 34%, rgba(0,0,0,.34) 62%, rgba(0,0,0,.05) 100%)',
+      },
     },
     '@media (max-width: 800px)': {
-      gridTemplateColumns: '1fr',
+      aspectRatio: 'auto',
+      minHeight: '520px',
+      '& h1': {
+        fontSize: 'clamp(50px, 8vw, 76px)',
+      },
       '& > .sb-photo': {
-        minHeight: '320px',
-        height: '320px',
+        minHeight: '100%',
+        height: '100%',
       },
     },
     '@media (max-width: 600px)': {
+      minHeight: '460px',
       '& h1': {
-        fontSize: 'clamp(41px, 10vw, 60px)',
+        fontSize: 'clamp(46px, 10vw, 64px)',
       },
       '& > .sb-photo': {
-        minHeight: '260px',
-        height: '260px',
+        minHeight: '100%',
+        height: '100%',
+        '&::after': {
+          background:
+            'linear-gradient(90deg, rgba(0,0,0,.94) 0%, rgba(0,0,0,.76) 62%, rgba(0,0,0,.42) 100%)',
+        },
       },
     },
   },
@@ -1766,15 +1978,59 @@ export const websiteSx = {
     },
   },
   'sb-inner-copy': {
+    position: 'relative',
+    zIndex: '2',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
-    padding: '80px clamp(35px, 6vw, 110px) 80px var(--sb-gutter)',
+    minHeight: 'inherit',
+    maxWidth: '58%',
+    padding: '145px clamp(36px, 6vw, 110px) 80px clamp(44px, 5.2vw, 100px)',
     '@media (max-width: 800px)': {
-      padding: '75px var(--sb-gutter)',
+      maxWidth: '78%',
+      padding: '140px var(--sb-gutter) 75px',
     },
     '@media (max-width: 600px)': {
+      maxWidth: '100%',
       paddingBlock: '60px',
+    },
+  },
+  'sb-inner-eyebrow': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    width: 'fit-content',
+    marginBottom: '24px',
+    color: 'var(--sb-gold)',
+    fontSize: '11px',
+    fontWeight: '700',
+    letterSpacing: '.16em',
+    lineHeight: '1.2',
+    '&::before': {
+      content: '""',
+      display: 'inline-block',
+      width: '28px',
+      height: '1px',
+      background: 'currentColor',
+    },
+  },
+  'sb-inner-scroll-cue': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    width: 'fit-content',
+    marginTop: '30px',
+    color: 'rgba(255,255,255,.66)',
+    fontSize: '12px',
+    fontWeight: '600',
+    letterSpacing: '.04em',
+    '& span': {
+      color: 'var(--sb-gold)',
+      fontSize: '18px',
+      lineHeight: '1',
+    },
+    '@media (max-width: 600px)': {
+      marginTop: '24px',
     },
   },
   'sb-about-photo': {
@@ -1788,12 +2044,14 @@ export const websiteSx = {
     },
   },
   'sb-menu-page': {
+    color: '#fff',
     paddingBlock: '70px 110px',
     '@media (max-width: 600px)': {
       paddingBlock: '55px 80px',
     },
   },
   'sb-branches-page': {
+    color: '#fff',
     paddingBlock: '70px 110px',
     '& .sb-section-heading': {
       paddingBottom: '35px',
@@ -1826,13 +2084,13 @@ export const websiteSx = {
   'sb-tabs': {
     display: 'flex',
     gap: '35px',
-    borderBottom: '1px solid var(--sb-line)',
+    borderBottom: '1px solid rgba(255,255,255,.32)',
     overflowX: 'auto',
     scrollbarWidth: 'none',
     '& button': {
       border: '0',
       background: 'transparent',
-      color: '#71726b',
+      color: 'rgba(255,255,255,.52)',
       whiteSpace: 'nowrap',
       padding: '0 0 18px',
       fontSize: '15px',
@@ -1840,8 +2098,8 @@ export const websiteSx = {
       borderBottom: '2px solid transparent',
     },
     '& button.active': {
-      color: 'var(--sb-ink)',
-      borderBottomColor: 'var(--sb-ink)',
+      color: 'var(--sb-gold)',
+      borderBottomColor: 'var(--sb-gold)',
       fontWeight: '600',
     },
     '@media (max-width: 600px)': {
@@ -1879,11 +2137,11 @@ export const websiteSx = {
     },
   },
   'sb-lead': {
-    color: 'var(--sb-muted)',
+    color: 'rgba(255,255,255,.68)',
     margin: '12px 0 38px',
   },
   'sb-menu-list': {
-    borderTop: '1px solid var(--sb-line)',
+    borderTop: '1px solid rgba(255,255,255,.28)',
   },
   'sb-menu-item': {
     display: 'flex',
@@ -1891,13 +2149,13 @@ export const websiteSx = {
     gap: '20px',
     alignItems: 'center',
     padding: '19px 0',
-    borderBottom: '1px solid var(--sb-line)',
+    borderBottom: '1px solid rgba(255,255,255,.28)',
     '& h3': {
       font: '500 clamp(19px, 1.7vw, 26px)/1.2 var(--font-inter),\n    sans-serif',
       margin: '0',
     },
     '& p': {
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.62)',
       fontSize: '14px',
       margin: '5px 0 0',
     },
@@ -1909,14 +2167,14 @@ export const websiteSx = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    border: '1px solid var(--sb-line)',
+    border: '1px solid rgba(255,255,255,.55)',
     height: '50px',
     padding: '0 15px',
     minWidth: 'min(380px, 100%)',
     '& svg': {
       width: '20px',
       height: '20px',
-      color: '#777',
+      color: 'rgba(255,255,255,.65)',
     },
     '& input': {
       border: '0',
@@ -1925,6 +2183,7 @@ export const websiteSx = {
       width: '100%',
       fontSize: '14px',
       background: 'transparent',
+      color: '#fff',
     },
     '&:focus-within': {
       borderColor: 'var(--sb-gold)',
@@ -1934,7 +2193,7 @@ export const websiteSx = {
     },
   },
   'sb-branch-list': {
-    borderTop: '1px solid var(--sb-line)',
+    borderTop: '1px solid rgba(255,255,255,.28)',
   },
   'sb-branch-row': {
     display: 'grid',
@@ -1942,7 +2201,7 @@ export const websiteSx = {
     gap: '30px',
     alignItems: 'center',
     padding: '28px 0',
-    borderBottom: '1px solid var(--sb-line)',
+    borderBottom: '1px solid rgba(255,255,255,.28)',
     '& > .sb-photo': {
       height: '140px',
     },
@@ -1986,7 +2245,7 @@ export const websiteSx = {
     '& > p': {
       fontSize: '14px',
       lineHeight: '1.7',
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.62)',
       margin: '0',
       maxWidth: '590px',
     },
@@ -2014,6 +2273,7 @@ export const websiteSx = {
     color: 'var(--sb-muted)',
   },
   'sb-plans': {
+    color: '#fff',
     paddingBlock: '90px 110px',
     '@media (max-width: 600px)': {
       paddingBlock: '65px 80px',
@@ -2023,8 +2283,8 @@ export const websiteSx = {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     marginTop: '50px',
-    borderTop: '1px solid var(--sb-line)',
-    borderLeft: '1px solid var(--sb-line)',
+    borderTop: '1px solid rgba(202, 164, 94, .45)',
+    borderLeft: '1px solid rgba(202, 164, 94, .45)',
     '@media (max-width: 800px)': {
       gridTemplateColumns: '1fr',
     },
@@ -2033,8 +2293,8 @@ export const websiteSx = {
     },
   },
   'sb-plan': {
-    borderRight: '1px solid var(--sb-line)',
-    borderBottom: '1px solid var(--sb-line)',
+    borderRight: '1px solid rgba(202, 164, 94, .45)',
+    borderBottom: '1px solid rgba(202, 164, 94, .45)',
     padding: '35px',
     minHeight: '350px',
     display: 'flex',
@@ -2065,7 +2325,7 @@ export const websiteSx = {
     },
     '& p': {
       fontSize: '13px',
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.62)',
       margin: '0',
     },
     '@media (max-width: 800px)': {
@@ -2075,18 +2335,18 @@ export const websiteSx = {
     },
   },
   'sb-plan-facts': {
-    borderTop: '1px solid var(--sb-line)',
+    borderTop: '1px solid rgba(255,255,255,.28)',
     margin: '35px 0 30px',
     '& > div': {
       display: 'flex',
       justifyContent: 'space-between',
       gap: '15px',
-      borderBottom: '1px solid var(--sb-line)',
+      borderBottom: '1px solid rgba(255,255,255,.28)',
       padding: '14px 0',
       fontSize: '14px',
     },
     '& span': {
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.62)',
     },
     '& strong': {
       fontWeight: '600',
@@ -2278,7 +2538,7 @@ export const websiteSx = {
     '& > p': {
       fontSize: '17px',
       lineHeight: '1.7',
-      color: 'var(--sb-muted)',
+      color: 'rgba(255,255,255,.68)',
       maxWidth: '400px',
     },
     '& dl': {
@@ -2286,7 +2546,7 @@ export const websiteSx = {
     },
     '& dl > div': {
       padding: '16px 0',
-      borderTop: '1px solid var(--sb-line)',
+      borderTop: '1px solid rgba(255,255,255,.28)',
     },
     '& dt': {
       fontSize: '12px',

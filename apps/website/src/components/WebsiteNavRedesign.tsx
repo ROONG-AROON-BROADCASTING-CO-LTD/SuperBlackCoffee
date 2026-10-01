@@ -22,11 +22,10 @@ export function WebsiteNav() {
   const [open, setOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [language, setLanguage] = useState<'TH' | 'EN'>('TH');
-  const isHome = pathname === '/';
-  const isTransparent = isHome && !isScrolled && !open;
+  const isTransparent = !isScrolled && !open;
 
   useEffect(() => {
-    const updateScrolledState = () => setIsScrolled(window.scrollY > 8);
+    const updateScrolledState = () => setIsScrolled(window.scrollY > 0);
 
     updateScrolledState();
     window.addEventListener('scroll', updateScrolledState, { passive: true });
@@ -38,10 +37,11 @@ export function WebsiteNav() {
       component="header"
       sx={[
         websiteSx['sb-header'],
-        isHome && websiteSx['sb-header-overlay'],
+        websiteSx['sb-header-overlay'],
         isTransparent && websiteSx['sb-header-transparent'],
+        isScrolled && websiteSx['sb-header-condensed'],
       ]}
-      className="sb-header"
+      className={`sb-header ${isScrolled ? 'sb-header-condensed' : ''}`}
     >
       <Box component="div" sx={[websiteSx['sb-topbar']]} className="sb-topbar">
         <span>กาแฟไทย · พลังงานสะอาด · ทุกการเดินทาง</span>

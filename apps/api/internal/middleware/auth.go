@@ -28,10 +28,15 @@ func RequireSessionRole(role string) gin.HandlerFunc {
 
 func RequireAuth(secret string, roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		rawTokens := []string{strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")}
+		rawTokens := []string{}
 		cookieNames := []string{"sbc_admin_session", "sbc_franchise_session", "sbc_attendance_session", "sbc_stock_session"}
 		sessionRole, _ := c.Get("requiredSessionRole")
 		sessionRoleValue, _ := sessionRole.(string)
+		// A route pinned with RequireSessionRole must authenticate through that
+		// cookie, even when the caller also supplies a valid Bearer token.
+		if sessionRoleValue == "" {
+			rawTokens = append(rawTokens, strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer "))
+		}
 		if sessionRoleValue == "" {
 			sessionRoleValue = c.GetHeader("X-SBC-Session-Role")
 		}

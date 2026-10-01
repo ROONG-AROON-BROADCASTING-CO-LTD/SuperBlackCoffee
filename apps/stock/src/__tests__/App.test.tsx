@@ -105,9 +105,13 @@ vi.mock('../routes/StockPageRouter', () => ({
     page,
     cartOpen,
     onOrderIngredients,
+    isInitialLoading,
+    expiryPromotionSuggestions,
   }: {
     page: string;
     cartOpen: boolean;
+    isInitialLoading: boolean;
+    expiryPromotionSuggestions: unknown[];
     onOrderIngredients: (item: {
       id: number;
       name: string;
@@ -122,6 +126,12 @@ vi.mock('../routes/StockPageRouter', () => ({
     <div>
       <div data-testid="stock-page">{page}</div>
       <output data-testid="cart-open">{String(cartOpen)}</output>
+      <output data-testid="stock-initial-loading">
+        {String(isInitialLoading)}
+      </output>
+      <output data-testid="stock-suggestion-count">
+        {expiryPromotionSuggestions.length}
+      </output>
       <button
         onClick={() =>
           onOrderIngredients({
@@ -225,6 +235,29 @@ describe('Stock App session and loading', () => {
     expect(listMyStockMovements).toHaveBeenCalledTimes(2);
     expect(listMenuItems).toHaveBeenCalledTimes(2);
     expect(listExpiryPromotionSuggestions).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not block stock work when optional promotion suggestions fail', async () => {
+    vi.mocked(listExpiryPromotionSuggestions).mockRejectedValueOnce(
+      new Error('suggestions temporarily unavailable'),
+    );
+
+    render(<App />);
+
+    expect((await screen.findByTestId('stock-page')).textContent).toBe('sales');
+    await waitFor(() => {
+      expect(listInventory).toHaveBeenCalledTimes(3);
+      expect(listMenuItems).toHaveBeenCalledOnce();
+      expect(listMyStockMovements).toHaveBeenCalledOnce();
+      expect(listExpiryPromotionSuggestions).toHaveBeenCalledOnce();
+      expect(screen.getByTestId('stock-retry-open').textContent).toBe('false');
+      expect(screen.getByTestId('stock-initial-loading').textContent).toBe(
+        'false',
+      );
+      expect(screen.getByTestId('stock-suggestion-count').textContent).toBe(
+        '0',
+      );
+    });
   });
 
   it.each([401, 403])(

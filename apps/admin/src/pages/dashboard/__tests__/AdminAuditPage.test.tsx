@@ -1,4 +1,10 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdminAuditPage } from '../AdminAuditPage';
 import { useAuditEvents } from '../../../hooks/useAuditEvents';
@@ -124,5 +130,41 @@ describe('AdminAuditPage', () => {
         'ไม่สามารถโหลดประวัติได้ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ',
       ),
     ).toBeTruthy();
+  });
+
+  it('filters audit rows by actor without leaving another branch action visible', async () => {
+    vi.mocked(useAuditEvents).mockReturnValue({
+      data: [
+        {
+          ...eventBase,
+          id: 1,
+          actorName: 'Alpha Manager',
+          action: 'created',
+          entityType: 'inventory_item',
+        },
+        {
+          ...eventBase,
+          id: 2,
+          branchId: 2,
+          branchName: 'พิษณุโลก',
+          actorName: 'Beta Manager',
+          action: 'deleted',
+          entityType: 'inventory_item',
+        },
+      ],
+      error: null,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useAuditEvents>);
+
+    render(<AdminAuditPage />);
+    expect(screen.getByText('Alpha Manager')).toBeTruthy();
+    expect(screen.getByText('Beta Manager')).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText('ค้นหาการทำรายการ'), {
+      target: { value: 'Alpha' },
+    });
+
+    await waitFor(() => expect(screen.queryByText('Beta Manager')).toBeNull());
+    expect(screen.getByText('Alpha Manager')).toBeTruthy();
   });
 });
