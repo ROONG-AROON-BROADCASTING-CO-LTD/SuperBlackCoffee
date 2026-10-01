@@ -4,33 +4,73 @@ import Box from '@mui/material/Box';
 import { websiteSx } from './websiteSx';
 import Link from 'next/link';
 import Image from 'next/image';
-import { franchiseLoginUrl } from './franchise-login-url';
+import { ArrowUpRightIcon } from '@stackbuild/ui/icons';
+
+function FooterArrow() {
+  return (
+    <ArrowUpRightIcon
+      aria-hidden="true"
+      className="sb-animated-arrow"
+      size={20}
+    />
+  );
+}
 
 export function WebsiteFooter() {
   return (
     <Box component="footer" sx={[websiteSx['sb-footer']]} className="sb-footer">
       <Box
         component="div"
+        sx={[websiteSx['sb-footer-rail']]}
+        className="sb-footer-rail"
+      />
+      <Box
+        component="div"
         sx={[websiteSx['sb-footer-main'], websiteSx['sb-container']]}
         className="sb-footer-main sb-container"
       >
         <Box
-          component={Link}
-          sx={[websiteSx['sb-footer-brand']]}
-          className="sb-footer-brand"
-          href="/"
+          component="div"
+          sx={[websiteSx['sb-footer-brand-column']]}
+          className="sb-footer-brand-column"
         >
-          <Image
-            src="/brand/superblackcoffee-logo.png"
-            alt=""
-            width={58}
-            height={58}
-          />
-          <span>
-            SUPER BLACK
-            <br />
-            COFFEE
-          </span>
+          <Box
+            component={Link}
+            sx={[websiteSx['sb-footer-brand']]}
+            className="sb-footer-brand"
+            href="/"
+          >
+            <Image
+              src="/brand/superblackcoffee-logo.png"
+              alt=""
+              width={58}
+              height={58}
+            />
+            <Box
+              component="span"
+              sx={[websiteSx['sb-footer-brand-title']]}
+              className="sb-footer-brand-title"
+            >
+              SUPER BLACK COFFEE
+            </Box>
+          </Box>
+          <Box
+            component="div"
+            sx={[websiteSx['sb-footer-brand-copy']]}
+            className="sb-footer-brand-copy"
+          >
+            <p>
+              กาแฟไทย พลังสะอาด และพื้นที่ที่ออกแบบมา เพื่อทุกการเดินทางของคุณ
+            </p>
+            <Box
+              component={Link}
+              sx={[websiteSx['sb-footer-branch-link']]}
+              href="/branches"
+              className="sb-footer-branch-link"
+            >
+              ค้นหาสาขาใกล้คุณ <FooterArrow />
+            </Box>
+          </Box>
         </Box>
         <Box
           component="div"
@@ -46,17 +86,16 @@ export function WebsiteFooter() {
           <div>
             <span>ธุรกิจ</span>
             <Link href="/franchise">แฟรนไชส์</Link>
-            <a href={franchiseLoginUrl}>เข้าสู่ระบบแฟรนไชส์</a>
             <Link href="/services">บริการของเรา</Link>
             <Link href="/contact">ติดต่อทีมงาน</Link>
           </div>
           <div>
             <span>ติดต่อเรา</span>
-            <a href="tel:021234567">02-123-4567</a>
-            <a href="mailto:hello@superblackcoffee.co.th">
-              hello@superblackcoffee.co.th
+            <a href="tel:+6629707552">02-970-7552</a>
+            <a href="mailto:all.superblackcoffee@gmail.com">
+              all.superblackcoffee@gmail.com
             </a>
-            <span>จันทร์–ศุกร์ 09:00–18:00 น.</span>
+            <span>เปิดทุกวัน 08:00 - 22:00 น.</span>
           </div>
         </Box>
       </Box>

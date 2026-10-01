@@ -43,6 +43,44 @@ export function WebsiteNav() {
       ]}
       className="sb-header"
     >
+      <Box component="div" sx={[websiteSx['sb-topbar']]} className="sb-topbar">
+        <span>กาแฟไทย · พลังงานสะอาด · ทุกการเดินทาง</span>
+        <Box
+          component="div"
+          className="sb-topbar-contact"
+          aria-label="ช่องทางติดต่อ"
+        >
+          <Box
+            component="a"
+            className="sb-topbar-social"
+            href="https://www.facebook.com/profile.php?id=61573117743066"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Facebook"
+          >
+            <Image
+              src="/brand/facebook.svg"
+              alt="Facebook"
+              width={16}
+              height={16}
+            />
+          </Box>
+          <Box component="span" className="sb-topbar-social">
+            <Image
+              src="/brand/instagram.svg"
+              alt="Instagram"
+              width={16}
+              height={16}
+            />
+          </Box>
+          <Box component="span" className="sb-topbar-social">
+            <Image src="/brand/line.svg" alt="LINE" width={16} height={16} />
+          </Box>
+          <a className="sb-topbar-phone" href="tel:+6629707552">
+            02-970-7552
+          </a>
+        </Box>
+      </Box>
       <Box
         component="nav"
         sx={[websiteSx['sb-nav']]}

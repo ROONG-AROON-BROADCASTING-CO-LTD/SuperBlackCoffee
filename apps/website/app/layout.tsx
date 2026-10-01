@@ -53,12 +53,12 @@ export default function RootLayout({
     <html
       lang="th"
       className={`${kanit.variable} ${inter.variable}`}
-      style={{ backgroundColor: '#171914' }}
+      style={{ backgroundColor: '#000' }}
     >
       <head>
-        <style>{'html,body{margin:0;background:#171914!important;}'}</style>
+        <style>{'html,body{margin:0;background:#000!important;}'}</style>
       </head>
-      <body style={{ backgroundColor: '#171914' }}>
+      <body style={{ backgroundColor: '#000' }}>
         <GoogleAnalytics />
         <AppRouterCacheProvider>
           <WebsiteThemeProvider>{children}</WebsiteThemeProvider>

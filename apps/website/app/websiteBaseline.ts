@@ -2,7 +2,7 @@
 export const websiteBaseline = {
   ':root': {
     colorScheme: 'light',
-    '--sb-black': '#11120f',
+    '--sb-black': '#000',
     '--sb-ink': '#1b1c18',
     '--sb-white': '#fff',
     '--sb-gold': '#c7a467',
@@ -25,7 +25,7 @@ export const websiteBaseline = {
     margin: '0',
     padding: '0',
     minWidth: '320px',
-    background: '#171914',
+    background: '#000',
     fontFamily: 'var(--font-kanit), sans-serif',
     color: 'var(--sb-ink)',
     textRendering: 'optimizeLegibility',
@@ -54,6 +54,17 @@ export const websiteBaseline = {
   '::selection': {
     background: '#d09a3f',
     color: '#171411',
+  },
+  '@keyframes sb-arrow-up-right-hover': {
+    '0%, 100%': {
+      transform: 'translate(0, 0) scale(1)',
+    },
+    '42%': {
+      transform: 'translate(3px, -3px) scale(0.88)',
+    },
+  },
+  'a:hover .sb-animated-arrow, button:hover .sb-animated-arrow': {
+    animation: 'sb-arrow-up-right-hover 480ms cubic-bezier(0.4, 0, 0.2, 1)',
   },
   '@media (prefers-reduced-motion: reduce)': {
     '*': {

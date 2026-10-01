@@ -93,19 +93,19 @@ export function WebsiteFooter() {
           <Typography sx={{ color: '#d09a3f', fontWeight: 700 }}>
             ติดต่อเรา
           </Typography>
-          <a href="tel:021234567" style={{ color: 'rgba(255,255,255,.68)' }}>
-            02-123-4567
+          <a href="tel:+6629707552" style={{ color: 'rgba(255,255,255,.68)' }}>
+            02-970-7552
           </a>
           <a
-            href="mailto:hello@superblackcoffee.co.th"
+            href="mailto:all.superblackcoffee@gmail.com"
             style={{ color: 'rgba(255,255,255,.68)' }}
           >
-            hello@superblackcoffee.co.th
+            all.superblackcoffee@gmail.com
           </a>
           <Typography
             sx={{ color: 'rgba(255,255,255,.42)', fontSize: 13, mt: 0.5 }}
           >
-            จันทร์–ศุกร์ 09:00–18:00 น.
+            เปิดทุกวัน 08:00 - 22:00 น.
           </Typography>
         </Box>
       </Box>

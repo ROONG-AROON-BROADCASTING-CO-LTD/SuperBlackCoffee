@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import {
+  ArrowUpRightIcon,
   BadgeIcon,
   BoxIcon,
   CoffeeIcon,
@@ -210,17 +211,11 @@ function HeroStatIcon({
 
 function Arrow() {
   return (
-    <svg
+    <ArrowUpRightIcon
       aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 12h15m-6-6 6 6-6 6" />
-    </svg>
+      className="sb-animated-arrow"
+      size={24}
+    />
   );
 }
 
@@ -229,11 +224,13 @@ function Photo({
   alt,
   className = '',
   priority = false,
+  position = 'center',
 }: {
   src: string;
   alt: string;
   className?: string;
   priority?: boolean;
+  position?: string;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -244,7 +241,7 @@ function Photo({
         websiteSx['sb-photo'],
         {
           backgroundImage: `url("${src}")`,
-          backgroundPosition: 'center',
+          backgroundPosition: position,
           backgroundRepeat: 'no-repeat',
           backgroundSize: 'cover',
         },
@@ -264,7 +261,7 @@ function Photo({
         decoding="sync"
         sizes="(max-width: 800px) 100vw, 60vw"
         onLoad={() => setIsLoaded(true)}
-        style={{ opacity: isLoaded ? 1 : 0 }}
+        style={{ opacity: isLoaded ? 1 : 0, objectPosition: position }}
       />
     </Box>
   );
@@ -401,7 +398,6 @@ function BranchRow({
 
 export function HomeContent() {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null);
-
   return (
     <>
       <Box
@@ -409,12 +405,23 @@ export function HomeContent() {
         sx={[websiteSx['sb-home-hero']]}
         className="sb-home-hero"
       >
-        <Photo
-          src="/hero/superblackcoffee-brand-hero.png?v=20260930"
-          alt="ร้าน Super Black Coffee และจุดชาร์จ EV"
-          className="sb-home-hero-photo"
-          priority
-        />
+        <Box
+          component="video"
+          sx={[websiteSx['sb-home-hero-video']]}
+          className="sb-home-hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/hero/superblackcoffee-brand-hero.png?v=20260930"
+          aria-label="วิดีโอบรรยากาศร้าน Super Black Coffee"
+        >
+          <source
+            src="/hero/superblackcoffee-hero-night.mp4"
+            type="video/mp4"
+          />
+        </Box>
         <Box
           component="div"
           sx={[websiteSx['sb-home-hero-shade']]}
@@ -458,13 +465,6 @@ export function HomeContent() {
           </Box>
         </Box>
         <Box
-          component="span"
-          sx={[websiteSx['sb-hero-side-note']]}
-          className="sb-hero-side-note"
-        >
-          SUPER BLACK COFFEE · EVERY JOURNEY
-        </Box>
-        <Box
           component="nav"
           aria-label="บริการของ Super Black Coffee"
           sx={[websiteSx['sb-hero-services']]}
@@ -476,13 +476,7 @@ export function HomeContent() {
               href={card.href}
               key={card.title}
               sx={[websiteSx['sb-hero-service-card']]}
-              className={`sb-hero-service-card ${
-                card.title === 'EV CHARGING'
-                  ? 'sb-hero-service-card-ev'
-                  : card.title === 'BPOST65 EXPRESS'
-                    ? 'sb-hero-service-card-bpost'
-                    : ''
-              }`}
+              className={`sb-hero-service-card ${card.title === 'EV CHARGING' ? 'sb-hero-service-card-ev' : card.title === 'BPOST65 EXPRESS' ? 'sb-hero-service-card-bpost' : ''}`}
             >
               <Photo src={card.image} alt="" />
               <Box component="div" className="sb-hero-service-card-copy">
@@ -504,7 +498,6 @@ export function HomeContent() {
       >
         {heroStats.map((stat) => {
           const isHovered = hoveredStat === stat.label;
-
           return (
             <Box
               component="article"
@@ -529,187 +522,293 @@ export function HomeContent() {
         })}
       </Box>
       <Box
-        component="section"
-        sx={[websiteSx['sb-story-strip'], websiteSx['sb-container']]}
-        className="sb-story-strip sb-container"
+        component="div"
+        sx={[websiteSx['sb-home-editorial']]}
+        className="sb-home-editorial"
       >
         <Box
-          component="div"
-          sx={[websiteSx['sb-story-title']]}
-          className="sb-story-title"
+          component="section"
+          sx={[websiteSx['sb-story-strip']]}
+          className="sb-story-strip"
         >
-          <Box
-            component="span"
-            sx={[websiteSx['sb-rule']]}
-            className="sb-rule"
+          <Box component="div" className="sb-story-copy">
+            <h2>
+              มากกว่ากาแฟ
+              <br />
+              <span>คือพลังในทุกวัน</span>
+            </h2>
+            <p>
+              เราเชื่อว่ากาแฟหนึ่งแก้ว สามารถจุดพลังให้วันธรรมดา
+              กลายเป็นวันที่พิเศษได้ Super Black Coffee
+              จึงคัดสรรเมล็ดกาแฟคุณภาพระดับพรีเมียม สร้างสรรค์รสชาติที่จริงใจ
+              สำหรับคนที่มองหามากกว่าความอร่อย แต่คือแรงบันดาลใจในทุกวัน
+            </p>
+            <Box
+              component={Link}
+              sx={[
+                websiteSx['sb-editorial-link'],
+                websiteSx['sb-editorial-cta'],
+              ]}
+              className="sb-editorial-link sb-editorial-cta"
+              href="/about"
+            >
+              อ่านเรื่องราวของเรา <Arrow />
+            </Box>
+          </Box>
+          <Photo
+            src="/coffee/coffee-story-amber.png"
+            alt="กาแฟดำพรีเมียม Super Black Coffee"
           />
-          <h2>
-            แรงบันดาลใจจากกาแฟไทย
-            <br />
-            สู่พื้นที่เพื่อทุกการเดินทาง
-          </h2>
         </Box>
-        <p>
-          Super Black Coffee คือพื้นที่ที่กาแฟคุณภาพ พลังงานสะอาด และการเดินทาง
-          มาบรรจบกัน เราเชื่อในศักยภาพของกาแฟไทย และเชื่อว่าการเดินทางที่ดี
-          เริ่มต้นจากพลังดี ๆ ในทุกช่วงเวลา
-        </p>
-        <Photo
-          src="/coffee/coffee-cup-gallery.png"
-          alt="กาแฟ Super Black Coffee"
-        />
-      </Box>
-      <Box
-        component="section"
-        sx={[websiteSx['sb-menu-feature']]}
-        className="sb-menu-feature"
-      >
-        <Photo
-          src="/services/superblackcoffee-service-coffee.png"
-          alt="เครื่องดื่มกาแฟ Super Black Coffee"
-        />
         <Box
-          component="div"
-          sx={[websiteSx['sb-menu-feature-copy']]}
-          className="sb-menu-feature-copy"
+          component="section"
+          sx={[websiteSx['sb-menu-feature']]}
+          className="sb-menu-feature"
         >
           <Box
-            component="span"
-            sx={[websiteSx['sb-rule']]}
-            className="sb-rule"
-          />
-          <h2>
-            มากกว่ากาแฟ
-            <br />
-            เพื่อไลฟ์สไตล์ของคุณ
-          </h2>
-          <p>
-            สัมผัสกาแฟคุณภาพจากเมล็ดกาแฟไทย คัดสรรอย่างพิถีพิถัน
-            พร้อมเมนูที่รังสรรค์ให้ตอบโจทย์ทุกช่วงเวลาของการเดินทาง
-          </p>
-          <Box
-            component={Link}
-            sx={[websiteSx['sb-button'], websiteSx['sb-button-gold']]}
-            className="sb-button sb-button-gold"
-            href="/menu"
+            component="div"
+            sx={[websiteSx['sb-menu-feature-copy']]}
+            className="sb-menu-feature-copy"
           >
-            ดูเมนูทั้งหมด <Arrow />
+            <h2>
+              กาแฟพรีเมียม
+              <br />
+              <span>สำหรับทุกโมเมนต์</span>
+            </h2>
+            <p>
+              สัมผัสกาแฟคุณภาพ คัดสรรเมล็ดพันธุ์ระดับพรีเมียม
+              รังสรรค์เป็นเมนูหลากหลาย ตอบโจทย์ทุกไลฟ์สไตล์
+            </p>
+            <Box
+              component={Link}
+              sx={[
+                websiteSx['sb-button'],
+                websiteSx['sb-button-gold'],
+                websiteSx['sb-editorial-cta'],
+              ]}
+              className="sb-button sb-button-gold sb-editorial-cta"
+              href="/menu"
+            >
+              ดูเมนูทั้งหมด <Arrow />
+            </Box>
+          </Box>
+          <Box
+            component="div"
+            sx={[websiteSx['sb-menu-feature-mini']]}
+            className="sb-menu-feature-mini"
+          >
+            <Box component={Link} href="/menu">
+              <Photo
+                src="/coffee/menu-card-black-latte.png"
+                alt="ซิกเนเจอร์แบล็คลาเต้"
+              />
+              <span>
+                SIGNATURE
+                <br />
+                BLACK LATTE
+              </span>
+            </Box>
+            <Box component={Link} href="/menu">
+              <Photo
+                src="/coffee/menu-card-black-coffee.png"
+                alt="กาแฟคลาสสิก"
+              />
+              <span>
+                CLASSIC
+                <br />
+                BLACK COFFEE
+              </span>
+            </Box>
+            <Box component={Link} href="/menu">
+              <Photo src="/coffee/menu-card-matcha.png" alt="เมนูพรีเมียม" />
+              <span>
+                PREMIUM
+                <br />
+                SPECIALTY
+              </span>
+            </Box>
+            <Box component={Link} href="/menu">
+              <Photo src="/coffee/menu-card-bakery.png" alt="เบเกอรี่สดใหม่" />
+              <span>
+                FRESHLY
+                <br />
+                BAKED
+              </span>
+            </Box>
           </Box>
         </Box>
         <Box
-          component="div"
-          sx={[websiteSx['sb-menu-feature-mini']]}
-          className="sb-menu-feature-mini"
+          component="section"
+          sx={[websiteSx['sb-services-preview']]}
+          className="sb-services-preview"
         >
           <Photo
-            src="/services/superblackcoffee-service-bakery.png"
-            alt="เบเกอรี่"
+            src="/services/service-journey-interior.png"
+            alt="บรรยากาศภายในร้าน Super Black Coffee"
+            className="sb-services-photo"
           />
-          <Photo src="/coffee/coffee-bean-ingredients.png" alt="เมล็ดกาแฟ" />
-        </Box>
-      </Box>
-      <Box
-        component="section"
-        sx={[websiteSx['sb-services-preview'], websiteSx['sb-container']]}
-        className="sb-services-preview sb-container"
-      >
-        <SectionHeading
-          text="ทุกพื้นที่ออกแบบให้ตอบโจทย์ทั้งการพักผ่อนและการเดินทาง"
-          link="/services"
-          linkText="ดูบริการทั้งหมด"
-        >
-          ครบที่สุดในที่เดียว
-          <br />
-          ทั้งกาแฟ และพลังงานสะอาด
-        </SectionHeading>
-        <Box
-          component="div"
-          sx={[websiteSx['sb-services-grid']]}
-          className="sb-services-grid"
-        >
-          <Link href="/services">
-            <Photo src="/coffee/coffee-storefront.png" alt="พื้นที่ร้านกาแฟ" />
-            <div>
-              <h3>กาแฟคุณภาพ</h3>
-              <p>พื้นที่สำหรับคนรักกาแฟในบรรยากาศที่ผ่อนคลาย</p>
-              <Arrow />
-            </div>
-          </Link>
-          <Link href="/services">
+          <Box component="div" className="sb-services-intro">
+            <h2>
+              มากกว่ากาแฟ
+              <br />
+              <span>เพื่อทุกการเดินทาง</span>
+            </h2>
+            <p>
+              เติมพลังให้ทุกวัน ด้วยกาแฟระดับพรีเมียม พื้นที่ที่รังสรรค์เพื่อคุณ
+              และบริการพร้อมออกเดินทางต่อ
+            </p>
+            <Box component="div" className="sb-services-benefits">
+              <Box component="div">
+                <CoffeeIcon size={25} />
+                <span>
+                  กาแฟพรีเมียม
+                  <br />
+                  รสชาติอันเป็นเอกลักษณ์
+                </span>
+              </Box>
+              <Box component="div">
+                <CoffeeIcon size={25} />
+                <span>
+                  พื้นที่นั่งสบาย
+                  <br />
+                  ทำงานหรือพักผ่อนได้
+                </span>
+              </Box>
+              <Box component="div">
+                <UsersIcon size={25} />
+                <span>
+                  พบเจอผู้คนดี
+                  <br />
+                  ทุกช่วงเวลา
+                </span>
+              </Box>
+              <Box component="div">
+                <EvChargerIcon size={25} />
+                <span>
+                  Wi-Fi ฟรี
+                  <br />
+                  รองรับทุกไลฟ์สไตล์
+                </span>
+              </Box>
+            </Box>
+          </Box>
+          <Box component="div" className="sb-ev-showcase">
             <Photo
-              src="/services/superblackcoffee-service-ev-charging.png"
-              alt="จุดชาร์จ EV"
+              src="/services/service-ev-night.png"
+              alt="จุดชาร์จ EV Super Black Coffee"
             />
-            <div>
-              <h3>EV Charging</h3>
-              <p>เติมพลังให้ทุกการเดินทาง ด้วยสถานีชาร์จมาตรฐาน</p>
-              <Arrow />
-            </div>
-          </Link>
+            <Box component="div" className="sb-ev-showcase-copy">
+              <h3>
+                ชาร์จพลังรถ
+                <br />
+                <span>พร้อมชาร์จพลังให้ตัวคุณ</span>
+              </h3>
+              <p>
+                บริการ EV Charging กับมาตรการชาร์จพลังไฟฟ้า
+                ให้คุณเติมพลังได้ทั้งการเดินทาง
+                และยังมีมุมรอพักพร้อมกาแฟแก้วโปรด
+              </p>
+              <Box
+                component={Link}
+                sx={[
+                  websiteSx['sb-button'],
+                  websiteSx['sb-button-gold'],
+                  websiteSx['sb-editorial-cta'],
+                ]}
+                className="sb-button sb-button-gold sb-editorial-cta"
+                href="/services"
+              >
+                ดูบริการ EV Charging <Arrow />
+              </Box>
+            </Box>
+            <Box component="div" className="sb-ev-showcase-points">
+              <Box component="div">
+                <EvChargerIcon size={25} />
+                <span>
+                  หัวชาร์จมาตรฐาน
+                  <br />
+                  รองรับรถหลากหลายรุ่น
+                </span>
+              </Box>
+              <Box component="div">
+                <CoffeeIcon size={25} />
+                <span>
+                  สะดวก ปลอดภัย
+                  <br />
+                  พร้อมเดินทางต่อ
+                </span>
+              </Box>
+              <Box component="div">
+                <CoffeeIcon size={25} />
+                <span>
+                  เติมพลังระหว่างรอ
+                  <br />
+                  ด้วยกาแฟคุณภาพ
+                </span>
+              </Box>
+            </Box>
+          </Box>
         </Box>
-      </Box>
-      <Box
-        component="section"
-        sx={[websiteSx['sb-branch-banner']]}
-        className="sb-branch-banner"
-      >
-        <Photo
-          src="/hero/superblackcoffee-brand-hero.png?v=20260930"
-          alt="ร้าน Super Black Coffee"
-        />
-        <div>
-          <Box
-            component="span"
-            sx={[websiteSx['sb-rule']]}
-            className="sb-rule"
+        <Box
+          component="section"
+          sx={[websiteSx['sb-branch-banner']]}
+          className="sb-branch-banner"
+        >
+          <Photo
+            src="/branches/branch-night-exterior.png"
+            alt="ร้าน Super Black Coffee"
           />
-          <h2>ค้นหาสาขาใกล้คุณ</h2>
-          <p>
-            พบ Super Black Coffee ในเส้นทางของคุณ ทั้งร้านกาแฟและสถานีชาร์จ EV
-          </p>
-          <Box
-            component={Link}
-            sx={[websiteSx['sb-button'], websiteSx['sb-button-outline-light']]}
-            className="sb-button sb-button-outline-light"
-            href="/branches"
-          >
-            ดูสาขาทั้งหมด <Arrow />
-          </Box>
-        </div>
-      </Box>
-      <Box
-        component="section"
-        sx={[websiteSx['sb-franchise-preview'], websiteSx['sb-container']]}
-        className="sb-franchise-preview sb-container"
-      >
-        <div>
-          <Box
-            component="span"
-            sx={[websiteSx['sb-rule']]}
-            className="sb-rule"
+          <div>
+            <h2>ค้นหาสาขาใกล้คุณ</h2>
+            <p>หรือเลือกดูสาขาทั้งหมด เพื่อวางแผนการเดินทางในครั้งต่อไป</p>
+            <Box
+              component={Link}
+              sx={[
+                websiteSx['sb-button'],
+                websiteSx['sb-button-outline-light'],
+                websiteSx['sb-editorial-cta'],
+              ]}
+              className="sb-button sb-button-outline-light sb-editorial-cta"
+              href="/branches"
+            >
+              ค้นหาสาขา <Arrow />
+            </Box>
+          </div>
+        </Box>
+        <Box
+          component="section"
+          sx={[websiteSx['sb-franchise-preview']]}
+          className="sb-franchise-preview"
+        >
+          <div>
+            <h2>
+              ร่วมเติบโตไปด้วยกัน
+              <br />
+              <span>กับ Super Black Coffee</span>
+            </h2>
+            <p>
+              โอกาสในการเป็นส่วนหนึ่งของแบรนด์กาแฟที่พร้อมเติบโตไปกับคุณ
+              ร่วมสร้างประสบการณ์กาแฟคุณภาพ และไลฟ์สไตล์ที่มากกว่า กับเรา
+            </p>
+            <Box
+              component={Link}
+              sx={[
+                websiteSx['sb-button'],
+                websiteSx['sb-button-dark'],
+                websiteSx['sb-editorial-cta'],
+              ]}
+              className="sb-button sb-button-dark sb-editorial-cta"
+              href="/franchise"
+            >
+              สำรวจแฟรนไชส์ <Arrow />
+            </Box>
+          </div>
+          <Photo
+            src="/franchise/franchise-coffee-cup.png"
+            alt="รูปแบบแฟรนไชส์ Super Black Coffee"
+            position="center 30%"
           />
-          <h2>
-            ร่วมเป็นส่วนหนึ่ง
-            <br />
-            ของการเติบโตไปด้วยกัน
-          </h2>
-          <p>
-            มาร่วมสร้างประสบการณ์กาแฟไทย ควบคู่กับพลังงานสะอาด
-            ไปยังอีกหลายเส้นทางทั่วประเทศ
-          </p>
-          <Box
-            component={Link}
-            sx={[websiteSx['sb-button'], websiteSx['sb-button-dark']]}
-            className="sb-button sb-button-dark"
-            href="/franchise"
-          >
-            สำรวจแฟรนไชส์ <Arrow />
-          </Box>
-        </div>
-        <Photo
-          src="/franchise/superblackcoffee-franchise-m.png"
-          alt="รูปแบบแฟรนไชส์ Super Black Coffee"
-        />
+        </Box>
       </Box>
     </>
   );
@@ -1338,14 +1437,14 @@ export function ContactContent() {
             <div>
               <dt>โทรศัพท์</dt>
               <dd>
-                <a href="tel:021234567">02-123-4567</a>
+                <a href="tel:+6629707552">02-970-7552</a>
               </dd>
             </div>
             <div>
               <dt>อีเมล</dt>
               <dd>
-                <a href="mailto:hello@superblackcoffee.co.th">
-                  hello@superblackcoffee.co.th
+                <a href="mailto:all.superblackcoffee@gmail.com">
+                  all.superblackcoffee@gmail.com
                 </a>
               </dd>
             </div>

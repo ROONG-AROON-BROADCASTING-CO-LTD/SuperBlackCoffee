@@ -1737,12 +1737,12 @@ export function ContactContent() {
           <Typography>
             <b>โทรศัพท์</b>
             <br />
-            02-123-4567
+            02-970-7552
           </Typography>
           <Typography>
             <b>อีเมล</b>
             <br />
-            hello@superblackcoffee.co.th
+            all.superblackcoffee@gmail.com
           </Typography>
         </Stack>
         <Box component="form" sx={{ display: 'grid', gap: 2 }}>
