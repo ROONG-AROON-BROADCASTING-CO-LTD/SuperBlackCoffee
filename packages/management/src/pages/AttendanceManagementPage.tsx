@@ -22,8 +22,11 @@ import {
 } from '../utils/exportCalendarPdf';
 
 const timeFormatter = new Intl.DateTimeFormat('th-TH', {
+  timeZone: 'Asia/Bangkok',
   hour: '2-digit',
   minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
 });
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const displayTime = (value: string | null) =>
@@ -145,6 +148,13 @@ function isSameDay(first: Date, second: Date) {
   );
 }
 
+function isPastDay(day: Date, today: Date) {
+  return (
+    new Date(day.getFullYear(), day.getMonth(), day.getDate()) <
+    new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  );
+}
+
 function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -153,19 +163,39 @@ const bangkokTime = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Bangkok',
   hour: '2-digit',
   minute: '2-digit',
+  second: '2-digit',
   hourCycle: 'h23',
 });
 
-function toMinutes(value: string) {
-  const [hours, minutes] = value.split(':').map(Number);
-  return hours * 60 + minutes;
+function toSeconds(value: string) {
+  const [hours, minutes, seconds = 0] = value.split(':').map(Number);
+  return hours * 60 * 60 + minutes * 60 + seconds;
 }
 
 function checkInIsLate(checkInAt: string, startsAt: string) {
   return (
-    toMinutes(bangkokTime.format(new Date(checkInAt))) >
-    toMinutes(startsAt) + 10
+    toSeconds(bangkokTime.format(new Date(checkInAt))) >
+    toSeconds(startsAt) + 10 * 60
   );
+}
+
+function isWorkingShift(shift: StaffShift) {
+  return shift.status === 'scheduled' || shift.status === 'compensatory_work';
+}
+
+function nonWorkingShiftLabel(shift: StaffShift) {
+  switch (shift.status) {
+    case 'day_off':
+      return 'วันหยุด';
+    case 'sick_leave':
+      return 'ลาป่วย';
+    case 'personal_leave':
+      return 'ลากิจ';
+    case 'leave':
+      return shift.leaveType || 'ลา';
+    default:
+      return 'ไม่มีกะทำงาน';
+  }
 }
 
 export function AttendanceManagementPage({
@@ -181,6 +211,7 @@ export function AttendanceManagementPage({
     () => getCalendarDays(calendarMonth),
     [calendarMonth],
   );
+  const today = useMemo(() => new Date(), []);
   const attendance = useQuery({
     queryKey: ['attendance-management', month],
     queryFn: () => listManagedAttendance(month),
@@ -231,7 +262,7 @@ export function AttendanceManagementPage({
       new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
     [holidays.data],
   );
-  const workingSchedulesByDate = useMemo(() => {
+  const calendarSchedulesByDate = useMemo(() => {
     const result = new Map<string, StaffShift[]>();
     if (isHeadquarters) {
       if (month !== currentMonth()) return result;
@@ -245,10 +276,9 @@ export function AttendanceManagementPage({
       for (const day of calendarDays) {
         if (monthKey(day) !== month) continue;
         const weekday = day.getDay() === 0 ? 7 : day.getDay();
-        if (!workDays.includes(weekday)) continue;
-
         const date = dateKey(day);
-        if (holidaysByDate.has(date)) continue;
+        const isWorkingDay =
+          workDays.includes(weekday) && !holidaysByDate.has(date);
         result.set(
           date,
           headquartersEmployees.map((employee) => ({
@@ -263,7 +293,7 @@ export function AttendanceManagementPage({
             date,
             startsAt: activeBranch?.opensAt ?? '09:00',
             endsAt: activeBranch?.closesAt ?? '18:00',
-            status: 'scheduled',
+            status: isWorkingDay ? 'scheduled' : 'day_off',
           })),
         );
       }
@@ -272,11 +302,6 @@ export function AttendanceManagementPage({
 
     for (const schedule of schedules.data ?? []) {
       if (schedule.branchId !== activeBranchId) continue;
-      if (
-        schedule.status !== 'scheduled' &&
-        schedule.status !== 'compensatory_work'
-      )
-        continue;
       result.set(schedule.date, [
         ...(result.get(schedule.date) ?? []),
         schedule,
@@ -312,15 +337,26 @@ export function AttendanceManagementPage({
           return {
             date: thaiDate.format(day),
             holidayName: holiday?.name,
-            entries: (workingSchedulesByDate.get(key) ?? []).map((shift) => {
+            entries: (calendarSchedulesByDate.get(key) ?? []).map((shift) => {
               const record = attendanceByShift.get(
                 `${shift.date}:${shift.userId}`,
               );
-              const status = !record?.checkInAt
-                ? 'pending'
-                : checkInIsLate(record.checkInAt, shift.startsAt)
-                  ? 'late'
-                  : 'on-time';
+              if (!isWorkingShift(shift)) {
+                return {
+                  name: shift.name,
+                  detail: nonWorkingShiftLabel(shift),
+                  tone: 'neutral' as DailyPdfEntryTone,
+                };
+              }
+              const missingTimeRecord =
+                !record?.checkInAt && isPastDay(day, today);
+              const status = missingTimeRecord
+                ? 'missing-time-record'
+                : !record?.checkInAt
+                  ? 'pending'
+                  : checkInIsLate(record.checkInAt, shift.startsAt)
+                    ? 'late'
+                    : 'on-time';
               const tone: DailyPdfEntryTone =
                 status === 'on-time'
                   ? 'success'
@@ -331,7 +367,9 @@ export function AttendanceManagementPage({
                 name: shift.name,
                 detail: record?.checkInAt
                   ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
-                  : `ยังไม่เช็กอิน · กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`,
+                  : missingTimeRecord
+                    ? 'ไม่ได้ทำการลงเวลา'
+                    : `ยังไม่เช็กอิน · กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`,
                 tone,
               };
             }),
@@ -343,7 +381,8 @@ export function AttendanceManagementPage({
       calendarDays,
       calendarMonth,
       holidaysByDate,
-      workingSchedulesByDate,
+      calendarSchedulesByDate,
+      today,
     ],
   );
   const pageLoading =
@@ -353,7 +392,6 @@ export function AttendanceManagementPage({
     branches.isLoading ||
     (isHeadquarters && month === currentMonth() && employees.isLoading);
   const showSkeleton = useMinimumLoading(pageLoading);
-  const today = new Date();
   const changeMonth = (offset: number) => {
     setMonth((current) => {
       const date = new Date(`${current}-01T00:00:00`);
@@ -583,7 +621,8 @@ export function AttendanceManagementPage({
                 {calendarDays.map((day) => {
                   const currentMonth =
                     day.getMonth() === calendarMonth.getMonth();
-                  const shifts = workingSchedulesByDate.get(dateKey(day)) ?? [];
+                  const shifts =
+                    calendarSchedulesByDate.get(dateKey(day)) ?? [];
                   const holiday = holidaysByDate.get(dateKey(day));
                   return (
                     <Box
@@ -652,21 +691,33 @@ export function AttendanceManagementPage({
                         const record = attendanceByShift.get(
                           `${shift.date}:${shift.userId}`,
                         );
-                        const status = !record?.checkInAt
-                          ? 'pending'
-                          : checkInIsLate(record.checkInAt, shift.startsAt)
-                            ? 'late'
-                            : 'on-time';
+                        const workingShift = isWorkingShift(shift);
+                        const missingTimeRecord =
+                          workingShift &&
+                          !record?.checkInAt &&
+                          isPastDay(day, today);
+                        const status = !workingShift
+                          ? 'non-working'
+                          : missingTimeRecord
+                            ? 'missing-time-record'
+                            : !record?.checkInAt
+                              ? 'pending'
+                              : checkInIsLate(record.checkInAt, shift.startsAt)
+                                ? 'late'
+                                : 'on-time';
                         const colors =
-                          status === 'pending'
-                            ? { background: '#ebe8e5', text: '#766f6a' }
-                            : status === 'late'
-                              ? { background: '#ffe4e4', text: '#b94136' }
-                              : { background: '#dff4e7', text: '#256c45' };
+                          status === 'non-working'
+                            ? { background: '#f1eeeb', text: '#746a64' }
+                            : status === 'pending' ||
+                                status === 'missing-time-record'
+                              ? { background: '#ebe8e5', text: '#766f6a' }
+                              : status === 'late'
+                                ? { background: '#ffe4e4', text: '#b94136' }
+                                : { background: '#dff4e7', text: '#256c45' };
                         return (
                           <Box
                             key={shift.id}
-                            aria-label={`${shift.name} ${status === 'pending' ? 'ยังไม่เช็กอิน' : status === 'late' ? 'มาสาย' : 'ตรงเวลา'}`}
+                            aria-label={`${shift.name} ${status === 'non-working' ? nonWorkingShiftLabel(shift) : status === 'missing-time-record' ? 'ไม่ได้ทำการลงเวลา' : status === 'pending' ? 'ยังไม่เช็กอิน' : status === 'late' ? 'มาสาย' : 'ตรงเวลา'}`}
                             sx={{
                               mt: 0.75,
                               px: 0.65,
@@ -691,11 +742,15 @@ export function AttendanceManagementPage({
                               {shift.name}
                             </Typography>
                             <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
-                              {record?.checkInAt
-                                ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
-                                : isHeadquarters
-                                  ? `เวลางาน ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`
-                                  : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
+                              {!workingShift
+                                ? nonWorkingShiftLabel(shift)
+                                : missingTimeRecord
+                                  ? 'ไม่ได้ทำการลงเวลา'
+                                  : record?.checkInAt
+                                    ? `เข้า ${displayTime(record.checkInAt)} · ออก ${displayTime(record.checkOutAt)}`
+                                    : isHeadquarters
+                                      ? `เวลางาน ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`
+                                      : `กะ ${shift.startsAt.slice(0, 5)} - ${shift.endsAt.slice(0, 5)}`}
                             </Box>
                           </Box>
                         );

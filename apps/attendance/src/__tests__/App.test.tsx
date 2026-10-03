@@ -10,6 +10,7 @@ import {
   checkIn,
   checkOut,
   getAttendanceStatus,
+  getAttendanceHistory,
   getAttendanceSummary,
   logoutAttendance,
   restoreAttendanceSession,
@@ -202,6 +203,23 @@ describe('Attendance App session', () => {
     expect(screen.queryByText('attendance-login')).toBeNull();
     expect(logoutAttendance).not.toHaveBeenCalled();
   });
+
+  it.each(['history', 'summary'])(
+    'ends the session when %s returns 401 even if status failed first with a network error',
+    async (request) => {
+      vi.mocked(getAttendanceStatus).mockRejectedValueOnce(
+        new Error('offline'),
+      );
+      vi.mocked(
+        request === 'history' ? getAttendanceHistory : getAttendanceSummary,
+      ).mockRejectedValueOnce(new ApiRequestError('expired cookie', 401));
+
+      render(<App />);
+
+      expect(await screen.findByText('attendance-login')).toBeTruthy();
+      expect(screen.queryByText('attendance-router')).toBeNull();
+    },
+  );
 
   it('disables attendance actions when today is a day off', async () => {
     render(<App />);

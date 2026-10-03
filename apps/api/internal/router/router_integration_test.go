@@ -1629,6 +1629,11 @@ func TestPurchaseOrderReceiptAddsStockAndCreatesMovement(t *testing.T) {
 	}
 	assertInventoryQuantity(t, db, inventoryID, 7)
 	var movements int
+	duplicate := requestJSON(r, http.MethodPost, "/api/v1/purchase-orders/"+strconv.FormatInt(orderID, 10)+"/receive", `{"items":[{"itemId":`+strconv.FormatInt(itemID, 10)+`,"quantity":5}]}`, token)
+	if duplicate.Code != http.StatusConflict {
+		t.Fatalf("duplicate receipt = %d: %s", duplicate.Code, duplicate.Body.String())
+	}
+	assertInventoryQuantity(t, db, inventoryID, 7)
 	if err := db.QueryRow(`SELECT COUNT(*) FROM stock_movements WHERE inventory_item_id=$1 AND movement_type='purchase_receipt'`, inventoryID).Scan(&movements); err != nil || movements != 1 {
 		t.Fatalf("purchase stock movements = %d, err = %v", movements, err)
 	}
@@ -1660,6 +1665,11 @@ func TestStockRequestLifecycleAddsInventoryAndWritesAudit(t *testing.T) {
 	}
 	assertInventoryQuantity(t, db, inventoryID, 7)
 	var actions int
+	duplicate := requestJSON(r, http.MethodPatch, "/api/v1/stock-requests/"+strconv.FormatInt(requestID, 10)+"/status", `{"status":"completed"}`, testToken(t, "admin"))
+	if duplicate.Code != http.StatusConflict {
+		t.Fatalf("duplicate completion = %d: %s", duplicate.Code, duplicate.Body.String())
+	}
+	assertInventoryQuantity(t, db, inventoryID, 7)
 	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_events WHERE entity_type='stock_request' AND entity_id=$1`, requestID).Scan(&actions); err != nil || actions != 4 {
 		t.Fatalf("audit actions = %d, err = %v", actions, err)
 	}

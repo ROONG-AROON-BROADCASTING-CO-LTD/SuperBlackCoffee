@@ -179,6 +179,13 @@ export function EmployeesManagementPage({
   const [defaultSecondShiftDays, setDefaultSecondShiftDays] = useState<
     number[]
   >([]);
+  const [dayOffPolicy, setDayOffPolicy] = useState<
+    'automatic' | 'home_branch' | 'work_branch' | 'custom'
+  >('automatic');
+  const [dayOffSourceBranchId, setDayOffSourceBranchId] = useState('');
+  const [weeklyDaysOff, setWeeklyDaysOff] = useState<number[]>([]);
+  const [customDaysOff, setCustomDaysOff] = useState<string[]>([]);
+  const [customDayOffDate, setCustomDayOffDate] = useState('');
   const [hoveredTimeField, setHoveredTimeField] = useState<
     'start' | 'end' | 'secondStart' | 'secondEnd' | null
   >(null);
@@ -313,12 +320,23 @@ export function EmployeesManagementPage({
               defaultSecondShiftDays,
             }
           : {}),
+        dayOffPolicy,
+        dayOffSourceBranchId: Number(
+          dayOffSourceBranchId || newEmployeeBranchId,
+        ),
+        weeklyDaysOff,
+        customDaysOff,
       }),
     onSuccess: () => {
       setIsEmployeeDrawerOpen(false);
       setNewEmployeeName('');
       setNewEmployeeJobTitle('');
       setNewEmployeeUsername('');
+      setDayOffPolicy('automatic');
+      setDayOffSourceBranchId('');
+      setWeeklyDaysOff([]);
+      setCustomDaysOff([]);
+      setCustomDayOffDate('');
       setActionNotice({ message: 'เพิ่มพนักงานแล้ว' });
       void queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
@@ -390,6 +408,13 @@ export function EmployeesManagementPage({
     setDefaultSecondStartsAt(employee.defaultSecondStartsAt?.slice(0, 5) || '');
     setDefaultSecondEndsAt(employee.defaultSecondEndsAt?.slice(0, 5) || '');
     setDefaultSecondShiftDays(employee.defaultSecondShiftDays ?? []);
+    setDayOffPolicy(employee.dayOffPolicy ?? 'automatic');
+    setDayOffSourceBranchId(
+      String(employee.dayOffSourceBranchId ?? employee.branchId ?? ''),
+    );
+    setWeeklyDaysOff(employee.weeklyDaysOff ?? []);
+    setCustomDaysOff(employee.customDaysOff ?? []);
+    setCustomDayOffDate('');
     setIsEmployeeDrawerOpen(true);
   };
   const removeEmployee = async (employee: (typeof employees)[number]) => {
@@ -493,8 +518,8 @@ export function EmployeesManagementPage({
                     color="text.secondary"
                     sx={{ alignSelf: 'center', fontSize: 12 }}
                   >
-                    วันนักขัตฤกษ์จัดกะปกติ หากต้องหยุดให้แก้ไขสถานะในไฟล์ Excel
-                    หลังส่งออก
+                    ระบบจะไม่จัดวันหยุดรายเดือนในวันเสาร์–อาทิตย์
+                    และสาขาที่มีพนักงานคนเดียวจะไม่ถูกจัดวันหยุดอัตโนมัติ
                   </Typography>
                   <Button
                     variant="outlined"
@@ -525,6 +550,11 @@ export function EmployeesManagementPage({
               setDefaultSecondStartsAt('');
               setDefaultSecondEndsAt('');
               setDefaultSecondShiftDays([]);
+              setDayOffPolicy('automatic');
+              setDayOffSourceBranchId(branchId);
+              setWeeklyDaysOff([]);
+              setCustomDaysOff([]);
+              setCustomDayOffDate('');
               setIsEmployeeDrawerOpen(true);
             }}
             sx={{ bgcolor: '#805637', '&:hover': { bgcolor: '#60412a' } }}
@@ -1395,6 +1425,25 @@ export function EmployeesManagementPage({
                   });
                   return;
                 }
+                if (dayOffPolicy === 'home_branch' && !dayOffSourceBranchId) {
+                  setActionNotice({
+                    message: 'กรุณาเลือกสาขาที่ใช้อ้างอิงวันหยุด',
+                    severity: 'warning',
+                  });
+                  return;
+                }
+                if (
+                  dayOffPolicy === 'custom' &&
+                  weeklyDaysOff.length === 0 &&
+                  customDaysOff.length === 0
+                ) {
+                  setActionNotice({
+                    message:
+                      'กำหนดวันหยุดประจำหรือวันหยุดเฉพาะวันที่อย่างน้อย 1 วัน',
+                    severity: 'warning',
+                  });
+                  return;
+                }
                 if (editingEmployeeId !== null) {
                   const updatedEmployeeId = editingEmployeeId;
                   const updatedName = newEmployeeName.trim();
@@ -1404,6 +1453,12 @@ export function EmployeesManagementPage({
                   const updatedSecondStartsAt = defaultSecondStartsAt;
                   const updatedSecondEndsAt = defaultSecondEndsAt;
                   const updatedSecondShiftDays = defaultSecondShiftDays;
+                  const updatedDayOffPolicy = dayOffPolicy;
+                  const updatedDayOffSourceBranchId = Number(
+                    dayOffSourceBranchId || newEmployeeBranchId,
+                  );
+                  const updatedWeeklyDaysOff = weeklyDaysOff;
+                  const updatedCustomDaysOff = customDaysOff;
                   void updateEmployee(editingEmployeeId, {
                     name: updatedName,
                     role: newEmployeeRole,
@@ -1414,6 +1469,10 @@ export function EmployeesManagementPage({
                     defaultSecondStartsAt: updatedSecondStartsAt,
                     defaultSecondEndsAt: updatedSecondEndsAt,
                     defaultSecondShiftDays: updatedSecondShiftDays,
+                    dayOffPolicy: updatedDayOffPolicy,
+                    dayOffSourceBranchId: updatedDayOffSourceBranchId,
+                    weeklyDaysOff: updatedWeeklyDaysOff,
+                    customDaysOff: updatedCustomDaysOff,
                   })
                     .then(() => {
                       queryClient.setQueryData<Employee[]>(
@@ -1433,6 +1492,11 @@ export function EmployeesManagementPage({
                                   defaultSecondEndsAt: updatedSecondEndsAt,
                                   defaultSecondShiftDays:
                                     updatedSecondShiftDays,
+                                  dayOffPolicy: updatedDayOffPolicy,
+                                  dayOffSourceBranchId:
+                                    updatedDayOffSourceBranchId,
+                                  weeklyDaysOff: updatedWeeklyDaysOff,
+                                  customDaysOff: updatedCustomDaysOff,
                                 }
                               : employee,
                           ),
@@ -1463,7 +1527,10 @@ export function EmployeesManagementPage({
                       );
                       setEditingEmployeeId(null);
                       setIsEmployeeDrawerOpen(false);
-                      setActionNotice({ message: 'แก้ไขข้อมูลพนักงานแล้ว' });
+                      setActionNotice({
+                        message:
+                          'แก้ไขข้อมูลพนักงานแล้ว กดจัดตารางอัตโนมัติเพื่อใช้วันหยุดใหม่',
+                      });
                     })
                     .catch((updateError: unknown) => {
                       setActionNotice({
@@ -1505,10 +1572,12 @@ export function EmployeesManagementPage({
               />
               {!franchiseMode && (
                 <FormControl required>
-                  <InputLabel id="new-employee-branch-label">สาขา</InputLabel>
+                  <InputLabel id="new-employee-branch-label">
+                    สาขาที่ปฏิบัติงาน
+                  </InputLabel>
                   <Select
                     labelId="new-employee-branch-label"
-                    label="สาขา"
+                    label="สาขาที่ปฏิบัติงาน"
                     value={newEmployeeBranchId}
                     onChange={(event) => {
                       setNewEmployeeBranchId(event.target.value);
@@ -1534,6 +1603,182 @@ export function EmployeesManagementPage({
                 value={newEmployeeJobTitle}
                 onChange={(event) => setNewEmployeeJobTitle(event.target.value)}
               />
+              <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
+                <Typography
+                  sx={{
+                    color: '#3c2d24',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    mb: 0.5,
+                  }}
+                >
+                  วันหยุดของพนักงาน
+                </Typography>
+                <Typography sx={{ color: '#6e5b4d', fontSize: 12.5 }}>
+                  ตั้งค่าแยกจากสาขาที่ปฏิบัติงาน
+                  เพื่อให้พนักงานที่ไปช่วยสาขาอื่นยังใช้วันหยุดเดิมได้
+                </Typography>
+              </Box>
+              <FormControl
+                required
+                sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
+              >
+                <InputLabel id="day-off-policy-label">รูปแบบวันหยุด</InputLabel>
+                <Select
+                  labelId="day-off-policy-label"
+                  label="รูปแบบวันหยุด"
+                  value={dayOffPolicy}
+                  onChange={(event) =>
+                    setDayOffPolicy(
+                      event.target.value as
+                        'automatic' | 'home_branch' | 'work_branch' | 'custom',
+                    )
+                  }
+                >
+                  <MenuItem value="automatic">
+                    ให้ระบบจัดวันหยุดรายเดือน
+                  </MenuItem>
+                  <MenuItem value="home_branch">
+                    อ้างอิงวันทำงานของสาขาที่เลือก
+                  </MenuItem>
+                  <MenuItem value="work_branch">
+                    อ้างอิงวันทำงานของสาขาที่ปฏิบัติงาน
+                  </MenuItem>
+                  <MenuItem value="custom">กำหนดวันหยุดเอง</MenuItem>
+                </Select>
+              </FormControl>
+              {dayOffPolicy === 'home_branch' ? (
+                <FormControl required sx={{ gridColumn: '1 / -1' }}>
+                  <InputLabel id="day-off-source-branch-label">
+                    สาขาอ้างอิงวันหยุด
+                  </InputLabel>
+                  <Select
+                    labelId="day-off-source-branch-label"
+                    label="สาขาอ้างอิงวันหยุด"
+                    value={dayOffSourceBranchId}
+                    onChange={(event) =>
+                      setDayOffSourceBranchId(event.target.value)
+                    }
+                  >
+                    {workspaceBranches.map((branch) => (
+                      <MenuItem key={branch.id} value={String(branch.id)}>
+                        {branch.name}
+                        {branch.isHeadquarters ? ' (สำนักงานใหญ่)' : ''}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : null}
+              {dayOffPolicy === 'custom' ? (
+                <Box sx={{ gridColumn: '1 / -1' }}>
+                  <Typography sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}>
+                    วันหยุดประจำสัปดาห์
+                  </Typography>
+                  <Box
+                    aria-label="วันหยุดประจำสัปดาห์"
+                    sx={{
+                      display: 'flex',
+                      gap: 0.75,
+                      overflowX: 'auto',
+                      pb: 1.25,
+                    }}
+                  >
+                    {thaiWeekday.map((day, index) => {
+                      const weekday = index + 1;
+                      const selected = weeklyDaysOff.includes(weekday);
+                      return (
+                        <Button
+                          key={day}
+                          size="small"
+                          variant={selected ? 'contained' : 'outlined'}
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setWeeklyDaysOff((current) =>
+                              current.includes(weekday)
+                                ? current.filter((value) => value !== weekday)
+                                : [...current, weekday],
+                            )
+                          }
+                          sx={{
+                            ...selectionPillSx(selected),
+                            minWidth: 80,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {day}
+                        </Button>
+                      );
+                    })}
+                  </Box>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: 1,
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <TextField
+                      label="วันหยุดเฉพาะวันที่"
+                      type="date"
+                      value={customDayOffDate}
+                      onChange={(event) =>
+                        setCustomDayOffDate(event.target.value)
+                      }
+                      slotProps={{ inputLabel: { shrink: true } }}
+                      sx={{ minWidth: 210 }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      disabled={
+                        !customDayOffDate ||
+                        customDaysOff.includes(customDayOffDate)
+                      }
+                      onClick={() => {
+                        if (
+                          !customDayOffDate ||
+                          customDaysOff.includes(customDayOffDate)
+                        )
+                          return;
+                        setCustomDaysOff((current) =>
+                          [...current, customDayOffDate].sort(),
+                        );
+                        setCustomDayOffDate('');
+                      }}
+                    >
+                      เพิ่มวันหยุด
+                    </Button>
+                  </Box>
+                  {customDaysOff.length > 0 ? (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 0.75,
+                        flexWrap: 'wrap',
+                        mt: 1,
+                      }}
+                    >
+                      {customDaysOff.map((date) => (
+                        <Button
+                          key={date}
+                          type="button"
+                          size="small"
+                          variant="outlined"
+                          onClick={() =>
+                            setCustomDaysOff((current) =>
+                              current.filter((value) => value !== date),
+                            )
+                          }
+                        >
+                          {date} ×
+                        </Button>
+                      ))}
+                    </Box>
+                  ) : null}
+                </Box>
+              ) : null}
               <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
                 <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
                 <Typography

@@ -7,21 +7,22 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { franchiseLoginUrl } from './franchise-login-url';
+import { useWebsiteLanguage } from './WebsiteLanguageProvider';
 
 const links = [
-  ['หน้าหลัก', '/'],
-  ['เกี่ยวกับเรา', '/about'],
-  ['เมนู', '/menu'],
-  ['สาขา', '/branches'],
-  ['แฟรนไชส์', '/franchise'],
-  ['ติดต่อเรา', '/contact'],
+  ['หน้าหลัก', 'Home', '/'],
+  ['เกี่ยวกับเรา', 'About us', '/about'],
+  ['เมนู', 'Menu', '/menu'],
+  ['สาขา', 'Branches', '/branches'],
+  ['แฟรนไชส์', 'Franchise', '/franchise'],
+  ['ติดต่อเรา', 'Contact us', '/contact'],
 ];
 
 export function WebsiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [language, setLanguage] = useState<'TH' | 'EN'>('TH');
+  const { language, text, toggleLanguage } = useWebsiteLanguage();
   const isTransparent = !isScrolled && !open;
 
   useEffect(() => {
@@ -40,15 +41,21 @@ export function WebsiteNav() {
         websiteSx['sb-header-overlay'],
         isTransparent && websiteSx['sb-header-transparent'],
         isScrolled && websiteSx['sb-header-condensed'],
+        open && websiteSx['sb-header-menu-open'],
       ]}
-      className={`sb-header ${isScrolled ? 'sb-header-condensed' : ''}`}
+      className={`sb-header ${isScrolled ? 'sb-header-condensed' : ''} ${open ? 'sb-header-menu-open' : ''}`}
     >
       <Box component="div" sx={[websiteSx['sb-topbar']]} className="sb-topbar">
-        <span>กาแฟไทย · พลังงานสะอาด · ทุกการเดินทาง</span>
+        <span>
+          {text(
+            'กาแฟไทย · พลังงานสะอาด · ทุกการเดินทาง',
+            'Thai coffee · clean energy · every journey',
+          )}
+        </span>
         <Box
           component="div"
           className="sb-topbar-contact"
-          aria-label="ช่องทางติดต่อ"
+          aria-label={text('ช่องทางติดต่อ', 'Contact channels')}
         >
           <Box
             component="a"
@@ -65,15 +72,14 @@ export function WebsiteNav() {
               height={16}
             />
           </Box>
-          <Box component="span" className="sb-topbar-social">
-            <Image
-              src="/brand/instagram.svg"
-              alt="Instagram"
-              width={16}
-              height={16}
-            />
-          </Box>
-          <Box component="span" className="sb-topbar-social">
+          <Box
+            component="a"
+            className="sb-topbar-social"
+            href="https://line.me/R/ti/p/@178lhzgu"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="LINE @178lhzgu"
+          >
             <Image src="/brand/line.svg" alt="LINE" width={16} height={16} />
           </Box>
           <a className="sb-topbar-phone" href="tel:+6629707552">
@@ -85,14 +91,17 @@ export function WebsiteNav() {
         component="nav"
         sx={[websiteSx['sb-nav']]}
         className="sb-nav"
-        aria-label="เมนูหลัก"
+        aria-label={text('เมนูหลัก', 'Main menu')}
       >
         <Box
           component={Link}
           sx={[websiteSx['sb-brand']]}
           className="sb-brand"
           href="/"
-          aria-label="หน้าแรก Super Black Coffee"
+          aria-label={text(
+            'หน้าแรก Super Black Coffee',
+            'Super Black Coffee home',
+          )}
         >
           <Image
             src="/brand/superblackcoffee-logo.png"
@@ -108,13 +117,13 @@ export function WebsiteNav() {
           sx={[websiteSx['sb-nav-links']]}
           className="sb-nav-links"
         >
-          {links.map(([label, href]) => (
+          {links.map(([thaiLabel, englishLabel, href]) => (
             <Link
               key={href}
               href={href}
               aria-current={pathname === href ? 'page' : undefined}
             >
-              {label}
+              {text(thaiLabel, englishLabel)}
             </Link>
           ))}
         </Box>
@@ -124,7 +133,7 @@ export function WebsiteNav() {
           className="sb-nav-login"
           href={franchiseLoginUrl}
         >
-          เข้าสู่ระบบแฟรนไชส์
+          {text('เข้าสู่ระบบแฟรนไชส์', 'Franchise login')}
         </Box>
         <Box
           component={Link}
@@ -132,25 +141,27 @@ export function WebsiteNav() {
           className="sb-nav-action"
           href="/franchise#apply"
         >
-          สนใจแฟรนไชส์
+          {text('สนใจแฟรนไชส์', 'Own a franchise')}
         </Box>
         <Box
           component="button"
           type="button"
           sx={[websiteSx['sb-language-switcher']]}
           className="sb-language-switcher"
-          aria-label="เปลี่ยนภาษา"
-          onClick={() => setLanguage(language === 'TH' ? 'EN' : 'TH')}
+          aria-label={text('เปลี่ยนภาษา', 'Change language')}
+          onClick={toggleLanguage}
         >
-          <span className={language === 'TH' ? 'active' : ''}>TH</span>
+          <span className={language === 'th' ? 'active' : ''}>TH</span>
           <i>/</i>
-          <span className={language === 'EN' ? 'active' : ''}>EN</span>
+          <span className={language === 'en' ? 'active' : ''}>EN</span>
         </Box>
         <Box
           component="button"
           sx={[websiteSx['sb-menu-toggle']]}
           className="sb-menu-toggle"
-          aria-label={open ? 'ปิดเมนู' : 'เปิดเมนู'}
+          aria-label={
+            open ? text('ปิดเมนู', 'Close menu') : text('เปิดเมนู', 'Open menu')
+          }
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
@@ -165,33 +176,41 @@ export function WebsiteNav() {
           sx={[websiteSx['sb-mobile-nav']]}
           className="sb-mobile-nav"
         >
-          {links.map(([label, href]) => (
+          {links.map(([thaiLabel, englishLabel, href]) => (
             <Link
               key={href}
               href={href}
               onClick={() => setOpen(false)}
               aria-current={pathname === href ? 'page' : undefined}
             >
-              {label}
+              {text(thaiLabel, englishLabel)}
             </Link>
           ))}
           <Box
             component={Link}
-            sx={[websiteSx['sb-mobile-cta']]}
-            className="sb-mobile-cta"
+            sx={[
+              websiteSx['sb-button'],
+              websiteSx['sb-button-gold'],
+              websiteSx['sb-mobile-cta'],
+            ]}
+            className="sb-button sb-button-gold sb-mobile-cta"
             href="/franchise#apply"
             onClick={() => setOpen(false)}
           >
-            สนใจแฟรนไชส์
+            {text('สนใจแฟรนไชส์', 'Own a franchise')}
           </Box>
           <Box
             component="a"
-            sx={[websiteSx['sb-mobile-login']]}
-            className="sb-mobile-login"
+            sx={[
+              websiteSx['sb-button'],
+              websiteSx['sb-button-ghost'],
+              websiteSx['sb-mobile-login'],
+            ]}
+            className="sb-button sb-button-ghost sb-mobile-login"
             href={franchiseLoginUrl}
             onClick={() => setOpen(false)}
           >
-            เข้าสู่ระบบแฟรนไชส์
+            {text('เข้าสู่ระบบแฟรนไชส์', 'Franchise login')}
           </Box>
         </Box>
       )}

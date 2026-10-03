@@ -22,6 +22,31 @@ describe('useUpdateStockRequestStatus', () => {
     vi.clearAllMocks();
   });
 
+  it('preserves cached state and summaries when the server rejects a transition', async () => {
+    queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const cached = [{ id: 1, status: 'preparing' }];
+    queryClient.setQueryData(stockRequestsKey, cached);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const error = new Error('Request already completed');
+    api.updateStockRequestStatus.mockRejectedValueOnce(error);
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useUpdateStockRequestStatus(), {
+      wrapper,
+    });
+    await act(async () => {
+      await expect(
+        result.current.mutateAsync({ id: 1, status: 'completed' }),
+      ).rejects.toBe(error);
+    });
+    expect(queryClient.getQueryData(stockRequestsKey)).toEqual(cached);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(api.updateStockRequestStatus).toHaveBeenCalledTimes(1);
+  });
+
   it('updates only the changed request and refreshes dependent admin summaries', async () => {
     queryClient = new QueryClient({
       defaultOptions: {

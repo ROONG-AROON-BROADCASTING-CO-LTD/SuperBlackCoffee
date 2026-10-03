@@ -97,6 +97,35 @@ describe('admin API client', () => {
     window.removeEventListener('sbc:session-expired', expired);
   });
 
+  it.each([401, 403])(
+    'handles PDF HTTP %i consistently with other secured requests',
+    async (status) => {
+      const expired = vi.fn();
+      window.addEventListener('sbc:session-expired', expired);
+      mocks.isAxiosError.mockReturnValue(true);
+      mocks.get.mockRejectedValueOnce({
+        response: {
+          status,
+          data: new Blob([JSON.stringify({ message: 'Download denied' })], {
+            type: 'application/json',
+          }),
+        },
+      });
+      try {
+        await expect(
+          downloadSecuredPDF('/reports/branch.pdf', 'report.pdf'),
+        ).rejects.toThrow(
+          status === 401
+            ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
+            : 'Download denied',
+        );
+        expect(expired).toHaveBeenCalledTimes(status === 401 ? 1 : 0);
+      } finally {
+        window.removeEventListener('sbc:session-expired', expired);
+      }
+    },
+  );
+
   it('identifies a missing API response as a connection failure', async () => {
     mocks.isAxiosError.mockReturnValue(true);
     mocks.request.mockRejectedValueOnce({ code: 'ERR_NETWORK' });

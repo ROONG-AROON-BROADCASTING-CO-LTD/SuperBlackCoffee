@@ -149,8 +149,11 @@ export function TodayCard({
   const formatTime = (value: string) => value.slice(0, 5);
   const checkInLabel = checkInAt
     ? new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23',
       }).format(new Date(checkInAt))
     : null;
   const attendanceCompleted = Boolean(checkInAt && checkOutAt);

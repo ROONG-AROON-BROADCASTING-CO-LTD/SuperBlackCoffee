@@ -31,6 +31,14 @@ export const websiteBaseline = {
     textRendering: 'optimizeLegibility',
     overscrollBehaviorY: 'none',
   },
+  // Keep every level-one and level-two heading on the same display face as
+  // the homepage hero, even when a component supplies its own sizing.
+  h1: {
+    fontFamily: 'var(--font-kanit), sans-serif',
+  },
+  h2: {
+    fontFamily: 'var(--font-kanit), sans-serif',
+  },
   main: {
     margin: '0',
     padding: '0',

@@ -14,22 +14,33 @@ export type Employee = {
   defaultSecondStartsAt?: string;
   defaultSecondEndsAt?: string;
   defaultSecondShiftDays?: number[];
+  dayOffPolicy?: 'automatic' | 'home_branch' | 'work_branch' | 'custom';
+  dayOffSourceBranchId?: number;
+  weeklyDaysOff?: number[];
+  customDaysOff?: string[];
 };
 
+export type DayOffPreferences = Pick<
+  Employee,
+  'dayOffPolicy' | 'dayOffSourceBranchId' | 'weeklyDaysOff' | 'customDaysOff'
+>;
+
 export const listEmployees = () => secured<Employee[]>('/users');
-export const createEmployee = (data: {
-  name: string;
-  username: string;
-  password: string;
-  role: 'branch_manager' | 'cashier';
-  jobTitle?: string;
-  branchId: number;
-  defaultStartsAt: string;
-  defaultEndsAt: string;
-  defaultSecondStartsAt?: string;
-  defaultSecondEndsAt?: string;
-  defaultSecondShiftDays?: number[];
-}) => secured<{ id: number }>('/users', { method: 'POST', data });
+export const createEmployee = (
+  data: {
+    name: string;
+    username: string;
+    password: string;
+    role: 'branch_manager' | 'cashier';
+    jobTitle?: string;
+    branchId: number;
+    defaultStartsAt: string;
+    defaultEndsAt: string;
+    defaultSecondStartsAt?: string;
+    defaultSecondEndsAt?: string;
+    defaultSecondShiftDays?: number[];
+  } & DayOffPreferences,
+) => secured<{ id: number }>('/users', { method: 'POST', data });
 export const updateEmployee = (
   id: number,
   data: {
@@ -42,7 +53,7 @@ export const updateEmployee = (
     defaultSecondStartsAt?: string;
     defaultSecondEndsAt?: string;
     defaultSecondShiftDays?: number[];
-  },
+  } & DayOffPreferences,
 ) => secured<{ id: number }>(`/users/${id}`, { method: 'PATCH', data });
 export const deleteEmployee = (id: number) =>
   secured<void>(`/users/${id}`, { method: 'DELETE' });

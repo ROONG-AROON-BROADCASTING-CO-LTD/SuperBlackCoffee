@@ -188,11 +188,12 @@ export default function App() {
     ])
       .then(([nextStatus, nextHistory, nextSummary]) => {
         if (!active) return;
-        const failedRequest = [nextStatus, nextHistory, nextSummary].find(
-          (result): result is PromiseRejectedResult =>
-            result.status === 'rejected',
+        const sessionExpired = [nextStatus, nextHistory, nextSummary].some(
+          (result) =>
+            result.status === 'rejected' &&
+            isExpiredAttendanceSession(result.reason),
         );
-        if (failedRequest && isExpiredAttendanceSession(failedRequest.reason)) {
+        if (sessionExpired) {
           setSession(null);
           setStatus(null);
           setHistory([]);

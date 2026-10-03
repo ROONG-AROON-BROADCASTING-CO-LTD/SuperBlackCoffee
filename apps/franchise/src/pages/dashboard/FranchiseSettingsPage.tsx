@@ -59,6 +59,16 @@ export function FranchiseSettingsPage() {
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (changePassword.isPending) return;
+    if (!currentPassword || newPassword.length < 8) {
+      setNotice({
+        message: !currentPassword
+          ? 'กรุณาระบุรหัสผ่านปัจจุบัน'
+          : 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร',
+        severity: 'error',
+      });
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setNotice({ message: 'ยืนยันรหัสผ่านใหม่ไม่ตรงกัน', severity: 'error' });
       return;

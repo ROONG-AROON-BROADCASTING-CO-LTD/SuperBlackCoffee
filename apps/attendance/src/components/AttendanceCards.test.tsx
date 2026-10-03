@@ -31,13 +31,14 @@ describe('TodayCard', () => {
     render(
       <TodayCard
         checkedIn
-        checkInAt="2026-09-07T08:05:00+07:00"
+        checkInAt="2026-09-07T08:05:42+07:00"
         checkOutAt={null}
         staff={{ ...staff, role: 'branch_manager', jobTitle: '' }}
       />,
     );
 
     expect(screen.getByText(/เช็กอินแล้ว เวลา/u)).toBeTruthy();
+    expect(screen.getByText('เช็กอินแล้ว เวลา 08:05:42 น.')).toBeTruthy();
     expect(screen.queryByText('วันนี้เช็กอินและเช็กเอาต์ครบแล้ว')).toBeNull();
     expect(screen.getByText(/ผู้จัดการสาขา/u)).toBeTruthy();
   });

@@ -135,6 +135,10 @@ export async function downloadSecuredPDF(path: string, filename: string) {
     // Keep the object URL alive until the browser has started its download.
     window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      window.dispatchEvent(new Event('sbc:session-expired'));
+      throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+    }
     if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
       const body = await error.response.data.text();
       try {

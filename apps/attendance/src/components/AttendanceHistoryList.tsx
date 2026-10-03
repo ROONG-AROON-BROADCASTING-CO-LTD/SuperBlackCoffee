@@ -22,9 +22,11 @@ export function AttendanceHistoryList({
   const formatTime = (value: string | null) =>
     value
       ? new Intl.DateTimeFormat('th-TH', {
+          timeZone: 'Asia/Bangkok',
           hour: '2-digit',
           minute: '2-digit',
-          hour12: false,
+          second: '2-digit',
+          hourCycle: 'h23',
         }).format(new Date(value))
       : '-';
   const formatDate = (value: string) =>

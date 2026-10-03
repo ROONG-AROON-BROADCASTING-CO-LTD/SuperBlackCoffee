@@ -37,8 +37,8 @@ type PurchaseOrderReceiptRequest struct {
 }
 
 type StockAdjustmentRequest struct {
-	Quantity       float64 `json:"quantity" binding:"required,gte=0"`
-	Note           string  `json:"note" binding:"required,max=500"`
-	ManufacturedAt *string `json:"manufacturedAt"`
-	ExpiryDate     *string `json:"expiryDate"`
+	Quantity       *float64 `json:"quantity" binding:"required,gte=0"`
+	Note           string   `json:"note" binding:"required,max=500"`
+	ManufacturedAt *string  `json:"manufacturedAt"`
+	ExpiryDate     *string  `json:"expiryDate"`
 }

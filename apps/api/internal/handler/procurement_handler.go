@@ -380,12 +380,13 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "วันผลิตและวันหมดอายุต้องเป็น YYYY-MM-DD และวันผลิตต้องไม่เกินวันหมดอายุ"})
 		return
 	}
-	if before == input.Quantity && !datesProvided {
+	quantity := *input.Quantity
+	if before == quantity && !datesProvided {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ยอดใหม่เท่ากับยอดเดิม จึงไม่ต้องปรับสต๊อก"})
 		return
 	}
-	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=$1,manufactured_at=$2,expiry_date=$3,updated_at=now() WHERE id=$4`, input.Quantity, manufacturedAt, expiryDate, id); err == nil && before != input.Quantity {
-		err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", input.Quantity-before, before, input.Quantity, "inventory_adjustment", nil, input.Note, claims.UserID)
+	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE inventory_items SET quantity=$1,manufactured_at=$2,expiry_date=$3,updated_at=now() WHERE id=$4`, quantity, manufacturedAt, expiryDate, id); err == nil && before != quantity {
+		err = recordStockMovementTx(c.Request.Context(), tx, branchID, id, "adjustment", quantity-before, before, quantity, "inventory_adjustment", nil, input.Note, claims.UserID)
 	}
 	if err == nil {
 		err = recordAuditTx(c, tx, branchID, claims.UserID, "inventory_item", id, "adjusted", gin.H{
@@ -397,7 +398,7 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 				"expiryDate":     currentExpiryDate,
 			},
 			"after": gin.H{
-				"quantity":       input.Quantity,
+				"quantity":       quantity,
 				"manufacturedAt": manufacturedAt,
 				"expiryDate":     expiryDate,
 			},
@@ -409,7 +410,7 @@ func (h *PlatformHandler) AdjustInventory(c *gin.Context) {
 		return
 	}
 	h.invalidateBranchCache(c, branchID)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id, "quantity": input.Quantity, "manufacturedAt": manufacturedAt, "expiryDate": expiryDate}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id, "quantity": quantity, "manufacturedAt": manufacturedAt, "expiryDate": expiryDate}})
 }
 
 func (h *PlatformHandler) ListStockMovements(c *gin.Context) {

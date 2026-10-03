@@ -86,6 +86,13 @@ describe('EmployeesManagementPage', () => {
     mockedListEmployees.mockResolvedValue([employee]);
     mockedListBranches.mockResolvedValue([
       {
+        id: 1,
+        name: 'สำนักงานใหญ่',
+        code: 'SBC-HQ',
+        franchiseeId: undefined,
+        isHeadquarters: true,
+      },
+      {
         id: 51,
         name: 'สาขาทดสอบ',
         code: 'SBC-TEST',
@@ -170,7 +177,7 @@ describe('EmployeesManagementPage', () => {
 
     expect(
       screen.getByText(
-        'วันนักขัตฤกษ์จัดกะปกติ หากต้องหยุดให้แก้ไขสถานะในไฟล์ Excel หลังส่งออก',
+        'ระบบจะไม่จัดวันหยุดรายเดือนในวันเสาร์–อาทิตย์ และสาขาที่มีพนักงานคนเดียวจะไม่ถูกจัดวันหยุดอัตโนมัติ',
       ),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' })).toBeTruthy();
@@ -270,6 +277,57 @@ describe('EmployeesManagementPage', () => {
         }),
       );
     });
+  });
+
+  it('saves an employee day-off policy independently from their work branch', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.mouseDown(screen.getAllByRole('combobox').at(-1)!);
+    fireEvent.click(
+      await screen.findByRole('option', {
+        name: 'อ้างอิงวันทำงานของสาขาที่เลือก',
+      }),
+    );
+    fireEvent.mouseDown(screen.getAllByRole('combobox').at(-1)!);
+    fireEvent.click(
+      await screen.findByRole('option', {
+        name: 'สำนักงานใหญ่ (สำนักงานใหญ่)',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขพนักงาน' }));
+
+    await waitFor(() =>
+      expect(mockedUpdateEmployee).toHaveBeenCalledWith(
+        employee.id,
+        expect.objectContaining({
+          dayOffPolicy: 'home_branch',
+          dayOffSourceBranchId: 1,
+          weeklyDaysOff: [],
+          customDaysOff: [],
+        }),
+      ),
+    );
+  });
+
+  it('requires a custom day-off rule before saving a custom policy', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.mouseDown(screen.getAllByRole('combobox').at(-1)!);
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'กำหนดวันหยุดเอง' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไขพนักงาน' }));
+
+    expect(
+      screen.getByText(
+        'กำหนดวันหยุดประจำหรือวันหยุดเฉพาะวันที่อย่างน้อย 1 วัน',
+      ),
+    ).toBeTruthy();
+    expect(mockedUpdateEmployee).not.toHaveBeenCalled();
   });
 
   it('removes an employee from the schedule immediately and confirms the deletion', async () => {

@@ -71,6 +71,16 @@ describe('AttendanceManagementPage', () => {
         branchName: 'อยุธยา',
         date: '2026-09-07',
         checkInAt: '2026-09-07T01:10:00Z',
+        checkOutAt: '2026-09-07T09:20:15Z',
+      },
+      {
+        id: 3,
+        userId: 3,
+        name: 'สมชาย',
+        branchId: 3,
+        branchName: 'อยุธยา',
+        date: '2026-09-07',
+        checkInAt: '2026-09-07T01:10:01Z',
         checkOutAt: null,
       },
       {
@@ -115,6 +125,26 @@ describe('AttendanceManagementPage', () => {
         endsAt: '17:00:00',
         status: 'scheduled',
       },
+      {
+        id: 14,
+        userId: 5,
+        name: 'สุขใจ',
+        branchId: 3,
+        date: '2026-09-07',
+        startsAt: '08:00:00',
+        endsAt: '17:00:00',
+        status: 'day_off',
+      },
+      {
+        id: 15,
+        userId: 6,
+        name: 'สุรีย์',
+        branchId: 3,
+        date: '2026-09-07',
+        startsAt: '08:00:00',
+        endsAt: '17:00:00',
+        status: 'scheduled',
+      },
     ]);
     employees.mockResolvedValue([]);
   });
@@ -124,17 +154,18 @@ describe('AttendanceManagementPage', () => {
     vi.clearAllMocks();
   });
 
-  it('shows every scheduled employee with on-time, late, and pending states', async () => {
+  it('uses the API late boundary down to seconds for every scheduled employee', async () => {
     renderPage(true);
     await waitFor(() => expect(screen.getByText('พิมพ์ชนก')).toBeTruthy());
     expect(
       screen.getByText('ข้อมูลพนักงานในแฟรนไชส์ของคุณเท่านั้น'),
     ).toBeTruthy();
     expect(screen.getByText('วันจันทร์')).toBeTruthy();
-    expect(screen.getByText('เข้า 08:10 · ออก -')).toBeTruthy();
+    expect(screen.getByText('เข้า 08:10:00 · ออก 16:20:15')).toBeTruthy();
     expect(screen.getByLabelText('พิมพ์ชนก ตรงเวลา')).toBeTruthy();
-    expect(screen.getByLabelText('สมชาย ยังไม่เช็กอิน')).toBeTruthy();
+    expect(screen.getByLabelText('สมชาย มาสาย')).toBeTruthy();
     expect(screen.getByLabelText('มานี มาสาย')).toBeTruthy();
+    expect(screen.getByLabelText('สุขใจ วันหยุด')).toBeTruthy();
     expect(screen.getByTitle('วันหยุดทดสอบ')).toBeTruthy();
   });
 
@@ -172,6 +203,11 @@ describe('AttendanceManagementPage', () => {
           expect.objectContaining({
             entries: expect.arrayContaining([
               expect.objectContaining({ name: 'พิมพ์ชนก' }),
+              expect.objectContaining({
+                name: 'สุรีย์',
+                detail: 'ไม่ได้ทำการลงเวลา',
+                tone: 'neutral',
+              }),
             ]),
           }),
         ]),
@@ -221,24 +257,23 @@ describe('AttendanceManagementPage', () => {
       expect(screen.getByLabelText('พชร (ออม) มาสาย')).toBeTruthy(),
     );
     expect(screen.getByText('เวลางานมาตรฐาน 09:00–18:00 น.')).toBeTruthy();
-    expect(screen.getByText('เข้า 13:14 · ออก -')).toBeTruthy();
+    expect(screen.getByText('เข้า 13:14:00 · ออก -')).toBeTruthy();
+    expect(screen.getAllByText('ไม่ได้ทำการลงเวลา').length).toBeGreaterThan(0);
     expect(screen.getAllByText('เวลางาน 09:00 - 18:00').length).toBeGreaterThan(
       0,
     );
     const holidayCell = screen.getByTitle('วันหยุดทดสอบ').parentElement;
     expect(holidayCell).toBeTruthy();
     expect(
-      within(holidayCell as HTMLElement).queryByLabelText(
-        'พชร (ออม) ยังไม่เช็กอิน',
-      ),
-    ).toBeNull();
+      within(holidayCell as HTMLElement).getByLabelText('พชร (ออม) วันหยุด'),
+    ).toBeTruthy();
 
     await screen.getByRole('button', { name: 'เดือนถัดไป' }).click();
 
     await waitFor(() =>
       expect(screen.getAllByText('ไม่มีพนักงานเข้ากะ')).not.toHaveLength(0),
     );
-    expect(screen.queryByLabelText('พชร (ออม) ยังไม่เช็กอิน')).toBeNull();
+    expect(screen.queryByLabelText('พชร (ออม) ไม่ได้ทำการลงเวลา')).toBeNull();
   });
 
   it('keeps the attendance card layout while the initial data is loading', () => {

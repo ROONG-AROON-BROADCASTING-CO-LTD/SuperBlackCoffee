@@ -54,12 +54,19 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
 		}
 	}
+	var customPolicyUserID int64
+	customUsername := fmt.Sprintf("custom-weekend-test-%d", fixtureID)
+	if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,day_off_policy,weekly_days_off) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00','custom',$5::smallint[]) RETURNING id`, "พนักงานกำหนดวันหยุด", customUsername, customUsername+"@example.com", branchID, "{6}").Scan(&customPolicyUserID); err != nil {
+		t.Fatalf("สร้างพนักงานกำหนดวันหยุด: %v", err)
+	}
 	t.Cleanup(func() {
 		_, _ = db.Exec(`DELETE FROM public_holidays WHERE holiday_date=$1`, holidayDate)
 		for _, userID := range userIDs {
 			_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
 			_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
 		}
+		_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, customPolicyUserID)
+		_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, customPolicyUserID)
 		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
 	})
 	if _, err := db.Exec(`INSERT INTO public_holidays(holiday_date,name) VALUES($1,'วันหยุดทดสอบ')`, holidayDate); err != nil {
@@ -97,6 +104,13 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 		if holidayStatus != "scheduled" {
 			t.Fatalf("วันนักขัตฤกษ์ต้องจัดกะปกติ, got %s", holidayStatus)
 		}
+		var weekendDaysOff int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-12-01' AND shift_date < '2100-01-01' AND status='day_off' AND EXTRACT(ISODOW FROM shift_date)::int IN (6,7)`, userID).Scan(&weekendDaysOff); err != nil {
+			t.Fatalf("ตรวจสอบวันหยุดเสาร์อาทิตย์ของ %d: %v", userID, err)
+		}
+		if weekendDaysOff != 0 {
+			t.Fatalf("พนักงาน %d มีวันหยุดอัตโนมัติในเสาร์อาทิตย์ %d วัน", userID, weekendDaysOff)
+		}
 	}
 	var sharedMonthlyDayOffs int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM (SELECT shift_date FROM staff_shifts WHERE branch_id=$1 AND leave_type='วันหยุดประจำเดือน' GROUP BY shift_date HAVING COUNT(*) > 1) overlapping_days`, branchID).Scan(&sharedMonthlyDayOffs); err != nil {
@@ -104,6 +118,119 @@ func TestGenerateStaffSchedulesGivesEveryEmployeeFourMonthlyDaysOff(t *testing.T
 	}
 	if sharedMonthlyDayOffs != 0 {
 		t.Fatalf("พบวันหยุดประจำเดือนซ้อนกัน %d วัน", sharedMonthlyDayOffs)
+	}
+	var customSaturdayDaysOff, customSundayDaysOff int
+	if err := db.QueryRow(`SELECT COUNT(*) FILTER (WHERE EXTRACT(ISODOW FROM shift_date)::int=6), COUNT(*) FILTER (WHERE EXTRACT(ISODOW FROM shift_date)::int=7) FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-12-01' AND shift_date < '2100-01-01' AND status='day_off'`, customPolicyUserID).Scan(&customSaturdayDaysOff, &customSundayDaysOff); err != nil {
+		t.Fatalf("ตรวจสอบวันหยุดที่ผู้ดูแลกำหนด: %v", err)
+	}
+	if customSaturdayDaysOff == 0 || customSundayDaysOff != 0 {
+		t.Fatalf("วันหยุดเสาร์ที่ผู้ดูแลกำหนดไม่ถูกต้อง: เสาร์=%d อาทิตย์=%d", customSaturdayDaysOff, customSundayDaysOff)
+	}
+}
+
+func TestGenerateStaffSchedulesDoesNotGiveAnOnlyEmployeeAutomaticDaysOff(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	var branchID, userID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาพนักงานคนเดียว-%d", fixtureID), fmt.Sprintf("SOLO-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	username := fmt.Sprintf("solo-test-%d", fixtureID)
+	if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at) VALUES('พนักงานทดสอบ',$1,$2,'hash','cashier',$3,'08:00','17:00') RETURNING id`, username, username+"@example.com", branchID).Scan(&userID); err != nil {
+		t.Fatalf("สร้างพนักงานทดสอบ: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
+		_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+	syncedThaiHolidayYears.Store(2099, struct{}{})
+
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"2099-11","branchId":%d}`, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	var generatedShifts, automaticDaysOff int
+	if err := db.QueryRow(`SELECT COUNT(*), COUNT(*) FILTER (WHERE status='day_off' OR leave_type='วันหยุดประจำเดือน') FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-11-01' AND shift_date < '2099-12-01'`, userID).Scan(&generatedShifts, &automaticDaysOff); err != nil {
+		t.Fatalf("อ่านตารางพนักงานคนเดียว: %v", err)
+	}
+	if generatedShifts != 30 || automaticDaysOff != 0 {
+		t.Fatalf("พนักงานคนเดียวได้กะ=%d วันหยุดอัตโนมัติ=%d, ต้องการ 30 และ 0", generatedShifts, automaticDaysOff)
+	}
+}
+
+func TestGenerateStaffSchedulesRepairsExistingAutomaticDaysOffToFour(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	var branchID, userID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาแก้โควตาวันหยุด-%d", fixtureID), fmt.Sprintf("REPAIR-QUOTA-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	userIDs := make([]int64, 2)
+	for index := range userIDs {
+		username := fmt.Sprintf("repair-quota-%d-%d", fixtureID, index)
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00') RETURNING id`, fmt.Sprintf("พนักงานแก้โควตา %d", index), username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
+			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
+		}
+	}
+	userID = userIDs[0]
+	t.Cleanup(func() {
+		for _, id := range userIDs {
+			_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, id)
+			_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, id)
+		}
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	// Simulate a month generated by the previous rule: one of the four chosen
+	// days is locked as compensatory work, so only three rows are marked as
+	// monthly days off. A subsequent generation must move that day off to an
+	// editable weekday rather than retain the stale three-day result.
+	for day := 1; day <= 31; day++ {
+		shiftDate := fmt.Sprintf("2099-10-%02d", day)
+		status, leaveType := "scheduled", any(nil)
+		if day == 1 {
+			status, leaveType = "compensatory_work", "ทำงานชดเชยหลังวันหยุดนักขัตฤกษ์"
+		} else if day == 6 || day == 15 || day == 27 {
+			status, leaveType = "day_off", "วันหยุดประจำเดือน"
+		}
+		if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type) VALUES($1,$2,$3,'08:00','17:00',$4,$5)`, userID, branchID, shiftDate, status, leaveType); err != nil {
+			t.Fatalf("สร้างตารางเดิมวันที่ %s: %v", shiftDate, err)
+		}
+	}
+	syncedThaiHolidayYears.Store(2099, struct{}{})
+
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"2099-10","branchId":%d}`, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางเดือนเดิมซ้ำ = %d: %s", response.Code, response.Body.String())
+	}
+
+	var monthlyDaysOff int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM staff_shifts WHERE user_id=$1 AND shift_date >= '2099-10-01' AND shift_date < '2099-11-01' AND leave_type='วันหยุดประจำเดือน'`, userID).Scan(&monthlyDaysOff); err != nil {
+		t.Fatalf("อ่านจำนวนวันหยุดหลังสร้างตารางซ้ำ: %v", err)
+	}
+	if monthlyDaysOff != 4 {
+		t.Fatalf("พนักงานที่มีตารางเดิมต้องถูกปรับเป็นวันหยุดรายเดือน 4 วัน, got %d", monthlyDaysOff)
+	}
+	var lockedStatus string
+	if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=$1 AND shift_date='2099-10-01'`, userID).Scan(&lockedStatus); err != nil {
+		t.Fatalf("อ่านกะงานชดเชย: %v", err)
+	}
+	if lockedStatus != "compensatory_work" {
+		t.Fatalf("กะงานชดเชยต้องไม่ถูกเขียนทับ, got %s", lockedStatus)
 	}
 }
 

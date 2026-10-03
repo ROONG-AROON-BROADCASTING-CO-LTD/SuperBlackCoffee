@@ -22,6 +22,95 @@ const ingredient = {
 
 describe('StockOrderCartDrawer', () => {
   afterEach(() => cleanup());
+  it('disables repeat submissions while the request is pending', async () => {
+    let finish!: () => void;
+    const create = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const close = vi.fn();
+    render(
+      <StockOrderCartDrawer
+        open
+        pendingItem={ingredient}
+        isFranchise={false}
+        onOpenChange={close}
+        onPendingItemAdded={vi.fn()}
+        onItemCountChange={vi.fn()}
+        onCreateRequest={create}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งคำสั่งซื้อ' }));
+    const sending = screen.getByRole('button', { name: 'กำลังส่งคำสั่งซื้อ…' });
+    expect((sending as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(sending);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(close).not.toHaveBeenCalled();
+    finish();
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+  });
+  it('retains an order after failure and clears it only after a successful retry', async () => {
+    const create = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Network unavailable'))
+      .mockResolvedValueOnce(undefined);
+    const close = vi.fn();
+    const count = vi.fn();
+    render(
+      <StockOrderCartDrawer
+        open
+        pendingItem={ingredient}
+        isFranchise={false}
+        onOpenChange={close}
+        onPendingItemAdded={vi.fn()}
+        onItemCountChange={count}
+        onCreateRequest={create}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'เพิ่มจำนวน เมล็ดกาแฟ' }),
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'หมายเหตุ' }), {
+      target: { value: '  urgent stock  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งคำสั่งซื้อ' }));
+    await screen.findByText('Network unavailable');
+    expect(close).not.toHaveBeenCalled();
+    expect(screen.getByText('เมล็ดกาแฟ')).toBeTruthy();
+    expect(create).toHaveBeenNthCalledWith(
+      1,
+      [{ inventoryItemId: 1, name: 'เมล็ดกาแฟ', quantity: 2, unit: 'ถุง' }],
+      'urgent stock',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งคำสั่งซื้อ' }));
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false));
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('เมล็ดกาแฟ')).toBeNull();
+    await waitFor(() => expect(count).toHaveBeenLastCalledWith(0));
+  });
+
+  it('rejects whitespace-only notes without creating an order', async () => {
+    const create = vi.fn();
+    render(
+      <StockOrderCartDrawer
+        open
+        pendingItem={ingredient}
+        isFranchise={false}
+        onOpenChange={vi.fn()}
+        onPendingItemAdded={vi.fn()}
+        onItemCountChange={vi.fn()}
+        onCreateRequest={create}
+      />,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'หมายเหตุ' }), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ส่งคำสั่งซื้อ' }));
+    await screen.findByText('ระบุหมายเหตุสำหรับคำสั่งซื้อ');
+    expect(create).not.toHaveBeenCalled();
+  });
   it('uses the main cart shell for a pending ingredient order', () => {
     const onPendingItemAdded = vi.fn();
     render(

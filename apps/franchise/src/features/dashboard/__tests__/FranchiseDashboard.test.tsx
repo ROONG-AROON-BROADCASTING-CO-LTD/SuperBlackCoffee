@@ -142,6 +142,35 @@ describe('FranchiseDashboard plan restrictions', () => {
     sessionStorage.clear();
   });
 
+  it('uses the current authenticated branch after rerender, ignoring a forged URL scope', async () => {
+    const view = render(
+      <MemoryRouter initialEntries={['/ingredients?branchCode=FOREIGN']}>
+        <FranchiseDashboard logout={vi.fn()} plan="M" {...branchProps} />
+      </MemoryRouter>,
+    );
+    expect(
+      (await screen.findByTestId('ingredients-page')).textContent,
+    ).toContain('สุพรรณบุรี S:FR-SUP-001-S:');
+    view.rerender(
+      <MemoryRouter initialEntries={['/ingredients?branchCode=FOREIGN']}>
+        <FranchiseDashboard
+          logout={vi.fn()}
+          plan="L"
+          branchName="สาขาใหม่"
+          branchCode="NEW-BRANCH"
+        />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('ingredients-page').textContent).toBe(
+        'สาขาใหม่:NEW-BRANCH:L:true:true:regular:5',
+      ),
+    );
+    expect(screen.getByTestId('ingredients-page').textContent).not.toContain(
+      'FOREIGN',
+    );
+  });
+
   it('redirects a size S franchise away from postal stock opened by a direct URL', async () => {
     render(
       <MemoryRouter initialEntries={['/postal-stock']}>

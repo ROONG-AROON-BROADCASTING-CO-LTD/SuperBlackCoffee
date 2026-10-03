@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme, type Shadows } from '@mui/material/styles';
 import { websiteBaseline } from './websiteBaseline';
+import { WebsiteLanguageProvider } from '../src/components/WebsiteLanguageProvider';
 
 const shadowlessTheme = Array.from({ length: 25 }, () => 'none') as Shadows;
 
@@ -15,7 +16,7 @@ const theme = createTheme({
     background: { default: '#ffffff', paper: '#ffffff' },
     text: { primary: '#1b1c18', secondary: '#686962' },
   },
-  shape: { borderRadius: 14 },
+  shape: { borderRadius: 10 },
   shadows: shadowlessTheme,
   typography: {
     fontFamily: 'var(--font-kanit), sans-serif',
@@ -31,12 +32,12 @@ const theme = createTheme({
     },
     MuiButton: {
       styleOverrides: {
-        root: { borderRadius: 999, minHeight: 44, boxShadow: 'none' },
+        root: { borderRadius: 10, minHeight: 44, boxShadow: 'none' },
       },
     },
     MuiTextField: {
       styleOverrides: {
-        root: { '& .MuiOutlinedInput-root': { borderRadius: 14 } },
+        root: { '& .MuiOutlinedInput-root': { borderRadius: 10 } },
       },
     },
   },
@@ -46,7 +47,7 @@ export function WebsiteThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <WebsiteLanguageProvider>{children}</WebsiteLanguageProvider>
     </ThemeProvider>
   );
 }

@@ -24,6 +24,9 @@ export const websiteSx = {
     WebkitBackdropFilter: 'none',
     boxShadow: 'none',
   },
+  'sb-header-menu-open': {
+    overflow: 'visible',
+  },
   'sb-header-condensed': {
     height: '72px',
     backgroundColor: 'rgba(0,0,0,.96)',
@@ -117,13 +120,14 @@ export const websiteSx = {
   'sb-nav-links': {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 'clamp(17px, 2.1vw, 38px)',
+    justifyContent: 'flex-start',
+    gap: 'clamp(20px, 2.3vw, 42px)',
     position: 'absolute',
     left: '50%',
     transform: 'translateX(-50%)',
     '& a': {
-      fontSize: '13px',
+      fontSize: '15px',
+      letterSpacing: '0.02em',
       color: '#e2e3de',
       height: '72px',
       display: 'flex',
@@ -187,7 +191,7 @@ export const websiteSx = {
     marginLeft: 'auto',
     display: 'inline-flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     minHeight: '40px',
     padding: '0 19px',
     border: '1px solid rgba(226, 227, 222, 0.55)',
@@ -305,20 +309,26 @@ export const websiteSx = {
         color: 'var(--sb-gold)',
       },
       '& .sb-mobile-cta': {
-        fontSize: '16px',
-        color: 'var(--sb-gold)',
         marginTop: 'auto',
-        borderBottom: '0',
-        display: 'flex',
-        justifyContent: 'space-between',
+        minHeight: '52px',
+        padding: '0 23px',
+        borderBottom: '1px solid var(--sb-gold)',
+        borderRadius: '10px',
+        color: 'var(--sb-black)',
+        fontSize: '14px',
+        fontWeight: '600',
+        justifyContent: 'flex-start',
       },
       '& .sb-mobile-login': {
-        border: '1px solid var(--sb-gold)',
-        color: 'var(--sb-gold)',
-        fontSize: '15px',
-        padding: '13px 18px',
-        textAlign: 'center',
         marginTop: '14px',
+        minHeight: '52px',
+        padding: '0 23px',
+        border: '1px solid rgba(255, 255, 255, 0.62)',
+        borderRadius: '10px',
+        color: '#fff',
+        fontSize: '14px',
+        fontWeight: '600',
+        textAlign: 'left',
       },
     },
   },
@@ -501,13 +511,6 @@ export const websiteSx = {
       transform: 'scale(1.025)',
     },
   },
-  'sb-rule': {
-    display: 'block',
-    width: '32px',
-    height: '1px',
-    background: 'var(--sb-gold)',
-    marginBottom: '28px',
-  },
   'sb-button': {
     display: 'inline-flex',
     alignItems: 'center',
@@ -569,7 +572,7 @@ export const websiteSx = {
       gridColumn: '3',
     },
     '@media (max-width: 600px)': {
-      gridColumn: '2/-1',
+      gridColumn: '1/-1',
     },
   },
   'sb-button-gold': {
@@ -579,6 +582,12 @@ export const websiteSx = {
       background: '#e1bf80',
     },
   },
+  'sb-form-submit': {
+    minHeight: '56px',
+    paddingInline: '26px',
+    borderRadius: '10px',
+  },
+  'sb-plan-cta': {},
   'sb-button-dark': {
     background: 'var(--sb-black)',
     color: '#fff',
@@ -710,8 +719,9 @@ export const websiteSx = {
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
-    padding: '115px 0 235px var(--sb-gutter)',
+    justifyContent: 'flex-start',
+    // Shared with inner-page heroes so titles keep one fixed baseline.
+    padding: '224px 0 0 var(--sb-gutter)',
     '@media (max-width: 800px)': {
       width: 'min(680px, 95vw)',
     },
@@ -802,7 +812,7 @@ export const websiteSx = {
     },
     '& h2': {
       color: '#d6ae62',
-      font: '700 clamp(12px, 1.05vw, 16px)/1.1 var(--font-inter), sans-serif',
+      font: '700 clamp(12px, 1.05vw, 16px)/1.1 var(--font-kanit), sans-serif',
       letterSpacing: '0.015em',
       margin: '0',
       whiteSpace: 'nowrap',
@@ -1023,7 +1033,7 @@ export const websiteSx = {
     padding: '0 28px',
     marginTop: '31px',
     border: '1px solid var(--sb-gold)',
-    borderRadius: '20px',
+    borderRadius: '10px',
     background: 'var(--sb-gold)',
     color: '#000',
     font: '700 16px/1 var(--font-kanit), sans-serif',
@@ -1062,6 +1072,8 @@ export const websiteSx = {
   'sb-section-heading': {
     color: '#fff',
     '& h2': {
+      // Page-level section titles share the same display face as the home hero.
+      fontFamily: 'var(--font-kanit), sans-serif',
       fontWeight: '400',
       fontSize: 'clamp(32px, 3.4vw, 58px)',
       lineHeight: '1.15',
@@ -1301,32 +1313,6 @@ export const websiteSx = {
       },
     },
   },
-  'sb-bottom-cta': {
-    color: '#fff',
-    '& h2': {
-      fontWeight: '400',
-      fontSize: 'clamp(32px, 3.4vw, 58px)',
-      lineHeight: '1.15',
-      letterSpacing: '-0.035em',
-      margin: '0',
-      textWrap: 'balance',
-    },
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '30px',
-    paddingBlock: '90px',
-    '@media (max-width: 600px)': {
-      '& h2': {
-        fontSize: '34px',
-      },
-      display: 'block',
-      paddingBlock: '70px',
-      '& .sb-button': {
-        marginTop: '25px',
-      },
-    },
-  },
   'sb-about-principles': {
     color: '#fff',
     paddingBlock: '110px',
@@ -1495,7 +1481,7 @@ export const websiteSx = {
       textWrap: 'balance',
     },
     display: 'grid',
-    gridTemplateColumns: '0.75fr 1fr 1.1fr',
+    gridTemplateColumns: '0.9fr 1.1fr',
     gap: '5vw',
     alignItems: 'center',
     paddingBlock: '90px',
@@ -1504,9 +1490,6 @@ export const websiteSx = {
       lineHeight: '1.8',
       color: 'rgba(255,255,255,.72)',
       fontSize: '17px',
-    },
-    '& > .sb-photo': {
-      height: '250px',
     },
     '@media (max-width: 800px)': {
       gridTemplateColumns: '1fr',
@@ -1517,9 +1500,6 @@ export const websiteSx = {
         fontSize: '34px',
       },
       paddingBlock: '65px',
-      '& > .sb-photo': {
-        height: '240px',
-      },
     },
   },
   'sb-apply': {
@@ -1902,13 +1882,14 @@ export const websiteSx = {
     position: 'relative',
     display: 'block',
     width: '100%',
-    aspectRatio: '2.2 / 1',
-    minHeight: '0',
+    height: 'clamp(640px, calc(100svh - 72px), 940px)',
+    minHeight: '620px',
     margin: '0',
     background: 'var(--sb-black)',
     color: '#fff',
     overflow: 'hidden',
     '& h1': {
+      fontFamily: 'var(--font-kanit), sans-serif',
       fontSize: 'clamp(58px, 5vw, 76px)',
       fontWeight: '400',
       lineHeight: '1.1',
@@ -1917,11 +1898,11 @@ export const websiteSx = {
       textWrap: 'balance',
     },
     '& p': {
-      color: 'rgba(255,255,255,.74)',
-      fontSize: 'clamp(16px, 1.25vw, 19px)',
+      color: '#ebede8',
+      fontSize: 'clamp(16px, 1.25vw, 20px)',
       lineHeight: '1.75',
-      margin: '22px 0 0',
-      maxWidth: '500px',
+      margin: '30px 0 35px',
+      maxWidth: '515px',
     },
     '& > .sb-photo': {
       position: 'absolute',
@@ -1945,8 +1926,7 @@ export const websiteSx = {
       },
     },
     '@media (max-width: 800px)': {
-      aspectRatio: 'auto',
-      minHeight: '520px',
+      height: '700px',
       '& h1': {
         fontSize: 'clamp(50px, 8vw, 76px)',
       },
@@ -1956,7 +1936,8 @@ export const websiteSx = {
       },
     },
     '@media (max-width: 600px)': {
-      minHeight: '460px',
+      height: 'calc(100svh - 72px)',
+      minHeight: '610px',
       '& h1': {
         fontSize: 'clamp(46px, 10vw, 64px)',
       },
@@ -1974,7 +1955,7 @@ export const websiteSx = {
     background: 'var(--sb-black)',
     color: '#fff',
     '& p': {
-      color: '#d7d8d2',
+      color: '#ebede8',
     },
   },
   'sb-inner-copy': {
@@ -1982,55 +1963,19 @@ export const websiteSx = {
     zIndex: '2',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
-    minHeight: 'inherit',
-    maxWidth: '58%',
-    padding: '145px clamp(36px, 6vw, 110px) 80px clamp(44px, 5.2vw, 100px)',
+    justifyContent: 'flex-start',
+    width: 'min(760px, 75vw)',
+    height: '100%',
+    // Keep every inner-page title on the same top baseline as the homepage,
+    // regardless of whether the title wraps to one or more lines.
+    padding: '224px 0 0 var(--sb-gutter)',
     '@media (max-width: 800px)': {
-      maxWidth: '78%',
-      padding: '140px var(--sb-gutter) 75px',
+      width: 'min(680px, 95vw)',
     },
     '@media (max-width: 600px)': {
-      maxWidth: '100%',
-      paddingBlock: '60px',
-    },
-  },
-  'sb-inner-eyebrow': {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    width: 'fit-content',
-    marginBottom: '24px',
-    color: 'var(--sb-gold)',
-    fontSize: '11px',
-    fontWeight: '700',
-    letterSpacing: '.16em',
-    lineHeight: '1.2',
-    '&::before': {
-      content: '""',
-      display: 'inline-block',
-      width: '28px',
-      height: '1px',
-      background: 'currentColor',
-    },
-  },
-  'sb-inner-scroll-cue': {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '10px',
-    width: 'fit-content',
-    marginTop: '30px',
-    color: 'rgba(255,255,255,.66)',
-    fontSize: '12px',
-    fontWeight: '600',
-    letterSpacing: '.04em',
-    '& span': {
-      color: 'var(--sb-gold)',
-      fontSize: '18px',
-      lineHeight: '1',
-    },
-    '@media (max-width: 600px)': {
-      marginTop: '24px',
+      justifyContent: 'end',
+      width: '100%',
+      padding: '0 var(--sb-gutter) 62px',
     },
   },
   'sb-about-photo': {
@@ -2094,46 +2039,31 @@ export const websiteSx = {
       whiteSpace: 'nowrap',
       padding: '0 0 18px',
       fontSize: '15px',
+      fontWeight: '500',
       cursor: 'pointer',
       borderBottom: '2px solid transparent',
     },
     '& button.active': {
       color: 'var(--sb-gold)',
       borderBottomColor: 'var(--sb-gold)',
-      fontWeight: '600',
     },
     '@media (max-width: 600px)': {
       gap: '27px',
     },
   },
   'sb-menu-layout': {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) 38%',
-    gap: '9vw',
+    display: 'block',
     paddingTop: '55px',
     alignItems: 'start',
     '& h2': {
+      fontFamily: 'var(--font-kanit), sans-serif',
       fontSize: 'clamp(36px, 4vw, 62px)',
       fontWeight: '400',
       lineHeight: '1',
       margin: '0',
     },
-    '& > .sb-photo': {
-      height: '650px',
-    },
-    '@media (max-width: 800px)': {
-      gridTemplateColumns: '1fr 38%',
-      gap: '35px',
-      '& > .sb-photo': {
-        height: '520px',
-      },
-    },
     '@media (max-width: 600px)': {
-      gridTemplateColumns: '1fr',
       paddingTop: '35px',
-      '& > .sb-photo': {
-        height: '390px',
-      },
     },
   },
   'sb-lead': {
@@ -2143,6 +2073,71 @@ export const websiteSx = {
   'sb-menu-list': {
     borderTop: '1px solid rgba(255,255,255,.28)',
   },
+  'sb-menu-grid': {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gap: '18px',
+    '@media (max-width: 1000px)': {
+      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    },
+    '@media (max-width: 600px)': {
+      gridTemplateColumns: '1fr',
+      gap: '14px',
+    },
+  },
+  'sb-menu-card': {
+    position: 'relative',
+    minHeight: '390px',
+    overflow: 'hidden',
+    border: '1px solid rgba(213,177,99,.32)',
+    borderRadius: '16px',
+    background: '#17130f',
+    transition: 'border-color .25s ease',
+    '&:hover': {
+      borderColor: 'rgba(222, 186, 111, 0.8)',
+    },
+    '&:hover img': {
+      transform: 'scale(1.04)',
+    },
+    '& > .sb-photo': {
+      position: 'absolute',
+      inset: '0',
+      height: '100%',
+    },
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      inset: '0',
+      background:
+        'linear-gradient(180deg, rgba(0,0,0,.02) 34%, rgba(0,0,0,.88) 100%)',
+      pointerEvents: 'none',
+    },
+    '& > div:last-child': {
+      position: 'relative',
+      zIndex: '1',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'end',
+      minHeight: '390px',
+      padding: '24px',
+    },
+    '& h3': {
+      margin: '0',
+      font: '500 clamp(24px, 2vw, 32px)/1.12 var(--font-kanit), sans-serif',
+    },
+    '& p': {
+      margin: '8px 0 0',
+      color: 'rgba(255,255,255,.78)',
+      fontSize: '14px',
+      lineHeight: '1.6',
+    },
+    '@media (max-width: 600px)': {
+      minHeight: '320px',
+      '& > div:last-child': {
+        minHeight: '320px',
+      },
+    },
+  },
   'sb-menu-item': {
     display: 'flex',
     justifyContent: 'space-between',
@@ -2151,7 +2146,7 @@ export const websiteSx = {
     padding: '19px 0',
     borderBottom: '1px solid rgba(255,255,255,.28)',
     '& h3': {
-      font: '500 clamp(19px, 1.7vw, 26px)/1.2 var(--font-inter),\n    sans-serif',
+      font: '500 clamp(19px, 1.7vw, 26px)/1.2 var(--font-kanit),\n    sans-serif',
       margin: '0',
     },
     '& p': {
@@ -2170,6 +2165,7 @@ export const websiteSx = {
     border: '1px solid rgba(255,255,255,.55)',
     height: '50px',
     padding: '0 15px',
+    borderRadius: '10px',
     minWidth: 'min(380px, 100%)',
     '& svg': {
       width: '20px',
@@ -2197,36 +2193,36 @@ export const websiteSx = {
   },
   'sb-branch-row': {
     display: 'grid',
-    gridTemplateColumns: '40px 200px minmax(0, 1fr) auto',
-    gap: '30px',
+    gridTemplateColumns: '300px minmax(0, 1fr) auto',
+    gap: '40px',
     alignItems: 'center',
     padding: '28px 0',
     borderBottom: '1px solid rgba(255,255,255,.28)',
     '& > .sb-photo': {
-      height: '140px',
+      height: '200px',
     },
     '@media (max-width: 1100px)': {
-      gridTemplateColumns: '30px 150px minmax(0, 1fr) auto',
-      gap: '18px',
+      gridTemplateColumns: '240px minmax(0, 1fr) auto',
+      gap: '28px',
+      '& > .sb-photo': {
+        height: '170px',
+      },
     },
     '@media (max-width: 800px)': {
-      gridTemplateColumns: '30px 120px minmax(0, 1fr)',
+      gridTemplateColumns: '180px minmax(0, 1fr)',
       gap: '16px',
       '& > .sb-photo': {
-        height: '110px',
+        height: '135px',
       },
     },
     '@media (max-width: 600px)': {
-      gridTemplateColumns: '26px 1fr auto',
+      gridTemplateColumns: '1fr auto',
       gap: '12px',
       padding: '25px 0',
       '& > .sb-photo': {
-        gridColumn: '2/-1',
+        gridColumn: '1/-1',
         gridRow: '1',
         height: '190px',
-      },
-      '& > .sb-index': {
-        gridRow: '2',
       },
     },
   },
@@ -2250,7 +2246,7 @@ export const websiteSx = {
       maxWidth: '590px',
     },
     '@media (max-width: 600px)': {
-      gridColumn: '2/-1',
+      gridColumn: '1/-1',
     },
   },
   'sb-branch-meta': {
@@ -2299,12 +2295,64 @@ export const websiteSx = {
     minHeight: '350px',
     display: 'flex',
     flexDirection: 'column',
+    '& > .sb-plan-photo': {
+      aspectRatio: '971 / 1619',
+      height: 'auto',
+      margin: '-35px -35px 30px',
+      borderBottom: '1px solid rgba(202, 164, 94, .45)',
+    },
     '& .sb-text-link': {
       alignSelf: 'flex-start',
       marginTop: 'auto',
     },
+    '& .sb-plan-cta': {
+      alignSelf: 'flex-start',
+      marginTop: 'auto',
+    },
+    '& .sb-plan-description': {
+      margin: '22px 0 28px',
+      minHeight: '92px',
+      paddingLeft: '15px',
+      borderLeft: '2px solid var(--sb-gold)',
+      '& > span': {
+        display: 'block',
+        marginBottom: '6px',
+        color: 'var(--sb-gold)',
+        fontSize: '12px',
+        fontWeight: '700',
+        letterSpacing: '.04em',
+      },
+      '& > p': {
+        margin: '0',
+        color: 'rgba(255,255,255,.78)',
+        fontSize: '14px',
+        lineHeight: '1.7',
+      },
+    },
+    '& .sb-plan-services': {
+      margin: '0 0 24px',
+      paddingTop: '18px',
+      borderTop: '1px solid rgba(255,255,255,.25)',
+      '& > span': {
+        display: 'block',
+        marginBottom: '6px',
+        color: 'var(--sb-gold)',
+        fontSize: '12px',
+        fontWeight: '700',
+        letterSpacing: '.04em',
+      },
+      '& > p': {
+        margin: '0',
+        color: 'rgba(255,255,255,.78)',
+        fontSize: '14px',
+        lineHeight: '1.7',
+      },
+    },
     '@media (max-width: 1100px)': {
       padding: '25px',
+      '& > .sb-plan-photo': {
+        margin: '-25px -25px 25px',
+      },
     },
     '@media (max-width: 800px)': {
       minHeight: 'auto',
@@ -2375,6 +2423,8 @@ export const websiteSx = {
   'sb-form': {
     background: '#fff',
     color: 'var(--sb-ink)',
+    borderRadius: '18px',
+    boxSizing: 'border-box',
     padding: 'clamp(26px, 3.5vw, 52px)',
     '& h3': {
       fontSize: 'clamp(25px, 2.5vw, 36px)',
@@ -2395,7 +2445,7 @@ export const websiteSx = {
       marginTop: '8px',
       border: '1px solid #d8d9d4',
       background: '#fff',
-      borderRadius: '0',
+      borderRadius: '10px',
       padding: '12px 14px',
       outline: '0',
       color: 'var(--sb-ink)',
@@ -2409,7 +2459,7 @@ export const websiteSx = {
       marginTop: '8px',
       border: '1px solid #d8d9d4',
       background: '#fff',
-      borderRadius: '0',
+      borderRadius: '10px',
       padding: '12px 14px',
       outline: '0',
       color: 'var(--sb-ink)',
@@ -2423,7 +2473,7 @@ export const websiteSx = {
       marginTop: '8px',
       border: '1px solid #d8d9d4',
       background: '#fff',
-      borderRadius: '0',
+      borderRadius: '10px',
       padding: '12px 14px',
       outline: '0',
       color: 'var(--sb-ink)',
@@ -2479,7 +2529,7 @@ export const websiteSx = {
       height: '130px',
     },
     '& h3': {
-      font: '500 clamp(26px, 3vw, 45px)/1.15 var(--font-inter),\n    sans-serif',
+      font: '500 clamp(26px, 3vw, 45px)/1.15 var(--font-kanit),\n    sans-serif',
       letterSpacing: '-0.035em',
       margin: '0 0 9px',
     },
@@ -2570,13 +2620,14 @@ export const websiteSx = {
     },
   },
   'sb-contact-form': {
-    border: '1px solid var(--sb-line)',
-    padding: '0',
+    // Keep contact and franchise forms on the shared card treatment.
+    border: '0',
   },
   'sb-legal': {
     minHeight: '58vh',
     paddingBlock: '115px 140px',
     '& h1': {
+      fontFamily: 'var(--font-kanit), sans-serif',
       maxWidth: '920px',
       fontSize: 'clamp(45px, 5.5vw, 84px)',
       fontWeight: '400',

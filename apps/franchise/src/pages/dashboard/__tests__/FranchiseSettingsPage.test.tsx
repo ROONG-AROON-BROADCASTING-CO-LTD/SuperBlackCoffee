@@ -33,6 +33,103 @@ function renderPage() {
 }
 
 describe('FranchiseSettingsPage', () => {
+  it('requires the current password when submitting the form directly', async () => {
+    renderPage();
+    await screen.findByText('suphan.owner');
+    fireEvent.change(screen.getByLabelText(/^รหัสผ่านใหม่/), {
+      target: { value: 'NewPass8' },
+    });
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่านใหม่/), {
+      target: { value: 'NewPass8' },
+    });
+    fireEvent.submit(screen.getByLabelText(/^รหัสผ่านใหม่/).closest('form')!);
+    await screen.findByText('กรุณาระบุรหัสผ่านปัจจุบัน');
+    expect(mockedUpdatePassword).not.toHaveBeenCalled();
+  });
+
+  it('accepts a matching new password at the exact eight-character minimum', async () => {
+    renderPage();
+    await screen.findByText('suphan.owner');
+    fireEvent.change(screen.getByLabelText(/รหัสผ่านปัจจุบัน/), {
+      target: { value: 'OldPassword123!' },
+    });
+    fireEvent.change(screen.getByLabelText(/^รหัสผ่านใหม่/), {
+      target: { value: 'NewPass8' },
+    });
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่านใหม่/), {
+      target: { value: 'NewPass8' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกรหัสผ่านใหม่' }));
+    await screen.findByText('เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
+    expect(mockedUpdatePassword).toHaveBeenCalledTimes(1);
+    expect(mockedUpdatePassword.mock.calls[0]?.[0]).toEqual({
+      currentPassword: 'OldPassword123!',
+      newPassword: 'NewPass8',
+    });
+  });
+  it('rejects a short password even when the form is submitted without clicking its disabled button', async () => {
+    renderPage();
+    await screen.findByText('suphan.owner');
+    fireEvent.change(screen.getByLabelText(/รหัสผ่านปัจจุบัน/), {
+      target: { value: 'OldPassword123!' },
+    });
+    fireEvent.change(screen.getByLabelText(/^รหัสผ่านใหม่/), {
+      target: { value: 'short' },
+    });
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่านใหม่/), {
+      target: { value: 'short' },
+    });
+    const form = screen.getByLabelText(/^รหัสผ่านใหม่/).closest('form');
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+    expect(
+      await screen.findByText('รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัวอักษร'),
+    ).toBeTruthy();
+    expect(mockedUpdatePassword).not.toHaveBeenCalled();
+  });
+
+  it('shows the account loading failure without inventing account data', async () => {
+    mockedGetSettings.mockRejectedValueOnce(new Error('Service unavailable'));
+    renderPage();
+    expect(
+      await screen.findByText(
+        'ไม่สามารถโหลดข้อมูลการตั้งค่าระบบได้ กรุณาลองใหม่อีกครั้ง',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('suphan.owner')).toBeNull();
+  });
+
+  it('does not start a second password mutation while one is pending', async () => {
+    let finish!: (value: { id: number }) => void;
+    mockedUpdatePassword.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderPage();
+    await screen.findByText('suphan.owner');
+    fireEvent.change(screen.getByLabelText(/รหัสผ่านปัจจุบัน/), {
+      target: { value: 'OldPassword123!' },
+    });
+    fireEvent.change(screen.getByLabelText(/^รหัสผ่านใหม่/), {
+      target: { value: 'NewPassword123!' },
+    });
+    fireEvent.change(screen.getByLabelText(/ยืนยันรหัสผ่านใหม่/), {
+      target: { value: 'NewPassword123!' },
+    });
+    const form = screen.getByLabelText(/^รหัสผ่านใหม่/).closest('form')!;
+    fireEvent.submit(form);
+    expect(
+      (
+        await screen.findByRole('button', { name: 'กำลังบันทึก...' })
+      ).hasAttribute('disabled'),
+    ).toBe(true);
+    fireEvent.submit(form);
+    finish({ id: 22 });
+    await screen.findByText('เปลี่ยนรหัสผ่านเรียบร้อยแล้ว');
+    expect(mockedUpdatePassword).toHaveBeenCalledTimes(1);
+  });
   beforeEach(() => {
     mockedGetSettings.mockResolvedValue({
       accountName: 'แฟรนไชส์สุพรรณบุรี',

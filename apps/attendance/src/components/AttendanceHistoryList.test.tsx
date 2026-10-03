@@ -11,14 +11,16 @@ describe('AttendanceHistoryList', () => {
         history={[
           {
             date: '2026-09-14',
-            checkInAt: '2026-09-14T08:15:00+07:00',
-            checkOutAt: '2026-09-14T17:00:00+07:00',
+            checkInAt: '2026-09-14T08:15:42+07:00',
+            checkOutAt: '2026-09-14T17:00:42+07:00',
           },
         ]}
       />,
     );
 
     expect(screen.getByText('8 ชม. 45 นาที')).toBeTruthy();
+    expect(screen.getByText('08:15:42')).toBeTruthy();
+    expect(screen.getByText('17:00:42')).toBeTruthy();
   });
 
   it('calculates an overnight shift across the date boundary', () => {

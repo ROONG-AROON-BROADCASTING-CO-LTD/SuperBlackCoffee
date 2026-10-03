@@ -62,7 +62,7 @@ describe('exportDailyReportAsPdf', () => {
     );
     expect(popup.document.write).toHaveBeenCalledWith(
       expect.stringContaining(
-        'grid-template-columns: repeat(3, minmax(0, 1fr))',
+        'grid-template-columns: repeat(4, minmax(0, 1fr))',
       ),
     );
     expect(popup.document.write).toHaveBeenCalledWith(

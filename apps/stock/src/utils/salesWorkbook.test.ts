@@ -33,7 +33,7 @@ const join = (parts: Uint8Array[]) => {
 
 // A minimal uncompressed .xlsx archive lets the browser parser be tested
 // without checking a customer export into the repository.
-const workbookFile = () => {
+const workbookFile = (replace: (text: string) => string = (text) => text) => {
   const files = [
     [
       'xl/workbook.xml',
@@ -57,7 +57,7 @@ const workbookFile = () => {
   let offset = 0;
   for (const [name, contents] of files) {
     const filename = encoder.encode(name);
-    const content = encoder.encode(contents);
+    const content = encoder.encode(replace(contents));
     localFiles.push(
       join([
         uint32(0x04034b50),
@@ -115,6 +115,41 @@ const workbookFile = () => {
 };
 
 describe('sales workbook import', () => {
+  it.each([
+    ['empty upload', new Uint8Array()],
+    ['non-Excel upload', encoder.encode('not an Excel workbook')],
+  ])('rejects %s with an actionable error', async (_name, bytes) => {
+    await expect(
+      readSalesWorkbook({
+        arrayBuffer: async () => bytes.buffer.slice(0),
+      } as File),
+    ).rejects.toThrow('ไม่พบข้อมูลไฟล์ Excel ที่ถูกต้อง');
+  });
+
+  it('rejects a workbook missing the required quantity header', async () => {
+    const bytes = workbookFile((text) =>
+      text.replace('<t>Quantity</t>', '<t>Total</t>'),
+    );
+    await expect(
+      readSalesWorkbook({
+        arrayBuffer: async () => bytes.buffer.slice(0),
+      } as File),
+    ).rejects.toThrow('ไม่พบหัวตารางยอดขายในไฟล์ Excel');
+  });
+
+  it('rejects a workbook whose sheet relationship points to a missing sheet', async () => {
+    const bytes = workbookFile((text) =>
+      text.replace(
+        'Target="worksheets/sheet1.xml"',
+        'Target="worksheets/missing.xml"',
+      ),
+    );
+    await expect(
+      readSalesWorkbook({
+        arrayBuffer: async () => bytes.buffer.slice(0),
+      } as File),
+    ).rejects.toThrow('ไม่พบชีตยอดขายในไฟล์ Excel');
+  });
   it('maps FoodStory display names with inline options to canonical database names', () => {
     expect(
       matchWorkbookSales(

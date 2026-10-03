@@ -87,7 +87,7 @@ export function exportDailyReportAsPdf({
       .report-header { margin-bottom: 9px; padding-bottom: 7px; border-bottom: 2px solid #3c2d24; }
       .report-title { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; }
       .report-meta { margin: 3px 0 0; color: #60493b; font-size: 11px; }
-      .report-days { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+      .report-days { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
       .report-day { break-inside: avoid; border: 1px solid #e8ddd5; border-radius: 6px; overflow: hidden; }
       .report-day__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 5px 7px; background: #3c2d24; border-bottom: 1px solid #3c2d24; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .report-day__header h2 { margin: 0; color: #fff; font-size: 11px; line-height: 1.3; font-weight: 700; }
