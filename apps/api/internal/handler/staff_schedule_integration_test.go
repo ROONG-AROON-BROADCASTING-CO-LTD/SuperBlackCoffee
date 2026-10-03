@@ -310,7 +310,7 @@ func TestGenerateStaffSchedulesAlternatesTwoEmployeesByWeek(t *testing.T) {
 	userIDs := make([]int64, 2)
 	for index := range userIDs {
 		username := fmt.Sprintf("weekly-swap-%d-%d", fixtureID, index)
-		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00','12:00','21:00') RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at,default_second_shift_days) VALUES($1,$2,$3,'hash','cashier',$4,'08:00','17:00','11:30','20:30',ARRAY[1,2,3,4,5,6,7]) RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID).Scan(&userIDs[index]); err != nil {
 			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
 		}
 	}
@@ -367,6 +367,125 @@ func TestGenerateStaffSchedulesAlternatesTwoEmployeesByWeek(t *testing.T) {
 	}
 	if firstEmployeeWeekTwoStart != secondEmployeeWeekOneStart || firstEmployeeWeekTwoEnd != secondEmployeeWeekOneEnd || secondEmployeeWeekTwoStart != firstEmployeeWeekOneStart || secondEmployeeWeekTwoEnd != firstEmployeeWeekOneEnd {
 		t.Fatalf("สัปดาห์ถัดไปต้องสลับกะ: week one=(%s-%s),(%s-%s); week two=(%s-%s),(%s-%s)", firstEmployeeWeekOneStart, firstEmployeeWeekOneEnd, secondEmployeeWeekOneStart, secondEmployeeWeekOneEnd, firstEmployeeWeekTwoStart, firstEmployeeWeekTwoEnd, secondEmployeeWeekTwoStart, secondEmployeeWeekTwoEnd)
+	}
+}
+
+func TestGenerateStaffSchedulesRotatesTwoEmployeesUsingTheirConfiguredShiftTimes(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	const monthKey = "2026-10"
+
+	var branchID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาทดสอบสลับกะจากเวลาที่ตั้ง-%d", fixtureID), fmt.Sprintf("CONFIGURED-WEEKLY-SWAP-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	userIDs := make([]int64, 2)
+	for index, shift := range []struct{ startsAt, endsAt string }{{"08:00", "17:00"}, {"11:30", "20:30"}} {
+		username := fmt.Sprintf("configured-weekly-swap-%d-%d", fixtureID, index)
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at) VALUES($1,$2,$3,'hash','cashier',$4,$5::time,$6::time) RETURNING id`, "พนักงานทดสอบ", username, username+"@example.com", branchID, shift.startsAt, shift.endsAt).Scan(&userIDs[index]); err != nil {
+			t.Fatalf("สร้างพนักงานทดสอบ %d: %v", index, err)
+		}
+	}
+	t.Cleanup(func() {
+		for _, userID := range userIDs {
+			_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, userID)
+			_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, userID)
+		}
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+
+	syncedThaiHolidayYears.Store(2026, struct{}{})
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"%s","branchId":%d}`, monthKey, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	readHours := func(userID int64, date string) (string, string) {
+		t.Helper()
+		var startsAt, endsAt string
+		if err := db.QueryRow(`SELECT starts_at::text,ends_at::text FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, userID, date).Scan(&startsAt, &endsAt); err != nil {
+			t.Fatalf("อ่านกะ %d วันที่ %s: %v", userID, date, err)
+		}
+		return startsAt, endsAt
+	}
+	for _, test := range []struct {
+		userID                   int64
+		date, wantStart, wantEnd string
+	}{
+		{userIDs[0], "2026-10-05", "08:00:00", "17:00:00"},
+		{userIDs[1], "2026-10-05", "11:30:00", "20:30:00"},
+		{userIDs[0], "2026-10-12", "11:30:00", "20:30:00"},
+		{userIDs[1], "2026-10-12", "08:00:00", "17:00:00"},
+	} {
+		startsAt, endsAt := readHours(test.userID, test.date)
+		if startsAt != test.wantStart || endsAt != test.wantEnd {
+			t.Errorf("กะ user=%d วันที่ %s = %s-%s, want %s-%s", test.userID, test.date, startsAt, endsAt, test.wantStart, test.wantEnd)
+		}
+	}
+}
+
+func TestGenerateStaffSchedulesKeepsRotationTimePairsTogether(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	for _, tc := range []struct {
+		name, firstEnd, laterStart, laterEnd, secondStart, secondEnd, wantStart, wantEnd string
+	}{
+		{"same end does not select unrelated fallback end", "17:00", "11:30", "17:00", "12:00", "21:00", "11:30:00", "17:00:00"},
+		{"fallback start and end come from the same employee", "17:00", "08:00", "17:00", "12:00", "18:00", "12:00:00", "18:00:00"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixtureID := time.Now().UnixNano()
+			var branchID int64
+			if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, tc.name, fmt.Sprintf("PAIR-%d", fixtureID)).Scan(&branchID); err != nil {
+				t.Fatal(err)
+			}
+			userIDs := make([]int64, 2)
+			t.Cleanup(func() {
+				for _, id := range userIDs {
+					_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id=$1`, id)
+					_, _ = db.Exec(`DELETE FROM users WHERE id=$1`, id)
+				}
+				_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+			})
+			for i, shift := range []struct{ start, end, secondStart, secondEnd string }{
+				{"08:00", tc.firstEnd, "11:00", "22:00"},
+				{tc.laterStart, tc.laterEnd, tc.secondStart, tc.secondEnd},
+			} {
+				username := fmt.Sprintf("pair-%d-%d", fixtureID, i)
+				if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_second_starts_at,default_second_ends_at) VALUES($1,$1,$2,'hash','cashier',$3,$4::time,$5::time,$6::time,$7::time) RETURNING id`, username, username+"@example.com", branchID, shift.start, shift.end, shift.secondStart, shift.secondEnd).Scan(&userIDs[i]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			syncedThaiHolidayYears.Store(2026, struct{}{})
+			for attempt := 0; attempt < 2; attempt++ {
+				response := httptest.NewRecorder()
+				ctx, _ := gin.CreateTestContext(response)
+				ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"2026-10","branchId":%d}`, branchID)))
+				ctx.Request.Header.Set("Content-Type", "application/json")
+				ctx.Set("claims", &middleware.Claims{Role: "admin"})
+				(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+				if response.Code != http.StatusCreated {
+					t.Fatalf("generate: %d %s", response.Code, response.Body.String())
+				}
+				for _, row := range []struct {
+					user int64
+					date string
+				}{{userIDs[1], "2026-10-05"}, {userIDs[0], "2026-10-12"}} {
+					var start, end string
+					if err := db.QueryRow(`SELECT starts_at::text,ends_at::text FROM staff_shifts WHERE user_id=$1 AND shift_date=$2`, row.user, row.date).Scan(&start, &end); err != nil {
+						t.Fatal(err)
+					}
+					if start != tc.wantStart || end != tc.wantEnd {
+						t.Fatalf("attempt %d user %d date %s got %s-%s want %s-%s", attempt, row.user, row.date, start, end, tc.wantStart, tc.wantEnd)
+					}
+				}
+			}
+		})
 	}
 }
 

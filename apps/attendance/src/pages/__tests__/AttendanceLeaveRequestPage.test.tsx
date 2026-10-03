@@ -169,7 +169,9 @@ describe('AttendanceLeaveRequestPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }));
 
     await waitFor(() => expect(cancelLeaveRequest).toHaveBeenCalledWith(44));
-    expect(screen.queryByText('2026-09-09 ถึง 2026-09-10')).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByText('2026-09-09 ถึง 2026-09-10')).toBeNull(),
+    );
   });
 
   it('keeps the request visible when cancellation is rejected', async () => {
@@ -198,5 +200,34 @@ describe('AttendanceLeaveRequestPage', () => {
 
     expect(await screen.findByText('ยกเลิกคำขอไม่ได้')).toBeTruthy();
     expect(screen.getByText('2026-09-25 ถึง 2026-09-26')).toBeTruthy();
+  });
+
+  it('does not delete a pending request when the staff member declines confirmation', async () => {
+    vi.mocked(cancelLeaveRequest).mockClear();
+    vi.mocked(listMyLeaveRequests).mockResolvedValueOnce([
+      {
+        id: 46,
+        leaveDate: '2026-09-25',
+        leaveEndDate: '2026-09-26',
+        leaveType: 'sick',
+        reason: 'ป่วย',
+        contactPhone: '',
+        additionalDetails: '',
+        attachments: [],
+        status: 'pending',
+        createdAt: '2026-09-01T00:00:00Z',
+      },
+    ]);
+    const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<MyLeaveRequests />);
+    await screen.findByText('2026-09-25 ถึง 2026-09-26');
+    fireEvent.click(screen.getByRole('button', { name: 'ยกเลิกคำขอ' }));
+    expect(confirmation).toHaveBeenCalled();
+    expect(cancelLeaveRequest).not.toHaveBeenCalled();
+    expect(screen.getByText('2026-09-25 ถึง 2026-09-26')).toBeTruthy();
+    expect(
+      (screen.getByRole('button', { name: 'ยกเลิกคำขอ' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
   });
 });

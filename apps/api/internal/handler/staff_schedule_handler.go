@@ -657,7 +657,57 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
     b.work_days AS work_branch_work_days,b.is_headquarters AS work_branch_is_headquarters,
     source_branch.work_days AS source_branch_work_days,source_branch.is_headquarters AS source_branch_is_headquarters,
   ROW_NUMBER() OVER (PARTITION BY u.branch_id ORDER BY u.id)::int - 1 AS employee_offset,
-  COUNT(*) OVER (PARTITION BY u.branch_id)::int AS branch_staff_count
+  COUNT(*) OVER (PARTITION BY u.branch_id)::int AS branch_staff_count,
+  FIRST_VALUE(COALESCE(u.default_starts_at,TIME '08:00')) OVER (
+    PARTITION BY u.branch_id
+    ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  ) AS rotation_first_starts_at,
+  FIRST_VALUE(COALESCE(u.default_ends_at,TIME '17:00')) OVER (
+    PARTITION BY u.branch_id
+    ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+  ) AS rotation_first_ends_at,
+  COALESCE(
+    NULLIF(
+      LAST_VALUE(COALESCE(u.default_starts_at,TIME '08:00')) OVER (
+        PARTITION BY u.branch_id
+        ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+      ),
+      FIRST_VALUE(COALESCE(u.default_starts_at,TIME '08:00')) OVER (
+        PARTITION BY u.branch_id
+        ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+      )
+    ),
+    FIRST_VALUE(u.default_second_starts_at) OVER (
+      PARTITION BY u.branch_id ORDER BY u.default_second_starts_at DESC NULLS LAST,u.id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ),
+    COALESCE(u.default_starts_at,TIME '08:00')
+  ) AS rotation_second_starts_at,
+  COALESCE(
+    CASE WHEN
+      LAST_VALUE(COALESCE(u.default_starts_at,TIME '08:00')) OVER (
+        PARTITION BY u.branch_id
+        ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+      ) <> FIRST_VALUE(COALESCE(u.default_starts_at,TIME '08:00')) OVER (
+        PARTITION BY u.branch_id
+        ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+      ) THEN LAST_VALUE(COALESCE(u.default_ends_at,TIME '17:00')) OVER (
+        PARTITION BY u.branch_id
+        ORDER BY COALESCE(u.default_starts_at,TIME '08:00'),u.id
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+      ) END,
+    FIRST_VALUE(u.default_second_ends_at) OVER (
+      PARTITION BY u.branch_id ORDER BY u.default_second_starts_at DESC NULLS LAST,u.id
+      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ),
+    COALESCE(u.default_ends_at,TIME '17:00')
+  ) AS rotation_second_ends_at
   FROM users u
   JOIN branches b ON b.id=u.branch_id
 	LEFT JOIN branches source_branch ON source_branch.id=u.day_off_source_branch_id
@@ -708,29 +758,29 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status,leave_type)
 SELECT c.user_id,c.branch_id,c.shift_date,
   CASE
+    WHEN c.branch_staff_count = 2 THEN
+      CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
+        THEN c.rotation_first_starts_at
+        ELSE c.rotation_second_starts_at
+      END
     WHEN cardinality(c.default_second_shift_days) > 0 THEN
       CASE WHEN EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days)
         THEN COALESCE(c.default_second_starts_at,c.default_starts_at)
         ELSE c.default_starts_at
       END
-    WHEN c.branch_staff_count = 2 THEN
-      CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
-        THEN c.default_starts_at
-        ELSE COALESCE(c.default_second_starts_at,c.default_starts_at)
-      END
     WHEN ((EXTRACT(DAY FROM c.shift_date)::int + c.user_id) % 2) = 0 THEN c.default_starts_at
     ELSE COALESCE(c.default_second_starts_at,c.default_starts_at)
   END,
   CASE
+    WHEN c.branch_staff_count = 2 THEN
+      CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
+        THEN c.rotation_first_ends_at
+        ELSE c.rotation_second_ends_at
+      END
     WHEN cardinality(c.default_second_shift_days) > 0 THEN
       CASE WHEN EXTRACT(ISODOW FROM c.shift_date)::int = ANY(c.default_second_shift_days)
         THEN COALESCE(c.default_second_ends_at,c.default_ends_at)
         ELSE c.default_ends_at
-      END
-    WHEN c.branch_staff_count = 2 THEN
-      CASE WHEN (((c.shift_date - DATE '2000-01-03') / 7 + c.employee_offset) % 2) = 0
-        THEN c.default_ends_at
-        ELSE COALESCE(c.default_second_ends_at,c.default_ends_at)
       END
     WHEN ((EXTRACT(DAY FROM c.shift_date)::int + c.user_id) % 2) = 0 THEN c.default_ends_at
     ELSE COALESCE(c.default_second_ends_at,c.default_ends_at)

@@ -1038,6 +1038,7 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอัปเดตคำขอลาได้"})
 		return
 	}
+	automaticEarlyShiftReplacements := int64(0)
 	if input.Status == "approved" {
 		shiftStatus := "leave"
 		switch leaveType {
@@ -1053,10 +1054,56 @@ func (h *PlatformHandler) UpdateLeaveRequestStatus(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอัปเดตตารางกะจากคำขอลาได้"})
 			return
 		}
+		automaticEarlyShiftReplacements, err = moveSecondShiftToFirstShiftTx(c.Request.Context(), tx, userID, branchID, leaveDate, leaveEndDate)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถจัดกะทดแทนจากคำขอลาได้"})
+			return
+		}
 	}
-	if err := recordAuditTx(c, tx, branchID, claims.UserID, "staff_leave_request", requestID, "update", gin.H{"status": input.Status, "decisionNote": strings.TrimSpace(input.DecisionNote)}); err != nil || tx.Commit() != nil {
+	if err := recordAuditTx(c, tx, branchID, claims.UserID, "staff_leave_request", requestID, "update", gin.H{"status": input.Status, "decisionNote": strings.TrimSpace(input.DecisionNote), "automaticEarlyShiftReplacements": automaticEarlyShiftReplacements}); err != nil || tx.Commit() != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถบันทึกการอนุมัติคำขอลาได้"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": requestID, "status": input.Status}})
+}
+
+// moveSecondShiftToFirstShiftTx covers an approved early-shift leave in a
+// two-person branch. The later worker keeps their own schedule row, but its
+// hours become the early shift; this preserves the unique (user_id, date)
+// constraint and leaves an auditable absence record for the original worker.
+func moveSecondShiftToFirstShiftTx(ctx context.Context, tx *sql.Tx, absentUserID, branchID int64, leaveDate, leaveEndDate string) (int64, error) {
+	result, err := tx.ExecContext(ctx, `
+		UPDATE staff_shifts AS later_shift
+		SET starts_at = absent_shift.starts_at,
+			ends_at = absent_shift.ends_at,
+			leave_type = 'ย้ายจากกะที่สองมาแทนกะแรก'
+		FROM staff_shifts AS absent_shift
+		WHERE absent_shift.user_id = $1
+			AND absent_shift.branch_id = $2
+			AND absent_shift.shift_date >= $3::date
+			AND absent_shift.shift_date <= $4::date
+			AND absent_shift.status IN ('leave', 'sick_leave', 'personal_leave')
+			AND later_shift.branch_id = absent_shift.branch_id
+			AND later_shift.shift_date = absent_shift.shift_date
+			AND later_shift.user_id <> absent_shift.user_id
+			AND later_shift.status = 'scheduled'
+			AND later_shift.starts_at > absent_shift.starts_at
+			AND (
+				SELECT COUNT(*)
+				FROM users staff
+				WHERE staff.branch_id = absent_shift.branch_id
+					AND staff.role IN ('cashier', 'branch_manager')
+			) = 2
+			AND NOT EXISTS (
+				SELECT 1
+				FROM staff_attendance attendance
+				WHERE attendance.user_id = later_shift.user_id
+					AND attendance.branch_id = later_shift.branch_id
+					AND attendance.work_date = later_shift.shift_date
+					AND attendance.check_in_at IS NOT NULL
+			)`, absentUserID, branchID, leaveDate, leaveEndDate)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

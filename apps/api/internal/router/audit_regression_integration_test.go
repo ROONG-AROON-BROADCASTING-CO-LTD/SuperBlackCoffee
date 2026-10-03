@@ -9,6 +9,235 @@ import (
 	"testing"
 )
 
+func TestApprovedFirstShiftLeaveMovesTheSecondShiftToTheFirstShift(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	db := openRouterTestDB(t, url)
+	branch := seedBranch(t, db, "ROTATE-LEAVE")
+	seedUser(t, db, 7, "rotation-manager", "admin", branch, nil)
+	seedUser(t, db, 8, "first-shift", "cashier", branch, nil)
+	seedUser(t, db, 9, "second-shift", "cashier", branch, nil)
+	const date = "2099-01-05" // Monday
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES
+		(8,$1,$2,'08:00','17:00','scheduled'),
+		(9,$1,$2,'11:30','20:30','scheduled')`, branch, date); err != nil {
+		t.Fatal(err)
+	}
+	var leaveID int64
+	if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(8,$1,$2,'personal','planned leave') RETURNING id`, branch, date).Scan(&leaveID); err != nil {
+		t.Fatal(err)
+	}
+
+	res := requestJSON(New(db, nil), http.MethodPatch, fmt.Sprintf("/api/v1/attendance/leave-requests/%d", leaveID), `{"status":"approved"}`, testToken(t, "admin"))
+	if res.Code != http.StatusOK {
+		t.Fatalf("approval=%d %s", res.Code, res.Body.String())
+	}
+	var firstStatus, secondStatus, secondStart, secondEnd, note string
+	if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=8 AND shift_date=$1`, date).Scan(&firstStatus); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT status,starts_at::text,ends_at::text,COALESCE(leave_type,'') FROM staff_shifts WHERE user_id=9 AND shift_date=$1`, date).Scan(&secondStatus, &secondStart, &secondEnd, &note); err != nil {
+		t.Fatal(err)
+	}
+	if firstStatus != "personal_leave" || secondStatus != "scheduled" || secondStart != "08:00:00" || secondEnd != "17:00:00" || note != "ย้ายจากกะที่สองมาแทนกะแรก" {
+		t.Fatalf("first=%s second=%s %s-%s %q", firstStatus, secondStatus, secondStart, secondEnd, note)
+	}
+}
+
+func TestLeaveApprovalRollsBackWhenReplacementShiftCannotBePersisted(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	db := openRouterTestDB(t, url)
+	branch := seedBranch(t, db, "LEAVE-ROLLBACK")
+	seedUser(t, db, 7, "rotation-manager", "admin", branch, nil)
+	seedUser(t, db, 8, "first-shift", "cashier", branch, nil)
+	seedUser(t, db, 9, "second-shift", "cashier", branch, nil)
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES
+		(8,$1,'2099-01-05','08:00','17:00','scheduled'),
+		(9,$1,'2099-01-05','11:30','20:30','scheduled')`, branch); err != nil {
+		t.Fatal(err)
+	}
+	var leaveID int64
+	if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(8,$1,'2099-01-05','personal','planned leave') RETURNING id`, branch).Scan(&leaveID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE FUNCTION audit_reject_shift_replacement() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id=9 THEN RAISE EXCEPTION 'injected replacement failure'; END IF; RETURN NEW; END $$`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := db.Exec(`DROP FUNCTION audit_reject_shift_replacement() CASCADE`); err != nil {
+			t.Error(err)
+		}
+	})
+	if _, err := db.Exec(`CREATE TRIGGER audit_reject_shift_replacement BEFORE UPDATE ON staff_shifts FOR EACH ROW EXECUTE FUNCTION audit_reject_shift_replacement()`); err != nil {
+		t.Fatal(err)
+	}
+	res := requestJSON(New(db, nil), http.MethodPatch, fmt.Sprintf("/api/v1/attendance/leave-requests/%d", leaveID), `{"status":"approved"}`, testToken(t, "admin"))
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("approval=%d %s", res.Code, res.Body.String())
+	}
+	var status string
+	var approvedBy *int64
+	if err := db.QueryRow(`SELECT status,approved_by FROM staff_leave_requests WHERE id=$1`, leaveID).Scan(&status, &approvedBy); err != nil {
+		t.Fatal(err)
+	}
+	if status != "pending" || approvedBy != nil {
+		t.Fatalf("leave not rolled back: %s %v", status, approvedBy)
+	}
+	for _, row := range []struct {
+		id         int
+		start, end string
+	}{{8, "08:00:00", "17:00:00"}, {9, "11:30:00", "20:30:00"}} {
+		var start, end, note string
+		if err := db.QueryRow(`SELECT status,starts_at::text,ends_at::text,COALESCE(leave_type,'') FROM staff_shifts WHERE user_id=$1 AND shift_date='2099-01-05'`, row.id).Scan(&status, &start, &end, &note); err != nil {
+			t.Fatal(err)
+		}
+		if status != "scheduled" || start != row.start || end != row.end || note != "" {
+			t.Fatalf("shift %d not rolled back: %s %s-%s %q", row.id, status, start, end, note)
+		}
+	}
+	var audits int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM audit_events`).Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 0 {
+		t.Fatalf("failed approval retained %d audit records", audits)
+	}
+}
+
+func TestLeaveReplacementRespectsBranchSizeAndAvailability(t *testing.T) {
+	for _, tc := range []struct {
+		name, laterStatus, decision string
+		thirdWorker                 bool
+	}{
+		{"three workers keep existing allocation", "scheduled", "approved", true},
+		{"day off is not reassigned", "day_off", "approved", false},
+		{"another leave is not reassigned", "sick_leave", "approved", false},
+		{"rejection does not change either shift", "scheduled", "rejected", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			url := os.Getenv("TEST_DATABASE_URL")
+			if url == "" {
+				t.Skip("TEST_DATABASE_URL required")
+			}
+			db := openRouterTestDB(t, url)
+			branch := seedBranch(t, db, "LEAVE-AVAILABILITY")
+			seedUser(t, db, 7, "manager", "admin", branch, nil)
+			seedUser(t, db, 8, "early", "cashier", branch, nil)
+			seedUser(t, db, 9, "late", "cashier", branch, nil)
+			if tc.thirdWorker {
+				seedUser(t, db, 10, "third", "cashier", branch, nil)
+			}
+			if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES
+				(8,$1,'2099-01-05','08:00','17:00','scheduled'),
+				(9,$1,'2099-01-05','11:30','20:30',$2)`, branch, tc.laterStatus); err != nil {
+				t.Fatal(err)
+			}
+			var leaveID int64
+			if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(8,$1,'2099-01-05','personal','planned leave') RETURNING id`, branch).Scan(&leaveID); err != nil {
+				t.Fatal(err)
+			}
+			res := requestJSON(New(db, nil), http.MethodPatch, fmt.Sprintf("/api/v1/attendance/leave-requests/%d", leaveID), fmt.Sprintf(`{"status":%q}`, tc.decision), testToken(t, "admin"))
+			if res.Code != http.StatusOK {
+				t.Fatalf("decision=%d %s", res.Code, res.Body.String())
+			}
+			var status, start, end, note string
+			if err := db.QueryRow(`SELECT status,starts_at::text,ends_at::text,COALESCE(leave_type,'') FROM staff_shifts WHERE user_id=9 AND shift_date='2099-01-05'`).Scan(&status, &start, &end, &note); err != nil {
+				t.Fatal(err)
+			}
+			if status != tc.laterStatus || start != "11:30:00" || end != "20:30:00" || note != "" {
+				t.Fatalf("unavailable shift changed: %s %s-%s %q", status, start, end, note)
+			}
+			if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=8 AND shift_date='2099-01-05'`).Scan(&status); err != nil {
+				t.Fatal(err)
+			}
+			want := "personal_leave"
+			if tc.decision == "rejected" {
+				want = "scheduled"
+			}
+			if status != want {
+				t.Fatalf("absent worker status=%s want %s", status, want)
+			}
+		})
+	}
+}
+
+func TestApprovedSecondShiftLeaveDoesNotMoveTheFirstShift(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	db := openRouterTestDB(t, url)
+	branch := seedBranch(t, db, "ROTATE-SECOND-LEAVE")
+	seedUser(t, db, 7, "rotation-manager", "admin", branch, nil)
+	seedUser(t, db, 8, "first-shift", "cashier", branch, nil)
+	seedUser(t, db, 9, "second-shift", "cashier", branch, nil)
+	const date = "2099-01-12"
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES
+		(8,$1,$2,'08:00','17:00','scheduled'),
+		(9,$1,$2,'11:30','20:30','scheduled')`, branch, date); err != nil {
+		t.Fatal(err)
+	}
+	var leaveID int64
+	if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(9,$1,$2,'sick','sick leave') RETURNING id`, branch, date).Scan(&leaveID); err != nil {
+		t.Fatal(err)
+	}
+	res := requestJSON(New(db, nil), http.MethodPatch, fmt.Sprintf("/api/v1/attendance/leave-requests/%d", leaveID), `{"status":"approved"}`, testToken(t, "admin"))
+	if res.Code != http.StatusOK {
+		t.Fatalf("approval=%d %s", res.Code, res.Body.String())
+	}
+	var firstStatus, firstStart, firstEnd, firstNote, secondStatus string
+	if err := db.QueryRow(`SELECT status,starts_at::text,ends_at::text,COALESCE(leave_type,'') FROM staff_shifts WHERE user_id=8 AND shift_date=$1`, date).Scan(&firstStatus, &firstStart, &firstEnd, &firstNote); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=9 AND shift_date=$1`, date).Scan(&secondStatus); err != nil {
+		t.Fatal(err)
+	}
+	if firstStatus != "scheduled" || firstStart != "08:00:00" || firstEnd != "17:00:00" || firstNote != "" || secondStatus != "sick_leave" {
+		t.Fatalf("first=%s %s-%s %q second=%s", firstStatus, firstStart, firstEnd, firstNote, secondStatus)
+	}
+}
+
+func TestApprovedFirstShiftLeaveDoesNotRewriteAnAlreadyCheckedInSecondShift(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL required")
+	}
+	db := openRouterTestDB(t, url)
+	branch := seedBranch(t, db, "ROTATE-CHECKED-IN")
+	seedUser(t, db, 7, "rotation-manager", "admin", branch, nil)
+	seedUser(t, db, 8, "first-shift", "cashier", branch, nil)
+	seedUser(t, db, 9, "second-shift", "cashier", branch, nil)
+	const date = "2099-01-19"
+	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES
+		(8,$1,$2,'08:00','17:00','scheduled'),
+		(9,$1,$2,'11:30','20:30','scheduled')`, branch, date); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO staff_attendance(user_id,branch_id,work_date,check_in_at) VALUES(9,$1,$2,'2099-01-19T05:00:00Z')`, branch, date); err != nil {
+		t.Fatal(err)
+	}
+	var leaveID int64
+	if err := db.QueryRow(`INSERT INTO staff_leave_requests(user_id,branch_id,leave_date,leave_type,reason) VALUES(8,$1,$2,'other','leave after second shift started') RETURNING id`, branch, date).Scan(&leaveID); err != nil {
+		t.Fatal(err)
+	}
+	res := requestJSON(New(db, nil), http.MethodPatch, fmt.Sprintf("/api/v1/attendance/leave-requests/%d", leaveID), `{"status":"approved"}`, testToken(t, "admin"))
+	if res.Code != http.StatusOK {
+		t.Fatalf("approval=%d %s", res.Code, res.Body.String())
+	}
+	var start, end, note string
+	if err := db.QueryRow(`SELECT starts_at::text,ends_at::text,COALESCE(leave_type,'') FROM staff_shifts WHERE user_id=9 AND shift_date=$1`, date).Scan(&start, &end, &note); err != nil {
+		t.Fatal(err)
+	}
+	if start != "11:30:00" || end != "20:30:00" || note != "" {
+		t.Fatalf("checked-in shift changed to %s-%s %q", start, end, note)
+	}
+}
+
 func TestFranchiseMaintenanceUsesSignedTenantAndRejectsMismatchedOwnership(t *testing.T) {
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {

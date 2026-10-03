@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -307,6 +308,29 @@ describe('Stock App session and loading', () => {
     render(<App />);
 
     expect(await screen.findByText('stock-login')).toBeTruthy();
+  });
+
+  it('does not restore a signed-out screen when an earlier inventory load completes late', async () => {
+    let resolveInventory!: (
+      items: Awaited<ReturnType<typeof listInventory>>,
+    ) => void;
+    vi.mocked(listInventory).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveInventory = resolve;
+        }),
+    );
+    render(<App />);
+    await screen.findByTestId('stock-page');
+    await waitFor(() => expect(listInventory).toHaveBeenCalledTimes(3));
+    fireEvent.click(screen.getByRole('button', { name: 'stock-logout' }));
+    await screen.findByText('stock-login');
+    await act(async () => {
+      resolveInventory([]);
+    });
+    expect(screen.getByText('stock-login')).toBeTruthy();
+    expect(screen.queryByTestId('stock-page')).toBeNull();
+    expect(logoutStock).toHaveBeenCalledOnce();
   });
 
   it('toggles cart visibility directly without an intermediate request state', async () => {
