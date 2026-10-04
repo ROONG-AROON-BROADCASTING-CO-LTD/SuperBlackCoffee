@@ -7,6 +7,7 @@ import {
   getServiceDetail,
   serviceDetails,
 } from '../../../src/components/serviceDetailData';
+import { pageMetadata } from '../../pageMetadata';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -26,10 +27,12 @@ export async function generateMetadata({
 
   if (!service) return {};
 
-  return {
+  return pageMetadata({
     title: service.navigationTitle,
     description: service.summary,
-  };
+    pathname: `/services/${service.slug}`,
+    image: service.image,
+  });
 }
 
 export default async function ServiceDetailPage({ params }: PageProps) {

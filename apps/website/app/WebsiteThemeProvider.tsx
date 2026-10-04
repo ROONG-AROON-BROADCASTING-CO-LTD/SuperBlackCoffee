@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme, type Shadows } from '@mui/material/styles';
 import { websiteBaseline } from './websiteBaseline';
+import { WebsiteDocumentMetadata } from '../src/components/WebsiteDocumentMetadata';
 import { WebsiteLanguageProvider } from '../src/components/WebsiteLanguageProvider';
 
 const shadowlessTheme = Array.from({ length: 25 }, () => 'none') as Shadows;
@@ -47,7 +48,10 @@ export function WebsiteThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <WebsiteLanguageProvider>{children}</WebsiteLanguageProvider>
+      <WebsiteLanguageProvider>
+        <WebsiteDocumentMetadata />
+        {children}
+      </WebsiteLanguageProvider>
     </ThemeProvider>
   );
 }
