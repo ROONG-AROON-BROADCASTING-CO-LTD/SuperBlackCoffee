@@ -6,6 +6,7 @@ import { ThemeProvider, createTheme, type Shadows } from '@mui/material/styles';
 import { websiteBaseline } from './websiteBaseline';
 import { WebsiteDocumentMetadata } from '../src/components/WebsiteDocumentMetadata';
 import { WebsiteLanguageProvider } from '../src/components/WebsiteLanguageProvider';
+import type { WebsiteLanguage } from '../src/lib/websiteLanguage';
 
 const shadowlessTheme = Array.from({ length: 25 }, () => 'none') as Shadows;
 
@@ -44,11 +45,24 @@ const theme = createTheme({
   },
 });
 
-export function WebsiteThemeProvider({ children }: { children: ReactNode }) {
+type WebsiteThemeProviderProps = {
+  children: ReactNode;
+  initialLanguage: WebsiteLanguage;
+  hasLanguageCookie: boolean;
+};
+
+export function WebsiteThemeProvider({
+  children,
+  initialLanguage,
+  hasLanguageCookie,
+}: WebsiteThemeProviderProps) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <WebsiteLanguageProvider>
+      <WebsiteLanguageProvider
+        initialLanguage={initialLanguage}
+        hasLanguageCookie={hasLanguageCookie}
+      >
         <WebsiteDocumentMetadata />
         {children}
       </WebsiteLanguageProvider>

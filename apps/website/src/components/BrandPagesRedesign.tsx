@@ -495,8 +495,6 @@ function Photo({
   lazy?: boolean;
   position?: string;
 }) {
-  const [isLoaded, setIsLoaded] = useState(false);
-
   return (
     <Box
       component="div"
@@ -523,8 +521,7 @@ function Photo({
         unoptimized
         decoding="sync"
         sizes="(max-width: 800px) 100vw, 60vw"
-        onLoad={() => setIsLoaded(true)}
-        style={{ opacity: isLoaded ? 1 : 0, objectPosition: position }}
+        style={{ objectPosition: position }}
       />
     </Box>
   );

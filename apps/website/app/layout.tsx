@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from 'next';
+import { cookies } from 'next/headers';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import localFont from 'next/font/local';
 import { WebsiteThemeProvider } from './WebsiteThemeProvider';
 import { GoogleAnalytics } from '../src/components/GoogleAnalytics';
+import {
+  isWebsiteLanguage,
+  type WebsiteLanguage,
+  websiteLanguageCookieName,
+} from '../src/lib/websiteLanguage';
 
 const kanit = localFont({
   src: [
@@ -46,12 +52,24 @@ export const viewport: Viewport = {
   themeColor: '#171411',
 };
 
-export default function RootLayout({
+function parseWebsiteLanguage(
+  value: string | undefined,
+): WebsiteLanguage | null {
+  return isWebsiteLanguage(value) ? value : null;
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const cookieStore = await cookies();
+  const storedLanguage = parseWebsiteLanguage(
+    cookieStore.get(websiteLanguageCookieName)?.value,
+  );
+  const initialLanguage = storedLanguage ?? 'th';
+
   return (
     <html
-      lang="th"
+      lang={initialLanguage}
       className={`${kanit.variable} ${inter.variable}`}
       style={{ backgroundColor: '#000' }}
     >
@@ -61,7 +79,12 @@ export default function RootLayout({
       <body style={{ backgroundColor: '#000' }}>
         <GoogleAnalytics />
         <AppRouterCacheProvider>
-          <WebsiteThemeProvider>{children}</WebsiteThemeProvider>
+          <WebsiteThemeProvider
+            initialLanguage={initialLanguage}
+            hasLanguageCookie={storedLanguage !== null}
+          >
+            {children}
+          </WebsiteThemeProvider>
         </AppRouterCacheProvider>
       </body>
     </html>
