@@ -226,7 +226,7 @@ export function AdminIngredientsPage({
             minHeight: 40,
             borderRadius: '12px',
             bgcolor: '#201914',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontWeight: 500,
             boxShadow: 'none',
             '& .MuiButton-startIcon': { ml: 0.5, mr: 0.75 },
@@ -284,7 +284,7 @@ export function AdminIngredientsPage({
                   sx={{
                     mb: 1.5,
                     color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 19,
                     fontWeight: 600,
                   }}
@@ -363,7 +363,7 @@ export function AdminIngredientsPage({
                                 borderRadius: '12px',
                                 bgcolor: statusBadge.main,
                                 color: statusBadge.contrastText,
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 11,
                                 fontWeight: 500,
                               }}
@@ -379,7 +379,7 @@ export function AdminIngredientsPage({
                           >
                             <Typography
                               sx={{
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 18,
                                 fontWeight: 500,
                               }}
@@ -390,7 +390,7 @@ export function AdminIngredientsPage({
                               sx={{
                                 mt: 0.6,
                                 color: 'text.secondary',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 13,
                               }}
                             >
@@ -427,7 +427,7 @@ export function AdminIngredientsPage({
                             >
                               <Typography
                                 sx={{
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 18,
                                   fontWeight: 600,
                                 }}
@@ -437,7 +437,7 @@ export function AdminIngredientsPage({
                               <Typography
                                 sx={{
                                   color: 'rgba(255,255,255,.75)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 13,
                                 }}
                               >
@@ -454,7 +454,8 @@ export function AdminIngredientsPage({
                                     borderRadius: '10px',
                                     color: '#fff',
                                     border: '1px solid rgba(255,255,255,.45)',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                   }}
                                 >
                                   ยกเลิก
@@ -467,7 +468,8 @@ export function AdminIngredientsPage({
                                   sx={{
                                     minHeight: 38,
                                     borderRadius: '10px',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     boxShadow: 'none',
                                   }}
                                 >
@@ -492,7 +494,7 @@ export function AdminIngredientsPage({
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่พบวัตถุดิบที่ค้นหา
@@ -603,7 +605,7 @@ export function AdminIngredientsPage({
                   </Box>
                   <Typography
                     sx={{
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 14,
                       fontWeight: 500,
                       textAlign: 'center',
@@ -615,7 +617,7 @@ export function AdminIngredientsPage({
                     sx={{
                       mt: 0.25,
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 11,
                       textAlign: 'center',
                     }}
@@ -711,7 +713,7 @@ export function AdminIngredientsPage({
                     minHeight: 40,
                     borderRadius: '12px',
                     color: '#5f4b3d',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   }}
                 >
                   {editingIngredient ? 'ยกเลิกแก้ไข' : 'ยกเลิกเพิ่ม'}
@@ -723,7 +725,7 @@ export function AdminIngredientsPage({
                     minHeight: 40,
                     borderRadius: '12px',
                     bgcolor: '#201914',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     boxShadow: 'none',
                     '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                   }}

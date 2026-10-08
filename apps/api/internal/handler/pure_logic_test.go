@@ -1,6 +1,11 @@
 package handler
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"y/internal/model"
+)
 
 func TestCanRecordAttendance(t *testing.T) {
 	tests := []struct {
@@ -48,6 +53,50 @@ func TestSecondShiftDayValidationAndFormatting(t *testing.T) {
 				t.Fatalf("secondShiftDaysValue(%v) = %q, want %q", test.days, got, test.wantValue)
 			}
 		})
+	}
+}
+
+func TestNormalizedDefaultShiftsSupportsMultipleShiftPatterns(t *testing.T) {
+	shifts := []model.DefaultShift{
+		{StartsAt: "08:00", EndsAt: "17:00"},
+		{StartsAt: "10:00", EndsAt: "19:00", Weekdays: []int{1, 3}},
+		{StartsAt: "13:00", EndsAt: "22:00", Weekdays: []int{2, 4, 5}},
+	}
+	normalized, encoded, ok := normalizedDefaultShifts(shifts, "", "", "", "", nil)
+	if !ok {
+		t.Fatal("multiple shift patterns should be valid")
+	}
+	if len(normalized) != 3 || !strings.Contains(encoded, `"startsAt":"13:00"`) {
+		t.Fatalf("unexpected normalized shifts: %#v (%s)", normalized, encoded)
+	}
+	firstStart, firstEnd, secondStart, secondEnd, weekdays := legacyShiftFields(normalized)
+	if firstStart != "08:00" || firstEnd != "17:00" || secondStart != "10:00" || secondEnd != "19:00" || len(weekdays) != 2 {
+		t.Fatalf("legacy compatibility fields were not derived from the first two shifts: %q %q %q %q %#v", firstStart, firstEnd, secondStart, secondEnd, weekdays)
+	}
+}
+
+func TestNormalizedDefaultShiftsAllowsOptionalExtraShiftWithoutWeekdays(t *testing.T) {
+	shifts := []model.DefaultShift{
+		{StartsAt: "08:00", EndsAt: "17:00"},
+		{StartsAt: "13:00", EndsAt: "22:00"},
+	}
+	normalized, encoded, ok := normalizedDefaultShifts(shifts, "", "", "", "", nil)
+	if !ok {
+		t.Fatal("an extra shift without selected weekdays should be valid")
+	}
+	if len(normalized) != 2 || !strings.Contains(encoded, `"weekdays":null`) && !strings.Contains(encoded, `"weekdays":[]`) {
+		t.Fatalf("unexpected normalized shifts: %#v (%s)", normalized, encoded)
+	}
+}
+
+func TestNormalizedDefaultShiftsRejectsDuplicateWeekdays(t *testing.T) {
+	_, _, ok := normalizedDefaultShifts([]model.DefaultShift{
+		{StartsAt: "08:00", EndsAt: "17:00"},
+		{StartsAt: "10:00", EndsAt: "19:00", Weekdays: []int{1, 2}},
+		{StartsAt: "13:00", EndsAt: "22:00", Weekdays: []int{2, 3}},
+	}, "", "", "", "", nil)
+	if ok {
+		t.Fatal("overlapping weekday assignments should be rejected")
 	}
 }
 

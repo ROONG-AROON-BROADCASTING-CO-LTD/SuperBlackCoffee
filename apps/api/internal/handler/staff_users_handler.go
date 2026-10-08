@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ func (h *PlatformHandler) ListStaffUsers(c *gin.Context) {
 		return
 	}
 	claims := middleware.ClaimsFrom(c)
-	query := `SELECT id,name,username,email,role,job_title,franchisee_id,branch_id,default_starts_at::text,default_ends_at::text,COALESCE(default_second_starts_at::text,''),COALESCE(default_second_ends_at::text,''),COALESCE(array_to_string(default_second_shift_days,','),''),day_off_policy,day_off_source_branch_id,COALESCE(array_to_string(weekly_days_off,','),''),COALESCE(array_to_string(custom_days_off,','),'') FROM users WHERE role IN ('cashier','branch_manager')`
+	query := `SELECT id,name,username,email,role,job_title,COALESCE(department,'cafe'),franchisee_id,branch_id,default_starts_at::text,default_ends_at::text,COALESCE(default_second_starts_at::text,''),COALESCE(default_second_ends_at::text,''),COALESCE(array_to_string(default_second_shift_days,','),''),COALESCE(default_shifts::text,'[]'),day_off_policy,day_off_source_branch_id,COALESCE(array_to_string(weekly_days_off,','),''),COALESCE(array_to_string(custom_days_off,','),'') FROM users WHERE role IN ('cashier','branch_manager')`
 	args := []any{}
 	if claims.Role == "franchise_owner" {
 		branchID, ok := h.branchScope(c)
@@ -39,9 +40,13 @@ func (h *PlatformHandler) ListStaffUsers(c *gin.Context) {
 	users := make([]model.User, 0)
 	for rows.Next() {
 		var user model.User
-		var secondShiftDays, weeklyDaysOff, customDaysOff string
-		if err := rows.Scan(&user.ID, &user.Name, &user.Username, &user.Email, &user.Role, &user.JobTitle, &user.FranchiseeID, &user.BranchID, &user.DefaultStartsAt, &user.DefaultEndsAt, &user.DefaultSecondStartsAt, &user.DefaultSecondEndsAt, &secondShiftDays, &user.DayOffPolicy, &user.DayOffSourceBranchID, &weeklyDaysOff, &customDaysOff); err != nil {
+		var secondShiftDays, defaultShifts, weeklyDaysOff, customDaysOff string
+		if err := rows.Scan(&user.ID, &user.Name, &user.Username, &user.Email, &user.Role, &user.JobTitle, &user.Department, &user.FranchiseeID, &user.BranchID, &user.DefaultStartsAt, &user.DefaultEndsAt, &user.DefaultSecondStartsAt, &user.DefaultSecondEndsAt, &secondShiftDays, &defaultShifts, &user.DayOffPolicy, &user.DayOffSourceBranchID, &weeklyDaysOff, &customDaysOff); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลพนักงานได้"})
+			return
+		}
+		if err := json.Unmarshal([]byte(defaultShifts), &user.DefaultShifts); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านข้อมูลกะประจำได้"})
 			return
 		}
 		if weeklyDaysOff != "" {

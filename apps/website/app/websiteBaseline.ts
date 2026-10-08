@@ -26,7 +26,9 @@ export const websiteBaseline = {
     padding: '0',
     minWidth: '320px',
     background: '#000',
-    fontFamily: 'var(--font-kanit), sans-serif',
+    fontFamily: 'var(--font-ibm-plex-thai), sans-serif',
+    fontSize: '16px',
+    lineHeight: '1.6',
     color: 'var(--sb-ink)',
     textRendering: 'optimizeLegibility',
     overscrollBehaviorY: 'none',
@@ -34,10 +36,10 @@ export const websiteBaseline = {
   // Keep every level-one and level-two heading on the same display face as
   // the homepage hero, even when a component supplies its own sizing.
   h1: {
-    fontFamily: 'var(--font-kanit), sans-serif',
+    fontFamily: 'var(--font-ibm-plex-thai), sans-serif',
   },
   h2: {
-    fontFamily: 'var(--font-kanit), sans-serif',
+    fontFamily: 'var(--font-ibm-plex-thai), sans-serif',
   },
   main: {
     margin: '0',

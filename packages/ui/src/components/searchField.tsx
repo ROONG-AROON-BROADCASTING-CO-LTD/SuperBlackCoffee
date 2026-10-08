@@ -12,7 +12,7 @@ export const searchFieldSx = {
     minHeight: 40,
     borderRadius: '12px',
     bgcolor: '#fff',
-    fontFamily: 'Kanit, sans-serif',
+    fontFamily: 'IBM Plex Sans Thai, sans-serif',
     fontSize: 14,
     transition: 'border-color 160ms ease, box-shadow 160ms ease',
     '&.Mui-focused': {

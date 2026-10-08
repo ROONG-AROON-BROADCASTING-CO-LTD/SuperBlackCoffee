@@ -528,7 +528,7 @@ export function AdminAuditPage() {
             borderRadius: '15px',
             borderColor: '#edc7c3',
             color: '#a22e2a',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่สามารถโหลดประวัติได้ · กำลังลองเชื่อมต่อใหม่อัตโนมัติ
@@ -624,7 +624,7 @@ export function AdminAuditPage() {
                     gap: 1,
                     mb: 0.65,
                     color: '#332a25',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 17,
                     fontWeight: 700,
                     '&::before': {
@@ -648,7 +648,7 @@ export function AdminAuditPage() {
                     borderRadius: '9px',
                     bgcolor: '#eeeeed',
                     color: '#88817b',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 11,
                     fontWeight: 600,
                   }}
@@ -674,7 +674,7 @@ export function AdminAuditPage() {
             <Typography
               sx={{
                 color: '#7e736c',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontWeight: 600,
               }}
             >
@@ -691,7 +691,7 @@ export function AdminAuditPage() {
                 sx={{
                   mt: 0.5,
                   color: '#805637',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 }}
               >
                 ล้างตัวกรอง
@@ -745,7 +745,7 @@ function SummaryStat({
         <Typography
           sx={{
             color: '#817971',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 12,
             lineHeight: 1.3,
           }}
@@ -755,7 +755,7 @@ function SummaryStat({
         <Typography
           sx={{
             color: '#322923',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 25,
             fontWeight: 700,
             lineHeight: 1.1,
@@ -799,14 +799,18 @@ function AuditRow({ event }: { event: AuditRowData }) {
       }}
     >
       <Typography
-        sx={{ color: '#776f69', fontFamily: 'Kanit, sans-serif', fontSize: 13 }}
+        sx={{
+          color: '#776f69',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
+          fontSize: 13,
+        }}
       >
         {event.time}
       </Typography>
       <Typography
         sx={{
           color: '#3d3029',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 13,
           fontWeight: 700,
         }}
@@ -834,7 +838,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
           <Typography
             sx={{
               color: '#30251f',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13.5,
               fontWeight: 600,
             }}
@@ -846,7 +850,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
               sx={{
                 mt: 0.1,
                 color: '#837770',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 11.5,
               }}
             >
@@ -862,7 +866,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
           gap: 0.65,
           minWidth: 0,
           color: '#66594f',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 12,
         }}
       >
@@ -885,7 +889,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
             height: 27,
             bgcolor: '#eee4dc',
             color: '#76543c',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 10,
             fontWeight: 700,
           }}
@@ -895,7 +899,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
         <Typography
           sx={{
             color: '#66594f',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 12,
           }}
         >
@@ -912,7 +916,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
           borderRadius: '9px',
           bgcolor: style.background,
           color: style.color,
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 10.5,
           fontWeight: 600,
         }}
@@ -932,7 +936,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
             minHeight: { xs: 30, md: 28 },
             height: { xs: 30, md: 28 },
             color: '#805637',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 12,
             lineHeight: 1.4,
             whiteSpace: 'nowrap',
@@ -976,7 +980,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
                 <Typography
                   sx={{
                     color: '#877b72',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 10.5,
                     lineHeight: 1.35,
                   }}
@@ -986,7 +990,7 @@ function AuditRow({ event }: { event: AuditRowData }) {
                 <Typography
                   sx={{
                     color: '#3d3029',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                     fontWeight: 500,
                     overflowWrap: 'anywhere',
@@ -1018,13 +1022,16 @@ const filterFieldStyles = {
     height: 41,
     borderRadius: '9px',
     bgcolor: '#fff',
-    fontFamily: 'Kanit, sans-serif',
+    fontFamily: 'IBM Plex Sans Thai, sans-serif',
     fontSize: 13,
     '& fieldset': { borderColor: '#ded6d1' },
     '&:hover fieldset': { borderColor: '#b8a79b' },
     '&.Mui-focused fieldset': { borderColor: '#805637' },
   },
-  '& .MuiInputLabel-root': { fontFamily: 'Kanit, sans-serif', fontSize: 13 },
+  '& .MuiInputLabel-root': {
+    fontFamily: 'IBM Plex Sans Thai, sans-serif',
+    fontSize: 13,
+  },
 };
 
 const searchFieldStyles = {

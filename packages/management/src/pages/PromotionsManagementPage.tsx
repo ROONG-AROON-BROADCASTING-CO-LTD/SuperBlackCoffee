@@ -288,7 +288,7 @@ function StatusChip({
         height: compact ? { xs: 21, sm: 25 } : 25,
         bgcolor: statusTone[status].background,
         color: statusTone[status].color,
-        fontFamily: 'Kanit, sans-serif',
+        fontFamily: 'IBM Plex Sans Thai, sans-serif',
         fontSize: compact ? { xs: 9, sm: 11 } : 11,
         fontWeight: 700,
       }}
@@ -354,7 +354,7 @@ function PromotionCard({
             height: compact ? { xs: 21, sm: 25 } : 25,
             bgcolor: '#805637',
             color: '#fff',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: compact ? { xs: 9, sm: 11 } : 11,
             fontWeight: 700,
           }}
@@ -381,7 +381,7 @@ function PromotionCard({
           noWrap
           sx={{
             color: '#2a211c',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: compact ? { xs: 14, sm: 17 } : 17,
             fontWeight: 600,
           }}
@@ -392,7 +392,7 @@ function PromotionCard({
           sx={{
             mt: compact ? { xs: 0, sm: 0.2 } : 0.2,
             color: '#71675f',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: compact ? { xs: 10.5, sm: 12 } : 12,
           }}
         >
@@ -405,7 +405,7 @@ function PromotionCard({
           sx={{
             mt: compact ? { xs: 0.5, sm: 0.9 } : 0.9,
             color: '#805637',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: compact ? { xs: 13, sm: 18 } : 18,
             fontWeight: 700,
             lineHeight: 1.25,
@@ -424,7 +424,7 @@ function PromotionCard({
           <Typography
             sx={{
               color: '#5f4b3d',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: compact ? { xs: 9.5, sm: 11 } : 11,
               fontWeight: 700,
             }}
@@ -436,7 +436,7 @@ function PromotionCard({
             sx={{
               mt: compact ? { xs: 0.2, sm: 0.35 } : 0.35,
               color: '#7b7068',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: compact ? { xs: 9.5, sm: 11 } : 11,
             }}
           >
@@ -447,7 +447,7 @@ function PromotionCard({
           sx={{
             mt: compact ? { xs: 0.75, sm: 1 } : 1,
             color: '#71675f',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: compact ? { xs: 9.5, sm: 11 } : 11,
             lineHeight: 1.4,
           }}
@@ -459,7 +459,7 @@ function PromotionCard({
             sx={{
               mt: 0.3,
               color: '#8a7d74',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 11,
             }}
           >
@@ -477,7 +477,7 @@ function PromotionCard({
             borderRadius: '10px',
             borderColor: '#d8c8bd',
             color: '#5f4030',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: compact ? { xs: 10, sm: 12 } : 12,
             fontWeight: 600,
             '&:hover': { borderColor: '#805637', bgcolor: '#f7eee8' },
@@ -635,7 +635,7 @@ export function PromotionsManagementPage({
               <Typography
                 sx={{
                   color: '#805637',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 13,
                   fontWeight: 700,
                 }}
@@ -646,7 +646,7 @@ export function PromotionsManagementPage({
             <Typography
               sx={{
                 color: '#3c2d24',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 20,
                 fontWeight: 600,
                 lineHeight: 1.35,
@@ -658,7 +658,7 @@ export function PromotionsManagementPage({
               sx={{
                 mt: 0.35,
                 color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 13,
               }}
             >
@@ -691,7 +691,7 @@ export function PromotionsManagementPage({
                 <Typography
                   sx={{
                     color: '#5f3520',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 16,
                     fontWeight: 700,
                   }}
@@ -701,7 +701,7 @@ export function PromotionsManagementPage({
                 <Typography
                   sx={{
                     color: '#7b7068',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                   }}
                 >
@@ -715,7 +715,7 @@ export function PromotionsManagementPage({
                   alignSelf: { xs: 'flex-start', sm: 'center' },
                   bgcolor: '#f7e7d3',
                   color: '#8a4d1d',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontWeight: 700,
                 }}
               />
@@ -742,7 +742,7 @@ export function PromotionsManagementPage({
                     <Typography
                       sx={{
                         color: '#3c2d24',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 14,
                         fontWeight: 700,
                       }}
@@ -752,7 +752,7 @@ export function PromotionsManagementPage({
                     <Typography
                       sx={{
                         color: '#7b7068',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                       }}
                     >
@@ -765,7 +765,7 @@ export function PromotionsManagementPage({
                       sx={{
                         mt: 0.2,
                         color: '#a9551b',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                         fontWeight: 700,
                       }}
@@ -783,7 +783,7 @@ export function PromotionsManagementPage({
                       borderColor: '#b77948',
                       color: '#6c3e22',
                       borderRadius: '10px',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       fontWeight: 700,
                       whiteSpace: 'nowrap',
@@ -834,7 +834,7 @@ export function PromotionsManagementPage({
                 borderRadius: '16px',
                 bgcolor: '#3c2d24',
                 boxShadow: 'none',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontWeight: 700,
                 '&:hover': { bgcolor: '#201914', boxShadow: 'none' },
               }}
@@ -911,7 +911,10 @@ export function PromotionsManagementPage({
             }}
           >
             <Typography
-              sx={{ color: 'text.secondary', fontFamily: 'Kanit, sans-serif' }}
+              sx={{
+                color: 'text.secondary',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
+              }}
             >
               ไม่พบโปรโมชั่นตามเงื่อนไขที่เลือก
             </Typography>
@@ -996,7 +999,7 @@ export function PromotionsManagementPage({
                     right: 12,
                     bgcolor: '#805637',
                     color: '#fff',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 11,
                     fontWeight: 700,
                   }}
@@ -1006,7 +1009,7 @@ export function PromotionsManagementPage({
                 <Typography
                   sx={{
                     color: '#201914',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 24,
                     fontWeight: 700,
                     lineHeight: 1.25,
@@ -1018,7 +1021,7 @@ export function PromotionsManagementPage({
                   sx={{
                     mt: 0.65,
                     color: '#805637',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 18,
                     fontWeight: 700,
                   }}
@@ -1029,7 +1032,7 @@ export function PromotionsManagementPage({
                   sx={{
                     mt: 2,
                     color: '#5f4b3d',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 14,
                     fontWeight: 700,
                   }}
@@ -1040,7 +1043,7 @@ export function PromotionsManagementPage({
                   sx={{
                     mt: 0.25,
                     color: '#7b7068',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                   }}
                 >
@@ -1060,7 +1063,7 @@ export function PromotionsManagementPage({
                       <Typography
                         sx={{
                           color: '#2a211c',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 14,
                           fontWeight: 700,
                         }}
@@ -1070,7 +1073,7 @@ export function PromotionsManagementPage({
                       <Typography
                         sx={{
                           color: '#7b7068',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                         }}
                       >
@@ -1090,7 +1093,7 @@ export function PromotionsManagementPage({
                           <Typography
                             sx={{
                               color: '#5f4b3d',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 12,
                             }}
                           >
@@ -1099,7 +1102,7 @@ export function PromotionsManagementPage({
                           <Typography
                             sx={{
                               color: '#7b7068',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 12,
                             }}
                           >
@@ -1128,7 +1131,7 @@ export function PromotionsManagementPage({
                       <Typography
                         sx={{
                           color: '#877a71',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                           fontWeight: 700,
                         }}
@@ -1139,7 +1142,7 @@ export function PromotionsManagementPage({
                         sx={{
                           mt: 0.2,
                           color: '#30261f',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 13,
                         }}
                       >
@@ -1152,7 +1155,7 @@ export function PromotionsManagementPage({
                   <Typography
                     sx={{
                       color: '#877a71',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       fontWeight: 700,
                     }}
@@ -1168,7 +1171,7 @@ export function PromotionsManagementPage({
                         <Typography
                           component="span"
                           sx={{
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 13,
                             lineHeight: 1.6,
                           }}
@@ -1192,7 +1195,7 @@ export function PromotionsManagementPage({
                       borderRadius: '12px',
                       borderColor: '#d8c8bd',
                       color: '#5f4b3d',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontWeight: 700,
                       bgcolor: '#fffaf7',
                       '&:hover': { borderColor: '#cbb8aa', bgcolor: '#f7eee8' },
@@ -1301,7 +1304,7 @@ export function PromotionsManagementPage({
                     placeItems: 'center',
                     bgcolor: 'rgba(32, 25, 20, .42)',
                     color: '#fff',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontWeight: 600,
                     textAlign: 'center',
                     px: 2,
@@ -1464,7 +1467,10 @@ export function PromotionsManagementPage({
                   }}
                 >
                   <Typography
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontWeight: 700,
+                    }}
                   >
                     สูตรที่ระบบจะใช้ตัดสต๊อก
                   </Typography>
@@ -1472,7 +1478,7 @@ export function PromotionsManagementPage({
                     sx={{
                       mt: 0.3,
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                     }}
                   >
@@ -1492,7 +1498,7 @@ export function PromotionsManagementPage({
                         sx={{
                           bgcolor: '#f7eee8',
                           color: '#5f4b3d',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 11,
                         }}
                       />
@@ -1556,7 +1562,7 @@ export function PromotionsManagementPage({
                   bgcolor: '#3c2d24',
                   borderRadius: '16px',
                   boxShadow: 'none',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 18,
                   fontWeight: 600,
                   '&:hover': { bgcolor: '#201914', boxShadow: 'none' },

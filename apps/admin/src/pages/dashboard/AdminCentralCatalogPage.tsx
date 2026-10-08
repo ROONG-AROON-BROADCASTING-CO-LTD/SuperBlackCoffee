@@ -220,7 +220,7 @@ const branchTableHeaderSx = {
   bgcolor: '#faf8f6',
   borderColor: '#eadfd7',
   color: '#674633',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 12,
   fontWeight: 600,
 };
@@ -491,7 +491,7 @@ function TemplateDetail({
               py: 4,
               textAlign: 'center',
               color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13,
             }}
           >
@@ -629,7 +629,7 @@ function TemplateDetail({
                             >
                               <Typography
                                 sx={{
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 15,
                                   fontWeight: 700,
                                 }}
@@ -639,7 +639,7 @@ function TemplateDetail({
                               <Typography
                                 sx={{
                                   color: 'rgba(255,255,255,.75)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 12,
                                 }}
                               >
@@ -666,7 +666,7 @@ function TemplateDetail({
                                   borderRadius: '12px',
                                   color: '#fff',
                                   border: '1px solid rgba(255,255,255,.45)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontWeight: 700,
                                 }}
                               >
@@ -682,7 +682,7 @@ function TemplateDetail({
                                   minWidth: 0,
                                   minHeight: 40,
                                   borderRadius: '12px',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontWeight: 700,
                                   boxShadow: 'none',
                                   '&:hover': { boxShadow: 'none' },
@@ -897,7 +897,7 @@ function TemplateDetail({
                             >
                               <Typography
                                 sx={{
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 15,
                                   fontWeight: 700,
                                 }}
@@ -907,7 +907,7 @@ function TemplateDetail({
                               <Typography
                                 sx={{
                                   color: 'rgba(255,255,255,.75)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 12,
                                 }}
                               >
@@ -940,7 +940,7 @@ function TemplateDetail({
                                   borderRadius: '12px',
                                   color: '#fff',
                                   border: '1px solid rgba(255,255,255,.45)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontWeight: 700,
                                 }}
                               >
@@ -956,7 +956,7 @@ function TemplateDetail({
                                   minWidth: 0,
                                   minHeight: 40,
                                   borderRadius: '12px',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontWeight: 700,
                                   boxShadow: 'none',
                                   '&:hover': { boxShadow: 'none' },
@@ -1023,7 +1023,7 @@ function TemplateDetail({
 
 const itemTitleSx = {
   color: '#3c2d24',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 13,
   fontWeight: 500,
   lineHeight: 1.4,
@@ -1032,7 +1032,7 @@ const itemTitleSx = {
 const itemMetaSx = {
   mt: 0.15,
   color: 'text.secondary',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 11,
   lineHeight: 1.4,
 };
@@ -1043,7 +1043,7 @@ const editButtonSx = {
   borderRadius: '12px',
   borderColor: '#ddcec5',
   color: '#674633',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 11,
   fontWeight: 500,
   '&:hover': {
@@ -1059,7 +1059,7 @@ function tabButtonSx(selected: boolean) {
     borderColor: selected ? '#805637' : '#ddcec5',
     bgcolor: selected ? '#805637' : '#fff',
     color: selected ? '#fff' : '#5d4030',
-    fontFamily: 'Kanit, sans-serif',
+    fontFamily: 'IBM Plex Sans Thai, sans-serif',
     fontSize: 12,
     fontWeight: 500,
     boxShadow: 'none',
@@ -1448,7 +1448,7 @@ export function AdminCentralCatalogPage({
         component="span"
         sx={{
           color: 'inherit',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 13,
           fontWeight: 500,
           lineHeight: 1.2,
@@ -1464,7 +1464,7 @@ export function AdminCentralCatalogPage({
         component="span"
         sx={{
           color: '#fff',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 20,
           fontVariantNumeric: 'tabular-nums',
           fontWeight: 700,
@@ -2127,7 +2127,8 @@ export function AdminCentralCatalogPage({
                                       height: 420,
                                       border: 0,
                                       color: '#86766c',
-                                      fontFamily: 'Kanit, sans-serif',
+                                      fontFamily:
+                                        'IBM Plex Sans Thai, sans-serif',
                                       fontSize: 13,
                                     }}
                                   >
@@ -2238,7 +2239,8 @@ export function AdminCentralCatalogPage({
                                           height: 420,
                                           border: 0,
                                           color: '#86766c',
-                                          fontFamily: 'Kanit, sans-serif',
+                                          fontFamily:
+                                            'IBM Plex Sans Thai, sans-serif',
                                           fontSize: 13,
                                         }}
                                       >
@@ -2562,7 +2564,7 @@ export function AdminCentralCatalogPage({
                       sx={{
                         mt: 0.5,
                         color: '#3c2d24',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 22,
                         fontWeight: 600,
                       }}
@@ -2776,7 +2778,9 @@ export function AdminCentralCatalogPage({
                       }}
                     />
                   ) : (
-                    <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                    <Typography
+                      sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
+                    >
                       + เพิ่มรูปสินค้า
                     </Typography>
                   )}
@@ -2790,7 +2794,7 @@ export function AdminCentralCatalogPage({
                         placeItems: 'center',
                         bgcolor: 'rgba(32,25,20,.42)',
                         color: '#fff',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       }}
                     >
                       เปลี่ยนรูปสินค้า
@@ -2875,7 +2879,7 @@ export function AdminCentralCatalogPage({
                       <Typography
                         sx={{
                           color: 'text.secondary',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                         }}
                       >
@@ -2884,7 +2888,7 @@ export function AdminCentralCatalogPage({
                       <Typography
                         sx={{
                           color: 'text.secondary',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 10,
                         }}
                       >
@@ -2914,7 +2918,7 @@ export function AdminCentralCatalogPage({
                             ? '#1c5b39'
                             : '#9d5a1b',
                         color: '#fff',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontWeight: 600,
                       }}
                     />
@@ -2992,7 +2996,7 @@ export function AdminCentralCatalogPage({
                       <Typography
                         sx={{
                           mb: 1,
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontWeight: 700,
                         }}
                       >
@@ -3045,7 +3049,7 @@ export function AdminCentralCatalogPage({
                       <Typography
                         sx={{
                           mb: 1,
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontWeight: 700,
                         }}
                       >
@@ -3113,7 +3117,7 @@ export function AdminCentralCatalogPage({
                         <Typography
                           sx={{
                             color: '#3c2d24',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 15,
                             fontWeight: 600,
                           }}
@@ -3298,7 +3302,7 @@ export function AdminCentralCatalogPage({
                         minHeight: 40,
                         borderRadius: '12px',
                         color: '#5f4b3d',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       }}
                     >
                       {menuEditor.item.id === 0 ? 'ยกเลิกเพิ่ม' : 'ยกเลิกแก้ไข'}
@@ -3314,7 +3318,7 @@ export function AdminCentralCatalogPage({
                         minHeight: 40,
                         borderRadius: '12px',
                         bgcolor: '#201914',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       }}
                     >
                       {isSavingEditor
@@ -3342,7 +3346,7 @@ export function AdminCentralCatalogPage({
           id="catalog-impact-dialog-title"
           sx={{
             color: '#3c2d24',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontWeight: 600,
           }}
         >
@@ -3356,7 +3360,7 @@ export function AdminCentralCatalogPage({
               <Typography
                 sx={{
                   color: '#3c2d24',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 14,
                 }}
               >
@@ -3368,7 +3372,7 @@ export function AdminCentralCatalogPage({
                 sx={{
                   mt: 0.5,
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 12.5,
                   lineHeight: 1.55,
                 }}
@@ -3404,7 +3408,7 @@ export function AdminCentralCatalogPage({
               {impact.count === 0 ? (
                 <Alert
                   severity="info"
-                  sx={{ mt: 2, fontFamily: 'Kanit, sans-serif' }}
+                  sx={{ mt: 2, fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
                 >
                   ยังไม่มีสาขาที่ใช้ข้อมูลกลาง
                 </Alert>
@@ -3420,7 +3424,10 @@ export function AdminCentralCatalogPage({
           <Button
             onClick={() => setImpactDialogMode(null)}
             disabled={isSyncing}
-            sx={{ color: '#674633', fontFamily: 'Kanit, sans-serif' }}
+            sx={{
+              color: '#674633',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
+            }}
           >
             {impactDialogMode === 'sync' ? 'ยกเลิก' : 'ปิด'}
           </Button>
@@ -3681,7 +3688,7 @@ function CentralInventoryEditorDrawer({
                       : 'transparent',
                     borderRadius: 1.5,
                     color: editor.draft.imageUrl ? '#fff' : 'inherit',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontWeight: 500,
                     px: 1.25,
                     py: 0.5,
@@ -3695,7 +3702,7 @@ function CentralInventoryEditorDrawer({
                   <Typography
                     sx={{
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       mt: 0.25,
                     }}
@@ -3914,7 +3921,7 @@ function CentralInventoryEditorDrawer({
                   sx={{
                     gridColumn: { sm: '1 / -1' },
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                   }}
                 >
@@ -3948,7 +3955,7 @@ function CentralInventoryEditorDrawer({
               disabled={isSaving}
               sx={{
                 color: '#5f4b3d',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
               }}
             >
               {editor.item.id === 0 ? 'ยกเลิกเพิ่ม' : 'ยกเลิกแก้ไข'}
@@ -3960,7 +3967,7 @@ function CentralInventoryEditorDrawer({
               disabled={isSaving}
               sx={{
                 bgcolor: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
               }}
@@ -3981,14 +3988,14 @@ function CentralInventoryEditorDrawer({
 const controlLabelSx = {
   mb: 0.75,
   color: '#6c5a50',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 12,
   fontWeight: 500,
 };
 
 const sectionTitleSx = {
   color: '#3c2d24',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 16,
   fontWeight: 600,
   lineHeight: 1.35,
@@ -3996,7 +4003,7 @@ const sectionTitleSx = {
 
 const sectionMetaSx = {
   color: 'text.secondary',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 12,
   lineHeight: 1.45,
 };

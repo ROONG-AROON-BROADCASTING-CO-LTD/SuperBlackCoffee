@@ -32,7 +32,7 @@ export function PromotionsSkeleton({
                 <Typography
                   sx={{
                     color: '#805637',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                     fontWeight: 700,
                   }}
@@ -43,7 +43,7 @@ export function PromotionsSkeleton({
               <Typography
                 sx={{
                   color: '#201914',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: { xs: 18, md: 21 },
                   fontWeight: 700,
                   lineHeight: 1,
@@ -55,7 +55,7 @@ export function PromotionsSkeleton({
                 sx={{
                   mt: 0.35,
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 13,
                 }}
               >
@@ -101,7 +101,7 @@ export function PromotionsSkeleton({
                   borderRadius: '12px',
                   bgcolor: '#3c2d24',
                   boxShadow: 'none',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontWeight: 700,
                   '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                 }}

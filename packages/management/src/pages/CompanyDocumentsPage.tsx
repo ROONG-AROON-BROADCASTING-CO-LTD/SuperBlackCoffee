@@ -180,7 +180,7 @@ export function CompanyDocumentsPage({
             <Typography
               sx={{
                 color: '#3c2d24',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 20,
                 fontWeight: 600,
               }}
@@ -190,7 +190,7 @@ export function CompanyDocumentsPage({
             <Typography
               sx={{
                 color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 13,
               }}
             >
@@ -208,7 +208,7 @@ export function CompanyDocumentsPage({
                 minHeight: 40,
                 borderRadius: '12px',
                 bgcolor: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontWeight: 500,
                 boxShadow: 'none',
                 '& .MuiButton-startIcon': { ml: 0.5, mr: 0.75 },
@@ -250,7 +250,7 @@ export function CompanyDocumentsPage({
                     borderRadius: '12px',
                     color: '#805637',
                     display: 'flex',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                     fontWeight: 700,
                     height: 44,
@@ -262,14 +262,17 @@ export function CompanyDocumentsPage({
                 </Box>
                 <Box>
                   <Typography
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 13 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontSize: 13,
+                    }}
                   >
                     เอกสารทั้งหมด
                   </Typography>
                   <Typography
                     sx={{
                       color: '#3c2d24',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 24,
                       fontWeight: 700,
                       lineHeight: 1.1,
@@ -283,7 +286,7 @@ export function CompanyDocumentsPage({
                 sx={{
                   alignSelf: { xs: 'auto', md: 'center' },
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 13,
                 }}
               >
@@ -377,7 +380,7 @@ export function CompanyDocumentsPage({
                             color: color.text,
                             display: 'flex',
                             flex: '0 0 auto',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 12,
                             fontWeight: 700,
                             height: { xs: 48, sm: 56 },
@@ -405,7 +408,7 @@ export function CompanyDocumentsPage({
                           <Typography
                             sx={{
                               color: '#3c2d24',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: { xs: 16, sm: 17 },
                               fontWeight: 600,
                               lineHeight: 1.35,
@@ -418,7 +421,7 @@ export function CompanyDocumentsPage({
                             sx={{
                               color: 'text.secondary',
                               display: 'grid',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 12,
                               gap: 0.25,
                               gridTemplateColumns: {
@@ -464,7 +467,7 @@ export function CompanyDocumentsPage({
                               borderColor: '#bfa99a',
                               borderRadius: '10px',
                               color: '#5f4b3d',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               minHeight: 36,
                               whiteSpace: 'nowrap',
                             }}
@@ -509,7 +512,7 @@ export function CompanyDocumentsPage({
                         >
                           <Typography
                             sx={{
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 18,
                               fontWeight: 600,
                             }}
@@ -519,7 +522,7 @@ export function CompanyDocumentsPage({
                           <Typography
                             sx={{
                               color: 'rgba(255,255,255,.75)',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 13,
                               textAlign: 'center',
                             }}
@@ -546,7 +549,7 @@ export function CompanyDocumentsPage({
                                 borderColor: 'rgba(255,255,255,.45)',
                                 borderRadius: '10px',
                                 color: '#fff',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 height: 36,
                                 minWidth: { xs: 0, sm: 112 },
                                 px: 2,
@@ -564,7 +567,7 @@ export function CompanyDocumentsPage({
                                 bgcolor: '#df2c31',
                                 borderRadius: '12px',
                                 boxShadow: 'none',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 13,
                                 fontWeight: 700,
                                 height: 36,
@@ -656,14 +659,17 @@ export function CompanyDocumentsPage({
                   }}
                 >
                   <Typography
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontWeight: 500,
+                    }}
                   >
                     {file ? file.name : 'เลือกไฟล์เอกสาร'}
                   </Typography>
                   <Typography
                     sx={{
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       mt: 0.25,
                     }}
@@ -730,7 +736,7 @@ export function CompanyDocumentsPage({
                         minHeight: 40,
                         borderRadius: '12px',
                         color: '#5f4b3d',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       }}
                     >
                       ยกเลิกเพิ่ม
@@ -743,7 +749,7 @@ export function CompanyDocumentsPage({
                         minHeight: 40,
                         borderRadius: '12px',
                         bgcolor: '#201914',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         boxShadow: 'none',
                         '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                       }}

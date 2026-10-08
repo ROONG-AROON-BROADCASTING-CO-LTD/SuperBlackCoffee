@@ -857,7 +857,7 @@ export function IngredientsManagementPage({
               severity="warning"
               sx={{
                 alignItems: 'center',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 '& .MuiAlert-message': { width: '100%' },
               }}
             >
@@ -872,12 +872,18 @@ export function IngredientsManagementPage({
               >
                 <Box>
                   <Typography
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontWeight: 700,
+                    }}
                   >
                     แจ้งเตือนวัตถุดิบใกล้หมดอายุ {expiryAlerts.length} ล็อต
                   </Typography>
                   <Typography
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontSize: 13 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontSize: 13,
+                    }}
                   >
                     {expiryAlerts
                       .slice(0, 3)
@@ -893,7 +899,10 @@ export function IngredientsManagementPage({
                   <Button
                     size="small"
                     onClick={() => openExpirySettings(expirySettingsTarget)}
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontWeight: 700,
+                    }}
                   >
                     ตั้งค่าระยะเตือน
                   </Button>
@@ -904,7 +913,7 @@ export function IngredientsManagementPage({
             <Alert
               severity="success"
               sx={{
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 '& .MuiAlert-message': { width: '100%' },
               }}
             >
@@ -916,14 +925,19 @@ export function IngredientsManagementPage({
                   gap: 1,
                 }}
               >
-                <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                <Typography
+                  sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
+                >
                   ยังไม่มีล็อตใกล้หมดอายุตามระยะเวลาที่ตั้งไว้
                 </Typography>
                 {canManageExpirySettings && expirySettingsTarget ? (
                   <Button
                     size="small"
                     onClick={() => openExpirySettings(expirySettingsTarget)}
-                    sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 700 }}
+                    sx={{
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                      fontWeight: 700,
+                    }}
                   >
                     ตั้งค่าระยะเตือน
                   </Button>
@@ -944,7 +958,7 @@ export function IngredientsManagementPage({
                 <Typography
                   sx={{
                     color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontWeight: 700,
                   }}
                 >
@@ -954,7 +968,7 @@ export function IngredientsManagementPage({
                   sx={{
                     mt: 0.25,
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                   }}
                 >
@@ -984,7 +998,7 @@ export function IngredientsManagementPage({
                     >
                       <Typography
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontWeight: 700,
                         }}
                       >
@@ -993,7 +1007,7 @@ export function IngredientsManagementPage({
                       <Typography
                         sx={{
                           color: '#805637',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 13,
                         }}
                       >
@@ -1004,7 +1018,7 @@ export function IngredientsManagementPage({
                         sx={{
                           mt: 0.25,
                           color: 'text.secondary',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                         }}
                       >
@@ -1080,7 +1094,7 @@ export function IngredientsManagementPage({
                     borderRadius: 99,
                     bgcolor: '#d92d28',
                     color: '#fff',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 11.5,
                     fontWeight: 600,
                     lineHeight: 1,
@@ -1132,7 +1146,7 @@ export function IngredientsManagementPage({
               minHeight: 40,
               borderRadius: '12px',
               bgcolor: '#201914',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontWeight: 500,
               boxShadow: 'none',
               '& .MuiButton-startIcon': { ml: 0.5, mr: 0.75 },
@@ -1197,7 +1211,7 @@ export function IngredientsManagementPage({
                   sx={{
                     mb: 1.5,
                     color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 19,
                     fontWeight: 600,
                   }}
@@ -1307,7 +1321,7 @@ export function IngredientsManagementPage({
                                   borderRadius: '12px',
                                   bgcolor: '#e5f4e9',
                                   color: '#257142',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 11,
                                   fontWeight: 600,
                                   position: 'relative',
@@ -1332,7 +1346,7 @@ export function IngredientsManagementPage({
                                   color: hasAvailabilityExpiryWarning
                                     ? expiryBadge.expiring_soon.color
                                     : statusBadge.contrastText,
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 11,
                                   fontWeight: 500,
                                   position: 'relative',
@@ -1355,7 +1369,7 @@ export function IngredientsManagementPage({
                                       .background,
                                   color:
                                     expiryBadge[ingredient.expiryStatus].color,
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 11,
                                   fontWeight: 600,
                                   position: 'relative',
@@ -1375,7 +1389,7 @@ export function IngredientsManagementPage({
                           >
                             <Typography
                               sx={{
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 18,
                                 fontWeight: 500,
                               }}
@@ -1392,7 +1406,8 @@ export function IngredientsManagementPage({
                                     px: 1,
                                     py: 0.45,
                                     color: '#5f4b3d',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     fontSize: 12,
                                     fontWeight: 600,
                                   }}
@@ -1415,7 +1430,8 @@ export function IngredientsManagementPage({
                                     px: 1,
                                     py: 0.45,
                                     color: '#5f4b3d',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     fontSize: 12,
                                     fontWeight: 600,
                                   }}
@@ -1431,7 +1447,7 @@ export function IngredientsManagementPage({
                                   px: 1,
                                   py: 0.45,
                                   color: '#805637',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 12,
                                   fontWeight: 600,
                                 }}
@@ -1464,7 +1480,8 @@ export function IngredientsManagementPage({
                                             'expiring_soon'
                                           ? '#9a5a10'
                                           : '#5f4b3d',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     fontSize: 12,
                                     fontWeight: 600,
                                   }}
@@ -1508,7 +1525,8 @@ export function IngredientsManagementPage({
                                     borderRadius: '10px',
                                     bgcolor: '#805637',
                                     color: '#fff',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     fontSize: 12,
                                     fontWeight: 500,
                                     boxShadow: 'none',
@@ -1542,7 +1560,8 @@ export function IngredientsManagementPage({
                                       borderRadius: '10px',
                                       borderColor: '#805637',
                                       color: '#5f4030',
-                                      fontFamily: 'Kanit, sans-serif',
+                                      fontFamily:
+                                        'IBM Plex Sans Thai, sans-serif',
                                       fontSize: 12,
                                       fontWeight: 600,
                                     }}
@@ -1564,7 +1583,8 @@ export function IngredientsManagementPage({
                                       pt: 2,
                                       minHeight: 34,
                                       borderRadius: '10px',
-                                      fontFamily: 'Kanit, sans-serif',
+                                      fontFamily:
+                                        'IBM Plex Sans Thai, sans-serif',
                                       fontSize: 12,
                                       fontWeight: 600,
                                       boxShadow: 'none',
@@ -1626,7 +1646,8 @@ export function IngredientsManagementPage({
                                       borderRadius: '10px',
                                       borderColor: '#805637',
                                       color: '#5f4030',
-                                      fontFamily: 'Kanit, sans-serif',
+                                      fontFamily:
+                                        'IBM Plex Sans Thai, sans-serif',
                                       fontSize: 12,
                                       fontWeight: 600,
                                     }}
@@ -1667,7 +1688,7 @@ export function IngredientsManagementPage({
                             >
                               <Typography
                                 sx={{
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 18,
                                   fontWeight: 600,
                                 }}
@@ -1677,7 +1698,7 @@ export function IngredientsManagementPage({
                               <Typography
                                 sx={{
                                   color: 'rgba(255,255,255,.75)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 13,
                                 }}
                               >
@@ -1695,7 +1716,8 @@ export function IngredientsManagementPage({
                                     borderRadius: '10px',
                                     color: '#fff',
                                     border: '1px solid rgba(255,255,255,.45)',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                   }}
                                 >
                                   ยกเลิก
@@ -1714,7 +1736,8 @@ export function IngredientsManagementPage({
                                   sx={{
                                     minHeight: 38,
                                     borderRadius: '10px',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     boxShadow: 'none',
                                   }}
                                 >
@@ -1742,7 +1765,7 @@ export function IngredientsManagementPage({
                             >
                               <Typography
                                 sx={{
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 18,
                                   fontWeight: 600,
                                 }}
@@ -1752,7 +1775,7 @@ export function IngredientsManagementPage({
                               <Typography
                                 sx={{
                                   color: 'rgba(255,255,255,.75)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 13,
                                 }}
                               >
@@ -1769,7 +1792,8 @@ export function IngredientsManagementPage({
                                     borderRadius: '10px',
                                     color: '#fff',
                                     border: '1px solid rgba(255,255,255,.45)',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                   }}
                                 >
                                   ยกเลิก
@@ -1788,7 +1812,8 @@ export function IngredientsManagementPage({
                                   sx={{
                                     minHeight: 38,
                                     borderRadius: '10px',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     boxShadow: 'none',
                                   }}
                                 >
@@ -1815,7 +1840,7 @@ export function IngredientsManagementPage({
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่พบวัตถุดิบที่ค้นหา
@@ -1855,7 +1880,7 @@ export function IngredientsManagementPage({
               sx={{
                 mt: 0.5,
                 color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 13,
               }}
             >
@@ -1928,7 +1953,7 @@ export function IngredientsManagementPage({
                       imagePreviewUrl || editingIngredient?.imageUrl
                         ? '#fff'
                         : 'inherit',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontWeight: 500,
                     px: 1.25,
                     py: 0.5,
@@ -1943,7 +1968,7 @@ export function IngredientsManagementPage({
                   <Typography
                     sx={{
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       mt: 0.25,
                     }}
@@ -2130,7 +2155,7 @@ export function IngredientsManagementPage({
                       minHeight: 40,
                       borderRadius: '12px',
                       color: '#5f4b3d',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     {editingIngredient ? 'ยกเลิกแก้ไข' : 'ยกเลิกเพิ่ม'}
@@ -2143,7 +2168,7 @@ export function IngredientsManagementPage({
                       minHeight: 40,
                       borderRadius: '12px',
                       bgcolor: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       boxShadow: 'none',
                       '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                     }}
@@ -2202,7 +2227,7 @@ export function IngredientsManagementPage({
           <DrawerActionBar sx={{ mt: 2.5 }}>
             <Button
               onClick={() => setExpirySettingsBranch(null)}
-              sx={{ fontFamily: 'Kanit, sans-serif' }}
+              sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
             >
               ยกเลิก
             </Button>
@@ -2214,7 +2239,7 @@ export function IngredientsManagementPage({
                 borderRadius: '10px',
                 bgcolor: '#201914',
                 boxShadow: 'none',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
               }}
             >
@@ -2268,7 +2293,7 @@ export function IngredientsManagementPage({
               <Typography
                 sx={{
                   gridColumn: { md: '1 / -1' },
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontWeight: 600,
                 }}
               >
@@ -2336,7 +2361,7 @@ export function IngredientsManagementPage({
                     minHeight: 38,
                     borderRadius: '10px',
                     bgcolor: '#201914',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     boxShadow: 'none',
                     '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                   }}
@@ -2349,7 +2374,7 @@ export function IngredientsManagementPage({
               sx={{
                 mt: 2.5,
                 mb: 1,
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 17,
                 fontWeight: 600,
               }}
@@ -2360,13 +2385,16 @@ export function IngredientsManagementPage({
               <Typography
                 sx={{
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 }}
               >
                 กำลังโหลดล็อต…
               </Typography>
             ) : freshLots.length === 0 ? (
-              <Alert severity="info" sx={{ fontFamily: 'Kanit, sans-serif' }}>
+              <Alert
+                severity="info"
+                sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
+              >
                 ยังไม่มีล็อตของสด ให้รับล็อตแรกเพื่อเริ่มตัดแบบ FEFO
               </Alert>
             ) : (
@@ -2399,7 +2427,7 @@ export function IngredientsManagementPage({
                       <Box sx={{ flex: '1 1 260px' }}>
                         <Typography
                           sx={{
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontWeight: 600,
                           }}
                         >
@@ -2408,7 +2436,7 @@ export function IngredientsManagementPage({
                         <Typography
                           sx={{
                             color: 'text.secondary',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 13,
                           }}
                         >
@@ -2427,13 +2455,13 @@ export function IngredientsManagementPage({
                               ? 'warning'
                               : 'default'
                         }
-                        sx={{ fontFamily: 'Kanit, sans-serif' }}
+                        sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
                       />
                       <Typography
                         sx={{
                           minWidth: 110,
                           textAlign: { xs: 'left', sm: 'right' },
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontWeight: 600,
                         }}
                       >
@@ -2446,7 +2474,9 @@ export function IngredientsManagementPage({
                             <Button
                               size="small"
                               onClick={() => setFreshLotDiscardID(null)}
-                              sx={{ fontFamily: 'Kanit, sans-serif' }}
+                              sx={{
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                              }}
                             >
                               ยกเลิก
                             </Button>
@@ -2457,7 +2487,7 @@ export function IngredientsManagementPage({
                               disabled={isSavingInventory}
                               onClick={() => void discardFreshLot(lot)}
                               sx={{
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 boxShadow: 'none',
                               }}
                             >
@@ -2469,7 +2499,9 @@ export function IngredientsManagementPage({
                             size="small"
                             color="error"
                             onClick={() => setFreshLotDiscardID(lot.id)}
-                            sx={{ fontFamily: 'Kanit, sans-serif' }}
+                            sx={{
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                            }}
                           >
                             ตัดทิ้ง
                           </Button>
@@ -2547,7 +2579,7 @@ export function IngredientsManagementPage({
                       borderRadius: '10px',
                       bgcolor: '#f4eae3',
                       color: '#805637',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 16,
                       fontWeight: 600,
                     }}
@@ -2566,7 +2598,7 @@ export function IngredientsManagementPage({
                       <Typography
                         noWrap
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 14,
                           fontWeight: 600,
                         }}
@@ -2586,7 +2618,7 @@ export function IngredientsManagementPage({
                             color:
                               INGREDIENT_STATUS_BADGES[item.status]
                                 .contrastText,
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 10,
                             fontWeight: 600,
                           }}
@@ -2597,7 +2629,7 @@ export function IngredientsManagementPage({
                       sx={{
                         mt: 0.15,
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                       }}
                     >
@@ -2631,7 +2663,7 @@ export function IngredientsManagementPage({
                         component="span"
                         sx={{
                           display: 'block',
-                          fontFamily: 'Arial, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 20,
                           fontWeight: 700,
                           lineHeight: 1,
@@ -2644,7 +2676,7 @@ export function IngredientsManagementPage({
                       sx={{
                         minWidth: 26,
                         textAlign: 'center',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 14,
                         fontWeight: 600,
                       }}
@@ -2675,7 +2707,7 @@ export function IngredientsManagementPage({
                         component="span"
                         sx={{
                           display: 'block',
-                          fontFamily: 'Arial, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 20,
                           fontWeight: 700,
                           lineHeight: 1,
@@ -2712,7 +2744,11 @@ export function IngredientsManagementPage({
               <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
                 <CartIcon size={32} />
                 <Typography
-                  sx={{ mt: 1, fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
+                  sx={{
+                    mt: 1,
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                    fontSize: 14,
+                  }}
                 >
                   เลือกวัตถุดิบจาก card เพื่อเพิ่มลงตะกร้า
                 </Typography>
@@ -2738,7 +2774,7 @@ export function IngredientsManagementPage({
                   borderRadius: '10px',
                   bgcolor: '#f7eee8',
                   color: '#5f4030',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 14,
                   fontWeight: 600,
                   textAlign: 'right',
@@ -2766,7 +2802,7 @@ export function IngredientsManagementPage({
                 px: 2,
                 borderRadius: '12px',
                 bgcolor: '#805637',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontWeight: 500,
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#60412a', boxShadow: 'none' },
@@ -2801,7 +2837,7 @@ export function IngredientsManagementPage({
                 setIsCartSuccessVisible(false);
                 onRequestCreated();
               }}
-              sx={{ fontFamily: 'Kanit, sans-serif' }}
+              sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
             >
               ดูคำขอ
             </Button>

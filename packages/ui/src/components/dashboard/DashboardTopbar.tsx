@@ -19,7 +19,7 @@ export function DashboardTopbar({
   matchContentPadding?: boolean;
   onOpenMobileMenu?: () => void;
 }) {
-  const titleFont = '"SBC Sans", Arial, sans-serif';
+  const titleFont = 'IBM Plex Sans Thai, sans-serif';
 
   return (
     <Box

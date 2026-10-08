@@ -398,7 +398,7 @@ export function AdminBranchesPage() {
               minHeight: 34,
               borderRadius: '12px',
               bgcolor: '#201914',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 12,
               boxShadow: 'none',
               '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
@@ -411,7 +411,11 @@ export function AdminBranchesPage() {
 
       {loadError ? (
         <Typography
-          sx={{ mb: 3, color: '#a22e2a', fontFamily: 'Kanit, sans-serif' }}
+          sx={{
+            mb: 3,
+            color: '#a22e2a',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
+          }}
         >
           ไม่สามารถโหลดข้อมูลสาขาได้ กำลังลองเชื่อมต่อใหม่อัตโนมัติ
         </Typography>
@@ -560,7 +564,7 @@ export function AdminBranchesPage() {
                     <Box sx={{ minWidth: 0 }}>
                       <Typography
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 20,
                           fontWeight: 600,
                           lineHeight: 1.35,
@@ -572,7 +576,7 @@ export function AdminBranchesPage() {
                         sx={{
                           mt: 0.2,
                           color: '#805637',
-                          fontFamily: '"SBC Sans", sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                           fontWeight: 700,
                           letterSpacing: 0.5,
@@ -590,7 +594,7 @@ export function AdminBranchesPage() {
                       borderRadius: '12px',
                       bgcolor: badge.main,
                       color: badge.contrastText,
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 11,
                       fontWeight: 500,
                     }}
@@ -641,7 +645,7 @@ export function AdminBranchesPage() {
                       </Box>
                       <Typography
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 13,
                           lineHeight: 1.55,
                           color: '#665449',
@@ -707,7 +711,7 @@ export function AdminBranchesPage() {
                       borderRadius: '10px',
                       borderColor: '#dfcfc3',
                       color: '#5d4030',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       whiteSpace: 'nowrap',
                       '&:hover': { borderColor: '#9a7458', bgcolor: '#f9f3ef' },
                     }}
@@ -726,7 +730,7 @@ export function AdminBranchesPage() {
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่พบข้อมูลสาขา
@@ -956,7 +960,7 @@ export function AdminBranchesPage() {
             <Typography
               sx={{
                 gridColumn: { sm: '1 / -1' },
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 16,
                 fontWeight: 600,
                 color: '#201914',
@@ -991,7 +995,7 @@ export function AdminBranchesPage() {
                   gap: 0.75,
                   mt: 1,
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 12,
                 }}
               >
@@ -1037,7 +1041,7 @@ export function AdminBranchesPage() {
                   <Typography
                     sx={{
                       color: '#3f2e24',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 13,
                       fontWeight: 600,
                     }}
@@ -1047,7 +1051,7 @@ export function AdminBranchesPage() {
                   <Typography
                     sx={{
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 11,
                     }}
                   >
@@ -1069,7 +1073,10 @@ export function AdminBranchesPage() {
                   disabled={isLocating}
                   startIcon={<MyLocationOutlinedIcon sx={{ fontSize: 17 }} />}
                   onClick={useCurrentLocation}
-                  sx={{ fontFamily: 'Kanit, sans-serif', borderRadius: '10px' }}
+                  sx={{
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                    borderRadius: '10px',
+                  }}
                 >
                   {isLocating ? 'กำลังหาตำแหน่ง...' : 'ใช้ตำแหน่งปัจจุบัน'}
                 </Button>
@@ -1081,7 +1088,10 @@ export function AdminBranchesPage() {
                   rel="noreferrer"
                   variant="outlined"
                   endIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 16 }} />}
-                  sx={{ fontFamily: 'Kanit, sans-serif', borderRadius: '10px' }}
+                  sx={{
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                    borderRadius: '10px',
+                  }}
                 >
                   เปิด Google Maps เพื่อตรวจสอบตำแหน่ง
                 </Button>
@@ -1162,7 +1172,7 @@ export function AdminBranchesPage() {
                 sx={{
                   alignSelf: 'center',
                   color: '#a22e2a',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 13,
                 }}
               >
@@ -1182,7 +1192,7 @@ export function AdminBranchesPage() {
                 minHeight: 40,
                 borderRadius: '12px',
                 color: '#5f4b3d',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
               }}
             >
               ยกเลิก
@@ -1203,7 +1213,7 @@ export function AdminBranchesPage() {
                 minHeight: 40,
                 borderRadius: '12px',
                 bgcolor: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
               }}

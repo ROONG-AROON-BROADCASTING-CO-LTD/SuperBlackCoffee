@@ -77,7 +77,7 @@ export function HeroSection() {
               px: 2.5,
               bgcolor: '#d8ac74',
               color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontWeight: 600,
               boxShadow: 'none',
               '&:hover': { bgcolor: '#efc38d' },
@@ -92,7 +92,7 @@ export function HeroSection() {
               borderColor: 'rgba(255,255,255,.38)',
               borderRadius: '12px',
               color: '#fffaf7',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               '&:hover': {
                 borderColor: '#fffaf7',
                 bgcolor: 'rgba(255,255,255,.08)',

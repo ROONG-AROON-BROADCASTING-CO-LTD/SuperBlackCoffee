@@ -21,7 +21,7 @@ const theme = createTheme({
   shape: { borderRadius: 10 },
   shadows: shadowlessTheme,
   typography: {
-    fontFamily: 'var(--font-kanit), sans-serif',
+    fontFamily: 'var(--font-ibm-plex-thai), sans-serif',
     button: { fontWeight: 600, textTransform: 'none', letterSpacing: 0 },
     h1: { fontSize: 'clamp(2.25rem, 4vw, 4.2rem)' },
     h2: { fontSize: 'clamp(2rem, 3.2vw, 3.2rem)' },

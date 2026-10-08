@@ -14,7 +14,7 @@ const sharedButtonSx = {
   minHeight: 40,
   borderRadius: '12px',
   boxShadow: 'none',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 13,
   fontWeight: 700,
   whiteSpace: 'nowrap',

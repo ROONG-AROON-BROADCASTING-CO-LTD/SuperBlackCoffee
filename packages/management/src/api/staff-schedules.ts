@@ -4,10 +4,12 @@ export type StaffShift = {
   id: number;
   userId: number;
   name: string;
+  department?: 'cafe' | 'postal';
   branchId?: number;
   date: string;
   startsAt: string;
   endsAt: string;
+  isTimeOverride?: boolean;
   status:
     | 'scheduled'
     | 'compensatory_work'
@@ -34,6 +36,8 @@ export const updateStaffShift = (
     branchId?: number;
     status?: StaffShift['status'];
     leaveType?: string;
+    startsAt?: string;
+    endsAt?: string;
   },
 ) =>
   secured<{ id: string }>(`/staff-schedules/${id}`, { method: 'PATCH', data });

@@ -13,7 +13,7 @@ export function pageMetadata({
   pathname,
   image,
 }: PageMetadataInput): Metadata {
-  const socialTitle = `${title} | Super Black Coffee`;
+  const socialTitle = `${title} - Super Black Coffee`;
 
   return {
     title,

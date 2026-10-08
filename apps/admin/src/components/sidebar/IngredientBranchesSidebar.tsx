@@ -19,7 +19,7 @@ export const ingredientBranches = [
   'ไอคอนสยาม',
   'เอ็มควอเทียร์',
   'พระราม 9',
-  'รัชดา',
+  'ประชาอุทิศ',
   'บางนา',
   'ศาลาแดง',
   'จตุจักร',
@@ -96,7 +96,7 @@ export function IngredientBranchesSidebar({
               minHeight: 42,
               mb: 0.5,
               borderRadius: '10px',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               '&.Mui-selected': {
                 bgcolor: '#201914',
                 color: '#fff',
@@ -109,7 +109,7 @@ export function IngredientBranchesSidebar({
               primary={
                 <Typography
                   sx={{
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                     fontWeight: 500,
                   }}

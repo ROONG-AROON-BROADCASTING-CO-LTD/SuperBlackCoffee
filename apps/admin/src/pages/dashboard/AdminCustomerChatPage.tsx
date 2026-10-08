@@ -504,7 +504,7 @@ export function AdminCustomerChatPage() {
                     borderRadius: '50%',
                     bgcolor: '#805637',
                     color: '#fff',
-                    fontFamily: 'Inter, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                     fontWeight: 700,
                   }}
@@ -536,7 +536,7 @@ export function AdminCustomerChatPage() {
                     <Typography
                       noWrap
                       sx={{
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 14,
                         fontWeight:
                           customer.id === activeCustomerId ? 600 : 500,
@@ -548,7 +548,7 @@ export function AdminCustomerChatPage() {
                       sx={{
                         flexShrink: 0,
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 11,
                       }}
                     >
@@ -560,7 +560,7 @@ export function AdminCustomerChatPage() {
                     sx={{
                       mt: 0.15,
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                     }}
                   >
@@ -576,7 +576,7 @@ export function AdminCustomerChatPage() {
                       minWidth: 20,
                       bgcolor: '#805637',
                       color: '#fff',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 10,
                     }}
                   />
@@ -613,7 +613,7 @@ export function AdminCustomerChatPage() {
                 borderRadius: '50%',
                 bgcolor: '#805637',
                 color: '#fff',
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 12,
                 fontWeight: 700,
               }}
@@ -623,7 +623,7 @@ export function AdminCustomerChatPage() {
             <Box>
               <Typography
                 sx={{
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 16,
                   fontWeight: 600,
                 }}
@@ -633,7 +633,7 @@ export function AdminCustomerChatPage() {
               <Typography
                 sx={{
                   color: activeCustomer.online ? '#177245' : 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 12,
                 }}
               >
@@ -685,7 +685,7 @@ export function AdminCustomerChatPage() {
                         >
                           <Typography
                             sx={{
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 14,
                               lineHeight: 1.7,
                             }}
@@ -761,7 +761,7 @@ export function AdminCustomerChatPage() {
                     >
                       <Typography
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 14,
                           lineHeight: 1.5,
                         }}
@@ -774,7 +774,7 @@ export function AdminCustomerChatPage() {
                         mt: 0.25,
                         color: 'text.secondary',
                         textAlign: message.from === 'store' ? 'right' : 'left',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 10,
                       }}
                     >

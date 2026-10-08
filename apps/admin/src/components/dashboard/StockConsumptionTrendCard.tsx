@@ -220,7 +220,7 @@ export function StockConsumptionTrendCard({
             <Typography
               sx={{
                 color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 19,
                 fontWeight: 600,
               }}
@@ -259,7 +259,7 @@ export function StockConsumptionTrendCard({
                     bgcolor: period === option.value ? '#201914' : '#fff',
                     color: period === option.value ? '#fff' : '#5f4b3d',
                     boxShadow: 'none',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                     lineHeight: 1.1,
                   }}
@@ -297,7 +297,7 @@ export function StockConsumptionTrendCard({
               sx={{
                 mt: 2.25,
                 color: '#805637',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 24,
                 fontWeight: 750,
               }}

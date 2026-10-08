@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       'กาแฟไทย พลังงานสะอาด และพื้นที่ที่ออกแบบมาเพื่อทุกการเดินทางของคุณ',
     pathname: '/',
   }),
-  title: { absolute: 'Super Black Coffee | กาแฟดีในทุกจังหวะของคุณ' },
+  title: { absolute: 'Super Black Coffee - กาแฟดีในทุกจังหวะของคุณ' },
 };
 
 export default function HomePage() {

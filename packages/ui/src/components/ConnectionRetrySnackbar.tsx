@@ -36,7 +36,7 @@ export function ConnectionRetrySnackbar({ open }: { open: boolean }) {
         severity="error"
         variant="filled"
         icon={<BadgeAlertIcon animate={open} />}
-        sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 500 }}
+        sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif', fontWeight: 500 }}
       >
         เชื่อมต่อระบบไม่ได้ จะลองใหม่ใน{' '}
         <Box

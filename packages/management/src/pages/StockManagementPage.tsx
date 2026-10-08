@@ -441,7 +441,7 @@ export function StockManagementPage({
                   borderRadius: 99,
                   bgcolor: '#d92d28',
                   color: '#fff',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 11.5,
                   fontWeight: 600,
                   lineHeight: 1,
@@ -467,7 +467,7 @@ export function StockManagementPage({
               minHeight: 40,
               borderRadius: '12px',
               bgcolor: '#201914',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontWeight: 500,
               boxShadow: 'none',
               '& .MuiButton-startIcon': { ml: 0.5, mr: 0.75 },
@@ -522,7 +522,7 @@ export function StockManagementPage({
                   sx={{
                     mb: 1.5,
                     color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 19,
                     fontWeight: 600,
                   }}
@@ -611,7 +611,7 @@ export function StockManagementPage({
                               borderRadius: '12px',
                               bgcolor: badge.main,
                               color: badge.contrastText,
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 11,
                             }}
                           />
@@ -626,7 +626,7 @@ export function StockManagementPage({
                         >
                           <Typography
                             sx={{
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 18,
                               fontWeight: 500,
                             }}
@@ -642,7 +642,7 @@ export function StockManagementPage({
                                 px: 1,
                                 py: 0.45,
                                 color: '#5f4b3d',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 12,
                                 fontWeight: 600,
                               }}
@@ -667,7 +667,7 @@ export function StockManagementPage({
                                 px: 1,
                                 py: 0.45,
                                 color: '#805637',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 12,
                                 fontWeight: 600,
                               }}
@@ -704,7 +704,7 @@ export function StockManagementPage({
                                   borderRadius: '10px',
                                   bgcolor: '#805637',
                                   color: '#fff',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   fontSize: 12,
                                   fontWeight: 500,
                                   boxShadow: 'none',
@@ -756,7 +756,7 @@ export function StockManagementPage({
                           >
                             <Typography
                               sx={{
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 18,
                                 fontWeight: 600,
                               }}
@@ -766,7 +766,7 @@ export function StockManagementPage({
                             <Typography
                               sx={{
                                 color: 'rgba(255,255,255,.75)',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 13,
                               }}
                             >
@@ -783,7 +783,7 @@ export function StockManagementPage({
                                   borderRadius: '10px',
                                   color: '#fff',
                                   border: '1px solid rgba(255,255,255,.45)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 }}
                               >
                                 ยกเลิก
@@ -796,7 +796,7 @@ export function StockManagementPage({
                                 sx={{
                                   minHeight: 38,
                                   borderRadius: '10px',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   boxShadow: 'none',
                                 }}
                               >
@@ -822,7 +822,7 @@ export function StockManagementPage({
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่พบรายการสต๊อกที่ค้นหา
@@ -864,7 +864,7 @@ export function StockManagementPage({
               sx={{
                 mt: 0.5,
                 color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 13,
               }}
             >
@@ -944,7 +944,7 @@ export function StockManagementPage({
                     </Box>
                     <Typography
                       sx={{
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 14,
                         fontWeight: 500,
                         textAlign: 'center',
@@ -956,7 +956,7 @@ export function StockManagementPage({
                       sx={{
                         mt: 0.25,
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 11,
                         textAlign: 'center',
                       }}
@@ -1066,7 +1066,7 @@ export function StockManagementPage({
                       minHeight: 40,
                       borderRadius: '12px',
                       color: '#5f4b3d',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     {editingItem ? 'ยกเลิกแก้ไข' : 'ยกเลิกเพิ่ม'}
@@ -1079,7 +1079,7 @@ export function StockManagementPage({
                       minHeight: 40,
                       borderRadius: '12px',
                       bgcolor: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       boxShadow: 'none',
                       '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
                     }}
@@ -1157,7 +1157,7 @@ export function StockManagementPage({
                     <Typography
                       noWrap
                       sx={{
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 14,
                         fontWeight: 600,
                       }}
@@ -1168,7 +1168,7 @@ export function StockManagementPage({
                       sx={{
                         mt: 0.15,
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                       }}
                     >
@@ -1199,7 +1199,7 @@ export function StockManagementPage({
                       sx={{
                         minWidth: 26,
                         textAlign: 'center',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontWeight: 600,
                       }}
                     >
@@ -1245,7 +1245,11 @@ export function StockManagementPage({
               <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
                 <CartIcon size={32} />
                 <Typography
-                  sx={{ mt: 1, fontFamily: 'Kanit, sans-serif', fontSize: 14 }}
+                  sx={{
+                    mt: 1,
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
+                    fontSize: 14,
+                  }}
                 >
                   เลือกอุปกรณ์จาก card เพื่อเพิ่มลงตะกร้า
                 </Typography>
@@ -1279,7 +1283,7 @@ export function StockManagementPage({
                 px: 2,
                 borderRadius: '12px',
                 bgcolor: '#805637',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontWeight: 500,
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#60412a', boxShadow: 'none' },
@@ -1314,7 +1318,7 @@ export function StockManagementPage({
                 setIsCartSuccessVisible(false);
                 onRequestCreated();
               }}
-              sx={{ fontFamily: 'Kanit, sans-serif' }}
+              sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
             >
               ดูคำขอ
             </Button>

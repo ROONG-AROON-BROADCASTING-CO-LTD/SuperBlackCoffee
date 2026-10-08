@@ -39,7 +39,7 @@ const branches = [
     status: 'เปิดทุกวัน',
   },
   {
-    name: 'รัชดา',
+    name: 'ประชาอุทิศ',
     address:
       '68 10 ซ. ประชาอุทิศ 22 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร 10310',
     phone: '081-825-3584',
@@ -239,8 +239,8 @@ const branchTranslations: Record<string, { name: string; address: string }> = {
     address:
       '654/18 Phra Ong Khao Road, Soi 4, Nai Mueang, Mueang Phitsanulok, Phitsanulok 65000',
   },
-  รัชดา: {
-    name: 'Ratchada',
+  ประชาอุทิศ: {
+    name: 'Pracha Uthit',
     address: '68/10 Pracha Uthit Soi 22, Huai Khwang, Bangkok 10310',
   },
 };
@@ -698,16 +698,18 @@ export function HomeContent() {
           className="sb-home-hero-content"
         >
           <h1>
-            <span className="sb-hero-title-accent">
-              {text('พรีเมียมเหนือระดับ', 'Premium beyond')}
+            <span className="sb-hero-title-accent sb-hero-title-organic-accent">
+              {text('ดีต่อดิน', 'Good for the ground')}
             </span>
             <br />
-            <span>{text('ในทุกช่วงเวลา', 'every moment')}</span>
+            <span className="sb-hero-title-organic">
+              {text('ดีต่อทุกแก้ว', 'Great in your cup')}
+            </span>
           </h1>
           <p>
             {text(
-              'สัมผัสประสบการณ์กาแฟพรีเมียม พลังงานสะอาด ในพื้นที่ที่ออกแบบมาเพื่อทุกไลฟ์สไตล์',
-              'Experience premium coffee, clean energy, and spaces designed for every lifestyle.',
+              'Premium Organic Coffee ที่เริ่มจากการดูแลผืนดินอย่างตั้งใจ ก่อนส่งต่อเป็นรสชาติที่ดีในทุกแก้ว',
+              'Premium organic coffee, grown with care for the land and crafted for a better cup.',
             )}
           </p>
           <Box
@@ -1120,14 +1122,14 @@ export function AboutContent() {
     <>
       <InnerHero
         title={text(
-          'เรื่องราวที่เริ่มจากแก้วกาแฟ',
-          'A story that began with a cup of coffee',
+          'จากไร่กาแฟในลาว สู่ทุกแก้วของเรา',
+          'From a coffee farm in Laos to every cup we serve',
         )}
         text={text(
-          'เราอยากสร้างพื้นที่ที่กาแฟดี ผู้คนดี และธุรกิจที่ดีเติบโตไปพร้อมกัน',
-          'We create a place where good coffee, good people, and good business grow together.',
+          'เราเริ่มจากการทำไร่กาแฟแบบออร์แกนิก และกำลังเดินทางเข้าสู่ปีที่ 4 ด้วยความตั้งใจให้คุณมองเห็นต้นทางของกาแฟได้ชัดขึ้น',
+          'We began with organic coffee farming and are entering our fourth year, making the origin of our coffee easier for you to see.',
         )}
-        image="/hero/about-story.png"
+        image="/about/laos-coffee-farm-dawn.png"
         eyebrow="ABOUT SUPER BLACK COFFEE"
       />
       <Box
@@ -1141,28 +1143,60 @@ export function AboutContent() {
         <div>
           <p>
             {text(
-              'Super Black Coffee เริ่มจากความเชื่อเรียบง่ายว่า กาแฟดีหนึ่งแก้วเปลี่ยนช่วงเวลาธรรมดาให้ดีขึ้นได้',
-              'Super Black Coffee began with a simple belief: a good cup of coffee can make an ordinary moment better.',
+              'Super Black Coffee มีจุดเริ่มต้นจากไร่กาแฟบนผืนดินของประเทศลาว ที่ซึ่งเราได้เรียนรู้ว่ากาแฟที่ดีไม่ได้เริ่มต้นจากการคั่ว แต่เริ่มตั้งแต่การดูแลผืนดิน',
+              'Super Black Coffee began on a coffee farm in Laos, where we learned that good coffee does not begin with roasting. It begins with caring for the land.',
             )}
           </p>
           <p>
             {text(
-              'เราจึงสร้างพื้นที่ที่คุณแวะพัก ทำงาน พบปะ และออกเดินทางต่อได้อย่างสบายใจ',
-              'So we make a space where you can stop, work, meet, and continue your journey with ease.',
+              'เราปลูกและดูแลต้นกาแฟด้วยแนวทางออร์แกนิก ใส่ใจในทุกฤดูกาล ตั้งแต่การบำรุงดิน การเติบโตของต้นกาแฟ ไปจนถึงการคัดเก็บผลกาแฟในช่วงเวลาที่เหมาะสม ทุกขั้นตอนทำให้เราเข้าใจธรรมชาติของกาแฟมากขึ้น และกลายเป็นรากฐานสำคัญของ Super Black Coffee ในวันนี้',
+              'We grow and care for our coffee trees organically, paying attention to every season—from nourishing the soil and supporting each tree’s growth to selecting cherries at the right moment. Every step deepens our understanding of coffee and forms the foundation of Super Black Coffee today.',
+            )}
+          </p>
+          <p>
+            {text(
+              'จากต้นกำเนิดในลาว เรื่องราวของเราได้เดินทางต่อมายังประเทศไทย เริ่มต้นที่อยุธยา ก่อนขยายสู่พิษณุโลก และวันนี้ ประชาอุทิศกำลังเป็นอีกหนึ่งบทใหม่ของการเดินทาง แต่ละสาขาอาจอยู่ต่างสถานที่ ทว่ามีสิ่งหนึ่งที่ยังคงเหมือนเดิมเสมอ — ความตั้งใจที่จะส่งต่อกาแฟที่เรารู้จักตั้งแต่ต้นทาง ให้ทุกแก้วมีทั้งคุณภาพ ตัวตน และเรื่องราวของแหล่งกำเนิดอยู่ภายใน',
+              'From our origin in Laos, the story travelled to Thailand—beginning in Ayutthaya, expanding to Phitsanulok, and now entering a new chapter in Pracha Uthit. Each branch may stand in a different place, but one thing remains the same: our intention to share coffee we have known from the source, so every cup carries quality, character, and the story of where it began.',
             )}
           </p>
         </div>
       </Box>
       <Box
         component="section"
-        sx={[websiteSx['sb-about-photo'], websiteSx['sb-container']]}
-        className="sb-about-photo sb-container"
+        sx={[websiteSx['sb-about-origin'], websiteSx['sb-container']]}
+        className="sb-about-origin sb-container"
       >
-        <Photo
-          src="/about/about-barista-craft.png"
-          alt="บาริสต้ากำลังรังสรรค์กาแฟอย่างตั้งใจ"
-          position="center"
-        />
+        <Box component="div" className="sb-about-origin-copy">
+          <h2>
+            {text(
+              'ประเทศลาว คือจุดเริ่มต้นของเรื่องนี้',
+              'Laos is where this story begins',
+            )}
+          </h2>
+          <p>
+            {text(
+              'เราเลือกเล่าต้นทางอย่างตรงไปตรงมาในระดับที่ยืนยันได้: ไร่กาแฟของเราอยู่ในประเทศลาว และเป็นพื้นที่ที่เราดูแลแบบออร์แกนิกเข้าสู่ปีที่ 4',
+              'We share our origin at the level we can verify: our coffee farm is in Laos, where we have been caring for the land organically for four years.',
+            )}
+          </p>
+        </Box>
+        <Box
+          component="div"
+          className="sb-about-origin-map"
+          role="img"
+          aria-label={text(
+            'แผนภาพเส้นทางจากไร่กาแฟในประเทศลาวไปยังสาขาอยุธยา พิษณุโลก และประชาอุทิศ',
+            'Origin journey from a coffee farm in Laos to Ayutthaya, Phitsanulok, and Pracha Uthit branches',
+          )}
+        >
+          <Box
+            component="img"
+            src="/about/coffee-origin-map.png"
+            alt=""
+            aria-hidden="true"
+            className="sb-about-origin-map-image"
+          />
+        </Box>
       </Box>
       <Box
         component="section"
@@ -1170,54 +1204,90 @@ export function AboutContent() {
         className="sb-about-principles sb-container"
       >
         <Box component="div" className="sb-about-principles-intro">
-          <h2>{text('มากกว่าร้านกาแฟ', 'More than a coffee shop')}</h2>
+          <h2>
+            {text('ดูแลตั้งแต่ดิน จนถึงเมล็ดกาแฟ', 'Care from soil to bean')}
+          </h2>
           <p>
             {text(
-              'ทุกแก้ว ทุกพื้นที่ และทุกบริการ ถูกออกแบบให้เป็นจุดพักที่ช่วยให้วันของคุณไปต่อได้ดีขึ้น',
-              'Every cup, space, and service is designed as a stop that helps your day move forward.',
+              'การปลูกแบบออร์แกนิกของเราเริ่มจากการดูแลพื้นฐานที่มองเห็นได้ และค่อย ๆ ส่งต่อความตั้งใจนั้นไปถึงทุกแก้ว',
+              'Our organic practice starts with visible care for the basics, carrying that intention all the way to every cup.',
             )}
           </p>
         </Box>
         <Box component="div" className="sb-about-principles-list">
           <article>
             <span>01</span>
-            <h3>{text('คุณภาพในทุกแก้ว', 'Quality in every cup')}</h3>
+            <Box
+              component="img"
+              src="/about/organic-soil-life.png"
+              alt={text(
+                'การดูแลดินในไร่กาแฟ',
+                'Caring for living soil on the coffee farm',
+              )}
+              className="sb-about-principle-image"
+            />
+            <h3>{text('ดูแลดินให้มีชีวิต', 'Keep the soil alive')}</h3>
             <p>
               {text(
-                'คัดสรรเมล็ดกาแฟและพัฒนารสชาติอย่างตั้งใจ ให้คุณมั่นใจได้ในทุกครั้งที่แวะมา',
-                'We select our beans and develop every flavour with care, so every visit feels dependable.',
+                'ใช้แนวทางที่เคารพธรรมชาติและดูแลสมดุลของพื้นที่ปลูก',
+                'Respect natural systems and the balance of the growing land.',
               )}
             </p>
           </article>
           <article>
             <span>02</span>
-            <h3>
-              {text('พื้นที่สำหรับทุกจังหวะ', 'A space for every moment')}
-            </h3>
+            <Box
+              component="img"
+              src="/about/organic-coffee-growing.png"
+              alt={text(
+                'ต้นกาแฟที่เติบโตในไร่ประเทศลาว',
+                'Coffee trees growing on a Laos farm',
+              )}
+              className="sb-about-principle-image"
+            />
+            <h3>{text('ปลูกและดูแลอย่างตั้งใจ', 'Grow with intention')}</h3>
             <p>
               {text(
-                'จะทำงาน พักผ่อน หรือเจอคนสำคัญ ที่นี่มีพื้นที่ให้คุณใช้เวลาในแบบของตัวเอง',
-                'Work, rest, or meet someone important—this is a place to spend time your way.',
+                'เรียนรู้จังหวะของต้นกาแฟและดูแลตามฤดูกาล',
+                'Learn the rhythm of the coffee trees and care for them season by season.',
               )}
             </p>
           </article>
           <article>
             <span>03</span>
-            <h3>{text('พร้อมไปต่อทุกเส้นทาง', 'Ready for every journey')}</h3>
+            <Box
+              component="img"
+              src="/about/selective-coffee-harvest.png"
+              alt={text(
+                'การเก็บเกี่ยวผลกาแฟอย่างคัดสรร',
+                'Selective coffee cherry harvesting',
+              )}
+              className="sb-about-principle-image"
+            />
+            <h3>{text('เก็บเกี่ยวอย่างคัดสรร', 'Harvest selectively')}</h3>
             <p>
               {text(
-                'เติมพลังให้ทั้งคุณและรถ ด้วยบริการ EV Charging และสิ่งอำนวยความสะดวก ที่พร้อมสำหรับการเดินทาง',
-                'Recharge both yourself and your car with EV charging and amenities made for the road.',
+                'เลือกเก็บผลกาแฟที่พร้อม เพื่อรักษาคุณภาพตั้งแต่ต้นทาง',
+                'Select ripe cherries to protect quality from the very beginning.',
               )}
             </p>
           </article>
           <article>
             <span>04</span>
-            <h3>{text('เติบโตไปด้วยกัน', 'Grow together')}</h3>
+            <Box
+              component="img"
+              src="/about/coffee-journey-transparent.png"
+              alt={text(
+                'เส้นทางกาแฟจากต้นทางสู่สาขา',
+                'Coffee journey from origin to branches',
+              )}
+              className="sb-about-principle-image"
+            />
+            <h3>{text('ส่งต่อด้วยความโปร่งใส', 'Share the journey openly')}</h3>
             <p>
               {text(
-                'เราสร้างโอกาสให้ทีมงาน ชุมชน และผู้ประกอบการ เติบโตไปกับแบรนด์อย่างยั่งยืน',
-                'We create opportunities for our team, communities, and entrepreneurs to grow sustainably with the brand.',
+                'เล่าที่มาและเส้นทางของกาแฟให้คุณติดตามได้ง่ายขึ้น',
+                'Make the coffee’s origin and journey easier for you to follow.',
               )}
             </p>
           </article>
@@ -1229,8 +1299,19 @@ export function AboutContent() {
         className="sb-about-photo sb-container"
       >
         <Photo
-          src="/about/about-cafe-life.png"
-          alt="พื้นที่คาเฟ่สำหรับการทำงานและพักผ่อน"
+          src="/about/organic-coffee-harvest.png"
+          alt="การเก็บเกี่ยวผลกาแฟแบบออร์แกนิกในไร่ที่ประเทศลาว"
+          position="center"
+        />
+      </Box>
+      <Box
+        component="section"
+        sx={[websiteSx['sb-about-photo'], websiteSx['sb-container']]}
+        className="sb-about-photo sb-container"
+      >
+        <Photo
+          src="/about/soil-to-cup-journey.png"
+          alt="เส้นทางกาแฟจากดินสู่ถ้วย ตั้งแต่การปลูกจนถึงการเก็บเกี่ยว"
           position="center"
         />
       </Box>
@@ -1241,12 +1322,15 @@ export function AboutContent() {
       >
         <Box component="div" className="sb-about-journey-heading">
           <h2>
-            {text('จากต้นทางถึงทุกการเดินทาง', 'From origin to every journey')}
+            {text(
+              'จากลาว สู่สาขาที่เติบโตไปด้วยกัน',
+              'From Laos to branches growing together',
+            )}
           </h2>
           <p>
             {text(
-              'สิ่งที่เราตั้งใจให้เกิดขึ้นในทุกครั้งที่คุณแวะมา',
-              'What we hope to make possible every time you visit.',
+              'เส้นทางของเราค่อย ๆ เติบโตจากสาขาอยุธยา ไปพิษณุโลก และต่อมาที่ประชาอุทิศ',
+              'Our journey has grown from Ayutthaya to Phitsanulok, and now to Pracha Uthit.',
             )}
           </p>
         </Box>
@@ -1254,25 +1338,36 @@ export function AboutContent() {
           <li>
             <span>01</span>
             <div>
-              <h3>{text('คัดสรร', 'Select')}</h3>
-              <p>{text('เลือกวัตถุดิบที่ดี', 'Choose quality ingredients')}</p>
+              <h3>{text('อยุธยา', 'Ayutthaya')}</h3>
+              <p>
+                {text(
+                  'สาขาแรกที่เราเริ่มต้นทำให้เรื่องราวของกาแฟมีพื้นที่พบผู้คน',
+                  'The first branch where our coffee story met its community.',
+                )}
+              </p>
             </div>
           </li>
           <li>
             <span>02</span>
             <div>
-              <h3>{text('รังสรรค์', 'Craft')}</h3>
+              <h3>{text('พิษณุโลก', 'Phitsanulok')}</h3>
               <p>
-                {text('ทำทุกแก้วด้วยความตั้งใจ', 'Make every cup with care')}
+                {text(
+                  'ก้าวต่อไปของการเติบโตและการดูแลประสบการณ์ในแต่ละสาขา',
+                  'The next step in growing and caring for each branch experience.',
+                )}
               </p>
             </div>
           </li>
           <li>
             <span>03</span>
             <div>
-              <h3>{text('ส่งต่อ', 'Pass it on')}</h3>
+              <h3>{text('ประชาอุทิศ', 'Pracha Uthit')}</h3>
               <p>
-                {text('เติมพลังให้คุณไปต่อ', 'Give you energy to continue')}
+                {text(
+                  'จุดเริ่มต้นใหม่ที่กำลังเติบโตได้ดีในเมือง',
+                  'A new beginning that is growing well in the city.',
+                )}
               </p>
             </div>
           </li>
@@ -1300,7 +1395,6 @@ export function AboutContent() {
             'We do not only make coffee; we create a place that helps every day move forward.',
           )}
         </p>
-        <cite>SUPER BLACK COFFEE</cite>
       </Box>
     </>
   );
@@ -1317,8 +1411,8 @@ export function MenuContent() {
           'A menu made with care in every cup',
         )}
         text={text(
-          'รสชาติที่ชัดเจน จากวัตถุดิบที่เราเลือกเอง',
-          'Clear flavours from ingredients we choose ourselves.',
+          'สำรวจเครื่องดื่มที่คัดสรรจากวัตถุดิบคุณภาพ และรังสรรค์ขึ้นเพื่อให้เข้ากับทุกจังหวะของวัน ตั้งแต่กาแฟแก้วแรกจนถึงช่วงเวลาที่อยากพักอย่างมีรสนิยม',
+          'Explore a considered selection of drinks made with quality ingredients and crafted for every rhythm of the day—from your first coffee to a well-deserved moment of pause.',
         )}
         image="/hero/menu-craft.png"
         eyebrow="OUR MENU"
@@ -1425,8 +1519,8 @@ export function BranchesContent() {
       <InnerHero
         title={text('พบกับเราได้ทุกวัน', 'Find us every day')}
         text={text(
-          'ค้นหาสาขาและบริการที่ใกล้คุณที่สุด',
-          'Find the nearest branch and services for you.',
+          'ค้นพบสาขาและจุดพักที่ออกแบบมาให้เข้ากับเส้นทางของคุณ พร้อมกาแฟ บริการ และบรรยากาศที่ทำให้ทุกการเดินทางรู้สึกง่ายขึ้น',
+          'Discover a branch and a place to pause along your route, with coffee, thoughtful services, and an atmosphere designed to make every journey feel easier.',
         )}
         image="/hero/branches-welcome.png"
         eyebrow="OUR BRANCHES"
@@ -1561,8 +1655,8 @@ export function FranchiseContent() {
           'A business that grows with you',
         )}
         text={text(
-          'เริ่มต้นแฟรนไชส์ในรูปแบบที่เหมาะกับพื้นที่และเป้าหมายของคุณ',
-          'Start a franchise model that fits your site and your goals.',
+          'เริ่มต้นธุรกิจกับแบรนด์กาแฟที่มีรากฐานจากการลงมือทำจริง เลือกรูปแบบที่เหมาะกับพื้นที่ วิสัยทัศน์ และเป้าหมายการเติบโตของคุณ',
+          'Build your business with a coffee brand grounded in real operating experience. Choose a model shaped around your site, vision, and ambitions for growth.',
         )}
         image="/hero/franchise-business.png"
         eyebrow="FRANCHISE OPPORTUNITY"
@@ -1576,8 +1670,8 @@ export function FranchiseContent() {
         <h2>{text('เติบโตไปด้วยกัน', 'Grow together')}</h2>
         <p>
           {text(
-            'เลือกรูปแบบที่เข้ากับทำเลของคุณ พร้อมระบบและประสบการณ์ที่พัฒนาจากการทำร้านกาแฟจริง',
-            'Choose a model that fits your location, with systems and experience built from running real coffee shops.',
+            'เติบโตไปพร้อมกับแบรนด์กาแฟที่เข้าใจการทำธุรกิจจริง ตั้งแต่การคัดเลือกทำเล การออกแบบประสบการณ์หน้าร้าน ไปจนถึงระบบสนับสนุนที่ช่วยให้ทีมของคุณทำงานได้อย่างมั่นใจ เลือกรูปแบบที่เหมาะกับพื้นที่ วิสัยทัศน์ และเป้าหมายของคุณ แล้วเปลี่ยนทุกโอกาสให้กลายเป็นการเติบโตที่ยั่งยืน',
+            'Grow with a coffee brand built on real operating experience. From site selection and thoughtful store design to practical systems and ongoing support, we help your team move with confidence. Choose a format aligned with your location, vision, and ambition—and turn every opportunity into sustainable, long-term growth.',
           )}
         </p>
       </Box>
@@ -1993,8 +2087,8 @@ export function ContactContent() {
       <InnerHero
         title={text('เริ่มต้นบทสนทนากับเรา', 'Start a conversation with us')}
         text={text(
-          'ไม่ว่าจะเป็นเรื่องสาขา แฟรนไชส์ หรือความร่วมมือ เรายินดีรับฟัง',
-          'Whether it is about a branch, franchise, or partnership, we are ready to listen.',
+          'ไม่ว่าจะเป็นคำถามเกี่ยวกับสาขา โอกาสแฟรนไชส์ หรือความร่วมมือใหม่ ๆ ทีมงานของเราพร้อมรับฟังและช่วยคุณก้าวไปสู่บทสนทนาที่ชัดเจนยิ่งขึ้น',
+          'Whether you are exploring a branch, a franchise opportunity, or a new partnership, our team is ready to listen and help turn your first conversation into a clear next step.',
         )}
         image="/hero/contact-conversation.png"
         eyebrow="CONTACT SUPER BLACK COFFEE"

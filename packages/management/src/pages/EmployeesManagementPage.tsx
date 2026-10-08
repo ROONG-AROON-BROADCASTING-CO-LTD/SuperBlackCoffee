@@ -63,6 +63,23 @@ const thaiWeekday = [
   'วันอาทิตย์',
 ];
 
+type AdditionalShift = {
+  startsAt: string;
+  endsAt: string;
+  weekdays: number[];
+};
+
+const postalWeekdaySchedule = {
+  startsAt: '09:00',
+  endsAt: '18:00',
+};
+
+const postalWeekendSchedule: AdditionalShift = {
+  startsAt: '10:00',
+  endsAt: '19:00',
+  weekdays: [6, 7],
+};
+
 function headquartersWorkDaysLabel(days?: number[]) {
   const selectedDays = [...new Set(days?.length ? days : [1, 2, 3, 4, 5])].sort(
     (first, second) => first - second,
@@ -140,8 +157,18 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function usesFirstShift(date: string, employeeId: number) {
-  return (Number(date.slice(-2)) + employeeId) % 2 === 0;
+function normalizedPostalShift(shift: StaffShift): StaffShift {
+  // Postal has one standard timetable for the whole team.  This client-side
+  // guard keeps an old cached row from presenting a different timetable while
+  // preserving intentional one-day changes made through the shift editor.
+  if (shift.department !== 'postal' || shift.isTimeOverride) return shift;
+  const weekday = new Date(`${shift.date}T12:00:00Z`).getUTCDay();
+  const isWeekend = weekday === 0 || weekday === 6;
+  return {
+    ...shift,
+    startsAt: isWeekend ? '10:00' : '09:00',
+    endsAt: isWeekend ? '19:00' : '18:00',
+  };
 }
 
 function employeeUsernamePrefix(branchCode?: string) {
@@ -163,6 +190,8 @@ export function EmployeesManagementPage({
   const [editBranchId, setEditBranchId] = useState('');
   const [editStatus, setEditStatus] =
     useState<StaffShift['status']>('scheduled');
+  const [editStartsAt, setEditStartsAt] = useState('');
+  const [editEndsAt, setEditEndsAt] = useState('');
   const [draggedShiftId, setDraggedShiftId] = useState<number | null>(null);
   const [isEmployeeDrawerOpen, setIsEmployeeDrawerOpen] = useState(false);
   const [newEmployeeName, setNewEmployeeName] = useState('');
@@ -170,15 +199,19 @@ export function EmployeesManagementPage({
     'branch_manager' | 'cashier'
   >('cashier');
   const [newEmployeeJobTitle, setNewEmployeeJobTitle] = useState('');
+  const [newEmployeeDepartment, setNewEmployeeDepartment] = useState<
+    'cafe' | 'postal'
+  >('cafe');
   const [newEmployeeBranchId, setNewEmployeeBranchId] = useState('');
   const [newEmployeeUsername, setNewEmployeeUsername] = useState('');
+  const [calendarDepartment, setCalendarDepartment] = useState<
+    'cafe' | 'postal'
+  >('cafe');
   const [defaultStartsAt, setDefaultStartsAt] = useState('08:00');
   const [defaultEndsAt, setDefaultEndsAt] = useState('17:00');
-  const [defaultSecondStartsAt, setDefaultSecondStartsAt] = useState('');
-  const [defaultSecondEndsAt, setDefaultSecondEndsAt] = useState('');
-  const [defaultSecondShiftDays, setDefaultSecondShiftDays] = useState<
-    number[]
-  >([]);
+  const [additionalShifts, setAdditionalShifts] = useState<AdditionalShift[]>(
+    [],
+  );
   const [dayOffPolicy, setDayOffPolicy] = useState<
     'automatic' | 'home_branch' | 'work_branch' | 'custom'
   >('automatic');
@@ -186,9 +219,7 @@ export function EmployeesManagementPage({
   const [weeklyDaysOff, setWeeklyDaysOff] = useState<number[]>([]);
   const [customDaysOff, setCustomDaysOff] = useState<string[]>([]);
   const [customDayOffDate, setCustomDayOffDate] = useState('');
-  const [hoveredTimeField, setHoveredTimeField] = useState<
-    'start' | 'end' | 'secondStart' | 'secondEnd' | null
-  >(null);
+  const [hoveredTimeField, setHoveredTimeField] = useState<string | null>(null);
   const [confirmAutoSchedule, setConfirmAutoSchedule] = useState(false);
   const [pendingDeleteEmployeeId, setPendingDeleteEmployeeId] = useState<
     number | null
@@ -277,6 +308,10 @@ export function EmployeesManagementPage({
         branchId: Number(editBranchId),
         status: editStatus,
         leaveType: editStatus === 'scheduled' ? '' : leaveLabels[editStatus],
+        ...(editStartsAt !== selectedShift!.startsAt.slice(0, 5) ||
+        editEndsAt !== selectedShift!.endsAt.slice(0, 5)
+          ? { startsAt: editStartsAt, endsAt: editEndsAt }
+          : {}),
       }),
     onSuccess: () => {
       setSelectedShift(null);
@@ -310,16 +345,14 @@ export function EmployeesManagementPage({
         password: `Temp${Date.now()}!`,
         role: newEmployeeRole,
         jobTitle: newEmployeeJobTitle,
+        department: newEmployeeDepartment,
         branchId: Number(newEmployeeBranchId),
         defaultStartsAt,
         defaultEndsAt,
-        ...(defaultSecondStartsAt && defaultSecondEndsAt
-          ? {
-              defaultSecondStartsAt,
-              defaultSecondEndsAt,
-              defaultSecondShiftDays,
-            }
-          : {}),
+        defaultShifts: [
+          { startsAt: defaultStartsAt, endsAt: defaultEndsAt, weekdays: [] },
+          ...additionalShifts,
+        ],
         dayOffPolicy,
         dayOffSourceBranchId: Number(
           dayOffSourceBranchId || newEmployeeBranchId,
@@ -331,6 +364,7 @@ export function EmployeesManagementPage({
       setIsEmployeeDrawerOpen(false);
       setNewEmployeeName('');
       setNewEmployeeJobTitle('');
+      setNewEmployeeDepartment('cafe');
       setNewEmployeeUsername('');
       setDayOffPolicy('automatic');
       setDayOffSourceBranchId('');
@@ -343,12 +377,26 @@ export function EmployeesManagementPage({
   });
   const shiftsByDate = useMemo(() => {
     const result = new Map<string, NonNullable<typeof schedules.data>>();
-    for (const shift of schedules.data ?? []) {
-      if (shift.branchId !== activeBranchId) continue;
+    for (const sourceShift of schedules.data ?? []) {
+      const shift = normalizedPostalShift(sourceShift);
+      if (
+        shift.branchId !== activeBranchId ||
+        (shift.department ?? 'cafe') !== calendarDepartment
+      )
+        continue;
       result.set(shift.date, [...(result.get(shift.date) ?? []), shift]);
     }
+    for (const shifts of result.values()) {
+      shifts.sort(
+        (first, second) =>
+          first.startsAt.localeCompare(second.startsAt) ||
+          first.endsAt.localeCompare(second.endsAt) ||
+          first.name.localeCompare(second.name, 'th') ||
+          first.id - second.id,
+      );
+    }
     return result;
-  }, [activeBranchId, schedules.data]);
+  }, [activeBranchId, calendarDepartment, schedules.data]);
   const holidaysByDate = useMemo(
     () =>
       new Map((holidays.data ?? []).map((holiday) => [holiday.date, holiday])),
@@ -358,7 +406,11 @@ export function EmployeesManagementPage({
     const userIds = [
       ...new Set(
         (schedules.data ?? [])
-          .filter((shift) => shift.branchId === activeBranchId)
+          .filter(
+            (shift) =>
+              shift.branchId === activeBranchId &&
+              (shift.department ?? 'cafe') === calendarDepartment,
+          )
           .map((shift) => shift.userId),
       ),
     ].sort((first, second) => first - second);
@@ -368,7 +420,7 @@ export function EmployeesManagementPage({
         shiftColors[index % shiftColors.length],
       ]),
     );
-  }, [activeBranchId, schedules.data]);
+  }, [activeBranchId, calendarDepartment, schedules.data]);
   const staffCount = employees.filter(
     (employee) =>
       employee.role === 'cashier' || employee.role === 'branch_manager',
@@ -390,6 +442,8 @@ export function EmployeesManagementPage({
     setEditDate(shift.date);
     setEditBranchId(String(shift.branchId));
     setEditStatus(shift.status);
+    setEditStartsAt(shift.startsAt.slice(0, 5));
+    setEditEndsAt(shift.endsAt.slice(0, 5));
   };
   const editEmployee = async (employee: (typeof employees)[number]) => {
     setEditingEmployeeId(employee.id);
@@ -401,13 +455,29 @@ export function EmployeesManagementPage({
       employee.jobTitle ||
         (employee.role === 'branch_manager' ? 'ผู้จัดการสาขา' : 'แคชเชียร์'),
     );
+    setNewEmployeeDepartment(employee.department ?? 'cafe');
     setNewEmployeeBranchId(String(employee.branchId ?? activeBranchId ?? ''));
     setNewEmployeeUsername(employee.username);
-    setDefaultStartsAt(employee.defaultStartsAt?.slice(0, 5) || '08:00');
-    setDefaultEndsAt(employee.defaultEndsAt?.slice(0, 5) || '17:00');
-    setDefaultSecondStartsAt(employee.defaultSecondStartsAt?.slice(0, 5) || '');
-    setDefaultSecondEndsAt(employee.defaultSecondEndsAt?.slice(0, 5) || '');
-    setDefaultSecondShiftDays(employee.defaultSecondShiftDays ?? []);
+    if (employee.department === 'postal') {
+      setDefaultStartsAt(postalWeekdaySchedule.startsAt);
+      setDefaultEndsAt(postalWeekdaySchedule.endsAt);
+      setAdditionalShifts([postalWeekendSchedule]);
+    } else {
+      setDefaultStartsAt(employee.defaultStartsAt?.slice(0, 5) || '08:00');
+      setDefaultEndsAt(employee.defaultEndsAt?.slice(0, 5) || '17:00');
+      setAdditionalShifts(
+        employee.defaultShifts?.slice(1) ??
+          (employee.defaultSecondStartsAt && employee.defaultSecondEndsAt
+            ? [
+                {
+                  startsAt: employee.defaultSecondStartsAt.slice(0, 5),
+                  endsAt: employee.defaultSecondEndsAt.slice(0, 5),
+                  weekdays: employee.defaultSecondShiftDays ?? [],
+                },
+              ]
+            : []),
+      );
+    }
     setDayOffPolicy(employee.dayOffPolicy ?? 'automatic');
     setDayOffSourceBranchId(
       String(employee.dayOffSourceBranchId ?? employee.branchId ?? ''),
@@ -545,14 +615,13 @@ export function EmployeesManagementPage({
               setNewEmployeeName('');
               setNewEmployeeRole('cashier');
               setNewEmployeeJobTitle('');
+              setNewEmployeeDepartment('cafe');
               const branchId = String(activeBranchId ?? '');
               setNewEmployeeBranchId(branchId);
               setNewEmployeeUsername(suggestedUsername(branchId));
               setDefaultStartsAt(isHeadquarters ? '09:00' : '');
               setDefaultEndsAt(isHeadquarters ? '18:00' : '');
-              setDefaultSecondStartsAt('');
-              setDefaultSecondEndsAt('');
-              setDefaultSecondShiftDays([]);
+              setAdditionalShifts([]);
               setDayOffPolicy('automatic');
               setDayOffSourceBranchId(branchId);
               setWeeklyDaysOff([]);
@@ -695,6 +764,10 @@ export function EmployeesManagementPage({
                               (employee.role === 'branch_manager'
                                 ? 'ผู้จัดการสาขา'
                                 : 'แคชเชียร์')}
+                            {' · '}
+                            {employee.department === 'postal'
+                              ? 'ไปรษณีย์'
+                              : 'SuperBlackCoffee'}
                           </Typography>
                           <ItemActionButtons
                             editLabel={
@@ -743,7 +816,7 @@ export function EmployeesManagementPage({
                   <Typography
                     color="text.secondary"
                     sx={{
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 14,
                       fontWeight: 700,
                       mb: 1.5,
@@ -812,6 +885,10 @@ export function EmployeesManagementPage({
                               (employee.role === 'branch_manager'
                                 ? 'ผู้จัดการสาขา'
                                 : 'แคชเชียร์')}
+                            {' · '}
+                            {employee.department === 'postal'
+                              ? 'ไปรษณีย์'
+                              : 'SuperBlackCoffee'}
                           </Typography>
                           <ItemActionButtons
                             editLabel={
@@ -1058,210 +1135,273 @@ export function EmployeesManagementPage({
                   </Typography>
                 </Box>
               ) : (
-                <Box sx={{ overflowX: 'auto' }}>
-                  <Box sx={{ minWidth: 780 }}>
-                    <Box
+                <>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      px: { xs: 2, md: 2.5 },
+                      pt: 1.5,
+                      pb: 1,
+                    }}
+                  >
+                    <Typography
                       sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                        borderBottom: '1px solid #eee4dd',
+                        mr: 0.5,
+                        color: '#6e5b4d',
+                        fontSize: 13,
+                        fontWeight: 700,
                       }}
                     >
-                      {thaiWeekday.map((day, index) => (
-                        <Box
-                          key={day}
-                          sx={{
-                            py: 1,
-                            textAlign: 'center',
-                            color: index > 4 ? '#9a6d5c' : '#60493b',
-                            fontSize: 13,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {day}
-                        </Box>
-                      ))}
-                    </Box>
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                      }}
+                      ปฏิทิน
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant={
+                        calendarDepartment === 'cafe' ? 'contained' : 'outlined'
+                      }
+                      onClick={() => setCalendarDepartment('cafe')}
+                      sx={
+                        calendarDepartment === 'cafe'
+                          ? {
+                              bgcolor: '#805637',
+                              '&:hover': { bgcolor: '#60412a' },
+                            }
+                          : undefined
+                      }
                     >
-                      {calendarDays.map((day) => {
-                        const isCurrentMonth =
-                          day.getMonth() === month.getMonth();
-                        const isToday = isSameDay(day, today);
-                        const shifts = shiftsByDate.get(dateKey(day)) ?? [];
-                        const holiday = loadError
-                          ? undefined
-                          : holidaysByDate.get(dateKey(day));
-                        return (
+                      SuperBlackCoffee
+                    </Button>
+                    <Button
+                      size="small"
+                      variant={
+                        calendarDepartment === 'postal'
+                          ? 'contained'
+                          : 'outlined'
+                      }
+                      onClick={() => setCalendarDepartment('postal')}
+                      sx={
+                        calendarDepartment === 'postal'
+                          ? {
+                              bgcolor: '#805637',
+                              '&:hover': { bgcolor: '#60412a' },
+                            }
+                          : undefined
+                      }
+                    >
+                      ไปรษณีย์
+                    </Button>
+                  </Box>
+                  <Box sx={{ overflowX: 'auto' }}>
+                    <Box sx={{ minWidth: 780 }}>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                          borderBottom: '1px solid #eee4dd',
+                        }}
+                      >
+                        {thaiWeekday.map((day, index) => (
                           <Box
-                            key={day.toISOString()}
+                            key={day}
                             sx={{
-                              minHeight: 122,
-                              p: 1.25,
-                              borderRight: '1px solid #eee4dd',
-                              borderBottom: '1px solid #eee4dd',
-                              bgcolor: !isCurrentMonth
-                                ? '#fbf8f6'
-                                : holiday
-                                  ? '#fff8eb'
-                                  : '#fff',
-                              opacity: isCurrentMonth ? 1 : 0.5,
-                              '&:nth-of-type(7n)': { borderRight: 0 },
-                              '&:nth-last-child(-n + 7)': { borderBottom: 0 },
+                              py: 1,
+                              textAlign: 'center',
+                              color: index > 4 ? '#9a6d5c' : '#60493b',
+                              fontSize: 13,
+                              fontWeight: 700,
                             }}
                           >
+                            {day}
+                          </Box>
+                        ))}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                        }}
+                      >
+                        {calendarDays.map((day) => {
+                          const isCurrentMonth =
+                            day.getMonth() === month.getMonth();
+                          const isToday = isSameDay(day, today);
+                          const shifts = shiftsByDate.get(dateKey(day)) ?? [];
+                          const holiday = loadError
+                            ? undefined
+                            : holidaysByDate.get(dateKey(day));
+                          return (
                             <Box
+                              key={day.toISOString()}
                               sx={{
-                                width: 26,
-                                height: 26,
-                                display: 'grid',
-                                placeItems: 'center',
-                                borderRadius: '50%',
-                                bgcolor: isToday ? '#3c2d24' : 'transparent',
-                                color: isToday ? '#fff' : '#45342b',
-                                fontSize: 13,
-                                fontWeight: 700,
+                                minHeight: 122,
+                                p: 1.25,
+                                borderRight: '1px solid #eee4dd',
+                                borderBottom: '1px solid #eee4dd',
+                                bgcolor: !isCurrentMonth
+                                  ? '#fbf8f6'
+                                  : holiday
+                                    ? '#fff8eb'
+                                    : '#fff',
+                                opacity: isCurrentMonth ? 1 : 0.5,
+                                '&:nth-of-type(7n)': { borderRight: 0 },
+                                '&:nth-last-child(-n + 7)': { borderBottom: 0 },
                               }}
                             >
-                              {day.getDate()}
-                            </Box>
-                            {!loadError && holiday ? (
-                              <Typography
-                                title={holiday.name}
+                              <Box
                                 sx={{
-                                  mt: 0.35,
-                                  color: '#b94136',
-                                  fontSize: 10,
+                                  width: 26,
+                                  height: 26,
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  borderRadius: '50%',
+                                  bgcolor: isToday ? '#3c2d24' : 'transparent',
+                                  color: isToday ? '#fff' : '#45342b',
+                                  fontSize: 13,
                                   fontWeight: 700,
-                                  lineHeight: 1.25,
                                 }}
                               >
-                                {holiday.name}
-                              </Typography>
-                            ) : null}
-                            {loadError ? (
-                              <Typography
-                                sx={{
-                                  mt: 2.5,
-                                  color: 'error.main',
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  lineHeight: 1.35,
-                                }}
-                              >
-                                โหลดข้อมูลไม่สำเร็จ
-                              </Typography>
-                            ) : isCurrentMonth && shifts.length === 0 ? (
-                              <Typography
-                                sx={{
-                                  mt: 2.5,
-                                  color: '#a89285',
-                                  fontSize: 11,
-                                  lineHeight: 1.35,
-                                }}
-                              >
-                                ยังไม่มีตารางกะ
-                              </Typography>
-                            ) : null}
-                            {!loadError &&
-                              shifts.map((shift) => (
-                                <Box
-                                  key={shift.id}
-                                  component="button"
-                                  type="button"
-                                  draggable={isWorkingShift(shift.status)}
-                                  onClick={() => openShiftEditor(shift)}
-                                  onDragStart={() =>
-                                    setDraggedShiftId(shift.id)
-                                  }
-                                  onDragEnd={() => setDraggedShiftId(null)}
-                                  onDragOver={(event) => {
-                                    if (!isWorkingShift(shift.status))
-                                      event.preventDefault();
-                                  }}
-                                  onDrop={() => {
-                                    if (
-                                      draggedShiftId !== null &&
-                                      draggedShiftId !== shift.id &&
-                                      !isWorkingShift(shift.status)
-                                    )
-                                      replaceShift.mutate({
-                                        targetShiftId: shift.id,
-                                        sourceShiftId: draggedShiftId,
-                                      });
-                                  }}
+                                {day.getDate()}
+                              </Box>
+                              {!loadError && holiday ? (
+                                <Typography
+                                  title={holiday.name}
                                   sx={{
-                                    width: '100%',
-                                    border: 0,
-                                    cursor: 'pointer',
-                                    opacity:
-                                      draggedShiftId === shift.id
-                                        ? 0.55
-                                        : undefined,
-                                    outline:
-                                      draggedShiftId !== null &&
-                                      !isWorkingShift(shift.status)
-                                        ? '2px dashed #b94136'
-                                        : 'none',
-                                    outlineOffset: 2,
-                                    textAlign: 'left',
-                                    mt: 0.75,
-                                    px: 0.65,
-                                    py: 0.35,
-                                    borderRadius: '6px',
-                                    bgcolor:
-                                      shift.status === 'scheduled'
-                                        ? shiftColorsByUser.get(shift.userId)
-                                        : shift.status === 'compensatory_work'
-                                          ? '#dff4e7'
-                                          : shift.status === 'day_off'
-                                            ? '#ebe8e5'
-                                            : '#ffe4e4',
-                                    color: '#60493b',
-                                    fontFamily: 'Kanit, sans-serif',
-                                    fontSize: 11,
+                                    mt: 0.35,
+                                    color: '#b94136',
+                                    fontSize: 10,
+                                    fontWeight: 700,
                                     lineHeight: 1.25,
                                   }}
                                 >
+                                  {holiday.name}
+                                </Typography>
+                              ) : null}
+                              {loadError ? (
+                                <Typography
+                                  sx={{
+                                    mt: 2.5,
+                                    color: 'error.main',
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    lineHeight: 1.35,
+                                  }}
+                                >
+                                  โหลดข้อมูลไม่สำเร็จ
+                                </Typography>
+                              ) : isCurrentMonth && shifts.length === 0 ? (
+                                <Typography
+                                  sx={{
+                                    mt: 2.5,
+                                    color: '#a89285',
+                                    fontSize: 11,
+                                    lineHeight: 1.35,
+                                  }}
+                                >
+                                  ยังไม่มีตารางกะ{' '}
+                                  {calendarDepartment === 'cafe'
+                                    ? 'SuperBlackCoffee'
+                                    : 'ไปรษณีย์'}
+                                </Typography>
+                              ) : null}
+                              {!loadError &&
+                                shifts.map((shift) => (
                                   <Box
-                                    component="span"
-                                    sx={{
-                                      display: 'block',
-                                      mb: 0.75,
-                                      overflow: 'hidden',
-                                      color: '#45342b',
-                                      fontWeight: 700,
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
+                                    key={shift.id}
+                                    component="button"
+                                    type="button"
+                                    draggable={isWorkingShift(shift.status)}
+                                    onClick={() => openShiftEditor(shift)}
+                                    onDragStart={() =>
+                                      setDraggedShiftId(shift.id)
+                                    }
+                                    onDragEnd={() => setDraggedShiftId(null)}
+                                    onDragOver={(event) => {
+                                      if (!isWorkingShift(shift.status))
+                                        event.preventDefault();
                                     }}
-                                  >
-                                    {shift.name}
-                                  </Box>
-                                  <Box
-                                    component="span"
+                                    onDrop={() => {
+                                      if (
+                                        draggedShiftId !== null &&
+                                        draggedShiftId !== shift.id &&
+                                        !isWorkingShift(shift.status)
+                                      )
+                                        replaceShift.mutate({
+                                          targetShiftId: shift.id,
+                                          sourceShiftId: draggedShiftId,
+                                        });
+                                    }}
                                     sx={{
-                                      display: 'block',
+                                      width: '100%',
+                                      border: 0,
+                                      cursor: 'pointer',
+                                      opacity:
+                                        draggedShiftId === shift.id
+                                          ? 0.55
+                                          : undefined,
+                                      outline:
+                                        draggedShiftId !== null &&
+                                        !isWorkingShift(shift.status)
+                                          ? '2px dashed #b94136'
+                                          : 'none',
+                                      outlineOffset: 2,
+                                      textAlign: 'left',
+                                      mt: 0.75,
+                                      px: 0.65,
+                                      py: 0.35,
+                                      borderRadius: '6px',
+                                      bgcolor:
+                                        shift.status === 'scheduled'
+                                          ? shiftColorsByUser.get(shift.userId)
+                                          : shift.status === 'compensatory_work'
+                                            ? '#dff4e7'
+                                            : shift.status === 'day_off'
+                                              ? '#ebe8e5'
+                                              : '#ffe4e4',
                                       color: '#60493b',
+                                      fontFamily:
+                                        'IBM Plex Sans Thai, sans-serif',
                                       fontSize: 11,
-                                      whiteSpace: 'nowrap',
+                                      lineHeight: 1.25,
                                     }}
                                   >
-                                    {isWorkingShift(shift.status)
-                                      ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
-                                      : leaveLabels[shift.status]}
+                                    <Box
+                                      component="span"
+                                      sx={{
+                                        display: 'block',
+                                        mb: 0.75,
+                                        overflow: 'hidden',
+                                        color: '#45342b',
+                                        fontWeight: 700,
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {shift.name}
+                                    </Box>
+                                    <Box
+                                      component="span"
+                                      sx={{
+                                        display: 'block',
+                                        color: '#60493b',
+                                        fontSize: 11,
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {isWorkingShift(shift.status)
+                                        ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
+                                        : leaveLabels[shift.status]}
+                                    </Box>
                                   </Box>
-                                </Box>
-                              ))}
-                          </Box>
-                        );
-                      })}
+                                ))}
+                            </Box>
+                          );
+                        })}
+                      </Box>
                     </Box>
                   </Box>
-                </Box>
+                </>
               )}
             </Card>
           </>
@@ -1348,6 +1488,28 @@ export function EmployeesManagementPage({
                   )}
                 </Select>
               </FormControl>
+              <TextField
+                required
+                label="เวลาเข้างาน"
+                type="time"
+                value={editStartsAt}
+                onChange={(event) => setEditStartsAt(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                required
+                label="เวลาออกงาน"
+                type="time"
+                value={editEndsAt}
+                onChange={(event) => setEditEndsAt(event.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <Typography
+                sx={{ color: '#6e5b4d', fontSize: 12.5, gridColumn: '1 / -1' }}
+              >
+                เวลาที่แก้ไขจะเป็นข้อยกเว้นเฉพาะวันนี้
+                และจะไม่ถูกทับเมื่อจัดตารางอัตโนมัติอีกครั้ง
+              </Typography>
               {updateShift.error ? (
                 <Typography
                   color="error"
@@ -1404,26 +1566,32 @@ export function EmployeesManagementPage({
               component="form"
               onSubmit={(event) => {
                 event.preventDefault();
-                const hasSecondShift = Boolean(
-                  defaultSecondStartsAt || defaultSecondEndsAt,
+                const assignedWeekdays = new Set<number>();
+                const hasInvalidAdditionalShift = additionalShifts.some(
+                  (shift) => {
+                    const invalid =
+                      !shift.startsAt ||
+                      !shift.endsAt ||
+                      shift.startsAt === '00:00' ||
+                      shift.endsAt === '00:00' ||
+                      shift.weekdays.some((weekday) => {
+                        if (assignedWeekdays.has(weekday)) return true;
+                        assignedWeekdays.add(weekday);
+                        return false;
+                      });
+                    return invalid;
+                  },
                 );
-                const secondShiftIncomplete =
-                  hasSecondShift &&
-                  (!defaultSecondStartsAt ||
-                    !defaultSecondEndsAt ||
-                    defaultSecondShiftDays.length === 0 ||
-                    defaultSecondStartsAt === '00:00' ||
-                    defaultSecondEndsAt === '00:00');
                 if (
                   !defaultStartsAt ||
                   !defaultEndsAt ||
                   defaultStartsAt === '00:00' ||
                   defaultEndsAt === '00:00' ||
-                  secondShiftIncomplete
+                  hasInvalidAdditionalShift
                 ) {
                   setActionNotice({
                     message:
-                      'กรุณาระบุเวลาเข้างานและเวลาออกงานของกะที่ 1 ให้ครบ หากเพิ่มกะที่ 2 ให้ระบุเวลาเข้าและออกให้ครบ',
+                      'กรุณาระบุเวลาให้ครบทุกกะ และหากเลือกวันทำงาน ต้องไม่ซ้ำกันระหว่างกะ',
                     severity: 'warning',
                   });
                   return;
@@ -1453,9 +1621,14 @@ export function EmployeesManagementPage({
                   const updatedJobTitle = newEmployeeJobTitle.trim();
                   const updatedStartsAt = defaultStartsAt;
                   const updatedEndsAt = defaultEndsAt;
-                  const updatedSecondStartsAt = defaultSecondStartsAt;
-                  const updatedSecondEndsAt = defaultSecondEndsAt;
-                  const updatedSecondShiftDays = defaultSecondShiftDays;
+                  const updatedDefaultShifts = [
+                    {
+                      startsAt: updatedStartsAt,
+                      endsAt: updatedEndsAt,
+                      weekdays: [],
+                    },
+                    ...additionalShifts,
+                  ];
                   const updatedDayOffPolicy = dayOffPolicy;
                   const updatedDayOffSourceBranchId = Number(
                     dayOffSourceBranchId || newEmployeeBranchId,
@@ -1466,12 +1639,11 @@ export function EmployeesManagementPage({
                     name: updatedName,
                     role: newEmployeeRole,
                     jobTitle: updatedJobTitle,
+                    department: newEmployeeDepartment,
                     branchId: Number(newEmployeeBranchId),
                     defaultStartsAt: updatedStartsAt,
                     defaultEndsAt: updatedEndsAt,
-                    defaultSecondStartsAt: updatedSecondStartsAt,
-                    defaultSecondEndsAt: updatedSecondEndsAt,
-                    defaultSecondShiftDays: updatedSecondShiftDays,
+                    defaultShifts: updatedDefaultShifts,
                     dayOffPolicy: updatedDayOffPolicy,
                     dayOffSourceBranchId: updatedDayOffSourceBranchId,
                     weeklyDaysOff: updatedWeeklyDaysOff,
@@ -1488,13 +1660,11 @@ export function EmployeesManagementPage({
                                   name: updatedName,
                                   role: newEmployeeRole,
                                   jobTitle: updatedJobTitle,
+                                  department: newEmployeeDepartment,
                                   branchId: Number(newEmployeeBranchId),
                                   defaultStartsAt: updatedStartsAt,
                                   defaultEndsAt: updatedEndsAt,
-                                  defaultSecondStartsAt: updatedSecondStartsAt,
-                                  defaultSecondEndsAt: updatedSecondEndsAt,
-                                  defaultSecondShiftDays:
-                                    updatedSecondShiftDays,
+                                  defaultShifts: updatedDefaultShifts,
                                   dayOffPolicy: updatedDayOffPolicy,
                                   dayOffSourceBranchId:
                                     updatedDayOffSourceBranchId,
@@ -1504,30 +1674,9 @@ export function EmployeesManagementPage({
                               : employee,
                           ),
                       );
-                      queryClient.setQueryData<StaffShift[]>(
-                        ['staff-schedules', monthKey],
-                        (current) =>
-                          current?.map((shift) =>
-                            shift.userId !== updatedEmployeeId
-                              ? shift
-                              : {
-                                  ...shift,
-                                  name: updatedName,
-                                  startsAt: usesFirstShift(
-                                    shift.date,
-                                    shift.userId,
-                                  )
-                                    ? updatedStartsAt
-                                    : updatedSecondStartsAt || updatedStartsAt,
-                                  endsAt: usesFirstShift(
-                                    shift.date,
-                                    shift.userId,
-                                  )
-                                    ? updatedEndsAt
-                                    : updatedSecondEndsAt || updatedEndsAt,
-                                },
-                          ),
-                      );
+                      void queryClient.invalidateQueries({
+                        queryKey: ['staff-schedules', monthKey],
+                      });
                       setEditingEmployeeId(null);
                       setIsEmployeeDrawerOpen(false);
                       setActionNotice({
@@ -1599,6 +1748,26 @@ export function EmployeesManagementPage({
                   </Select>
                 </FormControl>
               )}
+              <FormControl required>
+                <InputLabel id="new-employee-department-label">แผนก</InputLabel>
+                <Select
+                  labelId="new-employee-department-label"
+                  label="แผนก"
+                  value={newEmployeeDepartment}
+                  onChange={(event) => {
+                    const department = event.target.value as 'cafe' | 'postal';
+                    setNewEmployeeDepartment(department);
+                    if (department === 'postal') {
+                      setDefaultStartsAt(postalWeekdaySchedule.startsAt);
+                      setDefaultEndsAt(postalWeekdaySchedule.endsAt);
+                      setAdditionalShifts([postalWeekendSchedule]);
+                    }
+                  }}
+                >
+                  <MenuItem value="cafe">SuperBlackCoffee</MenuItem>
+                  <MenuItem value="postal">ไปรษณีย์</MenuItem>
+                </Select>
+              </FormControl>
               <TextField
                 required
                 label="ตำแหน่ง"
@@ -1606,439 +1775,516 @@ export function EmployeesManagementPage({
                 value={newEmployeeJobTitle}
                 onChange={(event) => setNewEmployeeJobTitle(event.target.value)}
               />
-              <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
-                <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
-                <Typography
+              {newEmployeeDepartment === 'postal' ? (
+                <Box
                   sx={{
-                    color: '#3c2d24',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    mb: 0.5,
+                    gridColumn: '1 / -1',
+                    mt: 0.5,
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid #dfd1c8',
+                    bgcolor: '#fbf7f4',
                   }}
                 >
-                  วันหยุดของพนักงาน
-                </Typography>
-                <Typography sx={{ color: '#6e5b4d', fontSize: 12.5 }}>
-                  ตั้งค่าแยกจากสาขาที่ปฏิบัติงาน
-                  เพื่อให้พนักงานที่ไปช่วยสาขาอื่นยังใช้วันหยุดเดิมได้
-                </Typography>
-              </Box>
-              <FormControl
-                required
-                sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
-              >
-                <InputLabel id="day-off-policy-label">รูปแบบวันหยุด</InputLabel>
-                <Select
-                  labelId="day-off-policy-label"
-                  label="รูปแบบวันหยุด"
-                  value={dayOffPolicy}
-                  onChange={(event) =>
-                    setDayOffPolicy(
-                      event.target.value as
-                        'automatic' | 'home_branch' | 'work_branch' | 'custom',
-                    )
-                  }
-                >
-                  <MenuItem value="automatic">
-                    ให้ระบบจัดวันหยุดรายเดือน
-                  </MenuItem>
-                  <MenuItem value="home_branch">
-                    อ้างอิงวันทำงานของสาขาที่เลือก
-                  </MenuItem>
-                  <MenuItem value="work_branch">
-                    อ้างอิงวันทำงานของสาขาที่ปฏิบัติงาน
-                  </MenuItem>
-                  <MenuItem value="custom">กำหนดวันหยุดเอง</MenuItem>
-                </Select>
-              </FormControl>
-              {dayOffPolicy === 'home_branch' ? (
-                <FormControl required sx={{ gridColumn: '1 / -1' }}>
-                  <InputLabel id="day-off-source-branch-label">
-                    สาขาอ้างอิงวันหยุด
-                  </InputLabel>
-                  <Select
-                    labelId="day-off-source-branch-label"
-                    label="สาขาอ้างอิงวันหยุด"
-                    value={dayOffSourceBranchId}
-                    onChange={(event) =>
-                      setDayOffSourceBranchId(event.target.value)
-                    }
+                  <Typography
+                    sx={{ color: '#3c2d24', fontSize: 14, fontWeight: 700 }}
                   >
-                    {workspaceBranches.map((branch) => (
-                      <MenuItem key={branch.id} value={String(branch.id)}>
-                        {branch.name}
-                        {branch.isHeadquarters ? ' (สำนักงานใหญ่)' : ''}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              ) : null}
-              {dayOffPolicy === 'custom' ? (
-                <Box sx={{ gridColumn: '1 / -1' }}>
-                  <Typography sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}>
-                    วันหยุดประจำสัปดาห์
+                    เวลางานมาตรฐานไปรษณีย์
                   </Typography>
-                  <Box
-                    aria-label="วันหยุดประจำสัปดาห์"
-                    sx={{
-                      display: 'flex',
-                      gap: 0.75,
-                      overflowX: 'auto',
-                      pb: 1.25,
-                    }}
-                  >
-                    {thaiWeekday.map((day, index) => {
-                      const weekday = index + 1;
-                      const selected = weeklyDaysOff.includes(weekday);
-                      return (
-                        <Button
-                          key={day}
-                          size="small"
-                          variant={selected ? 'contained' : 'outlined'}
-                          aria-pressed={selected}
-                          onClick={() =>
-                            setWeeklyDaysOff((current) =>
-                              current.includes(weekday)
-                                ? current.filter((value) => value !== weekday)
-                                : [...current, weekday],
-                            )
-                          }
-                          sx={{
-                            ...selectionPillSx(selected),
-                            minWidth: 80,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {day}
-                        </Button>
-                      );
-                    })}
-                  </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 1,
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <TextField
-                      label="วันหยุดเฉพาะวันที่"
-                      type="date"
-                      value={customDayOffDate}
-                      onChange={(event) =>
-                        setCustomDayOffDate(event.target.value)
-                      }
-                      slotProps={{ inputLabel: { shrink: true } }}
-                      sx={{ minWidth: 210 }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      disabled={
-                        !customDayOffDate ||
-                        customDaysOff.includes(customDayOffDate)
-                      }
-                      onClick={() => {
-                        if (
-                          !customDayOffDate ||
-                          customDaysOff.includes(customDayOffDate)
-                        )
-                          return;
-                        setCustomDaysOff((current) =>
-                          [...current, customDayOffDate].sort(),
-                        );
-                        setCustomDayOffDate('');
+                  <Typography sx={{ mt: 0.5, color: '#6e5b4d', fontSize: 13 }}>
+                    จันทร์–ศุกร์ 09:00–18:00 น. · เสาร์–อาทิตย์ 10:00–19:00 น.
+                    แก้เฉพาะวันได้จากปฏิทินหลังบันทึกพนักงาน
+                  </Typography>
+                </Box>
+              ) : (
+                <>
+                  <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                    <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
+                    <Typography
+                      sx={{
+                        color: '#3c2d24',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        mb: 0.5,
                       }}
                     >
-                      เพิ่มวันหยุด
-                    </Button>
+                      วันหยุดของพนักงาน
+                    </Typography>
+                    <Typography sx={{ color: '#6e5b4d', fontSize: 12.5 }}>
+                      ตั้งค่าแยกจากสาขาที่ปฏิบัติงาน
+                      เพื่อให้พนักงานที่ไปช่วยสาขาอื่นยังใช้วันหยุดเดิมได้
+                    </Typography>
                   </Box>
-                  {customDaysOff.length > 0 ? (
+                  <FormControl
+                    required
+                    sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
+                  >
+                    <InputLabel id="day-off-policy-label">
+                      รูปแบบวันหยุด
+                    </InputLabel>
+                    <Select
+                      labelId="day-off-policy-label"
+                      label="รูปแบบวันหยุด"
+                      value={dayOffPolicy}
+                      onChange={(event) =>
+                        setDayOffPolicy(
+                          event.target.value as
+                            | 'automatic'
+                            | 'home_branch'
+                            | 'work_branch'
+                            | 'custom',
+                        )
+                      }
+                    >
+                      <MenuItem value="automatic">
+                        ให้ระบบจัดวันหยุดรายเดือน
+                      </MenuItem>
+                      <MenuItem value="home_branch">
+                        อ้างอิงวันทำงานของสาขาที่เลือก
+                      </MenuItem>
+                      <MenuItem value="work_branch">
+                        อ้างอิงวันทำงานของสาขาที่ปฏิบัติงาน
+                      </MenuItem>
+                      <MenuItem value="custom">กำหนดวันหยุดเอง</MenuItem>
+                    </Select>
+                  </FormControl>
+                  {dayOffPolicy === 'home_branch' ? (
+                    <FormControl required sx={{ gridColumn: '1 / -1' }}>
+                      <InputLabel id="day-off-source-branch-label">
+                        สาขาอ้างอิงวันหยุด
+                      </InputLabel>
+                      <Select
+                        labelId="day-off-source-branch-label"
+                        label="สาขาอ้างอิงวันหยุด"
+                        value={dayOffSourceBranchId}
+                        onChange={(event) =>
+                          setDayOffSourceBranchId(event.target.value)
+                        }
+                      >
+                        {workspaceBranches.map((branch) => (
+                          <MenuItem key={branch.id} value={String(branch.id)}>
+                            {branch.name}
+                            {branch.isHeadquarters ? ' (สำนักงานใหญ่)' : ''}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : null}
+                  {dayOffPolicy === 'custom' ? (
+                    <Box sx={{ gridColumn: '1 / -1' }}>
+                      <Typography
+                        sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}
+                      >
+                        วันหยุดประจำสัปดาห์
+                      </Typography>
+                      <Box
+                        aria-label="วันหยุดประจำสัปดาห์"
+                        sx={{
+                          display: 'flex',
+                          gap: 0.75,
+                          overflowX: 'auto',
+                          pb: 1.25,
+                        }}
+                      >
+                        {thaiWeekday.map((day, index) => {
+                          const weekday = index + 1;
+                          const selected = weeklyDaysOff.includes(weekday);
+                          return (
+                            <Button
+                              key={day}
+                              size="small"
+                              variant={selected ? 'contained' : 'outlined'}
+                              aria-pressed={selected}
+                              onClick={() =>
+                                setWeeklyDaysOff((current) =>
+                                  current.includes(weekday)
+                                    ? current.filter(
+                                        (value) => value !== weekday,
+                                      )
+                                    : [...current, weekday],
+                                )
+                              }
+                              sx={{
+                                ...selectionPillSx(selected),
+                                minWidth: 80,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {day}
+                            </Button>
+                          );
+                        })}
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 1,
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <TextField
+                          label="วันหยุดเฉพาะวันที่"
+                          type="date"
+                          value={customDayOffDate}
+                          onChange={(event) =>
+                            setCustomDayOffDate(event.target.value)
+                          }
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          sx={{ minWidth: 210 }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outlined"
+                          disabled={
+                            !customDayOffDate ||
+                            customDaysOff.includes(customDayOffDate)
+                          }
+                          onClick={() => {
+                            if (
+                              !customDayOffDate ||
+                              customDaysOff.includes(customDayOffDate)
+                            )
+                              return;
+                            setCustomDaysOff((current) =>
+                              [...current, customDayOffDate].sort(),
+                            );
+                            setCustomDayOffDate('');
+                          }}
+                        >
+                          เพิ่มวันหยุด
+                        </Button>
+                      </Box>
+                      {customDaysOff.length > 0 ? (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            gap: 0.75,
+                            flexWrap: 'wrap',
+                            mt: 1,
+                          }}
+                        >
+                          {customDaysOff.map((date) => (
+                            <Button
+                              key={date}
+                              type="button"
+                              size="small"
+                              variant="outlined"
+                              onClick={() =>
+                                setCustomDaysOff((current) =>
+                                  current.filter((value) => value !== date),
+                                )
+                              }
+                            >
+                              {date} ×
+                            </Button>
+                          ))}
+                        </Box>
+                      ) : null}
+                    </Box>
+                  ) : null}
+                  <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                    <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
+                    <Typography
+                      sx={{
+                        color: '#3c2d24',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        mb: 1,
+                      }}
+                    >
+                      เวลาทำงานประจำ
+                    </Typography>
+                    <Typography
+                      sx={{
+                        color: '#3c2d24',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        mb: 1,
+                      }}
+                    >
+                      กะที่ 1 *
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      gridColumn: { xs: '1', sm: '1 / -1' },
+                    }}
+                  >
+                    <Box sx={{ flex: 1, position: 'relative' }}>
+                      <TextField
+                        required
+                        fullWidth
+                        label="เวลาเข้างาน"
+                        type="time"
+                        value={defaultStartsAt}
+                        onChange={(event) =>
+                          setDefaultStartsAt(event.target.value)
+                        }
+                        onMouseEnter={() => setHoveredTimeField('start')}
+                        onMouseLeave={() => setHoveredTimeField(null)}
+                        sx={{
+                          '& input::-webkit-calendar-picker-indicator': {
+                            opacity: 0,
+                          },
+                        }}
+                        slotProps={{
+                          inputLabel: { shrink: true },
+                          htmlInput: {
+                            onClick: (event: MouseEvent<HTMLInputElement>) =>
+                              event.currentTarget.showPicker?.(),
+                          },
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          inset: '0 16px 0 auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#3c2d24',
+                          pointerEvents: 'none',
+                          zIndex: 2,
+                        }}
+                      >
+                        <ClockIcon
+                          size={20}
+                          animated={hoveredTimeField === 'start'}
+                        />
+                      </Box>
+                    </Box>
+                    <Box sx={{ flex: 1, position: 'relative' }}>
+                      <TextField
+                        required
+                        fullWidth
+                        label="เวลาออกงาน"
+                        type="time"
+                        value={defaultEndsAt}
+                        onChange={(event) =>
+                          setDefaultEndsAt(event.target.value)
+                        }
+                        onMouseEnter={() => setHoveredTimeField('end')}
+                        onMouseLeave={() => setHoveredTimeField(null)}
+                        sx={{
+                          '& input::-webkit-calendar-picker-indicator': {
+                            opacity: 0,
+                          },
+                        }}
+                        slotProps={{
+                          inputLabel: { shrink: true },
+                          htmlInput: {
+                            onClick: (event: MouseEvent<HTMLInputElement>) =>
+                              event.currentTarget.showPicker?.(),
+                          },
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          inset: '0 16px 0 auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#3c2d24',
+                          pointerEvents: 'none',
+                          zIndex: 2,
+                        }}
+                      >
+                        <ClockIcon
+                          size={20}
+                          animated={hoveredTimeField === 'end'}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                    <Divider sx={{ borderColor: '#e4dad4', mb: 1.5 }} />
                     <Box
                       sx={{
                         display: 'flex',
-                        gap: 0.75,
-                        flexWrap: 'wrap',
-                        mt: 1,
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 1,
                       }}
                     >
-                      {customDaysOff.map((date) => (
-                        <Button
-                          key={date}
-                          type="button"
-                          size="small"
-                          variant="outlined"
-                          onClick={() =>
-                            setCustomDaysOff((current) =>
-                              current.filter((value) => value !== date),
-                            )
-                          }
+                      <Box>
+                        <Typography
+                          sx={{
+                            color: '#3c2d24',
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
                         >
-                          {date} ×
-                        </Button>
-                      ))}
-                    </Box>
-                  ) : null}
-                </Box>
-              ) : null}
-              <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
-                <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
-                <Typography
-                  sx={{
-                    color: '#3c2d24',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
-                >
-                  เวลาทำงานประจำ
-                </Typography>
-                <Typography
-                  sx={{
-                    color: '#3c2d24',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
-                >
-                  กะที่ 1 *
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  gridColumn: { xs: '1', sm: '1 / -1' },
-                }}
-              >
-                <Box sx={{ flex: 1, position: 'relative' }}>
-                  <TextField
-                    required
-                    fullWidth
-                    label="เวลาเข้างาน"
-                    type="time"
-                    value={defaultStartsAt}
-                    onChange={(event) => setDefaultStartsAt(event.target.value)}
-                    onMouseEnter={() => setHoveredTimeField('start')}
-                    onMouseLeave={() => setHoveredTimeField(null)}
-                    sx={{
-                      '& input::-webkit-calendar-picker-indicator': {
-                        opacity: 0,
-                      },
-                    }}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        onClick: (event: MouseEvent<HTMLInputElement>) =>
-                          event.currentTarget.showPicker?.(),
-                      },
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      inset: '0 16px 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#3c2d24',
-                      pointerEvents: 'none',
-                      zIndex: 2,
-                    }}
-                  >
-                    <ClockIcon
-                      size={20}
-                      animated={hoveredTimeField === 'start'}
-                    />
-                  </Box>
-                </Box>
-                <Box sx={{ flex: 1, position: 'relative' }}>
-                  <TextField
-                    required
-                    fullWidth
-                    label="เวลาออกงาน"
-                    type="time"
-                    value={defaultEndsAt}
-                    onChange={(event) => setDefaultEndsAt(event.target.value)}
-                    onMouseEnter={() => setHoveredTimeField('end')}
-                    onMouseLeave={() => setHoveredTimeField(null)}
-                    sx={{
-                      '& input::-webkit-calendar-picker-indicator': {
-                        opacity: 0,
-                      },
-                    }}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        onClick: (event: MouseEvent<HTMLInputElement>) =>
-                          event.currentTarget.showPicker?.(),
-                      },
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      inset: '0 16px 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#3c2d24',
-                      pointerEvents: 'none',
-                      zIndex: 2,
-                    }}
-                  >
-                    <ClockIcon
-                      size={20}
-                      animated={hoveredTimeField === 'end'}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-              <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
-                <Divider sx={{ borderColor: '#e4dad4', mb: 1.5 }} />
-                <Typography
-                  sx={{
-                    color: '#3c2d24',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
-                >
-                  กะที่ 2 (ถ้ามี)
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1.5,
-                  gridColumn: { xs: '1', sm: '1 / -1' },
-                }}
-              >
-                <Box sx={{ flex: 1, position: 'relative' }}>
-                  <TextField
-                    fullWidth
-                    label="เวลาเข้างาน กะที่ 2"
-                    type="time"
-                    value={defaultSecondStartsAt}
-                    onChange={(event) =>
-                      setDefaultSecondStartsAt(event.target.value)
-                    }
-                    onMouseEnter={() => setHoveredTimeField('secondStart')}
-                    onMouseLeave={() => setHoveredTimeField(null)}
-                    sx={{
-                      '& input::-webkit-calendar-picker-indicator': {
-                        opacity: 0,
-                      },
-                    }}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        onClick: (event: MouseEvent<HTMLInputElement>) =>
-                          event.currentTarget.showPicker?.(),
-                      },
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      inset: '0 16px 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#3c2d24',
-                      pointerEvents: 'none',
-                      zIndex: 2,
-                    }}
-                  >
-                    <ClockIcon
-                      size={20}
-                      animated={hoveredTimeField === 'secondStart'}
-                    />
-                  </Box>
-                </Box>
-                <Box sx={{ flex: 1, position: 'relative' }}>
-                  <TextField
-                    fullWidth
-                    label="เวลาออกงาน กะที่ 2"
-                    type="time"
-                    value={defaultSecondEndsAt}
-                    onChange={(event) =>
-                      setDefaultSecondEndsAt(event.target.value)
-                    }
-                    onMouseEnter={() => setHoveredTimeField('secondEnd')}
-                    onMouseLeave={() => setHoveredTimeField(null)}
-                    sx={{
-                      '& input::-webkit-calendar-picker-indicator': {
-                        opacity: 0,
-                      },
-                    }}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        onClick: (event: MouseEvent<HTMLInputElement>) =>
-                          event.currentTarget.showPicker?.(),
-                      },
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      inset: '0 16px 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#3c2d24',
-                      pointerEvents: 'none',
-                      zIndex: 2,
-                    }}
-                  >
-                    <ClockIcon
-                      size={20}
-                      animated={hoveredTimeField === 'secondEnd'}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-              <Box sx={{ gridColumn: '1 / -1', mt: 0.25 }}>
-                <Typography sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}>
-                  เลือกวันที่ทำกะที่ 2
-                </Typography>
-                <Box
-                  aria-label="วันทำงานกะที่ 2"
-                  sx={{
-                    display: 'flex',
-                    gap: 0.75,
-                    overflowX: 'auto',
-                    pb: 0.5,
-                  }}
-                >
-                  {thaiWeekday.map((day, index) => {
-                    const weekday = index + 1;
-                    const selected = defaultSecondShiftDays.includes(weekday);
-                    return (
+                          กะเพิ่มเติม
+                        </Typography>
+                        <Typography sx={{ color: '#5f4b3d', fontSize: 12.5 }}>
+                          เพิ่มกะที่ 2 ขึ้นไปเพื่อกำหนดพนักงานสำรอง
+                          ระบบจะให้แทนกะที่ขาดก่อน แล้วจึงทำกะแรกของตนเอง
+                        </Typography>
+                      </Box>
                       <Button
-                        key={day}
+                        type="button"
                         size="small"
-                        variant={selected ? 'contained' : 'outlined'}
-                        aria-pressed={selected}
+                        variant="outlined"
                         onClick={() =>
-                          setDefaultSecondShiftDays((current) =>
-                            current.includes(weekday)
-                              ? current.filter((value) => value !== weekday)
-                              : [...current, weekday],
-                          )
+                          setAdditionalShifts((current) => [
+                            ...current,
+                            { startsAt: '', endsAt: '', weekdays: [] },
+                          ])
                         }
+                      >
+                        + เพิ่มกะ
+                      </Button>
+                    </Box>
+                  </Box>
+                  {additionalShifts.map((shift, shiftIndex) => {
+                    const usedByOtherShifts = new Set(
+                      additionalShifts.flatMap((item, index) =>
+                        index === shiftIndex ? [] : item.weekdays,
+                      ),
+                    );
+                    const updateShift = (changes: Partial<AdditionalShift>) =>
+                      setAdditionalShifts((current) =>
+                        current.map((item, index) =>
+                          index === shiftIndex ? { ...item, ...changes } : item,
+                        ),
+                      );
+                    return (
+                      <Box
+                        key={shiftIndex}
                         sx={{
-                          ...selectionPillSx(selected),
-                          minWidth: 80,
-                          whiteSpace: 'nowrap',
+                          gridColumn: '1 / -1',
+                          border: '1px solid #e4dad4',
+                          borderRadius: 2,
+                          p: 1.5,
+                          display: 'grid',
+                          gridTemplateColumns: {
+                            xs: '1fr',
+                            sm: 'repeat(2, minmax(0, 1fr))',
+                          },
+                          gap: 1.25,
                         }}
                       >
-                        {day}
-                      </Button>
+                        <Box
+                          sx={{
+                            gridColumn: '1 / -1',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              color: '#3c2d24',
+                              fontSize: 13,
+                              fontWeight: 600,
+                            }}
+                          >
+                            กะที่ {shiftIndex + 2}
+                          </Typography>
+                          <Button
+                            type="button"
+                            size="small"
+                            color="inherit"
+                            onClick={() =>
+                              setAdditionalShifts((current) =>
+                                current.filter(
+                                  (_, index) => index !== shiftIndex,
+                                ),
+                              )
+                            }
+                          >
+                            ลบกะ
+                          </Button>
+                        </Box>
+                        <TextField
+                          fullWidth
+                          label={`เวลาเข้างาน กะที่ ${shiftIndex + 2}`}
+                          type="time"
+                          value={shift.startsAt}
+                          onChange={(event) =>
+                            updateShift({ startsAt: event.target.value })
+                          }
+                          slotProps={{
+                            inputLabel: { shrink: true },
+                            htmlInput: {
+                              onClick: (event: MouseEvent<HTMLInputElement>) =>
+                                event.currentTarget.showPicker?.(),
+                            },
+                          }}
+                        />
+                        <TextField
+                          fullWidth
+                          label={`เวลาออกงาน กะที่ ${shiftIndex + 2}`}
+                          type="time"
+                          value={shift.endsAt}
+                          onChange={(event) =>
+                            updateShift({ endsAt: event.target.value })
+                          }
+                          slotProps={{
+                            inputLabel: { shrink: true },
+                            htmlInput: {
+                              onClick: (event: MouseEvent<HTMLInputElement>) =>
+                                event.currentTarget.showPicker?.(),
+                            },
+                          }}
+                        />
+                        <Box sx={{ gridColumn: '1 / -1' }}>
+                          <Typography
+                            sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 0.75 }}
+                          >
+                            เลือกวันที่ทำกะที่ {shiftIndex + 2} (ไม่บังคับ)
+                          </Typography>
+                          <Box
+                            aria-label={`วันทำงานกะที่ ${shiftIndex + 2}`}
+                            sx={{
+                              display: 'flex',
+                              gap: 0.75,
+                              overflowX: 'auto',
+                              pb: 0.5,
+                            }}
+                          >
+                            {thaiWeekday.map((day, index) => {
+                              const weekday = index + 1;
+                              const selected = shift.weekdays.includes(weekday);
+                              const unavailable =
+                                !selected && usedByOtherShifts.has(weekday);
+                              return (
+                                <Button
+                                  key={day}
+                                  type="button"
+                                  size="small"
+                                  variant={selected ? 'contained' : 'outlined'}
+                                  aria-pressed={selected}
+                                  disabled={unavailable}
+                                  onClick={() =>
+                                    updateShift({
+                                      weekdays: selected
+                                        ? shift.weekdays.filter(
+                                            (value) => value !== weekday,
+                                          )
+                                        : [...shift.weekdays, weekday],
+                                    })
+                                  }
+                                  sx={{
+                                    ...selectionPillSx(selected),
+                                    minWidth: 80,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {day}
+                                </Button>
+                              );
+                            })}
+                          </Box>
+                        </Box>
+                      </Box>
                     );
                   })}
-                </Box>
-              </Box>
+                </>
+              )}
               {createEmployeeMutation.error ? (
                 <Typography
                   color="error"

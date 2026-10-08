@@ -814,7 +814,9 @@ export function ProductsManagementPage({
                 >
                   ก่อนหน้า
                 </Button>
-                <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                <Typography
+                  sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
+                >
                   หน้า {summaryPage} /{' '}
                   {Math.max(1, Math.ceil(summary.total / summary.pageSize))}
                 </Typography>
@@ -872,7 +874,7 @@ export function ProductsManagementPage({
               minHeight: 40,
               borderRadius: '12px',
               bgcolor: '#201914',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontWeight: 500,
               boxShadow: 'none',
               '& .MuiButton-startIcon': { ml: 0.5, mr: 0.75 },
@@ -909,7 +911,7 @@ export function ProductsManagementPage({
           sx={{
             mr: 0.5,
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 12,
             fontWeight: 600,
           }}
@@ -981,7 +983,7 @@ export function ProductsManagementPage({
                   sx={{
                     mb: 1.5,
                     color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 19,
                     fontWeight: 600,
                   }}
@@ -1089,7 +1091,7 @@ export function ProductsManagementPage({
                               borderRadius: '12px',
                               bgcolor: statusChipColor(item.status),
                               color: '#fff',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 11,
                             }}
                           />
@@ -1105,7 +1107,7 @@ export function ProductsManagementPage({
                               borderRadius: '12px',
                               bgcolor: showingLineman ? '#06C755' : '#805637',
                               color: '#fff',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 11,
                               fontWeight: 600,
                             }}
@@ -1121,7 +1123,7 @@ export function ProductsManagementPage({
                         >
                           <Typography
                             sx={{
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 18,
                               fontWeight: 500,
                             }}
@@ -1132,7 +1134,7 @@ export function ProductsManagementPage({
                             sx={{
                               mt: 0.6,
                               color: 'text.secondary',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 13,
                             }}
                           >
@@ -1153,7 +1155,7 @@ export function ProductsManagementPage({
                                 px: 1,
                                 py: 0.45,
                                 color: '#5f4b3d',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 12,
                                 fontWeight: 600,
                               }}
@@ -1187,7 +1189,7 @@ export function ProductsManagementPage({
                                 py: 0.45,
                                 borderRadius: '8px',
                                 color: '#805637',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 12,
                                 fontWeight: 600,
                               }}
@@ -1222,7 +1224,7 @@ export function ProductsManagementPage({
                                 borderRadius: '10px',
                                 borderColor: '#d8c8bd',
                                 color: '#5f4030',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 12,
                                 fontWeight: 600,
                                 '&:hover': {
@@ -1266,7 +1268,7 @@ export function ProductsManagementPage({
                           >
                             <Typography
                               sx={{
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 18,
                                 fontWeight: 600,
                               }}
@@ -1276,7 +1278,7 @@ export function ProductsManagementPage({
                             <Typography
                               sx={{
                                 color: 'rgba(255,255,255,.75)',
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 13,
                               }}
                             >
@@ -1293,7 +1295,7 @@ export function ProductsManagementPage({
                                   borderRadius: '10px',
                                   color: '#fff',
                                   border: '1px solid rgba(255,255,255,.45)',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 }}
                               >
                                 ยกเลิก
@@ -1306,7 +1308,7 @@ export function ProductsManagementPage({
                                 sx={{
                                   minHeight: 38,
                                   borderRadius: '10px',
-                                  fontFamily: 'Kanit, sans-serif',
+                                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                   boxShadow: 'none',
                                 }}
                               >
@@ -1330,7 +1332,7 @@ export function ProductsManagementPage({
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่พบเมนูหรือสินค้าที่ค้นหา
@@ -1414,7 +1416,8 @@ export function ProductsManagementPage({
                                   ) : null}
                                   <Typography
                                     sx={{
-                                      fontFamily: 'Kanit, sans-serif',
+                                      fontFamily:
+                                        'IBM Plex Sans Thai, sans-serif',
                                       fontSize: 13,
                                     }}
                                   >
@@ -1424,7 +1427,8 @@ export function ProductsManagementPage({
                                 <Typography
                                   sx={{
                                     color: '#805637',
-                                    fontFamily: 'Kanit, sans-serif',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
                                     fontWeight: 600,
                                     fontSize: 13,
                                   }}
@@ -1451,7 +1455,7 @@ export function ProductsManagementPage({
                           sx={{
                             mb: 0.5,
                             color: '#805637',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontWeight: 600,
                           }}
                         >
@@ -1463,7 +1467,7 @@ export function ProductsManagementPage({
                             maxHeight: 120,
                             overflowY: 'auto',
                             fontSize: 13,
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           }}
                         >
                           {recipeProduct.preparationSteps}
@@ -1477,7 +1481,7 @@ export function ProductsManagementPage({
                       py: 4,
                       textAlign: 'center',
                       color: 'text.secondary',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     เมนูนี้ยังไม่มีสูตรการทำ
@@ -1602,7 +1606,7 @@ export function ProductsManagementPage({
                       borderRadius: '10px',
                       borderColor: '#d8c8bd',
                       color: '#805637',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     + เพิ่มวัตถุดิบในสูตร
@@ -1629,7 +1633,7 @@ export function ProductsManagementPage({
                     minHeight: 40,
                     borderRadius: '12px',
                     color: '#5f4b3d',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   }}
                 >
                   ยกเลิก
@@ -1642,7 +1646,7 @@ export function ProductsManagementPage({
                     minHeight: 40,
                     borderRadius: '12px',
                     bgcolor: '#201914',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     '&:hover': { bgcolor: '#3c2d24' },
                   }}
                 >
@@ -1732,7 +1736,9 @@ export function ProductsManagementPage({
                     }}
                   />
                 ) : (
-                  <Typography sx={{ fontFamily: 'Kanit, sans-serif' }}>
+                  <Typography
+                    sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
+                  >
                     + เพิ่มรูปสินค้า
                   </Typography>
                 )}
@@ -1746,7 +1752,7 @@ export function ProductsManagementPage({
                       placeItems: 'center',
                       bgcolor: 'rgba(32, 25, 20, .42)',
                       color: '#fff',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     เปลี่ยนรูปสินค้า
@@ -1815,7 +1821,7 @@ export function ProductsManagementPage({
                     <Typography
                       sx={{
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                       }}
                     >
@@ -1824,7 +1830,7 @@ export function ProductsManagementPage({
                     <Typography
                       sx={{
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 10,
                       }}
                     >
@@ -1840,7 +1846,7 @@ export function ProductsManagementPage({
                         editing?.status ?? 'ต้องเพิ่มสูตร',
                       ),
                       color: '#fff',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 11,
                       fontWeight: 600,
                     }}
@@ -1873,7 +1879,7 @@ export function ProductsManagementPage({
                       id="store-pricing-title"
                       sx={{
                         mb: 1,
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontWeight: 700,
                       }}
                     >
@@ -1922,7 +1928,7 @@ export function ProductsManagementPage({
                       id="lineman-pricing-title"
                       sx={{
                         mb: 1,
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontWeight: 700,
                       }}
                     >
@@ -1989,7 +1995,7 @@ export function ProductsManagementPage({
                       <Typography
                         sx={{
                           color: '#3c2d24',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 15,
                           fontWeight: 600,
                         }}
@@ -1999,7 +2005,7 @@ export function ProductsManagementPage({
                       <Typography
                         sx={{
                           color: 'text.secondary',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 11,
                         }}
                       >
@@ -2018,7 +2024,7 @@ export function ProductsManagementPage({
                         minHeight: 34,
                         borderRadius: '10px',
                         color: '#805637',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                         fontWeight: 600,
                       }}
@@ -2128,7 +2134,7 @@ export function ProductsManagementPage({
                       minHeight: 40,
                       borderRadius: '12px',
                       color: '#5f4b3d',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     {editing ? 'ยกเลิกแก้ไข' : 'ยกเลิกเพิ่ม'}
@@ -2141,7 +2147,7 @@ export function ProductsManagementPage({
                       minHeight: 40,
                       borderRadius: '12px',
                       bgcolor: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     }}
                   >
                     {isSavingProduct

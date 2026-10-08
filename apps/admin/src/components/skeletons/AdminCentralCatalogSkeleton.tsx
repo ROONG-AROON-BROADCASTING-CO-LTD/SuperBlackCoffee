@@ -229,14 +229,14 @@ function CatalogListSkeleton({
 
 const headingSx = {
   color: '#3c2d24',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 17,
   fontWeight: 600,
 };
 
 const descriptionSx = {
   color: '#86766c',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 13,
 };
 

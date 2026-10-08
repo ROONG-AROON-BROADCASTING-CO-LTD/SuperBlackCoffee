@@ -23,7 +23,7 @@ export function DataLoadNotice({
       <Typography
         sx={{
           color: '#a22e2a',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 14,
         }}
       >

@@ -10,13 +10,14 @@ import {
   websiteLanguageCookieName,
 } from '../src/lib/websiteLanguage';
 
-const kanit = localFont({
+const ibmPlexSansThai = localFont({
   src: [
-    { path: './fonts/Kanit-Regular.ttf', weight: '400' },
-    { path: './fonts/Kanit-SemiBold.ttf', weight: '600' },
-    { path: './fonts/Kanit-Bold.ttf', weight: '700' },
+    { path: './fonts/IBMPlexSansThai-Regular.ttf', weight: '400' },
+    { path: './fonts/IBMPlexSansThai-Medium.ttf', weight: '500' },
+    { path: './fonts/IBMPlexSansThai-SemiBold.ttf', weight: '600' },
+    { path: './fonts/IBMPlexSansThai-Bold.ttf', weight: '700' },
   ],
-  variable: '--font-kanit',
+  variable: '--font-ibm-plex-thai',
   display: 'swap',
 });
 const inter = localFont({
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? 'https://superblackcoffee.co.th',
   ),
-  title: { default: 'Super Black Coffee', template: '%s | Super Black Coffee' },
+  title: { default: 'Super Black Coffee', template: '%s - Super Black Coffee' },
   description: 'Super Black Coffee — กาแฟดีในทุกจังหวะของคุณ',
   keywords: ['กาแฟ', 'ร้านกาแฟ', 'Super Black Coffee', 'แฟรนไชส์กาแฟ'],
   openGraph: {
@@ -70,7 +71,7 @@ export default async function RootLayout({
   return (
     <html
       lang={initialLanguage}
-      className={`${kanit.variable} ${inter.variable}`}
+      className={`${ibmPlexSansThai.variable} ${inter.variable}`}
       style={{ backgroundColor: '#000' }}
     >
       <head>

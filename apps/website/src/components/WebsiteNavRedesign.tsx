@@ -128,32 +128,38 @@ export function WebsiteNav() {
           ))}
         </Box>
         <Box
-          component="a"
-          sx={[websiteSx['sb-nav-login']]}
-          className="sb-nav-login"
-          href={franchiseLoginUrl}
+          component="div"
+          sx={[websiteSx['sb-nav-tools']]}
+          className="sb-nav-tools"
         >
-          {text('เข้าสู่ระบบแฟรนไชส์', 'Franchise login')}
-        </Box>
-        <Box
-          component={Link}
-          sx={[websiteSx['sb-nav-action']]}
-          className="sb-nav-action"
-          href="/franchise#apply"
-        >
-          {text('สนใจแฟรนไชส์', 'Own a franchise')}
-        </Box>
-        <Box
-          component="button"
-          type="button"
-          sx={[websiteSx['sb-language-switcher']]}
-          className="sb-language-switcher"
-          aria-label={text('เปลี่ยนภาษา', 'Change language')}
-          onClick={toggleLanguage}
-        >
-          <span className={language === 'th' ? 'active' : ''}>TH</span>
-          <i>/</i>
-          <span className={language === 'en' ? 'active' : ''}>EN</span>
+          <Box
+            component="a"
+            sx={[websiteSx['sb-nav-login']]}
+            className="sb-nav-login"
+            href={franchiseLoginUrl}
+          >
+            {text('เข้าสู่ระบบแฟรนไชส์', 'Franchise login')}
+          </Box>
+          <Box
+            component={Link}
+            sx={[websiteSx['sb-nav-action']]}
+            className="sb-nav-action"
+            href="/franchise#apply"
+          >
+            {text('แฟรนไชส์', 'Franchise')}
+          </Box>
+          <Box
+            component="button"
+            type="button"
+            sx={[websiteSx['sb-language-switcher']]}
+            className="sb-language-switcher"
+            aria-label={text('เปลี่ยนภาษา', 'Change language')}
+            onClick={toggleLanguage}
+          >
+            <span className={language === 'th' ? 'active' : ''}>TH</span>
+            <i>/</i>
+            <span className={language === 'en' ? 'active' : ''}>EN</span>
+          </Box>
         </Box>
         <Box
           component="button"
@@ -197,7 +203,7 @@ export function WebsiteNav() {
             href="/franchise#apply"
             onClick={() => setOpen(false)}
           >
-            {text('สนใจแฟรนไชส์', 'Own a franchise')}
+            {text('แฟรนไชส์', 'Franchise')}
           </Box>
           <Box
             component="a"

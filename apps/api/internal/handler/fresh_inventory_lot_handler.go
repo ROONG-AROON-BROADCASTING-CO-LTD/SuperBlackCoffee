@@ -199,7 +199,7 @@ func (h *PlatformHandler) DiscardFreshInventoryLot(c *gin.Context) {
 	lotAfter := lotBefore - input.Quantity
 	inventoryAfter := inventoryBefore - input.Quantity
 	claims := middleware.ClaimsFrom(c)
-	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE fresh_inventory_lots SET quantity_remaining=$1,status=CASE WHEN $1=0 THEN 'discarded' ELSE status END,discarded_at=CASE WHEN $1=0 THEN now() ELSE discarded_at END,discarded_by=CASE WHEN $1=0 THEN $2 ELSE discarded_by END,discard_reason=CASE WHEN $1=0 THEN $3 ELSE discard_reason END,updated_at=now() WHERE id=$4`, lotAfter, claims.UserID, strings.TrimSpace(input.Note), lotID); err == nil {
+	if _, err = tx.ExecContext(c.Request.Context(), `UPDATE fresh_inventory_lots SET quantity_remaining=$1::numeric,status=CASE WHEN $1::numeric=0 THEN 'discarded' ELSE status END,discarded_at=CASE WHEN $1::numeric=0 THEN now() ELSE discarded_at END,discarded_by=CASE WHEN $1::numeric=0 THEN $2 ELSE discarded_by END,discard_reason=CASE WHEN $1::numeric=0 THEN $3 ELSE discard_reason END,updated_at=now() WHERE id=$4`, lotAfter, claims.UserID, strings.TrimSpace(input.Note), lotID); err == nil {
 		err = recordFreshLotMovementTx(c, tx, branchID, lotID, inventoryID, "discarded", -input.Quantity, lotBefore, lotAfter, input.Note, claims.UserID)
 	}
 	if err == nil {

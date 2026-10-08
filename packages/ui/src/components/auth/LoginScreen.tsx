@@ -87,7 +87,7 @@ export function LoginScreen({
           variant="h2"
           sx={{
             mt: 1,
-            fontFamily: '"SBC Sans", Arial, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontWeight: 700,
             fontSize: 'clamp(2.5rem, 4.2vw, 4.4rem)',
             lineHeight: 1.08,

@@ -1,6 +1,6 @@
+import '@testing-library/jest-dom/vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -20,6 +20,7 @@ import {
   exportStaffSchedulesXlsx,
   generateStaffSchedules,
   listStaffSchedules,
+  updateStaffShift,
 } from '../../api/staff-schedules';
 
 vi.mock('../../api/users', () => ({
@@ -74,9 +75,6 @@ async function waitForPage() {
     () => expect(screen.getByRole('button', { name: 'แก้ไข' })).toBeTruthy(),
     { timeout: 2_000 },
   );
-  await act(async () => {
-    await new Promise((resolve) => window.setTimeout(resolve, 850));
-  });
 }
 
 describe('EmployeesManagementPage', () => {
@@ -127,7 +125,80 @@ describe('EmployeesManagementPage', () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.clearAllMocks();
+  });
+
+  it('separates postal schedules and preserves explicitly overridden daily times', async () => {
+    const now = new Date();
+    const prefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const saturday = Array.from({ length: 7 }, (_, i) => i + 1).find(
+      (day) => new Date(now.getFullYear(), now.getMonth(), day).getDay() === 6,
+    )!;
+    mockedListStaffSchedules.mockResolvedValue([
+      {
+        id: 10,
+        userId: 100,
+        name: 'ไปรษณีย์ปกติ',
+        department: 'postal',
+        branchId: 51,
+        date: `${prefix}-${String(saturday).padStart(2, '0')}`,
+        startsAt: '10:00:00',
+        endsAt: '19:00:00',
+        status: 'scheduled',
+        isTimeOverride: false,
+      },
+      {
+        id: 11,
+        userId: 101,
+        name: 'ไปรษณีย์เวลาพิเศษ',
+        department: 'postal',
+        branchId: 51,
+        date: `${prefix}-${String(saturday).padStart(2, '0')}`,
+        startsAt: '11:00:00',
+        endsAt: '20:00:00',
+        status: 'scheduled',
+        isTimeOverride: true,
+      },
+    ]);
+    renderPage();
+    await waitForPage();
+    expect(
+      screen.queryByRole('button', { name: /ไปรษณีย์ปกติ/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ไปรษณีย์' }));
+    expect(
+      screen.getByRole('button', { name: /ไปรษณีย์ปกติ 10:00 น. - 19:00 น./ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /ไปรษณีย์เวลาพิเศษ 11:00 น. - 20:00 น./,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps a shift editor open with the entered times when the server rejects a mutation', async () => {
+    vi.mocked(updateStaffShift).mockRejectedValueOnce(
+      new Error('กะงานถูกแก้ไขโดยผู้ใช้อื่น'),
+    );
+    renderPage();
+    await waitForPage();
+    fireEvent.click(screen.getByRole('button', { name: /พนักงานทดสอบ 08:00/ }));
+    fireEvent.change(screen.getByLabelText(/เวลาเข้างาน/), {
+      target: { value: '09:00' },
+    });
+    fireEvent.change(screen.getByLabelText(/เวลาออกงาน/), {
+      target: { value: '18:00' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกกะงาน' }));
+    expect(
+      await screen.findByText('กะงานถูกแก้ไขโดยผู้ใช้อื่น'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/เวลาเข้างาน/)).toHaveValue('09:00');
+    expect(updateStaffShift).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ startsAt: '09:00', endsAt: '18:00' }),
+    );
   });
 
   it('shows the employee and their scheduled shift', async () => {
@@ -197,7 +268,7 @@ describe('EmployeesManagementPage', () => {
     );
   });
 
-  it('updates the name and working hours in the visible schedule immediately', async () => {
+  it('updates the employee name and primary shift', async () => {
     renderPage();
     await waitForPage();
 
@@ -227,8 +298,6 @@ describe('EmployeesManagementPage', () => {
           defaultEndsAt: '18:00',
         }),
       );
-      expect(screen.getAllByText('ชื่อใหม่')).toHaveLength(2);
-      expect(screen.getByText('09:00 น. - 18:00 น.')).toBeTruthy();
     });
   });
 
@@ -245,18 +314,18 @@ describe('EmployeesManagementPage', () => {
         expect.objectContaining({
           defaultStartsAt: '08:00',
           defaultEndsAt: '17:00',
-          defaultSecondStartsAt: '',
-          defaultSecondEndsAt: '',
+          defaultShifts: [{ startsAt: '08:00', endsAt: '17:00', weekdays: [] }],
         }),
       );
     });
   });
 
-  it('saves the selected weekdays for an employee second shift', async () => {
+  it('saves selected weekdays for an added shift', async () => {
     renderPage();
     await waitForPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ เพิ่มกะ' }));
     fireEvent.change(screen.getByLabelText('เวลาเข้างาน กะที่ 2'), {
       target: { value: '13:00' },
     });
@@ -271,9 +340,10 @@ describe('EmployeesManagementPage', () => {
       expect(mockedUpdateEmployee).toHaveBeenCalledWith(
         employee.id,
         expect.objectContaining({
-          defaultSecondStartsAt: '13:00',
-          defaultSecondEndsAt: '22:00',
-          defaultSecondShiftDays: [1, 3],
+          defaultShifts: [
+            { startsAt: '08:00', endsAt: '17:00', weekdays: [] },
+            { startsAt: '13:00', endsAt: '22:00', weekdays: [1, 3] },
+          ],
         }),
       );
     });

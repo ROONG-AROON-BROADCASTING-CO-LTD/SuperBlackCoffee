@@ -127,7 +127,7 @@ export function DashboardDrawerHeader({
             component="h2"
             sx={{
               color: '#201914',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: { xs: 18, sm: 20, md: 22 },
               fontWeight: 600,
               overflowWrap: 'anywhere',
@@ -140,7 +140,7 @@ export function DashboardDrawerHeader({
               sx={{
                 mt: 0.25,
                 color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: { xs: 12, sm: 13, md: 14 },
                 overflowWrap: 'anywhere',
               }}

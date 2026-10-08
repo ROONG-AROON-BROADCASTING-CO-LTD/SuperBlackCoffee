@@ -93,7 +93,7 @@ export function BranchesSidebar({
                     px: 1.25,
                     pb: 0.5,
                     color: '#7b6a5e',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 11,
                     fontWeight: 600,
                     letterSpacing: 0.2,
@@ -111,7 +111,7 @@ export function BranchesSidebar({
                     minHeight: 42,
                     mb: 0.5,
                     borderRadius: '10px',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     '&.Mui-selected': {
                       bgcolor: '#201914',
                       color: '#fff',
@@ -124,7 +124,7 @@ export function BranchesSidebar({
                     primary={
                       <Typography
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 13,
                           fontWeight: 500,
                         }}

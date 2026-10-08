@@ -68,7 +68,7 @@ const cardSx = {
 };
 const eyebrowSx = {
   color: '#6e625a',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 13,
   fontWeight: 500,
 };
@@ -296,7 +296,7 @@ function SalesTrendCard({
             <Typography
               sx={{
                 color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 19,
                 fontWeight: 600,
               }}
@@ -335,7 +335,7 @@ function SalesTrendCard({
                     bgcolor: period === option.value ? '#201914' : '#fff',
                     color: period === option.value ? '#fff' : '#5f4b3d',
                     boxShadow: 'none',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                     lineHeight: 1.1,
                   }}
@@ -377,7 +377,7 @@ function SalesTrendCard({
               sx={{
                 mt: 2.25,
                 color: '#805637',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 24,
                 fontWeight: 750,
               }}
@@ -482,7 +482,7 @@ function FollowUpRow({
         <Typography
           sx={{
             color: '#201914',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 15,
             fontWeight: 600,
           }}
@@ -523,7 +523,7 @@ function SalesSummaryCard({
         <Typography
           sx={{
             color: '#201914',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 19,
             fontWeight: 600,
           }}
@@ -545,7 +545,7 @@ function SalesSummaryCard({
           <Typography
             sx={{
               color: '#d6b59d',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13,
             }}
           >
@@ -644,7 +644,7 @@ function BestSellingMenuCard({
         <Typography
           sx={{
             color: '#201914',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontSize: 19,
             fontWeight: 600,
           }}
@@ -697,7 +697,7 @@ function BestSellingMenuCard({
                     noWrap
                     sx={{
                       color: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 14,
                       fontWeight: 600,
                     }}
@@ -730,7 +730,7 @@ function BestSellingMenuCard({
             <Typography
               sx={{
                 color: '#5f5148',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 15,
                 fontWeight: 600,
               }}
@@ -944,7 +944,7 @@ export function AdminOverviewPage({
                   sx={{
                     borderRadius: '12px',
                     bgcolor: '#fff',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     '& .MuiOutlinedInput-notchedOutline': {
                       borderColor: '#d8c8bd',
                     },
@@ -971,7 +971,7 @@ export function AdminOverviewPage({
                   bgcolor: '#fff7f5',
                   p: 1.5,
                   color: '#9d3322',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 14,
                 }}
               >
@@ -1045,7 +1045,7 @@ export function AdminOverviewPage({
                   <Typography
                     sx={{
                       color: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 19,
                       fontWeight: 600,
                     }}
@@ -1079,7 +1079,7 @@ export function AdminOverviewPage({
                           <Box>
                             <Typography
                               sx={{
-                                fontFamily: 'Kanit, sans-serif',
+                                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                                 fontSize: 15,
                                 fontWeight: 600,
                               }}
@@ -1100,7 +1100,7 @@ export function AdminOverviewPage({
                           <Typography
                             sx={{
                               color: branch.low ? '#a76415' : '#3c5b47',
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 12,
                               fontWeight: 600,
                             }}
@@ -1131,7 +1131,7 @@ export function AdminOverviewPage({
                   <Typography
                     sx={{
                       color: '#201914',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 19,
                       fontWeight: 600,
                     }}
@@ -1168,7 +1168,7 @@ export function AdminOverviewPage({
                 <Typography
                   sx={{
                     color: '#201914',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 19,
                     fontWeight: 600,
                   }}
@@ -1229,7 +1229,7 @@ export function AdminOverviewPage({
                         sx={{
                           mt: 0.8,
                           color: '#201914',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 15,
                           fontWeight: 600,
                         }}

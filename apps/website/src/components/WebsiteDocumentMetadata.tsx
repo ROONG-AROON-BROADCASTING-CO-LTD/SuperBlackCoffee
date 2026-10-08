@@ -164,8 +164,8 @@ export function WebsiteDocumentMetadata() {
   useEffect(() => {
     const applyMetadata = () => {
       const title = copy.home
-        ? `Super Black Coffee | ${copy.title}`
-        : `${copy.title} | Super Black Coffee`;
+        ? `Super Black Coffee - ${copy.title}`
+        : `${copy.title} - Super Black Coffee`;
 
       document.title = title;
       setMeta('name', 'description', copy.description);

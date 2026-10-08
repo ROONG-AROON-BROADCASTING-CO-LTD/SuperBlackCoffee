@@ -83,7 +83,7 @@ export function exportDailyReportAsPdf({
     <style>
       @page { size: A4 landscape; margin: 9mm; }
       * { box-sizing: border-box; }
-      body { margin: 0; color: #201914; background: #fff; font-family: Kanit, sans-serif; }
+      body { margin: 0; color: #201914; background: #fff; font-family: IBM Plex Sans Thai, sans-serif; }
       .report-header { margin-bottom: 9px; padding-bottom: 7px; border-bottom: 2px solid #3c2d24; }
       .report-title { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; }
       .report-meta { margin: 3px 0 0; color: #60493b; font-size: 11px; }

@@ -24,7 +24,7 @@ const searchFieldSx = {
     minHeight: 40,
     borderRadius: '12px',
     bgcolor: '#fff',
-    fontFamily: 'Kanit, sans-serif',
+    fontFamily: 'IBM Plex Sans Thai, sans-serif',
     fontSize: 14,
     transition: 'border-color 160ms ease, box-shadow 160ms ease',
     '&.Mui-focused': {
@@ -85,7 +85,7 @@ const branches = [
     'https://maps.app.goo.gl/rbCG1HbrHJXHffSk6',
     'เปิดทุกวัน',
   ],
-  ['รัชดา', 'กรุงเทพมหานคร', '', '', '', 'พบกันเร็วๆนี้'],
+  ['ประชาอุทิศ', 'กรุงเทพมหานคร', '', '', '', 'พบกันเร็วๆนี้'],
 ];
 const plans = [
   ['S', 'Smart Café', '20–40 ตร.ม.', 'Coffee & Beverage', '1.2–2.2 ล้านบาท'],

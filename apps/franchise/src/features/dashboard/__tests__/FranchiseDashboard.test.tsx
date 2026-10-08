@@ -32,7 +32,9 @@ vi.mock('@stackbuild/management/skeletons/promotions', () => ({
   PromotionsSkeleton: () => <div />,
 }));
 vi.mock('@stackbuild/management/pages/employees', () => ({
-  EmployeesManagementPage: () => <div />,
+  EmployeesManagementPage: ({ franchiseMode }: { franchiseMode: boolean }) => (
+    <output data-testid="employees-workspace">{String(franchiseMode)}</output>
+  ),
 }));
 vi.mock('@stackbuild/management/pages/ingredients', () => ({
   IngredientsManagementPage: ({
@@ -141,6 +143,23 @@ describe('FranchiseDashboard plan restrictions', () => {
     cleanup();
     sessionStorage.clear();
   });
+
+  it.each(['S', 'M', 'L'] as const)(
+    'opens the shared employee schedule in franchise mode for plan %s',
+    async (plan) => {
+      render(
+        <MemoryRouter initialEntries={['/employees?scheduleBranch=FOREIGN']}>
+          <FranchiseDashboard logout={vi.fn()} plan={plan} {...branchProps} />
+        </MemoryRouter>,
+      );
+      expect(
+        (await screen.findByTestId('employees-workspace')).textContent,
+      ).toBe('true');
+      expect(screen.getByTestId('active-page').textContent).toBe(
+        'ตารางพนักงาน',
+      );
+    },
+  );
 
   it('uses the current authenticated branch after rerender, ignoring a forged URL scope', async () => {
     const view = render(

@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import {
   cleanup,
   fireEvent,
@@ -471,5 +472,48 @@ describe('StockCountPage', () => {
 
     expect(await screen.findByText('บันทึกยอดไม่สำเร็จ')).toBeTruthy();
     expect(screen.getByLabelText('จำนวนคงเหลือ (กรัม)')).toBeTruthy();
+  });
+
+  it('does not submit duplicate adjustments while saving and retries the same count after failure', async () => {
+    let rejectAdjustment!: (cause: Error) => void;
+    const onAdjust = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_, reject) => {
+            rejectAdjustment = reject;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    render(
+      <StockCountPage
+        ingredients={[ingredient]}
+        drinkStock={[]}
+        postalStock={[]}
+        loading={false}
+        onAdjust={onAdjust}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกยอดจริง' }));
+    fireEvent.change(screen.getByLabelText('จำนวนคงเหลือ (กรัม)'), {
+      target: { value: '4.5' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+    expect(screen.getByRole('button', { name: 'ยืนยันบันทึก' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+    expect(onAdjust).toHaveBeenCalledTimes(1);
+    rejectAdjustment(new Error('connection interrupted'));
+    expect(
+      await screen.findByText('connection interrupted'),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('จำนวนคงเหลือ (กรัม)')).toHaveValue(4.5);
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันบันทึก' }));
+    await waitFor(() => expect(onAdjust).toHaveBeenCalledTimes(2));
+    expect(onAdjust.mock.calls[1]).toEqual([
+      ingredient,
+      4.5,
+      'ตรวจนับสิ้นกะ',
+      { manufacturedAt: '', expiryDate: '' },
+    ]);
   });
 });

@@ -41,7 +41,7 @@ export function SbcThemeProvider({
             borderRadius,
             padding: '8px 16px !important',
             minHeight: '40px !important',
-            fontFamily: '"SBC Sans", "Kanit", Arial, sans-serif',
+            fontFamily: '"IBM Plex Sans Thai", sans-serif',
             fontSize: '14px !important',
             fontWeight: '400 !important',
             lineHeight: '1.4 !important',
@@ -82,17 +82,17 @@ export function SbcThemeProvider({
       },
     },
     typography: {
-      fontFamily: '"SBC Sans", "Kanit", Arial, sans-serif',
+      fontFamily: '"IBM Plex Sans Thai", sans-serif',
       h3: {
-        fontFamily: '"SBC Sans", "Kanit", Arial, sans-serif',
+        fontFamily: '"IBM Plex Sans Thai", sans-serif',
         fontWeight: 700,
       },
       h4: {
-        fontFamily: '"SBC Sans", "Kanit", Arial, sans-serif',
+        fontFamily: '"IBM Plex Sans Thai", sans-serif',
         fontWeight: 700,
       },
       h5: {
-        fontFamily: '"SBC Sans", "Kanit", Arial, sans-serif',
+        fontFamily: '"IBM Plex Sans Thai", sans-serif',
         fontWeight: 700,
       },
     },

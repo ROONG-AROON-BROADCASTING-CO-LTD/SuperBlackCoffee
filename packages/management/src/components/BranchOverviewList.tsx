@@ -71,7 +71,7 @@ export function BranchOverviewList({
         sx={{
           mb: 1.5,
           color: 'text.secondary',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 13,
         }}
       >
@@ -98,7 +98,7 @@ export function BranchOverviewList({
               <Box sx={{ minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: { xs: 18, md: 20 },
                     fontWeight: 600,
                     lineHeight: 1.35,
@@ -124,7 +124,7 @@ export function BranchOverviewList({
                 <Typography
                   sx={{
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                   }}
                 >
@@ -133,7 +133,7 @@ export function BranchOverviewList({
                 <Typography
                   sx={{
                     color: '#30251f',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 22,
                     fontWeight: 600,
                     lineHeight: 1.3,
@@ -156,7 +156,7 @@ export function BranchOverviewList({
                 bgcolor: '#513723',
                 color: '#fff',
                 boxShadow: 'none',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 14,
                 '&:hover': { bgcolor: '#392719', boxShadow: 'none' },
               }}

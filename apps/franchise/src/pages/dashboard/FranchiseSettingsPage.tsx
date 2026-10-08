@@ -19,14 +19,14 @@ import {
 
 const detailLabelSx = {
   color: '#8a7060',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 12,
   fontWeight: 600,
 } as const;
 
 const detailValueSx = {
   color: '#342821',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 15,
 } as const;
 
@@ -84,7 +84,10 @@ export function FranchiseSettingsPage() {
         description="ตรวจสอบข้อมูลบัญชีแฟรนไชส์และเปลี่ยนรหัสผ่านสำหรับเข้าสู่ระบบ"
       />
       {settings.isError ? (
-        <Alert severity="error" sx={{ mb: 2, fontFamily: 'Kanit, sans-serif' }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2, fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
+        >
           ไม่สามารถโหลดข้อมูลการตั้งค่าระบบได้ กรุณาลองใหม่อีกครั้ง
         </Alert>
       ) : null}
@@ -110,7 +113,7 @@ export function FranchiseSettingsPage() {
         >
           <Typography
             sx={{
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 18,
               fontWeight: 600,
             }}
@@ -121,7 +124,7 @@ export function FranchiseSettingsPage() {
             sx={{
               mt: 0.35,
               color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13,
             }}
           >
@@ -169,7 +172,7 @@ export function FranchiseSettingsPage() {
         >
           <Typography
             sx={{
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 18,
               fontWeight: 600,
             }}
@@ -180,7 +183,7 @@ export function FranchiseSettingsPage() {
             sx={{
               mt: 0.35,
               color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13,
             }}
           >
@@ -224,7 +227,7 @@ export function FranchiseSettingsPage() {
                 minHeight: 40,
                 borderRadius: '12px',
                 bgcolor: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
               }}

@@ -56,7 +56,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             sx={{
               maxWidth: '760px',
               color: '#fff',
-              fontFamily: 'var(--font-kanit), sans-serif',
+              fontFamily: 'var(--font-ibm-plex-thai), sans-serif',
               fontSize: 'clamp(58px, 5vw, 76px)',
               fontWeight: 400,
               lineHeight: 1.1,
@@ -79,7 +79,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
               maxWidth: '550px',
               margin: '30px 0 0',
               color: 'rgba(255,255,255,.76)',
-              font: '400 19px/1.65 var(--font-kanit), sans-serif',
+              font: '400 19px/1.65 var(--font-ibm-plex-thai), sans-serif',
             }}
           >
             {copy.summary}
@@ -117,7 +117,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
               sx={{
                 margin: 0,
                 maxWidth: '500px',
-                font: '400 clamp(32px, 3.4vw, 56px)/1.13 var(--font-kanit), sans-serif',
+                font: '400 clamp(32px, 3.4vw, 56px)/1.13 var(--font-ibm-plex-thai), sans-serif',
                 letterSpacing: '-.04em',
               }}
             >
@@ -129,7 +129,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                 margin: { xs: 0, md: '12px 0 0' },
                 maxWidth: '680px',
                 color: 'rgba(255,255,255,.72)',
-                font: '400 clamp(18px, 1.55vw, 24px)/1.72 var(--font-kanit), sans-serif',
+                font: '400 clamp(18px, 1.55vw, 24px)/1.72 var(--font-ibm-plex-thai), sans-serif',
               }}
             >
               {copy.introduction}
@@ -170,7 +170,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                   component="h3"
                   sx={{
                     margin: 0,
-                    font: '400 clamp(20px, 1.7vw, 29px)/1.24 var(--font-kanit), sans-serif',
+                    font: '400 clamp(20px, 1.7vw, 29px)/1.24 var(--font-ibm-plex-thai), sans-serif',
                   }}
                 >
                   {point.title}
@@ -181,7 +181,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                     margin: { xs: '7px 0 0 66px', md: 0 },
                     gridColumn: { md: '3' },
                     color: 'rgba(255,255,255,.64)',
-                    font: '400 18px/1.65 var(--font-kanit), sans-serif',
+                    font: '400 18px/1.65 var(--font-ibm-plex-thai), sans-serif',
                   }}
                 >
                   {point.description}
@@ -234,7 +234,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                 sx={{
                   margin: 0,
                   maxWidth: '510px',
-                  font: '400 clamp(32px, 3.4vw, 53px)/1.13 var(--font-kanit), sans-serif',
+                  font: '400 clamp(32px, 3.4vw, 53px)/1.13 var(--font-ibm-plex-thai), sans-serif',
                   letterSpacing: '-.04em',
                 }}
               >
@@ -247,7 +247,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                 margin: { xs: 0, md: '11px 0 0' },
                 maxWidth: '660px',
                 color: 'rgba(255,255,255,.68)',
-                font: '400 clamp(18px, 1.45vw, 23px)/1.72 var(--font-kanit), sans-serif',
+                font: '400 clamp(18px, 1.45vw, 23px)/1.72 var(--font-ibm-plex-thai), sans-serif',
               }}
             >
               {copy.detailSummary}
@@ -301,7 +301,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                   component="h3"
                   sx={{
                     margin: 0,
-                    font: '400 clamp(21px, 1.7vw, 28px)/1.25 var(--font-kanit), sans-serif',
+                    font: '400 clamp(21px, 1.7vw, 28px)/1.25 var(--font-ibm-plex-thai), sans-serif',
                   }}
                 >
                   {detail.title}
@@ -312,7 +312,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                     margin: '16px 0 0',
                     maxWidth: '390px',
                     color: 'rgba(255,255,255,.62)',
-                    font: '400 17px/1.68 var(--font-kanit), sans-serif',
+                    font: '400 17px/1.68 var(--font-ibm-plex-thai), sans-serif',
                   }}
                 >
                   {detail.description}
@@ -365,7 +365,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                 sx={{
                   margin: 0,
                   maxWidth: '520px',
-                  font: '400 clamp(32px, 3.4vw, 53px)/1.13 var(--font-kanit), sans-serif',
+                  font: '400 clamp(32px, 3.4vw, 53px)/1.13 var(--font-ibm-plex-thai), sans-serif',
                   letterSpacing: '-.04em',
                 }}
               >
@@ -378,7 +378,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                 margin: { xs: 0, md: '11px 0 0' },
                 maxWidth: '680px',
                 color: 'rgba(255,255,255,.68)',
-                font: '400 clamp(18px, 1.45vw, 23px)/1.72 var(--font-kanit), sans-serif',
+                font: '400 clamp(18px, 1.45vw, 23px)/1.72 var(--font-ibm-plex-thai), sans-serif',
               }}
             >
               {copy.journeySummary}
@@ -428,7 +428,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                   component="h3"
                   sx={{
                     margin: '22px 0 0',
-                    font: '400 clamp(21px, 1.7vw, 28px)/1.25 var(--font-kanit), sans-serif',
+                    font: '400 clamp(21px, 1.7vw, 28px)/1.25 var(--font-ibm-plex-thai), sans-serif',
                   }}
                 >
                   {step.title}
@@ -439,7 +439,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                     margin: '14px 0 0',
                     maxWidth: '390px',
                     color: 'rgba(255,255,255,.62)',
-                    font: '400 17px/1.68 var(--font-kanit), sans-serif',
+                    font: '400 17px/1.68 var(--font-ibm-plex-thai), sans-serif',
                   }}
                 >
                   {step.description}
@@ -466,7 +466,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                 sx={{
                   margin: 0,
                   maxWidth: '770px',
-                  font: '400 clamp(29px, 2.9vw, 48px)/1.16 var(--font-kanit), sans-serif',
+                  font: '400 clamp(29px, 2.9vw, 48px)/1.16 var(--font-ibm-plex-thai), sans-serif',
                   letterSpacing: '-.04em',
                 }}
               >
@@ -478,7 +478,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
                   margin: '20px 0 0',
                   maxWidth: '680px',
                   color: 'rgba(255,255,255,.67)',
-                  font: '400 18px/1.7 var(--font-kanit), sans-serif',
+                  font: '400 18px/1.7 var(--font-ibm-plex-thai), sans-serif',
                 }}
               >
                 {copy.closingDescription}

@@ -350,7 +350,7 @@ export function AdminOrdersPage({
           <Typography
             sx={{
               color: '#3c2d24',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 20,
               fontWeight: 600,
             }}
@@ -364,7 +364,7 @@ export function AdminOrdersPage({
           <Typography
             sx={{
               color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13,
             }}
           >
@@ -438,7 +438,7 @@ export function AdminOrdersPage({
                     borderRadius: 99,
                     bgcolor: '#df292d',
                     color: '#fff',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                     fontWeight: 600,
                     lineHeight: 1,
@@ -471,7 +471,7 @@ export function AdminOrdersPage({
               width: { xs: '100%', sm: 220 },
               '& .MuiOutlinedInput-root': { borderRadius: '12px' },
               '& .MuiInputLabel-root, & .MuiSelect-select': {
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
               },
             }}
           >
@@ -479,7 +479,7 @@ export function AdminOrdersPage({
               <MenuItem
                 key={item}
                 value={item}
-                sx={{ fontFamily: 'Kanit, sans-serif' }}
+                sx={{ fontFamily: 'IBM Plex Sans Thai, sans-serif' }}
               >
                 {item}
               </MenuItem>
@@ -512,7 +512,7 @@ export function AdminOrdersPage({
           <Typography
             sx={{
               color: '#a22e2a',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 14,
             }}
           >
@@ -575,7 +575,7 @@ export function AdminOrdersPage({
                       <Typography
                         sx={{
                           color: '#3c2d24',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 19,
                           fontWeight: 600,
                         }}
@@ -591,7 +591,7 @@ export function AdminOrdersPage({
                         sx={{
                           mt: 0.15,
                           color: 'text.secondary',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                         }}
                       >
@@ -606,7 +606,7 @@ export function AdminOrdersPage({
                         borderRadius: '12px',
                         bgcolor: color.main,
                         color: color.text,
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 11,
                       }}
                     />
@@ -623,7 +623,7 @@ export function AdminOrdersPage({
                         request.type === 'วัตถุดิบ' ? '#b8a296' : '#a8b6c1',
                       color:
                         request.type === 'วัตถุดิบ' ? '#805637' : '#276a9c',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 11,
                     }}
                   />
@@ -640,7 +640,7 @@ export function AdminOrdersPage({
                       sx={{
                         mb: 0.75,
                         color: '#5f4030',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 13,
                         fontWeight: 600,
                       }}
@@ -671,7 +671,7 @@ export function AdminOrdersPage({
                       >
                         <Typography
                           sx={{
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 13,
                             fontWeight: 500,
                           }}
@@ -682,7 +682,7 @@ export function AdminOrdersPage({
                           sx={{
                             flexShrink: 0,
                             color: '#805637',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 13,
                             fontWeight: 600,
                           }}
@@ -711,7 +711,7 @@ export function AdminOrdersPage({
                     <Typography
                       sx={{
                         color: 'text.secondary',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                       }}
                     >
@@ -727,7 +727,7 @@ export function AdminOrdersPage({
                             minHeight: 34,
                             borderRadius: '10px',
                             bgcolor: '#201914',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 12,
                             boxShadow: 'none',
                             '&:hover': {
@@ -752,7 +752,7 @@ export function AdminOrdersPage({
                           sx={{
                             minHeight: 34,
                             borderRadius: '10px',
-                            fontFamily: 'Kanit, sans-serif',
+                            fontFamily: 'IBM Plex Sans Thai, sans-serif',
                             fontSize: 12,
                           }}
                         >
@@ -772,7 +772,7 @@ export function AdminOrdersPage({
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           {selectedTab === 'expense'

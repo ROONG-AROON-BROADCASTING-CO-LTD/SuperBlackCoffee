@@ -63,7 +63,7 @@ export function VisitSection() {
             bgcolor: '#fff',
             color: '#201914',
             borderRadius: '12px',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             boxShadow: 'none',
             '&:hover': { bgcolor: '#f7eee8', boxShadow: 'none' },
           }}

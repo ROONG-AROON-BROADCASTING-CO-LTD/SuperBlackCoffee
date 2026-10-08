@@ -13,7 +13,7 @@ export function PageIntro({
         component="h1"
         sx={{
           color: '#3c2d24',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 20,
           fontWeight: 600,
           lineHeight: 1.35,
@@ -25,7 +25,7 @@ export function PageIntro({
         sx={{
           mt: 0.35,
           color: 'text.secondary',
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontSize: 13,
           lineHeight: 1.5,
         }}

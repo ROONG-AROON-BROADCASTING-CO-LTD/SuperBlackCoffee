@@ -725,7 +725,7 @@ export function AttendanceManagementPage({
                               borderRadius: '6px',
                               bgcolor: colors.background,
                               color: colors.text,
-                              fontFamily: 'Kanit, sans-serif',
+                              fontFamily: 'IBM Plex Sans Thai, sans-serif',
                               fontSize: 11,
                               lineHeight: 1.25,
                             }}

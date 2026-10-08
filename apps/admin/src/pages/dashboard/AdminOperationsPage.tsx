@@ -120,14 +120,14 @@ const inspectionFormGridSx = {
 };
 const sectionTitleSx = {
   color: '#3c2d24',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 16,
   fontWeight: 600,
   lineHeight: 1.35,
 };
 const sectionDescriptionSx = {
   color: 'text.secondary',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 13,
   lineHeight: 1.6,
 };
@@ -138,7 +138,7 @@ const formActionSx = {
   borderRadius: '12px',
   color: '#fff',
   bgcolor: '#201914',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontWeight: 500,
   boxShadow: 'none',
   '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
@@ -169,7 +169,7 @@ const tableActionSx = {
   border: '1px solid rgba(23, 20, 17, 0.35)',
   borderRadius: '12px',
   color: '#3c2d24',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 14,
   fontWeight: 500,
   whiteSpace: 'nowrap',
@@ -218,7 +218,7 @@ const statusChipSx = (status: string) => ({
   bgcolor:
     status === 'passed' || status === 'completed' ? '#e4f3e8' : '#f7efe5',
   color: status === 'passed' || status === 'completed' ? '#287342' : '#805b32',
-  fontFamily: 'Kanit, sans-serif',
+  fontFamily: 'IBM Plex Sans Thai, sans-serif',
   fontSize: 12,
   fontWeight: 500,
 });
@@ -633,7 +633,7 @@ export function AdminOperationsPage() {
           <Typography
             sx={{
               color: '#3c2d24',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 20,
               fontWeight: 600,
               lineHeight: 1.35,
@@ -670,7 +670,7 @@ export function AdminOperationsPage() {
                 borderColor: tab === id ? '#171411' : 'rgba(23, 20, 17, 0.35)',
                 bgcolor: tab === id ? '#171411' : 'transparent',
                 color: tab === id ? '#fff' : '#171411',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 13,
                 fontWeight: 600,
                 '&:hover': {
@@ -848,7 +848,7 @@ export function AdminOperationsPage() {
                     my: 0,
                     pl: 3,
                     color: '#3c2d24',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 13,
                     lineHeight: 1.55,
                   }}
@@ -986,7 +986,7 @@ export function AdminOperationsPage() {
                   textAlign: 'left',
                   whiteSpace: 'nowrap',
                   color: '#5a473a',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 12.5,
                   fontWeight: 600,
                 },
@@ -997,7 +997,7 @@ export function AdminOperationsPage() {
                   whiteSpace: 'normal',
                   overflowWrap: 'anywhere',
                   color: '#3c2d24',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 13,
                   lineHeight: 1.5,
                 },

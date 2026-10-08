@@ -65,14 +65,14 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
               minHeight: 56,
               borderRadius: '16px',
               bgcolor: '#fff',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 16,
               '&.Mui-focused': {
                 boxShadow: '0 0 0 3px rgba(91, 63, 47, 0.1)',
               },
             },
             '& .MuiInputLabel-root': {
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               color: '#777',
             },
             '& input::-webkit-calendar-picker-indicator': {

@@ -7,6 +7,7 @@ export type Employee = {
   email: string;
   role: 'admin' | 'franchise_owner' | 'branch_manager' | 'cashier';
   jobTitle?: string;
+  department?: 'cafe' | 'postal';
   franchiseeId?: number;
   branchId?: number;
   defaultStartsAt?: string;
@@ -14,6 +15,11 @@ export type Employee = {
   defaultSecondStartsAt?: string;
   defaultSecondEndsAt?: string;
   defaultSecondShiftDays?: number[];
+  defaultShifts?: Array<{
+    startsAt: string;
+    endsAt: string;
+    weekdays: number[];
+  }>;
   dayOffPolicy?: 'automatic' | 'home_branch' | 'work_branch' | 'custom';
   dayOffSourceBranchId?: number;
   weeklyDaysOff?: number[];
@@ -33,12 +39,14 @@ export const createEmployee = (
     password: string;
     role: 'branch_manager' | 'cashier';
     jobTitle?: string;
+    department: 'cafe' | 'postal';
     branchId: number;
     defaultStartsAt: string;
     defaultEndsAt: string;
     defaultSecondStartsAt?: string;
     defaultSecondEndsAt?: string;
     defaultSecondShiftDays?: number[];
+    defaultShifts?: Employee['defaultShifts'];
   } & DayOffPreferences,
 ) => secured<{ id: number }>('/users', { method: 'POST', data });
 export const updateEmployee = (
@@ -47,12 +55,14 @@ export const updateEmployee = (
     name: string;
     role: 'branch_manager' | 'cashier';
     jobTitle?: string;
+    department: 'cafe' | 'postal';
     branchId: number;
     defaultStartsAt: string;
     defaultEndsAt: string;
     defaultSecondStartsAt?: string;
     defaultSecondEndsAt?: string;
     defaultSecondShiftDays?: number[];
+    defaultShifts?: Employee['defaultShifts'];
   } & DayOffPreferences,
 ) => secured<{ id: number }>(`/users/${id}`, { method: 'PATCH', data });
 export const deleteEmployee = (id: number) =>

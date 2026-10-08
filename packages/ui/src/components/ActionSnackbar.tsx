@@ -89,7 +89,7 @@ export function ActionSnackbar({
         }
         action={action}
         sx={{
-          fontFamily: 'Kanit, sans-serif',
+          fontFamily: 'IBM Plex Sans Thai, sans-serif',
           fontWeight: 500,
           fontSize: '14px',
           ...alertSx,

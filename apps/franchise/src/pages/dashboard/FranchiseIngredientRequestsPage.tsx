@@ -62,7 +62,7 @@ export function FranchiseIngredientRequestsPage() {
               borderRadius: '10px',
               bgcolor: '#f7eadf',
               color: '#8a4f22',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontWeight: 600,
             }}
           />
@@ -80,7 +80,10 @@ export function FranchiseIngredientRequestsPage() {
             }}
           >
             <Typography
-              sx={{ color: 'text.secondary', fontFamily: 'Kanit, sans-serif' }}
+              sx={{
+                color: 'text.secondary',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
+              }}
             >
               กำลังโหลดคำขอวัตถุดิบ…
             </Typography>
@@ -91,7 +94,10 @@ export function FranchiseIngredientRequestsPage() {
             sx={{ p: 2.5, borderRadius: '16px', borderColor: '#e8ddd5' }}
           >
             <Typography
-              sx={{ color: 'text.secondary', fontFamily: 'Kanit, sans-serif' }}
+              sx={{
+                color: 'text.secondary',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
+              }}
             >
               ไม่สามารถแสดงรายการได้ในขณะนี้
             </Typography>
@@ -122,7 +128,7 @@ export function FranchiseIngredientRequestsPage() {
                     <Box>
                       <Typography
                         sx={{
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 16,
                           fontWeight: 600,
                         }}
@@ -133,7 +139,7 @@ export function FranchiseIngredientRequestsPage() {
                         sx={{
                           mt: 0.2,
                           color: 'text.secondary',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12.5,
                         }}
                       >
@@ -148,7 +154,7 @@ export function FranchiseIngredientRequestsPage() {
                         borderRadius: '8px',
                         bgcolor: status.background,
                         color: status.color,
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                         fontWeight: 600,
                       }}
@@ -171,7 +177,7 @@ export function FranchiseIngredientRequestsPage() {
                         sx={{
                           borderRadius: '8px',
                           borderColor: '#e8ddd5',
-                          fontFamily: 'Kanit, sans-serif',
+                          fontFamily: 'IBM Plex Sans Thai, sans-serif',
                           fontSize: 12,
                         }}
                       />
@@ -197,7 +203,7 @@ export function FranchiseIngredientRequestsPage() {
             <Box>
               <Typography
                 sx={{
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 17,
                   fontWeight: 600,
                 }}
@@ -208,7 +214,7 @@ export function FranchiseIngredientRequestsPage() {
                 sx={{
                   mt: 0.35,
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 13,
                 }}
               >

@@ -166,6 +166,70 @@ func TestGenerateStaffSchedulesDoesNotGiveAnOnlyEmployeeAutomaticDaysOff(t *test
 	}
 }
 
+func TestGenerateStaffSchedulesUsesFlexibleStaffToCoverAnAbsentPrimaryShift(t *testing.T) {
+	db := openStaffScheduleTestDB(t)
+	fixtureID := time.Now().UnixNano()
+	var branchID, earlyUserID, secondEarlyUserID, lateUserID, flexibleUserID int64
+	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาพนักงานสำรอง-%d", fixtureID), fmt.Sprintf("FLEX-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
+		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
+	}
+	createUser := func(name, suffix, startsAt, endsAt, policy, customDaysOff string, flexible bool) int64 {
+		t.Helper()
+		username := fmt.Sprintf("flex-test-%d-%s", fixtureID, suffix)
+		defaultShifts := `'[]'::jsonb`
+		if flexible {
+			defaultShifts = `jsonb_build_array(jsonb_build_object('startsAt','09:00','endsAt','18:00','weekdays','[]'::jsonb),jsonb_build_object('startsAt','13:00','endsAt','22:00','weekdays','[]'::jsonb))`
+		}
+		query := fmt.Sprintf(`INSERT INTO users(name,username,email,password_hash,role,branch_id,default_starts_at,default_ends_at,default_shifts,day_off_policy,custom_days_off) VALUES($1,$2,$3,'hash','cashier',$4,$5::time,$6::time,%s,$7,$8::date[]) RETURNING id`, defaultShifts)
+		var id int64
+		if err := db.QueryRow(query, name, username, username+"@example.com", branchID, startsAt, endsAt, policy, customDaysOff).Scan(&id); err != nil {
+			t.Fatalf("สร้างพนักงาน %s: %v", name, err)
+		}
+		return id
+	}
+	earlyUserID = createUser("พนักงานกะเช้า", "early", "08:00", "17:00", "custom", "{2099-12-01,2099-12-02}", false)
+	secondEarlyUserID = createUser("พนักงานกะเช้าคนที่สอง", "early-second", "08:00", "17:00", "custom", "{2099-12-02}", false)
+	lateUserID = createUser("พนักงานกะบ่าย", "late", "13:00", "22:00", "custom", "{}", false)
+	flexibleUserID = createUser("พนักงานสำรอง", "flex", "09:00", "18:00", "custom", "{2099-12-03}", true)
+	t.Cleanup(func() {
+		_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id IN ($1,$2,$3,$4)`, earlyUserID, secondEarlyUserID, lateUserID, flexibleUserID)
+		_, _ = db.Exec(`DELETE FROM users WHERE id IN ($1,$2,$3,$4)`, earlyUserID, secondEarlyUserID, lateUserID, flexibleUserID)
+		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
+	})
+	syncedThaiHolidayYears.Store(2099, struct{}{})
+
+	gin.SetMode(gin.TestMode)
+	response := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(response)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(fmt.Sprintf(`{"month":"2099-12","branchId":%d}`, branchID)))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("claims", &middleware.Claims{Role: "admin"})
+	(&PlatformHandler{db: db}).GenerateStaffSchedules(ctx)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("จัดตารางอัตโนมัติ = %d: %s", response.Code, response.Body.String())
+	}
+
+	var startsAt, endsAt, status string
+	if err := db.QueryRow(`SELECT starts_at::text,ends_at::text,status FROM staff_shifts WHERE user_id=$1 AND shift_date='2099-12-01'`, flexibleUserID).Scan(&startsAt, &endsAt, &status); err != nil {
+		t.Fatalf("อ่านกะพนักงานสำรองวันที่ยังกะเช้าอยู่: %v", err)
+	}
+	if startsAt != "09:00:00" || endsAt != "18:00:00" || status != "scheduled" {
+		t.Fatalf("พนักงานสำรองต้องใช้กะแรกเมื่อยังกะเช้าอยู่, got %s-%s (%s)", startsAt, endsAt, status)
+	}
+	if err := db.QueryRow(`SELECT starts_at::text,ends_at::text,status FROM staff_shifts WHERE user_id=$1 AND shift_date='2099-12-02'`, flexibleUserID).Scan(&startsAt, &endsAt, &status); err != nil {
+		t.Fatalf("อ่านกะพนักงานสำรองวันที่ต้องแทน: %v", err)
+	}
+	if startsAt != "08:00:00" || endsAt != "17:00:00" || status != "scheduled" {
+		t.Fatalf("พนักงานสำรองต้องแทนกะเช้าที่ไม่มีคนทำงาน, got %s-%s (%s)", startsAt, endsAt, status)
+	}
+	if err := db.QueryRow(`SELECT status FROM staff_shifts WHERE user_id=$1 AND shift_date='2099-12-03'`, flexibleUserID).Scan(&status); err != nil {
+		t.Fatalf("อ่านวันหยุดพนักงานสำรอง: %v", err)
+	}
+	if status != "day_off" {
+		t.Fatalf("วันหยุดของพนักงานสำรองต้องไม่ถูกเขียนทับ, got %s", status)
+	}
+}
+
 func TestGenerateStaffSchedulesRepairsExistingAutomaticDaysOffToFour(t *testing.T) {
 	db := openStaffScheduleTestDB(t)
 	fixtureID := time.Now().UnixNano()
@@ -238,7 +302,7 @@ func TestExportStaffSchedulesXLSXCreatesReadableSchedule(t *testing.T) {
 	db := openStaffScheduleTestDB(t)
 	fixtureID := time.Now().UnixNano()
 	const holidayDate = "2097-12-08"
-	var branchID, userID int64
+	var branchID, userID, midShiftUserID, lateShiftUserID int64
 	if err := db.QueryRow(`INSERT INTO branches(name,code) VALUES($1,$2) RETURNING id`, fmt.Sprintf("สาขาส่งออก-%d", fixtureID), fmt.Sprintf("EXPORT-TEST-%d", fixtureID)).Scan(&branchID); err != nil {
 		t.Fatalf("สร้างสาขาทดสอบ: %v", err)
 	}
@@ -252,8 +316,27 @@ func TestExportStaffSchedulesXLSXCreatesReadableSchedule(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES($1,$2,$3,'08:00','17:00','scheduled')`, userID, branchID, holidayDate); err != nil {
 		t.Fatalf("สร้างกะทดสอบ: %v", err)
 	}
+	for _, fixture := range []struct {
+		name     string
+		username string
+		startsAt string
+		endsAt   string
+		userID   *int64
+	}{
+		{name: "พนักงานกะบ่าย", username: username + "-late", startsAt: "13:00", endsAt: "22:00", userID: &lateShiftUserID},
+		{name: "พนักงานกะสาย", username: username + "-mid", startsAt: "09:00", endsAt: "18:00", userID: &midShiftUserID},
+	} {
+		if err := db.QueryRow(`INSERT INTO users(name,username,email,password_hash,role,branch_id) VALUES($1,$2,$3,'hash','cashier',$4) RETURNING id`, fixture.name, fixture.username, fixture.username+"@example.com", branchID).Scan(fixture.userID); err != nil {
+			t.Fatalf("สร้างพนักงาน %s: %v", fixture.name, err)
+		}
+		if _, err := db.Exec(`INSERT INTO staff_shifts(user_id,branch_id,shift_date,starts_at,ends_at,status) VALUES($1,$2,$3,$4,$5,'scheduled')`, *fixture.userID, branchID, holidayDate, fixture.startsAt, fixture.endsAt); err != nil {
+			t.Fatalf("สร้างกะของ %s: %v", fixture.name, err)
+		}
+	}
 	t.Cleanup(func() {
 		_, _ = db.Exec(`DELETE FROM public_holidays WHERE holiday_date=$1`, holidayDate)
+		_, _ = db.Exec(`DELETE FROM staff_shifts WHERE user_id IN ($1,$2,$3)`, userID, midShiftUserID, lateShiftUserID)
+		_, _ = db.Exec(`DELETE FROM users WHERE id IN ($1,$2,$3)`, userID, midShiftUserID, lateShiftUserID)
 		_, _ = db.Exec(`DELETE FROM branches WHERE id=$1`, branchID)
 	})
 
@@ -274,27 +357,73 @@ func TestExportStaffSchedulesXLSXCreatesReadableSchedule(t *testing.T) {
 		t.Fatalf("เปิดไฟล์ Excel ไม่ได้: %v", err)
 	}
 	defer workbook.Close()
-	if value, err := workbook.GetCellValue("ตารางงาน", "A1"); err != nil || value != "ตารางการทำงานประจำเดือน ธันวาคม 2640" {
-		t.Fatalf("หัวรายงาน = %q, err = %v", value, err)
-	}
 	expectedFilename := fmt.Sprintf("ตารางงานพนักงาน-สาขาสาขาส่งออก-%d-ธันวาคม-2640.xlsx", fixtureID)
 	if contentDisposition := response.Header().Get("Content-Disposition"); contentDisposition != "attachment; filename*=UTF-8''"+url.PathEscape(expectedFilename) {
 		t.Fatalf("ชื่อไฟล์ส่งออก = %q", contentDisposition)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "A5"); err != nil || value != "พนักงานทดสอบ" {
+	if value, err := workbook.GetCellValue("ตารางงาน", "C2"); err != nil || value != "จันทร์" {
+		t.Fatalf("หัวตารางแบบรายสัปดาห์ = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "B5"); err != nil || value != "พนักงานทดสอบ" {
 		t.Fatalf("ชื่อพนักงานใน Excel = %q, err = %v", value, err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "K3"); err != nil || value != "8" {
-		t.Fatalf("หัวคอลัมน์วันที่ใน Excel = %q, err = %v", value, err)
+	allRows, err := workbook.GetRows("ตารางงาน")
+	if err != nil {
+		t.Fatalf("อ่านแถวใน Excel ไม่ได้: %v", err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "K4"); err != nil || value != "PH" {
-		t.Fatalf("ป้ายวันนักขัตฤกษ์ใน Excel = %q, err = %v", value, err)
+	positions := map[string]int{}
+	position := 0
+	for _, values := range allRows {
+		for _, value := range values {
+			position++
+			if _, found := positions[value]; !found {
+				positions[value] = position
+			}
+		}
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "K5"); err != nil || value != "O" {
-		t.Fatalf("สถานะกะใน Excel = %q, err = %v", value, err)
+	if !(positions["8.00-17.00"] < positions["9.00-18.00"] && positions["9.00-18.00"] < positions["13.00-22.00"]) {
+		t.Fatalf("ลำดับเวลากะใน Excel ไม่เรียงจากเช้าไปดึก: %#v", positions)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "A7"); err != nil || !strings.Contains(value, "คำอธิบาย") {
-		t.Fatalf("คำแนะนำใน Excel = %q, err = %v", value, err)
+}
+
+func TestBuildWeeklyStaffScheduleWorkbookMatchesWeeklyTemplateLayout(t *testing.T) {
+	month := time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
+	shiftsFor := func(userID int64, name, startsAt, endsAt string) staffScheduleExportGridRow {
+		shift := staffScheduleExportRow{
+			date: month, userID: userID, name: name, status: "scheduled", startsAt: startsAt, endsAt: endsAt,
+		}
+		return staffScheduleExportGridRow{
+			userID: userID, name: name, startsAt: startsAt, endsAt: endsAt,
+			shifts: map[string]staffScheduleExportRow{month.Format("2006-01-02"): shift},
+		}
+	}
+	content, err := buildWeeklyStaffScheduleWorkbook(month, month.AddDate(0, 1, 0), []staffScheduleExportGridRow{
+		shiftsFor(1, "กะเช้า", "08:00", "17:00"),
+		shiftsFor(2, "กะสาย", "09:00", "18:00"),
+		shiftsFor(3, "กะบ่าย", "13:00", "22:00"),
+	})
+	if err != nil {
+		t.Fatalf("สร้างไฟล์ Excel แบบรายสัปดาห์ไม่ได้: %v", err)
+	}
+	workbook, err := excelize.OpenReader(bytes.NewReader(content.Bytes()))
+	if err != nil {
+		t.Fatalf("เปิดไฟล์ Excel ที่สร้างไม่ได้: %v", err)
+	}
+	defer workbook.Close()
+	if value, err := workbook.GetCellValue("ตารางงาน", "C2"); err != nil || value != "จันทร์" {
+		t.Fatalf("หัวตารางวันจันทร์ = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "B5"); err != nil || value != "กะเช้า" {
+		t.Fatalf("แถวพนักงานกะเช้า = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "B7"); err != nil || value != "กะสาย" {
+		t.Fatalf("แถวพนักงานกะสาย = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "B9"); err != nil || value != "กะบ่าย" {
+		t.Fatalf("แถวพนักงานกะบ่าย = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "F5"); err != nil || value != "8.00-17.00" {
+		t.Fatalf("เวลากะเช้า = %q, err = %v", value, err)
 	}
 }
 

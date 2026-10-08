@@ -34,7 +34,7 @@ export function EmployeesSkeleton({
               sx={{
                 m: 0,
                 color: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 24,
                 fontWeight: 700,
                 lineHeight: 1.25,
@@ -48,7 +48,7 @@ export function EmployeesSkeleton({
                 m: 0,
                 mt: 0.5,
                 color: 'text.secondary',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 fontSize: 14,
                 lineHeight: 1.5,
               }}

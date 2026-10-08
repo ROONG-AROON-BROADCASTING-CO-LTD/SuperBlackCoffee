@@ -57,7 +57,7 @@ export function MenuSection() {
             borderColor: '#b8a296',
             borderRadius: '12px',
             color: '#3c2d24',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             '&:hover': { borderColor: '#805637', bgcolor: '#f6ebe4' },
           }}
         >

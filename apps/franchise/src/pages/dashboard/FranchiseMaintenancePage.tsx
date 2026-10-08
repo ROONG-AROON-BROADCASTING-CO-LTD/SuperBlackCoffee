@@ -67,14 +67,19 @@ function MaintenanceTicketList({
         }}
       >
         <Box sx={{ px: 3 }}>
-          <Typography sx={{ fontFamily: 'Kanit, sans-serif', fontWeight: 600 }}>
+          <Typography
+            sx={{
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
+              fontWeight: 600,
+            }}
+          >
             ยังไม่มีรายการแจ้งซ่อม
           </Typography>
           <Typography
             sx={{
               mt: 0.5,
               color: 'text.secondary',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 13,
             }}
           >
@@ -111,7 +116,7 @@ function MaintenanceTicketList({
               <Box>
                 <Typography
                   sx={{
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 16,
                     fontWeight: 600,
                   }}
@@ -122,7 +127,7 @@ function MaintenanceTicketList({
                   sx={{
                     mt: 0.3,
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12.5,
                   }}
                 >
@@ -135,7 +140,7 @@ function MaintenanceTicketList({
                   sx={{
                     mt: 0.25,
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12.5,
                   }}
                 >
@@ -155,7 +160,7 @@ function MaintenanceTicketList({
                   sx={{
                     borderColor: priority.color,
                     color: priority.color,
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontWeight: 600,
                   }}
                 />
@@ -165,7 +170,7 @@ function MaintenanceTicketList({
                   sx={{
                     bgcolor: status.background,
                     color: status.color,
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontWeight: 600,
                   }}
                 />
@@ -262,7 +267,7 @@ export function FranchiseMaintenancePage() {
               <Box>
                 <Typography
                   sx={{
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 18,
                     fontWeight: 700,
                   }}
@@ -273,7 +278,7 @@ export function FranchiseMaintenancePage() {
                   sx={{
                     mt: 0.25,
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12.5,
                   }}
                 >
@@ -345,7 +350,7 @@ export function FranchiseMaintenancePage() {
             >
               <Typography
                 sx={{
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 18,
                   fontWeight: 700,
                 }}
@@ -355,7 +360,7 @@ export function FranchiseMaintenancePage() {
               <Typography
                 sx={{
                   color: 'text.secondary',
-                  fontFamily: 'Kanit, sans-serif',
+                  fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   fontSize: 12.5,
                 }}
               >
@@ -376,7 +381,7 @@ export function FranchiseMaintenancePage() {
                 <Typography
                   sx={{
                     color: 'text.secondary',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                   }}
                 >
                   กำลังโหลดรายการแจ้งซ่อม…

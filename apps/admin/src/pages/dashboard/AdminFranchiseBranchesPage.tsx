@@ -311,7 +311,7 @@ export function AdminFranchiseBranchesPage() {
             minHeight: 40,
             borderRadius: '12px',
             bgcolor: '#201914',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
             fontWeight: 500,
             boxShadow: 'none',
             '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
@@ -371,7 +371,7 @@ export function AdminFranchiseBranchesPage() {
                       flex: '0 0 auto',
                       bgcolor: `${plans[franchisee.plan].color}16`,
                       color: plans[franchisee.plan].color,
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 20,
                       fontWeight: 700,
                     }}
@@ -383,7 +383,7 @@ export function AdminFranchiseBranchesPage() {
                       noWrap
                       sx={{
                         color: '#201914',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: { xs: 17, md: 18 },
                         fontWeight: 600,
                         lineHeight: 1.25,
@@ -396,7 +396,7 @@ export function AdminFranchiseBranchesPage() {
                       sx={{
                         mt: 0.35,
                         color: '#766b64',
-                        fontFamily: 'Kanit, sans-serif',
+                        fontFamily: 'IBM Plex Sans Thai, sans-serif',
                         fontSize: 12,
                       }}
                     >
@@ -413,7 +413,7 @@ export function AdminFranchiseBranchesPage() {
                     borderRadius: '9px',
                     bgcolor: `${plans[franchisee.plan].color}14`,
                     color: plans[franchisee.plan].color,
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 11,
                     fontWeight: 700,
                   }}
@@ -432,7 +432,7 @@ export function AdminFranchiseBranchesPage() {
                   <Typography
                     sx={{
                       color: '#675b53',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 13,
                     }}
                   >
@@ -449,7 +449,7 @@ export function AdminFranchiseBranchesPage() {
                     noWrap
                     sx={{
                       color: '#675b53',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 13,
                     }}
                   >
@@ -461,7 +461,7 @@ export function AdminFranchiseBranchesPage() {
                   sx={{
                     mt: 0.55,
                     color: '#8a7060',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                   }}
                 >
@@ -501,7 +501,7 @@ export function AdminFranchiseBranchesPage() {
                         franchisee.status === 'ใช้งานแล้ว'
                           ? '#177245'
                           : '#a76415',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       fontWeight: 600,
                     }}
@@ -521,7 +521,7 @@ export function AdminFranchiseBranchesPage() {
                       minHeight: 32,
                       borderRadius: '9px',
                       bgcolor: '#2d6d47',
-                      fontFamily: 'Kanit, sans-serif',
+                      fontFamily: 'IBM Plex Sans Thai, sans-serif',
                       fontSize: 12,
                       boxShadow: 'none',
                       '&:hover': { bgcolor: '#245a3b', boxShadow: 'none' },
@@ -542,7 +542,7 @@ export function AdminFranchiseBranchesPage() {
                     borderRadius: '9px',
                     borderColor: '#d8c7bb',
                     color: '#60412a',
-                    fontFamily: 'Kanit, sans-serif',
+                    fontFamily: 'IBM Plex Sans Thai, sans-serif',
                     fontSize: 12,
                     '&:hover': {
                       borderColor: '#b99c88',
@@ -576,7 +576,7 @@ export function AdminFranchiseBranchesPage() {
           <Typography
             sx={{
               color: '#a22e2a',
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 14,
             }}
           >
@@ -593,7 +593,7 @@ export function AdminFranchiseBranchesPage() {
             pt: 4,
             textAlign: 'center',
             color: 'text.secondary',
-            fontFamily: 'Kanit, sans-serif',
+            fontFamily: 'IBM Plex Sans Thai, sans-serif',
           }}
         >
           ไม่พบข้อมูลสาขาแฟรนไชส์
@@ -783,7 +783,7 @@ export function AdminFranchiseBranchesPage() {
                 minHeight: 40,
                 borderRadius: '12px',
                 color: '#5f4b3d',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
               }}
             >
               ยกเลิก
@@ -807,7 +807,7 @@ export function AdminFranchiseBranchesPage() {
                 minHeight: 40,
                 borderRadius: '12px',
                 bgcolor: '#201914',
-                fontFamily: 'Kanit, sans-serif',
+                fontFamily: 'IBM Plex Sans Thai, sans-serif',
                 boxShadow: 'none',
                 '&:hover': { bgcolor: '#3c2d24', boxShadow: 'none' },
               }}

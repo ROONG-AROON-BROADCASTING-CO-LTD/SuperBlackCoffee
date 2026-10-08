@@ -109,7 +109,7 @@ func (h *PlatformHandler) ListExpiryAlerts(c *gin.Context) {
 			JOIN inventory_items item ON item.id=lot.inventory_item_id
 			LEFT JOIN inventory_catalog_items c ON c.id=item.catalog_item_id
 			WHERE lot.branch_id=$1 AND lot.status='active' AND lot.quantity_remaining>0
-				AND lot.expiry_date <= CURRENT_DATE + $2
+				AND lot.expiry_date <= CURRENT_DATE + $2::integer
 			UNION ALL
 			SELECT 0::bigint AS lot_id, item.id AS inventory_item_id, COALESCE(c.name,item.name) AS ingredient_name,
 				''::text AS lot_number, item.created_at::date AS manufactured_at, item.expiry_date,
@@ -118,7 +118,7 @@ func (h *PlatformHandler) ListExpiryAlerts(c *gin.Context) {
 			LEFT JOIN inventory_catalog_items c ON c.id=item.catalog_item_id
 			WHERE item.branch_id=$1 AND COALESCE(c.category,item.category)='fresh'
 				AND item.quantity>0 AND item.expiry_date IS NOT NULL
-				AND item.expiry_date <= CURRENT_DATE + $2
+				AND item.expiry_date <= CURRENT_DATE + $2::integer
 				AND NOT EXISTS (
 					SELECT 1 FROM fresh_inventory_lots lot
 					WHERE lot.branch_id=item.branch_id AND lot.inventory_item_id=item.id
@@ -182,7 +182,7 @@ func (h *PlatformHandler) ListExpiryPromotionSuggestions(c *gin.Context) {
 			JOIN inventory_items item ON item.id=lot.inventory_item_id
 			LEFT JOIN inventory_catalog_items c ON c.id=item.catalog_item_id
 			WHERE lot.branch_id=$1 AND lot.status='active' AND lot.quantity_remaining>0
-				AND lot.expiry_date >= CURRENT_DATE AND lot.expiry_date <= CURRENT_DATE + $2
+				AND lot.expiry_date >= CURRENT_DATE AND lot.expiry_date <= CURRENT_DATE + $2::integer
 			UNION ALL
 			SELECT 0::bigint AS lot_id, item.id AS inventory_item_id, COALESCE(c.name,item.name) AS ingredient_name,
 				''::text AS lot_number, item.expiry_date, item.quantity AS quantity_remaining,
@@ -191,7 +191,7 @@ func (h *PlatformHandler) ListExpiryPromotionSuggestions(c *gin.Context) {
 			LEFT JOIN inventory_catalog_items c ON c.id=item.catalog_item_id
 			WHERE item.branch_id=$1 AND COALESCE(c.category,item.category)='fresh'
 				AND item.quantity>0 AND item.expiry_date IS NOT NULL
-				AND item.expiry_date >= CURRENT_DATE AND item.expiry_date <= CURRENT_DATE + $2
+				AND item.expiry_date >= CURRENT_DATE AND item.expiry_date <= CURRENT_DATE + $2::integer
 				AND NOT EXISTS (
 					SELECT 1 FROM fresh_inventory_lots lot
 					WHERE lot.branch_id=item.branch_id AND lot.inventory_item_id=item.id

@@ -39,7 +39,7 @@ export const inventoryUnitSelectSlotProps = {
             '& .MuiMenuItem-root': {
               minHeight: 32,
               py: 0.5,
-              fontFamily: 'Kanit, sans-serif',
+              fontFamily: 'IBM Plex Sans Thai, sans-serif',
               fontSize: 14,
             },
           },

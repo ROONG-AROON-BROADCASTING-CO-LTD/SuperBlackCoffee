@@ -1,17 +1,7 @@
-@font-face {
-  font-family: 'SBC Sans';
-  src: url('../assets/fonts/Inter-VariableFont_opsz,wght.ttf')
-    format('truetype');
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  unicode-range: U+0000-0DFF, U+0E80-10FFFF;
-}
-
 html,
 body,
 #root {
-  font-family: 'SBC Sans', 'Kanit', sans-serif;
+  font-family: 'IBM Plex Sans Thai', sans-serif;
 }
 
 * {
@@ -46,73 +36,33 @@ body,
 }
 
 @font-face {
-  font-family: 'Kanit';
-  src: url('../assets/fonts/Kanit-Regular.ttf') format('truetype');
+  font-family: 'IBM Plex Sans Thai';
+  src: url('../assets/fonts/IBMPlexSansThai-Regular.ttf') format('truetype');
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  unicode-range: U+0E00-0E7F;
 }
 
 @font-face {
-  font-family: 'Kanit';
-  src: url('../assets/fonts/Kanit-Medium.ttf') format('truetype');
+  font-family: 'IBM Plex Sans Thai';
+  src: url('../assets/fonts/IBMPlexSansThai-Medium.ttf') format('truetype');
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  unicode-range: U+0E00-0E7F;
 }
 
 @font-face {
-  font-family: 'Kanit';
-  src: url('../assets/fonts/Kanit-SemiBold.ttf') format('truetype');
+  font-family: 'IBM Plex Sans Thai';
+  src: url('../assets/fonts/IBMPlexSansThai-SemiBold.ttf') format('truetype');
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  unicode-range: U+0E00-0E7F;
 }
 
 @font-face {
-  font-family: 'Kanit';
-  src: url('../assets/fonts/Kanit-Bold.ttf') format('truetype');
+  font-family: 'IBM Plex Sans Thai';
+  src: url('../assets/fonts/IBMPlexSansThai-Bold.ttf') format('truetype');
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  unicode-range: U+0E00-0E7F;
-}
-
-@font-face {
-  font-family: 'SBC Sans';
-  src: url('../assets/fonts/Kanit-Regular.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  unicode-range: U+0E00-0E7F;
-}
-
-@font-face {
-  font-family: 'SBC Sans';
-  src: url('../assets/fonts/Kanit-Medium.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  unicode-range: U+0E00-0E7F;
-}
-
-@font-face {
-  font-family: 'SBC Sans';
-  src: url('../assets/fonts/Kanit-SemiBold.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  unicode-range: U+0E00-0E7F;
-}
-
-@font-face {
-  font-family: 'SBC Sans';
-  src: url('../assets/fonts/Kanit-Bold.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  unicode-range: U+0E00-0E7F;
 }
