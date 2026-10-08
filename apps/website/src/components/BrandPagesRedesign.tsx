@@ -698,18 +698,16 @@ export function HomeContent() {
           className="sb-home-hero-content"
         >
           <h1>
-            <span className="sb-hero-title-accent sb-hero-title-organic-accent">
-              {text('ดีต่อดิน', 'Good for the ground')}
+            <span className="sb-hero-title-accent">
+              {text('ปลูกด้วยใจ', 'Grown with care')}
             </span>
             <br />
-            <span className="sb-hero-title-organic">
-              {text('ดีต่อทุกแก้ว', 'Great in your cup')}
-            </span>
+            {text('ชงให้มีความหมาย', 'Crafted with meaning')}
           </h1>
           <p>
             {text(
-              'Premium Organic Coffee ที่เริ่มจากการดูแลผืนดินอย่างตั้งใจ ก่อนส่งต่อเป็นรสชาติที่ดีในทุกแก้ว',
-              'Premium organic coffee, grown with care for the land and crafted for a better cup.',
+              'กาแฟออร์แกนิกพรีเมียมจากต้นทางที่เราดูแล เพื่อทุกช่วงเวลาที่คุณอยากให้พิเศษ',
+              'Premium organic coffee from an origin we care for, crafted for moments that matter.',
             )}
           </p>
           <Box
@@ -948,33 +946,35 @@ export function HomeContent() {
               <Box component="div">
                 <CoffeeIcon size={25} />
                 <span>
-                  {text('กาแฟพรีเมียม', 'Premium coffee')}
-                  <br />
-                  {text('รสชาติอันเป็นเอกลักษณ์', 'Distinctive flavour')}
+                  <strong>{text('กาแฟพรีเมียม', 'Premium coffee')}</strong>
+                  <small>
+                    {text('รสชาติอันเป็นเอกลักษณ์', 'Distinctive flavour')}
+                  </small>
                 </span>
               </Box>
               <Box component="div">
                 <CoffeeIcon size={25} />
                 <span>
-                  {text('พื้นที่นั่งสบาย', 'Comfortable seating')}
-                  <br />
-                  {text('ทำงานหรือพักผ่อนได้', 'Work or unwind')}
+                  <strong>
+                    {text('พื้นที่นั่งสบาย', 'Comfortable seating')}
+                  </strong>
+                  <small>{text('ทำงานหรือพักผ่อนได้', 'Work or unwind')}</small>
                 </span>
               </Box>
               <Box component="div">
                 <UsersIcon size={25} />
                 <span>
-                  {text('พบเจอผู้คนดี', 'Good people')}
-                  <br />
-                  {text('ทุกช่วงเวลา', 'at every moment')}
+                  <strong>{text('พบเจอผู้คนดี', 'Good people')}</strong>
+                  <small>{text('ทุกช่วงเวลา', 'at every moment')}</small>
                 </span>
               </Box>
               <Box component="div">
                 <EvChargerIcon size={25} />
                 <span>
-                  {text('Wi-Fi ฟรี', 'Free Wi-Fi')}
-                  <br />
-                  {text('รองรับทุกไลฟ์สไตล์', 'for every lifestyle')}
+                  <strong>{text('Wi-Fi ฟรี', 'Free Wi-Fi')}</strong>
+                  <small>
+                    {text('รองรับทุกไลฟ์สไตล์', 'for every lifestyle')}
+                  </small>
                 </span>
               </Box>
             </Box>
@@ -998,46 +998,52 @@ export function HomeContent() {
                   'EV charging designed for an easier journey, with a comfortable waiting space and your favourite coffee.',
                 )}
               </p>
-              <Box
-                component={Link}
-                sx={[
-                  websiteSx['sb-button'],
-                  websiteSx['sb-button-gold'],
-                  websiteSx['sb-editorial-cta'],
-                ]}
-                className="sb-button sb-button-gold sb-editorial-cta"
-                href="/services"
-              >
-                {text('ดูบริการ EV Charging', 'Explore EV charging')} <Arrow />
-              </Box>
-            </Box>
-            <Box component="div" className="sb-ev-showcase-points">
-              <Box component="div">
-                <EvChargerIcon size={25} />
-                <span>
-                  {text('หัวชาร์จมาตรฐาน', 'Standard chargers')}
-                  <br />
-                  {text(
-                    'รองรับรถหลากหลายรุ่น',
-                    'Compatible with many vehicles',
-                  )}
-                </span>
-              </Box>
-              <Box component="div">
-                <CoffeeIcon size={25} />
-                <span>
-                  {text('สะดวก ปลอดภัย', 'Convenient and safe')}
-                  <br />
-                  {text('พร้อมเดินทางต่อ', 'Ready for the road')}
-                </span>
-              </Box>
-              <Box component="div">
-                <CoffeeIcon size={25} />
-                <span>
-                  {text('เติมพลังระหว่างรอ', 'Recharge while you wait')}
-                  <br />
-                  {text('ด้วยกาแฟคุณภาพ', 'with quality coffee')}
-                </span>
+              <Box component="div" className="sb-ev-showcase-points">
+                <Box component="div">
+                  <EvChargerIcon size={25} />
+                  <span>
+                    <strong>
+                      {text('หัวชาร์จมาตรฐาน', 'Standard chargers')}
+                    </strong>
+                    <small>
+                      {text(
+                        'รองรับรถหลากหลายรุ่น',
+                        'Compatible with many vehicles',
+                      )}
+                    </small>
+                  </span>
+                </Box>
+                <Box component="div">
+                  <CoffeeIcon size={25} />
+                  <span>
+                    <strong>
+                      {text('สะดวก ปลอดภัย', 'Convenient and safe')}
+                    </strong>
+                    <small>
+                      {text('พร้อมเดินทางต่อ', 'Ready for the road')}
+                    </small>
+                  </span>
+                </Box>
+                <Box component="div">
+                  <CoffeeIcon size={25} />
+                  <span>
+                    <strong>
+                      {text('เติมพลังระหว่างรอ', 'Recharge while you wait')}
+                    </strong>
+                    <small>
+                      {text('ด้วยกาแฟคุณภาพ', 'with quality coffee')}
+                    </small>
+                  </span>
+                </Box>
+                <Box component="div">
+                  <CoffeeIcon size={25} />
+                  <span>
+                    <strong>
+                      {text('พื้นที่พักผ่อนสบาย', 'Comfortable space')}
+                    </strong>
+                    <small>{text('ระหว่างรอชาร์จ', 'While you charge')}</small>
+                  </span>
+                </Box>
               </Box>
             </Box>
           </Box>
