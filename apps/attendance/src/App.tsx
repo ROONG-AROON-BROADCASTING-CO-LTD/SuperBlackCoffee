@@ -116,12 +116,14 @@ export default function App() {
       endMinutes <= startMinutes
     ) {
       const checkInDate = new Date(status.checkInAt);
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const checkInDay = new Date(
-        checkInDate.getFullYear(),
-        checkInDate.getMonth(),
-        checkInDate.getDate(),
-      );
+      const workDateFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Bangkok',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const today = workDateFormatter.format(now);
+      const checkInDay = workDateFormatter.format(checkInDate);
       return today > checkInDay && nowMinutes >= endMinutes;
     }
     return nowMinutes >= endMinutes;
@@ -207,7 +209,10 @@ export default function App() {
         setStatus(nextStatus.value);
         if (nextHistory.status === 'fulfilled') setHistory(nextHistory.value);
         if (nextSummary.status === 'fulfilled') setSummary(nextSummary.value);
-        setConnectionError(false);
+        setConnectionError(
+          nextHistory.status === 'rejected' ||
+            nextSummary.status === 'rejected',
+        );
       })
       .finally(() => {
         if (active) setInitialDataLoading(false);
@@ -320,10 +325,22 @@ export default function App() {
         ...nextStatus,
         canRecordAttendance: nextStatus.checkedIn,
       }));
-      setHistory(await getAttendanceHistory());
-      void getAttendanceSummary()
-        .then(setSummary)
-        .catch(() => undefined);
+      const refreshed = await Promise.allSettled([
+        getAttendanceHistory(),
+        getAttendanceSummary(),
+      ]);
+      for (const result of refreshed) {
+        if (
+          result.status === 'rejected' &&
+          isExpiredAttendanceSession(result.reason)
+        )
+          throw result.reason;
+      }
+      if (refreshed[0].status === 'fulfilled') setHistory(refreshed[0].value);
+      if (refreshed[1].status === 'fulfilled') setSummary(refreshed[1].value);
+      setConnectionError(
+        refreshed.some((result) => result.status === 'rejected'),
+      );
       setNotice(
         nextStatus.checkedIn
           ? 'เช็กอินเรียบร้อยแล้ว'

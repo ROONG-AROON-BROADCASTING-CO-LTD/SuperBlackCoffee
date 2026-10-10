@@ -8,6 +8,8 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  adjustInventory,
+  consumeStockFromMenus,
   listInventory,
   listExpiryPromotionSuggestions,
   listMenuItems,
@@ -18,6 +20,8 @@ import {
 } from '../api/stock';
 import { ApiRequestError } from '../api/client';
 import App from '../App';
+
+const mutationOutcome = vi.hoisted(() => vi.fn());
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -108,11 +112,23 @@ vi.mock('../routes/StockPageRouter', () => ({
     onOrderIngredients,
     isInitialLoading,
     expiryPromotionSuggestions,
+    onConsume,
+    onAdjust,
   }: {
     page: string;
     cartOpen: boolean;
     isInitialLoading: boolean;
     expiryPromotionSuggestions: unknown[];
+    onConsume: (
+      items: { menuItemId: number; quantity: number }[],
+      note: string,
+      channel: 'storefront',
+    ) => Promise<void>;
+    onAdjust: (
+      item: { id: number; name: string; unit: string },
+      quantity: number,
+      note: string,
+    ) => Promise<void>;
     onOrderIngredients: (item: {
       id: number;
       name: string;
@@ -126,6 +142,30 @@ vi.mock('../routes/StockPageRouter', () => ({
   }) => (
     <div>
       <div data-testid="stock-page">{page}</div>
+      <button
+        onClick={() =>
+          void onConsume(
+            [{ menuItemId: 1, quantity: 1 }],
+            'audit',
+            'storefront',
+          ).then(
+            () => mutationOutcome('saved'),
+            () => mutationOutcome('rejected'),
+          )
+        }
+      >
+        consume-stock
+      </button>
+      <button
+        onClick={() =>
+          void onAdjust({ id: 1, name: 'นม', unit: 'กรัม' }, 5, 'audit').then(
+            () => mutationOutcome('saved'),
+            () => mutationOutcome('rejected'),
+          )
+        }
+      >
+        adjust-stock
+      </button>
       <output data-testid="cart-open">{String(cartOpen)}</output>
       <output data-testid="stock-initial-loading">
         {String(isInitialLoading)}
@@ -154,6 +194,92 @@ vi.mock('../routes/StockPageRouter', () => ({
 }));
 
 describe('Stock App session and loading', () => {
+  it.each(['consume', 'adjust'])(
+    'still rejects a failed %s mutation without refreshing or reporting success',
+    async (operation) => {
+      if (operation === 'consume')
+        vi.mocked(consumeStockFromMenus).mockRejectedValueOnce(
+          new Error('rejected mutation'),
+        );
+      else
+        vi.mocked(adjustInventory).mockRejectedValueOnce(
+          new Error('rejected mutation'),
+        );
+      render(<App />);
+      await waitFor(() =>
+        expect(screen.getByTestId('stock-initial-loading').textContent).toBe(
+          'false',
+        ),
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: `${operation}-stock` }),
+      );
+      await waitFor(() =>
+        expect(mutationOutcome).toHaveBeenCalledExactlyOnceWith('rejected'),
+      );
+      expect(listInventory).toHaveBeenCalledTimes(3);
+      expect(listMyStockMovements).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('clears the stock session if a post-commit refresh reports an expired cookie', async () => {
+    vi.mocked(consumeStockFromMenus).mockResolvedValueOnce({
+      menuCount: 1,
+      salesTotal: 60,
+    } as Awaited<ReturnType<typeof consumeStockFromMenus>>);
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId('stock-initial-loading').textContent).toBe(
+        'false',
+      ),
+    );
+    vi.mocked(listMyStockMovements).mockRejectedValueOnce(
+      new ApiRequestError('expired', 401),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'consume-stock' }));
+    await screen.findByText('stock-login');
+    expect(logoutStock).toHaveBeenCalledOnce();
+    expect(consumeStockFromMenus).toHaveBeenCalledOnce();
+  });
+  it.each(['consume', 'adjust'])(
+    'does not report a committed %s as failed when the following refresh is offline',
+    async (operation) => {
+      if (operation === 'consume')
+        vi.mocked(consumeStockFromMenus).mockResolvedValueOnce({
+          menuCount: 1,
+          salesTotal: 60,
+        } as Awaited<ReturnType<typeof consumeStockFromMenus>>);
+      else
+        vi.mocked(adjustInventory).mockResolvedValueOnce({
+          quantity: 5,
+        } as Awaited<ReturnType<typeof adjustInventory>>);
+      render(<App />);
+      await waitFor(() =>
+        expect(screen.getByTestId('stock-initial-loading').textContent).toBe(
+          'false',
+        ),
+      );
+      vi.mocked(listMyStockMovements).mockRejectedValueOnce(
+        new Error('offline after commit'),
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: `${operation}-stock` }),
+      );
+      await waitFor(() =>
+        expect(mutationOutcome).toHaveBeenCalledExactlyOnceWith('saved'),
+      );
+      expect(screen.getByTestId('stock-retry-open').textContent).toBe('true');
+      fireEvent(window, new Event('online'));
+      await waitFor(() =>
+        expect(screen.getByTestId('stock-retry-open').textContent).toBe(
+          'false',
+        ),
+      );
+      expect(
+        operation === 'consume' ? consumeStockFromMenus : adjustInventory,
+      ).toHaveBeenCalledOnce();
+    },
+  );
   beforeEach(() => {
     window.history.replaceState(null, '', '/');
   });

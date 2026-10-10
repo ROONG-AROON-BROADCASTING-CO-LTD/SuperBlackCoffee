@@ -115,6 +115,41 @@ const workbookFile = (replace: (text: string) => string = (text) => text) => {
 };
 
 describe('sales workbook import', () => {
+  it.each(['ลาเต้', 'ลาเต้ ระดับความหวาน : ไม่หวาน'])(
+    'does not deduct an arbitrary recipe for ambiguous menu %s',
+    (name) => {
+      const result = matchWorkbookSales(
+        [{ 'Menu Name': name, Quantity: 2, Channel: 'หน้าร้าน (Storefront)' }],
+        [
+          { id: 10, name: 'ลาเต้' },
+          { id: 11, name: 'ลาเต้' },
+        ],
+      );
+      expect(result.sales).toEqual([]);
+      expect(result.unmatchedMenuNames).toEqual([name]);
+    },
+  );
+
+  it('uses the exported category to disambiguate identical display names', () => {
+    const result = matchWorkbookSales(
+      [
+        {
+          'Menu Name': 'ลาเต้',
+          Category: 'กาแฟเย็น',
+          Quantity: 2,
+          Channel: 'หน้าร้าน (Storefront)',
+        },
+      ],
+      [
+        { id: 10, name: 'ลาเต้', category: 'เมนูกาแฟร้อน' },
+        { id: 11, name: 'ลาเต้', category: 'เมนูกาแฟเย็น' },
+      ],
+    );
+    expect(result.sales).toEqual([
+      { menuItemId: 11, menuName: 'ลาเต้', quantity: 2, channel: 'storefront' },
+    ]);
+    expect(result.unmatchedMenuNames).toEqual([]);
+  });
   it.each([
     ['empty upload', new Uint8Array()],
     ['non-Excel upload', encoder.encode('not an Excel workbook')],

@@ -49,13 +49,11 @@ func staffScheduleWeeklyGridValue(shift staffScheduleExportRow) string {
 	switch shift.status {
 	case "scheduled", "compensatory_work":
 		if len(shift.startsAt) >= 5 && len(shift.endsAt) >= 5 {
-			start := strings.TrimPrefix(strings.ReplaceAll(shift.startsAt[:5], ":", "."), "0")
-			end := strings.TrimPrefix(strings.ReplaceAll(shift.endsAt[:5], ":", "."), "0")
-			return fmt.Sprintf("%s-%s", start, end)
+			return fmt.Sprintf("%s\n%s", shift.startsAt[:5], shift.endsAt[:5])
 		}
-		return fmt.Sprintf("%s-%s", shift.startsAt, shift.endsAt)
+		return fmt.Sprintf("%s\n%s", shift.startsAt, shift.endsAt)
 	case "day_off":
-		return "OFF"
+		return "หยุด"
 	default:
 		if shift.leaveType != "" {
 			return shift.leaveType
@@ -64,94 +62,182 @@ func staffScheduleWeeklyGridValue(shift staffScheduleExportRow) string {
 	}
 }
 
-func buildWeeklyStaffScheduleWorkbook(month, monthEnd time.Time, gridRows []staffScheduleExportGridRow) (*bytes.Buffer, error) {
+func buildMonthlyStaffScheduleWorkbook(month, monthEnd time.Time, branchName string, holidays map[string]bool, gridRows []staffScheduleExportGridRow) (*bytes.Buffer, error) {
 	workbook := excelize.NewFile()
 	defer func() { _ = workbook.Close() }()
 	const sheet = "ตารางงาน"
 	workbook.SetSheetName(workbook.GetSheetName(0), sheet)
 
-	border := []excelize.Border{
-		{Type: "left", Color: "000000", Style: 1},
-		{Type: "right", Color: "000000", Style: 1},
-		{Type: "top", Color: "000000", Style: 1},
-		{Type: "bottom", Color: "000000", Style: 1},
-	}
-	weekdayStyle, _ := workbook.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 11, Color: "000000"},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"FFE699"}, Pattern: 1},
-		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
-		Border:    border,
-	})
-	dateStyle, _ := workbook.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 11, Color: "000000"},
-		Alignment: &excelize.Alignment{Horizontal: "right", Vertical: "center"},
-		NumFmt:    14,
-		Border:    border,
-	})
+	border := []excelize.Border{{Type: "left", Color: "E8E2DE", Style: 1}, {Type: "right", Color: "E8E2DE", Style: 1}, {Type: "top", Color: "E8E2DE", Style: 1}, {Type: "bottom", Color: "E8E2DE", Style: 1}}
 	cellStyle, _ := workbook.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 11, Color: "000000"},
+		Font:      &excelize.Font{Size: 10, Color: "332923"},
 		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
 		Border:    border,
 	})
 	nameStyle, _ := workbook.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Size: 11, Color: "000000"},
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "332923"},
 		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center"},
 		Border:    border,
 	})
+	noteCellStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Size: 10, Color: "60493B"},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	titleStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 14, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"3C2D24"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center"},
+	})
+	noteStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Italic: true, Size: 10, Color: "60493B"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"FBF5E9"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "left", Vertical: "center", WrapText: true},
+	})
+	workingTimeStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "00A651"},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	dayOffStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "D64545"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"FFF0F0"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	leaveStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "D64545"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"FFF0F0"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	headerStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 11, Color: "FFFFFF"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"3C2D24"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	holidayHeaderStyle, _ := workbook.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true, Size: 10, Color: "332923"},
+		Fill:      excelize.Fill{Type: "pattern", Color: []string{"D8BD6F"}, Pattern: 1},
+		Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+		Border:    border,
+	})
+	weekdayFills := map[time.Weekday]string{
+		time.Monday: "D9E9FF", time.Tuesday: "FCE8CC", time.Wednesday: "DDF2E3", time.Thursday: "E9DFFC", time.Friday: "FFF0B8", time.Saturday: "FFD6B0", time.Sunday: "F4B4B4",
+	}
+	weekdayStyles := map[time.Weekday]int{}
+	for weekday, fill := range weekdayFills {
+		style, _ := workbook.NewStyle(&excelize.Style{
+			Font:      &excelize.Font{Bold: true, Size: 10, Color: "332923"},
+			Fill:      excelize.Fill{Type: "pattern", Color: []string{fill}, Pattern: 1},
+			Alignment: &excelize.Alignment{Horizontal: "center", Vertical: "center", WrapText: true},
+			Border:    border,
+		})
+		weekdayStyles[weekday] = style
+	}
 
-	_ = workbook.SetColWidth(sheet, "A", "A", 2)
+	_ = workbook.SetColWidth(sheet, "A", "A", 22)
 	_ = workbook.SetColWidth(sheet, "B", "B", 16)
-	_ = workbook.SetColWidth(sheet, "C", "I", 17)
+	_ = workbook.SetColWidth(sheet, "C", "C", 24)
+	_ = workbook.SetColWidth(sheet, "D", "AH", 12)
 	hideGridLines := false
 	_ = workbook.SetSheetView(sheet, 0, &excelize.ViewOptions{ShowGridLines: &hideGridLines})
-
-	firstWeekStart := month.AddDate(0, 0, -((int(month.Weekday()) + 6) % 7))
-	lastDate := monthEnd.AddDate(0, 0, -1)
-	row := 2
-	for weekStart := firstWeekStart; !weekStart.After(lastDate); weekStart = weekStart.AddDate(0, 0, 7) {
-		for blockRow := row; blockRow < row+3+len(gridRows)*2; blockRow++ {
-			workbook.SetCellStyle(sheet, fmt.Sprintf("B%d", blockRow), fmt.Sprintf("I%d", blockRow), cellStyle)
-		}
-		for dayOffset := 0; dayOffset < 7; dayOffset++ {
-			date := weekStart.AddDate(0, 0, dayOffset)
-			column, _ := excelize.ColumnNumberToName(dayOffset + 3)
-			weekdayCell := fmt.Sprintf("%s%d", column, row)
-			dateCell := fmt.Sprintf("%s%d", column, row+1)
-			workbook.SetCellValue(sheet, weekdayCell, thaiScheduleWeekday(date))
-			workbook.SetCellStyle(sheet, weekdayCell, weekdayCell, weekdayStyle)
-			if !date.Before(month) && date.Before(monthEnd) {
-				workbook.SetCellValue(sheet, dateCell, date)
-			}
-			workbook.SetCellStyle(sheet, dateCell, dateCell, dateStyle)
-		}
-		workbook.SetRowHeight(sheet, row, 23)
-		workbook.SetRowHeight(sheet, row+1, 23)
-
-		for index, item := range gridRows {
-			staffRow := row + 3 + index*2
-			workbook.SetCellValue(sheet, fmt.Sprintf("B%d", staffRow), item.name)
-			workbook.SetCellStyle(sheet, fmt.Sprintf("B%d", staffRow), fmt.Sprintf("B%d", staffRow), nameStyle)
-			for dayOffset := 0; dayOffset < 7; dayOffset++ {
-				date := weekStart.AddDate(0, 0, dayOffset)
-				if date.Before(month) || !date.Before(monthEnd) {
-					continue
-				}
-				shift, exists := item.shifts[date.Format("2006-01-02")]
-				if !exists {
-					continue
-				}
-				column, _ := excelize.ColumnNumberToName(dayOffset + 3)
-				workbook.SetCellValue(sheet, fmt.Sprintf("%s%d", column, staffRow), staffScheduleWeeklyGridValue(shift))
-			}
-			workbook.SetRowHeight(sheet, staffRow, 23)
-			workbook.SetRowHeight(sheet, staffRow+1, 23)
-		}
-		if len(gridRows) == 0 {
-			workbook.SetCellValue(sheet, fmt.Sprintf("B%d", row+3), "ยังไม่มีตารางงานสำหรับเดือนนี้")
-			workbook.SetCellStyle(sheet, fmt.Sprintf("B%d", row+3), fmt.Sprintf("I%d", row+3), nameStyle)
-		}
-		row += 3 + len(gridRows)*2
+	_ = workbook.SetPanes(sheet, &excelize.Panes{
+		Freeze:      true,
+		Split:       false,
+		XSplit:      3,
+		YSplit:      4,
+		TopLeftCell: "D5",
+		ActivePane:  "bottomRight",
+		Selection: []excelize.Selection{
+			{SQRef: "D5", ActiveCell: "D5", Pane: "bottomRight"},
+		},
+	})
+	workbook.MergeCell(sheet, "A1", "AH1")
+	workbook.SetCellValue(sheet, "A1", fmt.Sprintf("ตารางการทำงานประจำเดือน %s", thaiScheduleMonthYear(month)))
+	workbook.SetCellStyle(sheet, "A1", "AH1", titleStyle)
+	workbook.SetRowHeight(sheet, 1, 26)
+	workbook.MergeCell(sheet, "A2", "AH2")
+	workbook.SetCellValue(sheet, "A2", fmt.Sprintf("สาขา: %s  |  หมายเหตุ: เวลาในแต่ละช่องแสดง เข้างาน (บรรทัดแรก) และ ออกงาน (บรรทัดที่สอง) | หยุด = วันหยุด | ลา = ลางาน | PH = วันหยุดนักขัตฤกษ์", branchName))
+	workbook.SetCellStyle(sheet, "A2", "AH2", noteStyle)
+	workbook.SetRowHeight(sheet, 2, 26)
+	for column, label := range []string{"พนักงาน", "เวลาทำงาน", "หมายเหตุ"} {
+		cell, _ := excelize.CoordinatesToCellName(column+1, 3)
+		workbook.SetCellValue(sheet, cell, label)
+		workbook.SetCellStyle(sheet, cell, cell, headerStyle)
 	}
+	for day := 1; day <= monthEnd.AddDate(0, 0, -1).Day(); day++ {
+		date := month.AddDate(0, 0, day-1)
+		column, _ := excelize.ColumnNumberToName(day + 3)
+		style := weekdayStyles[date.Weekday()]
+		weekdayLabel := thaiScheduleWeekday(date)
+		if holidays[date.Format("2006-01-02")] {
+			style = holidayHeaderStyle
+			weekdayLabel = "PH"
+		}
+		workbook.SetCellValue(sheet, fmt.Sprintf("%s3", column), day)
+		workbook.SetCellStyle(sheet, fmt.Sprintf("%s3", column), fmt.Sprintf("%s3", column), style)
+		workbook.SetCellValue(sheet, fmt.Sprintf("%s4", column), weekdayLabel)
+		workbook.SetCellStyle(sheet, fmt.Sprintf("%s4", column), fmt.Sprintf("%s4", column), style)
+	}
+	workbook.SetRowHeight(sheet, 3, 23)
+	workbook.SetRowHeight(sheet, 4, 20)
+
+	for index, item := range gridRows {
+		staffRow := 5 + index
+		workbook.SetCellValue(sheet, fmt.Sprintf("A%d", staffRow), item.name)
+		workbook.SetCellStyle(sheet, fmt.Sprintf("A%d", staffRow), fmt.Sprintf("A%d", staffRow), nameStyle)
+		workbook.SetCellValue(sheet, fmt.Sprintf("B%d", staffRow), fmt.Sprintf("%s–%s น.", item.startsAt[:5], item.endsAt[:5]))
+		workbook.SetCellStyle(sheet, fmt.Sprintf("B%d", staffRow), fmt.Sprintf("B%d", staffRow), cellStyle)
+		workbook.SetCellValue(sheet, fmt.Sprintf("C%d", staffRow), "แก้ไขเวลา / หยุด / ลา ได้")
+		workbook.SetCellStyle(sheet, fmt.Sprintf("C%d", staffRow), fmt.Sprintf("C%d", staffRow), noteCellStyle)
+		workbook.SetCellStyle(sheet, fmt.Sprintf("D%d", staffRow), fmt.Sprintf("AH%d", staffRow), cellStyle)
+		for day := 1; day <= monthEnd.AddDate(0, 0, -1).Day(); day++ {
+			date := month.AddDate(0, 0, day-1)
+			shift, exists := item.shifts[date.Format("2006-01-02")]
+			if !exists {
+				continue
+			}
+			column, _ := excelize.ColumnNumberToName(day + 3)
+			cell := fmt.Sprintf("%s%d", column, staffRow)
+			workbook.SetCellValue(sheet, cell, staffScheduleWeeklyGridValue(shift))
+			switch shift.status {
+			case "scheduled", "compensatory_work":
+				workbook.SetCellStyle(sheet, cell, cell, workingTimeStyle)
+			case "day_off":
+				workbook.SetCellStyle(sheet, cell, cell, dayOffStyle)
+			default:
+				workbook.SetCellStyle(sheet, cell, cell, leaveStyle)
+			}
+		}
+		workbook.SetRowHeight(sheet, staffRow, 36)
+	}
+	if len(gridRows) == 0 {
+		workbook.MergeCell(sheet, "A5", "AH5")
+		workbook.SetCellValue(sheet, "A5", "ยังไม่มีตารางงานสำหรับเดือนนี้")
+		workbook.SetCellStyle(sheet, "A5", "AH5", noteCellStyle)
+	}
+
+	legendRow := 7 + len(gridRows)
+	legend := []struct {
+		label, description string
+		style              int
+	}{
+		{"เวลาเข้า–ออก", "ทำงานตามกะ", workingTimeStyle},
+		{"หยุด", "วันหยุด", dayOffStyle},
+		{"ลา", "ลางาน", leaveStyle},
+		{"PH", "วันหยุดนักขัตฤกษ์", holidayHeaderStyle},
+	}
+	for index, item := range legend {
+		column, _ := excelize.ColumnNumberToName(4 + index)
+		workbook.SetCellValue(sheet, fmt.Sprintf("%s%d", column, legendRow), item.label)
+		workbook.SetCellStyle(sheet, fmt.Sprintf("%s%d", column, legendRow), fmt.Sprintf("%s%d", column, legendRow), item.style)
+		workbook.SetCellValue(sheet, fmt.Sprintf("%s%d", column, legendRow+1), item.description)
+		workbook.SetCellStyle(sheet, fmt.Sprintf("%s%d", column, legendRow+1), fmt.Sprintf("%s%d", column, legendRow+1), item.style)
+	}
+	workbook.SetRowHeight(sheet, legendRow, 20)
+	workbook.SetRowHeight(sheet, legendRow+1, 20)
 	return workbook.WriteToBuffer()
 }
 
@@ -189,6 +275,31 @@ func (h *PlatformHandler) ExportStaffSchedulesXLSX(c *gin.Context) {
 	}
 
 	monthEnd := month.AddDate(0, 1, 0)
+	holidayRows, err := h.db.QueryContext(c.Request.Context(), `
+		SELECT holiday_date
+		FROM public_holidays
+		WHERE holiday_date >= $1::date AND holiday_date < $2::date
+	`, month, monthEnd)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านวันนักขัตฤกษ์เพื่อส่งออกได้"})
+		return
+	}
+	holidayDates := map[string]bool{}
+	for holidayRows.Next() {
+		var holidayDate time.Time
+		if err := holidayRows.Scan(&holidayDate); err != nil {
+			holidayRows.Close()
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านวันนักขัตฤกษ์เพื่อส่งออกได้"})
+			return
+		}
+		holidayDates[holidayDate.Format("2006-01-02")] = true
+	}
+	if err := holidayRows.Err(); err != nil {
+		holidayRows.Close()
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถอ่านวันนักขัตฤกษ์เพื่อส่งออกได้"})
+		return
+	}
+	holidayRows.Close()
 	rows, err := h.db.QueryContext(c.Request.Context(), `
 		SELECT schedule.shift_date,
 			staff.id,
@@ -232,7 +343,7 @@ func (h *PlatformHandler) ExportStaffSchedulesXLSX(c *gin.Context) {
 		return
 	}
 
-	content, err := buildWeeklyStaffScheduleWorkbook(month, monthEnd, gridRows)
+	content, err := buildMonthlyStaffScheduleWorkbook(month, monthEnd, branchName, holidayDates, gridRows)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถสร้างไฟล์ Excel ได้"})
 		return

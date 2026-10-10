@@ -127,4 +127,12 @@ describe('Franchise App session', () => {
     expect(await screen.findByText('franchise-login')).toBeTruthy();
     expect(screen.queryByText('franchise-plan-M')).toBeNull();
   });
+
+  it('removes the expiry listener on unmount so an old app cannot log out a new session', async () => {
+    const { unmount } = render(<App />);
+    await screen.findByText('franchise-plan-M');
+    unmount();
+    fireEvent(window, new Event('sbc:session-expired'));
+    expect(logout).not.toHaveBeenCalled();
+  });
 });

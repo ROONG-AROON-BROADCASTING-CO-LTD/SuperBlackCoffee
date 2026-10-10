@@ -83,6 +83,38 @@ func TestRequireAuthRejectsAnUnsignedToken(t *testing.T) {
 	}
 }
 
+func TestRequireAuthRejectsFutureAndUnexpectedAlgorithmTokens(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	now := time.Now()
+	for _, tt := range []struct {
+		name      string
+		method    jwt.SigningMethod
+		notBefore time.Time
+	}{
+		{"future not-before", jwt.SigningMethodHS256, now.Add(time.Hour)},
+		{"HS384 is not the issued algorithm", jwt.SigningMethodHS384, now.Add(-time.Hour)},
+		{"HS512 is not the issued algorithm", jwt.SigningMethodHS512, now.Add(-time.Hour)},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := Claims{UserID: 7, Role: "admin", RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(now.Add(2 * time.Hour)), NotBefore: jwt.NewNumericDate(tt.notBefore)}}
+			token, err := jwt.NewWithClaims(tt.method, claims).SignedString([]byte("test-secret"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			router := gin.New()
+			reached := false
+			router.GET("/protected", RequireAuth("test-secret", "admin"), func(c *gin.Context) { reached = true; c.Status(http.StatusNoContent) })
+			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			req.Header.Set("Authorization", "Bearer "+token)
+			res := httptest.NewRecorder()
+			router.ServeHTTP(res, req)
+			if res.Code != http.StatusUnauthorized || reached {
+				t.Fatalf("status=%d handler reached=%v, want 401 and no handler execution", res.Code, reached)
+			}
+		})
+	}
+}
+
 func TestRequireAuthSelectsMatchingRoleWhenMultipleSessionCookiesExist(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	secret := "test-secret"

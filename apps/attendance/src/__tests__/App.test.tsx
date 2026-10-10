@@ -148,6 +148,37 @@ vi.mock('../routes/AttendancePageRouter', () => ({
 }));
 
 describe('Attendance App session', () => {
+  it('does not swallow session expiry from the summary refresh after a successful check-in', async () => {
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: false,
+      checkInAt: null,
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    vi.mocked(checkIn).mockResolvedValueOnce({
+      date: '2026-09-08',
+      checkedIn: true,
+      checkInAt: '2026-09-08T01:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+    });
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
+    vi.mocked(getAttendanceSummary).mockRejectedValueOnce(
+      new ApiRequestError('expired', 401),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'record-attendance' }));
+    await screen.findByText('attendance-login');
+    expect(logoutAttendance).toHaveBeenCalledOnce();
+    expect(checkIn).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     window.history.replaceState(null, '', '/');
   });
@@ -155,6 +186,7 @@ describe('Attendance App session', () => {
     cleanup();
     sessionStorage.clear();
     vi.clearAllMocks();
+    vi.useRealTimers();
     window.history.replaceState(null, '', '/');
   });
   it('restores the HttpOnly cookie session and logs out', async () => {
@@ -332,6 +364,50 @@ describe('Attendance App session', () => {
     });
   });
 
+  it.each(['history', 'summary'])(
+    'keeps a successful check-in and retries when refreshing %s fails',
+    async (endpoint) => {
+      vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+        date: '2026-09-08',
+        checkedIn: false,
+        checkInAt: null,
+        checkOutAt: null,
+        shiftStatus: 'scheduled',
+        canRecordAttendance: true,
+      });
+      vi.mocked(checkIn).mockResolvedValueOnce({
+        date: '2026-09-08',
+        checkedIn: true,
+        checkInAt: '2026-09-08T01:00:00Z',
+        checkOutAt: null,
+        shiftStatus: 'scheduled',
+        canRecordAttendance: true,
+      });
+      render(<App />);
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('attendance-action-disabled').textContent,
+        ).toBe('false'),
+      );
+      vi.mocked(
+        endpoint === 'history' ? getAttendanceHistory : getAttendanceSummary,
+      ).mockRejectedValueOnce(new Error('offline after commit'));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'record-attendance' }),
+      );
+      await waitFor(() =>
+        expect(screen.getByTestId('attendance-notice').textContent).toContain(
+          'เช็กอินเรียบร้อยแล้ว',
+        ),
+      );
+      expect(screen.getByTestId('attendance-retry-open').textContent).toBe(
+        'true',
+      );
+      expect(checkIn).toHaveBeenCalledOnce();
+      expect(logoutAttendance).not.toHaveBeenCalled();
+    },
+  );
+
   it('checks out an already checked-in staff member and prevents another action', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',
@@ -462,6 +538,38 @@ describe('Attendance App session', () => {
 
     await waitFor(() => expect(checkOut).toHaveBeenCalledOnce());
     expect(checkIn).not.toHaveBeenCalled();
+  });
+
+  it('unlocks an overnight checkout after Bangkok midnight even while UTC remains on the check-in date', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-12-31T17:01:00Z'));
+    vi.mocked(restoreAttendanceSession).mockResolvedValueOnce({
+      user: {
+        id: 1,
+        name: 'พนักงาน',
+        role: 'cashier',
+        branchId: 1,
+        branchName: 'อยุธยา',
+        startsAt: '22:00',
+        endsAt: '00:00',
+      },
+    });
+    vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
+      date: '2026-12-31',
+      checkedIn: true,
+      checkInAt: '2026-12-31T15:00:00Z',
+      checkOutAt: null,
+      shiftStatus: 'scheduled',
+      canRecordAttendance: true,
+      canCheckOut: false,
+      checkoutAvailableAt: '00:00',
+    });
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId('attendance-action-disabled').textContent).toBe(
+        'false',
+      ),
+    );
   });
 
   it('rejects another attendance action after a completed checkout even if a stale status says it can record', async () => {
@@ -665,4 +773,28 @@ describe('Attendance App session', () => {
     });
     onlineListenerSpy.mockRestore();
   });
+
+  it.each(['history', 'summary'])(
+    'retries a failed %s request even when attendance status succeeds',
+    async (endpoint) => {
+      const request =
+        endpoint === 'history' ? getAttendanceHistory : getAttendanceSummary;
+      vi.mocked(request).mockRejectedValueOnce(new Error('offline'));
+      render(<App />);
+      await screen.findByText('attendance-router');
+      await waitFor(() =>
+        expect(screen.getByTestId('attendance-retry-open').textContent).toBe(
+          'true',
+        ),
+      );
+      fireEvent(window, new Event('online'));
+      await waitFor(() => {
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(screen.getByTestId('attendance-retry-open').textContent).toBe(
+          'false',
+        );
+      });
+      expect(logoutAttendance).not.toHaveBeenCalled();
+    },
+  );
 });

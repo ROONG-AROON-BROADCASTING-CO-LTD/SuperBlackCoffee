@@ -6,6 +6,7 @@ export function attendanceTodayLabel() {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Asia/Bangkok',
   }).format(new Date());
 }
 
@@ -22,5 +23,6 @@ export function useAttendanceClock() {
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
+    timeZone: 'Asia/Bangkok',
   }).format(now);
 }

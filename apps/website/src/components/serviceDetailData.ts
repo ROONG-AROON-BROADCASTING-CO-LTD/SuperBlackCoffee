@@ -28,63 +28,68 @@ export const serviceDetails: ServiceDetail[] = [
     summary:
       'กาแฟที่คัดสรรด้วยความตั้งใจ เพื่อให้ทุกแก้วเป็นช่วงเวลาที่ดีของคุณ',
     image: '/services/superblackcoffee-service-coffee.png',
-    introductionTitle: 'ความตั้งใจที่สัมผัสได้ในทุกแก้ว',
+    introductionTitle: 'กาแฟดี เริ่มจากการเข้าใจเมล็ดกาแฟ',
     introduction:
-      'ตั้งแต่การเลือกเมล็ด การสกัด ไปจนถึงการเสิร์ฟ เราใส่ใจในรายละเอียดเล็ก ๆ เพื่อให้กาแฟแก้วโปรดของคุณดื่มง่ายและน่าจดจำเสมอ',
+      'เราคัดเลือกเมล็ดกาแฟที่มีคาแรกเตอร์ชัดเจน แล้วดูแลตั้งแต่การคั่ว การบด และการสกัด เพื่อให้กาแฟทุกแก้วมีรสชาติสมดุล ดื่มง่าย และเป็นตัวเอง',
     points: [
       {
-        title: 'เลือกสรรอย่างตั้งใจ',
-        description: 'เริ่มจากวัตถุดิบที่เราอยากเสิร์ฟให้คุณจริง ๆ',
+        title: 'คัดเลือกเมล็ดที่มีเอกลักษณ์',
+        description:
+          'เลือกเมล็ดกาแฟจากแหล่งปลูกที่ให้กลิ่น รส และความรู้สึกในแบบที่เราอยากส่งต่อ',
       },
       {
-        title: 'รสชาติที่ชัดเจน',
-        description: 'พัฒนารสชาติให้ดื่มได้ดีในทุกช่วงเวลาของวัน',
+        title: 'คั่วเพื่อรสชาติที่สมดุล',
+        description:
+          'พัฒนาระดับการคั่วให้ได้ความหอม ความหวาน และบอดี้ที่ดื่มได้ดีทั้งแบบร้อนและเย็น',
       },
       {
-        title: 'ทำสดทุกแก้ว',
-        description: 'ดูแลทุกขั้นตอน เพื่อส่งมอบช่วงเวลาที่ดีตรงหน้า',
+        title: 'ชงสดในทุกออเดอร์',
+        description:
+          'บดและสกัดอย่างพอดี เพื่อให้กลิ่นหอมและรสชาติของกาแฟอยู่ในแก้วที่เสิร์ฟคุณ',
       },
     ],
-    detailTitle: 'ทุกแก้วมีพื้นที่ให้เลือกในแบบของคุณ',
+    detailTitle: 'เลือกกาแฟให้ตรงกับรสชาติที่คุณชอบ',
     detailSummary:
-      'ไม่ว่าจะเป็นช่วงเช้าที่เร่งรีบ เวลาพักระหว่างวัน หรือบทสนทนายาว ๆ เราอยากให้การเลือกเครื่องดื่มเป็นเรื่องง่ายและน่ารื่นรมย์',
+      'ไม่ว่าคุณจะชอบความเข้มแบบเอสเปรสโซ ความนุ่มของนม หรือกาแฟเย็นที่ดื่มง่าย เราออกแบบเมนูให้เลือกคาแรกเตอร์ที่ใช่สำหรับคุณได้ชัดเจนขึ้น',
     details: [
       {
-        title: 'กาแฟในแบบที่คุณชอบ',
+        title: 'เริ่มจากคาแรกเตอร์ที่ใช่',
         description:
-          'เลือกความเข้มและอุณหภูมิที่เข้ากับจังหวะของวัน แล้วให้บาริสต้าดูแลแก้วตรงหน้าอย่างตั้งใจ',
+          'เลือกได้ทั้งกาแฟดำที่ชัดเจน ลาเต้ที่นุ่มละมุน หรือเมนูซิกเนเจอร์ที่มีรสชาติเฉพาะตัว',
       },
       {
-        title: 'มากกว่าเมนูกาแฟ',
+        title: 'ร้อนหรือเย็นก็ยังได้รสชาติที่ดี',
         description:
-          'มีเครื่องดื่มหลากหลายให้เลือกสำหรับวันที่อยากเปลี่ยนรสชาติ หรืออยากแบ่งปันเวลาพักกับคนข้าง ๆ',
+          'ทีมงานดูแลสัดส่วนกาแฟ น้ำ และนมให้เข้ากับรูปแบบเครื่องดื่ม เพื่อให้แต่ละเมนูมีความพอดีในแบบของตัวเอง',
       },
       {
-        title: 'พื้นที่ที่ชวนให้ใช้เวลา',
+        title: 'เมนูคลาสสิกและเมนูซิกเนเจอร์',
         description:
-          'นั่งพัก ทำงาน หรือพบปะกันได้อย่างสบาย ๆ พร้อมแก้วโปรดที่ทำให้ช่วงเวลาธรรมดาดีขึ้น',
+          'เริ่มจากอเมริกาโน่ คาเฟ่ลาเต้ หรือเลือกเมนูซิกเนเจอร์ของ Super Black Coffee เพื่อค้นหารสชาติแก้วโปรดของคุณ',
       },
     ],
-    journeyTitle: 'จากการเลือกเมนู สู่ช่วงเวลาที่ดีของคุณ',
+    journeyTitle: 'จากเมล็ดกาแฟ สู่แก้วที่เสิร์ฟตรงหน้า',
     journeySummary:
-      'เราออกแบบประสบการณ์ให้เรียบง่าย ตั้งแต่เดินเข้าร้านจนถึงแก้วสุดท้ายที่วางอยู่ตรงหน้า',
+      'ทุกแก้วผ่านขั้นตอนที่เรียบง่ายแต่ตั้งใจ ตั้งแต่เลือกเมนู ปรับให้เข้ากับคุณ ไปจนถึงการสกัดและเสิร์ฟสด',
     journey: [
       {
-        title: 'เลือกแก้วที่ใช่',
-        description: 'เริ่มจากเมนูและรสชาติที่เข้ากับวันของคุณ',
+        title: 'เลือกเมนูที่อยากดื่ม',
+        description:
+          'บอกเราได้ว่าคุณชอบเข้ม นุ่ม หวานน้อย หรืออยากลองรสชาติใหม่',
       },
       {
-        title: 'รังสรรค์สดตรงหน้า',
-        description: 'บาริสต้าดูแลรายละเอียดของแต่ละแก้วอย่างพอดี',
+        title: 'บาริสต้าชงอย่างพอดี',
+        description:
+          'ดูแลการบด การสกัด และส่วนผสมให้แต่ละแก้วได้รสชาติที่ตั้งใจไว้',
       },
       {
-        title: 'พัก แล้วค่อยไปต่อ',
-        description: 'ใช้เวลาของคุณในพื้นที่ที่พร้อมให้ทุกจังหวะของวัน',
+        title: 'รับแก้วโปรดของคุณ',
+        description: 'ดื่มได้ทันที หรือพกไปเติมพลังต่อในทุกจังหวะของวัน',
       },
     ],
-    closingTitle: 'แก้วที่ดี เริ่มจากสิ่งที่เราอยากเสิร์ฟให้คุณจริง ๆ',
+    closingTitle: 'ค้นหาคาแรกเตอร์กาแฟที่ใช่สำหรับคุณ',
     closingDescription:
-      'สำรวจเครื่องดื่มที่คัดสรรไว้ แล้วพบกับแก้วโปรดแก้วถัดไปของคุณที่ Super Black Coffee',
+      'สำรวจเมนูกาแฟคลาสสิกและซิกเนเจอร์ของเรา แล้วเลือกแก้วที่เข้ากับรสนิยมและจังหวะของวันนี้',
     actionLabel: 'ดูเมนูของเรา',
     actionHref: '/menu',
   },
@@ -375,65 +380,69 @@ export const englishServiceDetails: Record<string, ServiceDetailTranslation> = {
     title: 'Premium coffee\nin every moment',
     summary:
       'Thoughtfully selected coffee, so every cup becomes a better moment in your day.',
-    introductionTitle: 'Care you can taste in every cup',
+    introductionTitle: 'Great coffee begins with understanding the bean',
     introduction:
-      'From selecting beans and extracting espresso to serving the finished drink, we pay attention to the details that make your favourite cup easy to enjoy and memorable.',
+      'We select beans with a clear character, then care for roasting, grinding, and extraction so every cup is balanced, easy to enjoy, and unmistakably its own.',
     points: [
       {
-        title: 'Chosen with intention',
-        description: 'We start with ingredients we are proud to serve.',
-      },
-      {
-        title: 'Clear, balanced flavour',
+        title: 'Beans with a distinct character',
         description:
-          'Flavours developed to drink well at every point in the day.',
+          'We choose beans from origins that offer the aroma, flavour, and feeling we want to share.',
       },
       {
-        title: 'Made fresh to order',
-        description: 'Every step is cared for before your cup reaches you.',
+        title: 'Roasted for balance',
+        description:
+          'Roast profiles are developed for aroma, sweetness, and body that drink beautifully hot or iced.',
+      },
+      {
+        title: 'Freshly brewed to order',
+        description:
+          'Each cup is ground and extracted with care to keep its aroma and flavour present when it reaches you.',
       },
     ],
-    detailTitle: 'A cup that fits your day',
+    detailTitle: 'Choose coffee that suits your taste',
     detailSummary:
-      'For a fast morning, a mid-day break, or a long conversation, we make choosing a drink simple and enjoyable.',
+      'Whether you enjoy espresso intensity, the softness of milk, or an easy iced coffee, our menu makes it easier to choose the character that fits you.',
     details: [
       {
-        title: 'Coffee your way',
+        title: 'Start with the right character',
         description:
-          'Choose the intensity and temperature that fit your day, and let our baristas care for the details.',
+          'Choose a clear black coffee, a smooth milk coffee, or a signature drink with its own character.',
       },
       {
-        title: 'More than coffee',
+        title: 'Good flavour, hot or iced',
         description:
-          'A varied drinks menu for the days you want a different flavour or a break with someone beside you.',
+          'Our team balances coffee, water, and milk for the drink format, so every menu item has its own sense of harmony.',
       },
       {
-        title: 'A space worth staying in',
+        title: 'Classic and signature choices',
         description:
-          'Sit, work, or meet in comfort with a favourite cup that lifts an ordinary moment.',
+          'Begin with an Americano or café latte, or explore a Super Black Coffee signature to discover your favourite profile.',
       },
     ],
-    journeyTitle: 'From choosing a drink to enjoying a good moment',
+    journeyTitle: 'From the coffee bean to the cup in front of you',
     journeySummary:
-      'We keep the experience simple from the moment you enter until the final sip in front of you.',
+      'Every cup follows a simple, thoughtful process: choose your drink, tailor it to you, then extract and serve it fresh.',
     journey: [
       {
-        title: 'Choose your cup',
-        description: 'Start with a menu and flavour that fit your day.',
-      },
-      {
-        title: 'Made fresh for you',
-        description: 'Our baristas balance the details of every cup.',
-      },
-      {
-        title: 'Pause, then continue',
+        title: 'Choose what you want to drink',
         description:
-          'Take your time in a space made for every moment of the day.',
+          'Tell us if you prefer bold, smooth, less sweet, or something new to try.',
+      },
+      {
+        title: 'Brewed with balance',
+        description:
+          'Our baristas manage the grind, extraction, and ingredients to achieve the intended flavour in every cup.',
+      },
+      {
+        title: 'Take your favourite cup with you',
+        description:
+          'Enjoy it straight away, or take it with you for energy through the rest of your day.',
       },
     ],
-    closingTitle: 'A great cup begins with what we genuinely want to serve you',
+    closingTitle: 'Find the coffee character that feels right for you',
     closingDescription:
-      'Explore our carefully selected drinks and discover your next favourite cup at Super Black Coffee.',
+      'Explore our classic and signature coffee menu, then choose the cup that suits your taste and today’s rhythm.',
     actionLabel: 'View our menu',
   },
   'ev-charging': {

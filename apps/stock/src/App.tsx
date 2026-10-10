@@ -299,6 +299,24 @@ export default function App() {
     setPage('sales');
   };
   const toggleCart = () => setCartOpen((open) => !open);
+  // Refresh failures must not reject an already committed mutation: the cart
+  // would otherwise remain available for resubmission and duplicate the sale.
+  const refreshAfterMutation = async (includeMenus = false) => {
+    try {
+      const [nextInventory, nextMovements, nextMenus] = await Promise.all([
+        getInventory(),
+        listMyStockMovements(),
+        includeMenus ? listMenuItems() : Promise.resolve(null),
+      ]);
+      setInventory(nextInventory);
+      setMovements(nextMovements);
+      if (nextMenus) setMenus(nextMenus);
+      setConnectionError(false);
+    } catch (error) {
+      if (isInvalidStockSession(error)) signOut();
+      else setConnectionError(true);
+    }
+  };
   const handleAdjust = async (
     item: InventoryItem,
     quantity: number,
@@ -306,12 +324,7 @@ export default function App() {
     dates?: StockDateDetails,
   ) => {
     const result = await adjustInventory(item.id, quantity, note, dates);
-    const [nextInventory, nextMovements] = await Promise.all([
-      getInventory(),
-      listMyStockMovements(),
-    ]);
-    setInventory(nextInventory);
-    setMovements(nextMovements);
+    await refreshAfterMutation();
     setNotice(
       `บันทึก ${item.name} คงเหลือ ${result.quantity} ${item.unit} แล้ว`,
     );
@@ -326,14 +339,7 @@ export default function App() {
     channel: 'storefront' | 'lineman',
   ) => {
     const result = await consumeStockFromMenus(items, note, channel);
-    const [nextInventory, nextMovements, nextMenus] = await Promise.all([
-      getInventory(),
-      listMyStockMovements(),
-      listMenuItems(),
-    ]);
-    setInventory(nextInventory);
-    setMovements(nextMovements);
-    setMenus(nextMenus);
+    await refreshAfterMutation(true);
     setNotice(
       `ตัดวัตถุดิบและบันทึกยอดขาย ${(result.salesTotal ?? 0).toLocaleString('th-TH')} บาท จาก ${result.menuCount} เมนูแล้ว`,
     );

@@ -20,7 +20,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
           minHeight: { xs: '680px', md: '760px' },
           position: 'relative',
           display: 'flex',
-          alignItems: 'flex-end',
+          alignItems: 'stretch',
           overflow: 'hidden',
           backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.94) 0%, rgba(0,0,0,.72) 38%, rgba(0,0,0,.12) 76%), linear-gradient(0deg, rgba(0,0,0,.45), rgba(0,0,0,0) 46%), url("${copy.image}")`,
           backgroundPosition: copy.imagePosition ?? 'center 24%',
@@ -34,23 +34,19 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             width: '100%',
             maxWidth: '1680px',
             margin: '0 auto',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: { xs: 'flex-end', md: 'flex-start' },
             padding: {
-              xs: '180px var(--sb-gutter) 76px',
-              md: '230px var(--sb-gutter) 98px',
+              xs: '0 var(--sb-gutter) 62px',
+              md: '224px 0 0 var(--sb-gutter)',
+            },
+            '@media (max-width: 800px)': {
+              width: 'min(680px, 95vw)',
             },
           }}
         >
-          <Box
-            component="p"
-            sx={{
-              color: '#c9a45e',
-              font: '600 12px/1 var(--font-inter), sans-serif',
-              letterSpacing: '.16em',
-              margin: '0 0 22px',
-            }}
-          >
-            {copy.navigationTitle.toUpperCase()}
-          </Box>
           <Box
             component="h1"
             sx={{
@@ -58,8 +54,8 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
               color: '#fff',
               fontFamily: 'var(--font-ibm-plex-thai), sans-serif',
               fontSize: 'clamp(58px, 5vw, 76px)',
-              fontWeight: 400,
-              lineHeight: 1.1,
+              fontWeight: 500,
+              lineHeight: 1.22,
               letterSpacing: '-.05em',
               whiteSpace: 'pre-line',
               margin: '0',
@@ -77,7 +73,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             component="p"
             sx={{
               maxWidth: '550px',
-              margin: '30px 0 0',
+              margin: { xs: '20px 0 0', md: '30px 0 0' },
               color: 'rgba(255,255,255,.76)',
               font: '400 19px/1.65 var(--font-ibm-plex-thai), sans-serif',
             }}
@@ -219,17 +215,6 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
           >
             <Box component="div">
               <Box
-                component="p"
-                sx={{
-                  margin: '0 0 18px',
-                  color: '#c9a45e',
-                  font: '600 11px/1 var(--font-inter), sans-serif',
-                  letterSpacing: '.16em',
-                }}
-              >
-                DESIGNED FOR THE DAY
-              </Box>
-              <Box
                 component="h2"
                 sx={{
                   margin: 0,
@@ -349,17 +334,6 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             }}
           >
             <Box component="div">
-              <Box
-                component="p"
-                sx={{
-                  margin: '0 0 18px',
-                  color: '#c9a45e',
-                  font: '600 11px/1 var(--font-inter), sans-serif',
-                  letterSpacing: '.16em',
-                }}
-              >
-                THE EXPERIENCE
-              </Box>
               <Box
                 component="h2"
                 sx={{

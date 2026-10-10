@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,6 +9,39 @@ import (
 	"github.com/gin-gonic/gin"
 	"y/internal/middleware"
 )
+
+func TestAttendanceLocationValidationBoundaries(t *testing.T) {
+	for _, tt := range []struct {
+		name               string
+		lat, lon, accuracy float64
+		want               bool
+	}{
+		{"north east boundary", 90, 180, 0, true},
+		{"south west boundary", -90, -180, 0, true},
+		{"latitude beyond boundary", -90.0001, 0, 0, false},
+		{"longitude beyond boundary", 0, 180.0001, 0, false},
+		{"NaN latitude", math.NaN(), 0, 0, false},
+		{"infinite longitude", 0, math.Inf(1), 0, false},
+		{"NaN accuracy", 0, 0, math.NaN(), false},
+		{"infinite accuracy", 0, 0, math.Inf(1), false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			input := attendanceLocationInput{Latitude: &tt.lat, Longitude: &tt.lon, AccuracyM: &tt.accuracy}
+			if got := input.valid(); got != tt.want {
+				t.Fatalf("valid() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+	zero := 0.0
+	for _, input := range []attendanceLocationInput{{}, {Latitude: &zero}, {Longitude: &zero}} {
+		if input.valid() {
+			t.Fatal("missing coordinates accepted")
+		}
+	}
+	if !(attendanceLocationInput{Latitude: &zero, Longitude: &zero}).valid() {
+		t.Fatal("optional accuracy rejected")
+	}
+}
 
 func TestCanRecordAttendanceAllowsOnlyWorkingShiftStatuses(t *testing.T) {
 	tests := []struct {

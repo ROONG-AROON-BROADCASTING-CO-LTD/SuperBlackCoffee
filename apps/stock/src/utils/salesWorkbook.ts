@@ -46,7 +46,7 @@ const normalizeMenuText = (value: string) =>
     .toLocaleLowerCase('th-TH')
     .replace(/มัฉฉะ/gu, 'มัทฉะ')
     .replace(/^น้ำ(?=ส้ม|มะนาว)/gu, '')
-    .replace(/[^\p{L}\p{N}]/gu, '');
+    .replace(/[^\p{L}\p{M}\p{N}]/gu, '');
 
 const workbookCategoryMatches = (menu: WorkbookMenu, category: string) => {
   const normalizedCategory = normalizeMenuText(category);
@@ -87,9 +87,13 @@ const matchWorkbookMenu = (
   menus: WorkbookMenu[],
 ) => {
   const normalizedName = normalizeMenuText(menuName);
-  const exact = menus.find(
-    (menu) => normalizeMenuText(menu.name) === normalizedName,
+  const exactMatches = menus.filter(
+    (menu) =>
+      normalizeMenuText(menu.name) === normalizedName &&
+      workbookCategoryMatches(menu, category),
   );
+  if (exactMatches.length > 1) return undefined;
+  const exact = exactMatches[0];
   if (exact) {
     return { menuItemId: exact.id, menuName: exact.name, quantity: 1 };
   }
@@ -102,11 +106,13 @@ const matchWorkbookMenu = (
     /\s+(?:เมล็ดกาแฟ|ระดับความหวาน|แยกน้ำ|ท็อปปิ้ง)(?:\s*\([^)]*\))?\s*:/u;
   const displayName = menuName.split(optionStart, 1)[0];
   const normalizedDisplayName = normalizeMenuText(displayName);
-  const exactDisplayName = menus.find(
+  const displayMatches = menus.filter(
     (menu) =>
       normalizeMenuText(menu.name) === normalizedDisplayName &&
       workbookCategoryMatches(menu, category),
   );
+  if (displayMatches.length > 1) return undefined;
+  const exactDisplayName = displayMatches[0];
   if (exactDisplayName) {
     return {
       menuItemId: exactDisplayName.id,

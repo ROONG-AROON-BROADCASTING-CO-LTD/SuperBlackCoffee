@@ -361,10 +361,13 @@ func TestExportStaffSchedulesXLSXCreatesReadableSchedule(t *testing.T) {
 	if contentDisposition := response.Header().Get("Content-Disposition"); contentDisposition != "attachment; filename*=UTF-8''"+url.PathEscape(expectedFilename) {
 		t.Fatalf("ชื่อไฟล์ส่งออก = %q", contentDisposition)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "C2"); err != nil || value != "จันทร์" {
-		t.Fatalf("หัวตารางแบบรายสัปดาห์ = %q, err = %v", value, err)
+	if value, err := workbook.GetCellValue("ตารางงาน", "A2"); err != nil || !strings.Contains(value, "PH = วันหยุดนักขัตฤกษ์") {
+		t.Fatalf("หมายเหตุการส่งออก = %q, err = %v", value, err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "B5"); err != nil || value != "พนักงานทดสอบ" {
+	if value, err := workbook.GetCellValue("ตารางงาน", "D3"); err != nil || value != "1" {
+		t.Fatalf("หัวตารางรายเดือน = %q, err = %v", value, err)
+	}
+	if value, err := workbook.GetCellValue("ตารางงาน", "A5"); err != nil || value != "พนักงานทดสอบ" {
 		t.Fatalf("ชื่อพนักงานใน Excel = %q, err = %v", value, err)
 	}
 	allRows, err := workbook.GetRows("ตารางงาน")
@@ -381,12 +384,12 @@ func TestExportStaffSchedulesXLSXCreatesReadableSchedule(t *testing.T) {
 			}
 		}
 	}
-	if !(positions["8.00-17.00"] < positions["9.00-18.00"] && positions["9.00-18.00"] < positions["13.00-22.00"]) {
+	if !(positions["08:00\n17:00"] < positions["09:00\n18:00"] && positions["09:00\n18:00"] < positions["13:00\n22:00"]) {
 		t.Fatalf("ลำดับเวลากะใน Excel ไม่เรียงจากเช้าไปดึก: %#v", positions)
 	}
 }
 
-func TestBuildWeeklyStaffScheduleWorkbookMatchesWeeklyTemplateLayout(t *testing.T) {
+func TestBuildMonthlyStaffScheduleWorkbookMatchesMonthlyTemplateLayout(t *testing.T) {
 	month := time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
 	shiftsFor := func(userID int64, name, startsAt, endsAt string) staffScheduleExportGridRow {
 		shift := staffScheduleExportRow{
@@ -397,7 +400,7 @@ func TestBuildWeeklyStaffScheduleWorkbookMatchesWeeklyTemplateLayout(t *testing.
 			shifts: map[string]staffScheduleExportRow{month.Format("2006-01-02"): shift},
 		}
 	}
-	content, err := buildWeeklyStaffScheduleWorkbook(month, month.AddDate(0, 1, 0), []staffScheduleExportGridRow{
+	content, err := buildMonthlyStaffScheduleWorkbook(month, month.AddDate(0, 1, 0), "สาขาทดสอบ", map[string]bool{}, []staffScheduleExportGridRow{
 		shiftsFor(1, "กะเช้า", "08:00", "17:00"),
 		shiftsFor(2, "กะสาย", "09:00", "18:00"),
 		shiftsFor(3, "กะบ่าย", "13:00", "22:00"),
@@ -410,20 +413,24 @@ func TestBuildWeeklyStaffScheduleWorkbookMatchesWeeklyTemplateLayout(t *testing.
 		t.Fatalf("เปิดไฟล์ Excel ที่สร้างไม่ได้: %v", err)
 	}
 	defer workbook.Close()
-	if value, err := workbook.GetCellValue("ตารางงาน", "C2"); err != nil || value != "จันทร์" {
-		t.Fatalf("หัวตารางวันจันทร์ = %q, err = %v", value, err)
+	if value, err := workbook.GetCellValue("ตารางงาน", "D3"); err != nil || value != "1" {
+		t.Fatalf("หัวตารางวันที่ 1 = %q, err = %v", value, err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "B5"); err != nil || value != "กะเช้า" {
+	if value, err := workbook.GetCellValue("ตารางงาน", "A5"); err != nil || value != "กะเช้า" {
 		t.Fatalf("แถวพนักงานกะเช้า = %q, err = %v", value, err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "B7"); err != nil || value != "กะสาย" {
+	if value, err := workbook.GetCellValue("ตารางงาน", "A6"); err != nil || value != "กะสาย" {
 		t.Fatalf("แถวพนักงานกะสาย = %q, err = %v", value, err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "B9"); err != nil || value != "กะบ่าย" {
+	if value, err := workbook.GetCellValue("ตารางงาน", "A7"); err != nil || value != "กะบ่าย" {
 		t.Fatalf("แถวพนักงานกะบ่าย = %q, err = %v", value, err)
 	}
-	if value, err := workbook.GetCellValue("ตารางงาน", "F5"); err != nil || value != "8.00-17.00" {
+	if value, err := workbook.GetCellValue("ตารางงาน", "D5"); err != nil || value != "08:00\n17:00" {
 		t.Fatalf("เวลากะเช้า = %q, err = %v", value, err)
+	}
+	panes, err := workbook.GetPanes("ตารางงาน")
+	if err != nil || !panes.Freeze || panes.XSplit != 3 || panes.YSplit != 4 || panes.TopLeftCell != "D5" {
+		t.Fatalf("การตรึงแถวและคอลัมน์ = %#v, err = %v", panes, err)
 	}
 }
 
