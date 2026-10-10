@@ -194,7 +194,14 @@ export default function App() {
   }, [retryTick, session]);
   useEffect(() => {
     if (!session || !connectionError) return;
-    const retry = () => setRetryTick((tick) => tick + 1);
+    const retry = () => {
+      // Clear the stale offline indicator immediately when connectivity
+      // returns. The refresh below will set it again if the request still
+      // fails, but the UI should not remain stuck on the retry state while it
+      // is already attempting recovery.
+      setConnectionError(false);
+      setRetryTick((tick) => tick + 1);
+    };
     const interval = window.setInterval(retry, 10_000);
     window.addEventListener('online', retry);
     return () => {
