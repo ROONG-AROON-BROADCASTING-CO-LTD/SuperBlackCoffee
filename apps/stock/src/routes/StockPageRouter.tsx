@@ -3,7 +3,6 @@ import { Box } from '@mui/material';
 import { StockOrderCartDrawer } from '../components/StockOrderCartDrawer';
 import type {
   InventoryItem,
-  ExpiryPromotionSuggestion,
   MenuItem,
   StockDateDetails,
   StockMovement,
@@ -38,7 +37,6 @@ type StockPageRouterProps = {
   drinkStock: InventoryItem[];
   postalStock: InventoryItem[];
   menus: MenuItem[];
-  expiryPromotionSuggestions: ExpiryPromotionSuggestion[];
   onRefreshMenus: () => Promise<MenuItem[]>;
   movements: StockMovement[];
   isInitialLoading: boolean;
@@ -91,7 +89,6 @@ export function StockPageRouter({
   drinkStock,
   postalStock,
   menus,
-  expiryPromotionSuggestions,
   onRefreshMenus,
   movements,
   isInitialLoading,
@@ -156,7 +153,6 @@ export function StockPageRouter({
         <PromotionsManagementPage
           mode="stock"
           branchName={branchName}
-          expiryPromotionSuggestions={expiryPromotionSuggestions}
           embedded
         />
       );

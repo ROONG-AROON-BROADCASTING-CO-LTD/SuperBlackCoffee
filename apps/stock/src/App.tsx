@@ -11,7 +11,6 @@ import {
   consumeStockFromMenus,
   createStockRequest,
   createExpenseRequest,
-  listExpiryPromotionSuggestions,
   listInventory,
   listMenuItems,
   listMyStockMovements,
@@ -23,7 +22,6 @@ import {
   restoreStaffSessionForStock,
   setupStockPIN,
   type InventoryItem,
-  type ExpiryPromotionSuggestion,
   type MenuItem,
   type StockDateDetails,
   type StockSession,
@@ -75,9 +73,6 @@ export default function App() {
   const [drinkStock, setDrinkStock] = useState<InventoryItem[]>([]);
   const [postalStock, setPostalStock] = useState<InventoryItem[]>([]);
   const [menus, setMenus] = useState<MenuItem[]>([]);
-  const [expiryPromotionSuggestions, setExpiryPromotionSuggestions] = useState<
-    ExpiryPromotionSuggestion[]
-  >([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [cartItemCount, setCartItemCount] = useState(0);
   const [cartOpen, setCartOpen] = useState(false);
@@ -152,23 +147,12 @@ export default function App() {
     if (!session) return;
     let active = true;
     setInitialDataLoading(true);
-    void Promise.all([
-      getInventory(),
-      listMyStockMovements(),
-      listMenuItems(),
-      // This is an optional decision aid. A temporary failure must not block
-      // counting or selling stock for the branch.
-      listExpiryPromotionSuggestions().catch(() => ({
-        warningDays: 0,
-        suggestions: [],
-      })),
-    ])
-      .then(([nextInventory, nextMovements, nextMenus, nextSuggestions]) => {
+    void Promise.all([getInventory(), listMyStockMovements(), listMenuItems()])
+      .then(([nextInventory, nextMovements, nextMenus]) => {
         if (!active) return;
         setInventory(nextInventory);
         setMovements(nextMovements);
         setMenus(nextMenus);
-        setExpiryPromotionSuggestions(nextSuggestions.suggestions);
         setConnectionError(false);
       })
       .catch((error) => {
@@ -180,7 +164,6 @@ export default function App() {
           setPostalStock([]);
           setMenus([]);
           setMovements([]);
-          setExpiryPromotionSuggestions([]);
           return;
         }
         setConnectionError(true);
@@ -403,7 +386,6 @@ export default function App() {
             drinkStock={drinkStock}
             postalStock={postalStock}
             menus={menus}
-            expiryPromotionSuggestions={expiryPromotionSuggestions}
             onRefreshMenus={refreshMenus}
             movements={movements}
             isInitialLoading={initialDataLoading}

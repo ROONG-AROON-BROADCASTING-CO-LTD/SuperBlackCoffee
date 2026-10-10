@@ -11,7 +11,6 @@ import {
   adjustInventory,
   consumeStockFromMenus,
   listInventory,
-  listExpiryPromotionSuggestions,
   listMenuItems,
   listMyStockMovements,
   logoutStock,
@@ -49,10 +48,6 @@ vi.mock('../api/stock', () => ({
   adjustInventory: vi.fn(),
   consumeStockFromMenus: vi.fn(),
   listInventory: vi.fn().mockResolvedValue([]),
-  listExpiryPromotionSuggestions: vi.fn().mockResolvedValue({
-    warningDays: 30,
-    suggestions: [],
-  }),
   listMenuItems: vi.fn().mockResolvedValue([]),
   listMyStockMovements: vi.fn().mockResolvedValue([]),
   isStockSession: (value: { user?: { id?: number } }) =>
@@ -111,14 +106,12 @@ vi.mock('../routes/StockPageRouter', () => ({
     cartOpen,
     onOrderIngredients,
     isInitialLoading,
-    expiryPromotionSuggestions,
     onConsume,
     onAdjust,
   }: {
     page: string;
     cartOpen: boolean;
     isInitialLoading: boolean;
-    expiryPromotionSuggestions: unknown[];
     onConsume: (
       items: { menuItemId: number; quantity: number }[],
       note: string,
@@ -169,9 +162,6 @@ vi.mock('../routes/StockPageRouter', () => ({
       <output data-testid="cart-open">{String(cartOpen)}</output>
       <output data-testid="stock-initial-loading">
         {String(isInitialLoading)}
-      </output>
-      <output data-testid="stock-suggestion-count">
-        {expiryPromotionSuggestions.length}
       </output>
       <button
         onClick={() =>
@@ -311,7 +301,6 @@ describe('Stock App session and loading', () => {
       );
       expect(listMyStockMovements).toHaveBeenCalledOnce();
       expect(listMenuItems).toHaveBeenCalledOnce();
-      expect(listExpiryPromotionSuggestions).toHaveBeenCalledOnce();
     });
   });
 
@@ -361,30 +350,6 @@ describe('Stock App session and loading', () => {
     expect(listInventory).toHaveBeenCalledTimes(6);
     expect(listMyStockMovements).toHaveBeenCalledTimes(2);
     expect(listMenuItems).toHaveBeenCalledTimes(2);
-    expect(listExpiryPromotionSuggestions).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not block stock work when optional promotion suggestions fail', async () => {
-    vi.mocked(listExpiryPromotionSuggestions).mockRejectedValueOnce(
-      new Error('suggestions temporarily unavailable'),
-    );
-
-    render(<App />);
-
-    expect((await screen.findByTestId('stock-page')).textContent).toBe('sales');
-    await waitFor(() => {
-      expect(listInventory).toHaveBeenCalledTimes(3);
-      expect(listMenuItems).toHaveBeenCalledOnce();
-      expect(listMyStockMovements).toHaveBeenCalledOnce();
-      expect(listExpiryPromotionSuggestions).toHaveBeenCalledOnce();
-      expect(screen.getByTestId('stock-retry-open').textContent).toBe('false');
-      expect(screen.getByTestId('stock-initial-loading').textContent).toBe(
-        'false',
-      );
-      expect(screen.getByTestId('stock-suggestion-count').textContent).toBe(
-        '0',
-      );
-    });
   });
 
   it.each([401, 403])(

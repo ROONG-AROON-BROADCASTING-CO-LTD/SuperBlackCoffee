@@ -42,7 +42,6 @@ const baseProps = {
   drinkStock: [],
   postalStock: [],
   menus: [],
-  expiryPromotionSuggestions: [],
   onRefreshMenus: vi.fn().mockResolvedValue([]),
   movements: [
     {
