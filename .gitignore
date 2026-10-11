@@ -11,5 +11,6 @@ test-results/
 *.db
 CODEX_TEST_AUDIT.md
 docs/test-audit-*.md
+docs/central-catalog-rollout.md
 DEPLOYMENT.md
 design-qa.md
