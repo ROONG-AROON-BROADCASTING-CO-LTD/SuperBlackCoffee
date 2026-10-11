@@ -10,5 +10,6 @@ test-results/
 *.tsbuildinfo
 *.db
 CODEX_TEST_AUDIT.md
+docs/test-audit-*.md
 DEPLOYMENT.md
 design-qa.md
