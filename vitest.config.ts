@@ -7,7 +7,10 @@ export default defineConfig({
     include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: ['apps/{admin,attendance,franchise,stock}/src/**/*.{ts,tsx}'],
+      include: [
+        'apps/{admin,attendance,franchise,stock,website}/src/**/*.{ts,tsx}',
+        'packages/management/src/**/*.{ts,tsx}',
+      ],
       reporter: ['text-summary', 'json-summary', 'html'],
     },
   },

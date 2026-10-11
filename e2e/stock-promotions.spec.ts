@@ -1,99 +1,96 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-const stockSession = {
-  user: {
-    id: 7,
-    name: 'พนักงานสต๊อก',
-    role: 'cashier',
-    branchId: 4,
-    branchName: 'อยุธยา',
-    isFranchise: false,
-  },
-};
-
-const expirySuggestion = {
-  menuId: 88,
-  menuName: 'ลาเต้เย็น',
-  category: 'เมนูกาแฟเย็น',
-  storePrice: 70,
-  lotId: 19,
-  inventoryItemId: 56,
-  ingredientName: 'นมสด',
-  lotNumber: 'LOT-88',
-  expiryDate: '2026-10-06',
-  quantityRemaining: 12,
-  unit: 'กล่อง',
-  daysUntilExpiry: 7,
-  suggestedDiscountPercent: 25,
-  reason: 'ใช้ นมสด จากล็อตใกล้หมดอายุ',
-};
-
-async function mockStockApi(page: Page) {
+test('Stock saves an editable promotion and restores it after reload', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const branch = { id: 4, name: 'อยุธยา', code: 'AYA' };
+  const menu = {
+    id: 88,
+    name: 'ลาเต้เย็น',
+    category: 'กาแฟ',
+    storePrice: 70,
+    imageUrl: '',
+  };
+  let saved: Record<string, unknown> | null = null;
+  let submitted: Record<string, unknown> | null = null;
   await page.route('**/api/v1/**', async (route) => {
     const { pathname } = new URL(route.request().url());
-    const data = pathname.endsWith('/stock/session')
-      ? stockSession
-      : pathname.endsWith('/inventory/expiry-promotion-suggestions')
-        ? { warningDays: 30, suggestions: [expirySuggestion] }
-        : pathname.endsWith('/inventory') ||
-            pathname.endsWith('/menu-items') ||
-            pathname.endsWith('/stock-movements')
-          ? []
-          : undefined;
-
-    if (data === undefined) {
+    let data: unknown;
+    if (pathname.endsWith('/stock/session')) {
+      data = {
+        user: {
+          id: 7,
+          name: 'พนักงานสต๊อก',
+          role: 'cashier',
+          branchId: 4,
+          branchName: 'อยุธยา',
+          isFranchise: false,
+        },
+      };
+    } else if (pathname.endsWith('/promotions')) {
+      expect(route.request().headers()['x-sbc-session-role']).toBe('stock');
+      if (route.request().method() === 'POST') {
+        submitted = route.request().postDataJSON();
+        saved = {
+          ...submitted,
+          id: 1,
+          usage: 0,
+          branches: [branch],
+          menuItems: [{ ...menu, price: 70 }],
+        };
+        data = saved;
+      } else data = saved ? [saved] : [];
+    } else if (pathname.endsWith('/branches')) data = [branch];
+    else if (pathname.endsWith('/menu-items')) data = [menu];
+    else if (
+      pathname.endsWith('/inventory') ||
+      pathname.endsWith('/stock-movements')
+    )
+      data = [];
+    else {
       await route.fulfill({
         status: 404,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: false, message: 'ไม่พบ API ทดสอบ' }),
+        json: { success: false, message: 'Unexpected test request' },
       });
       return;
     }
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({ success: true, data }),
-    });
+    await route.fulfill({ json: { success: true, data } });
   });
-}
-
-test('Stock can review an expiry suggestion and receive a prefilled promotion draft', async ({
-  page,
-}, testInfo) => {
-  const consoleErrors: string[] = [];
-  page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(message.text());
-  });
-  page.on('pageerror', (error) => consoleErrors.push(error.message));
-
-  await mockStockApi(page);
   await page.goto('/promotions');
-
-  await expect(page).toHaveTitle('SuperBlackCoffee — Stock');
-  await expect(page.getByText('แนะนำโปรโมชันเพื่อลดของเสีย')).toBeVisible();
-  await expect(page.getByText('ลาเต้เย็น', { exact: true })).toBeVisible();
-  await expect(page.getByText('เหลือ 7 วัน · แนะนำลด 25%')).toBeVisible();
-
-  await page.getByRole('button', { name: 'สร้างโปรโมชั่น' }).click();
-
+  await expect(page.getByText('ยังไม่มีโปรโมชั่นตามเงื่อนไขนี้')).toBeVisible();
+  await page.getByRole('button', { name: 'เพิ่มโปรโมชั่น' }).click();
+  await page
+    .getByRole('textbox', { name: 'ชื่อโปรโมชั่น', exact: true })
+    .fill('ลาเต้ ลด 25%');
+  await page
+    .getByRole('textbox', { name: 'ประเภทโปรโมชั่น', exact: true })
+    .fill('แคมเปญตามฤดูกาล');
+  await page
+    .getByRole('textbox', { name: 'สิทธิพิเศษ / รายละเอียด', exact: true })
+    .fill('ลด 25% เมื่อซื้อ 2 แก้ว');
+  await page.getByRole('combobox', { name: 'เมนูที่ร่วมโปรโมชั่น' }).click();
+  await page.getByRole('option', { name: 'ลาเต้เย็น · 70 บาท' }).click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'บันทึกโปรโมชั่น' }).click();
   await expect(
-    page.getByText('สร้างโปรโมชั่นจากวัตถุดิบใกล้หมดอายุ'),
+    page.getByRole('heading', { name: 'รายละเอียดโปรโมชั่น' }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('textbox', { name: 'ชื่อโปรโมชั่น', exact: true }),
-  ).toHaveValue('ลาเต้เย็น ลด 25%');
-  await expect(
-    page.getByRole('textbox', {
-      name: 'สิทธิพิเศษ / รายละเอียด',
-      exact: true,
-    }),
-  ).toHaveValue('ลด 25% เพื่อใช้ นมสด ล็อตใกล้หมดอายุ');
-  await expect(
-    page.getByRole('textbox', { name: 'สาขาที่เข้าร่วม', exact: true }),
-  ).toHaveValue('สาขาอยุธยา');
-  expect(consoleErrors).toEqual([]);
-
-  await testInfo.attach('prefilled-promotion-draft', {
-    body: await page.screenshot({ fullPage: false }),
-    contentType: 'image/png',
+  expect(submitted).toMatchObject({
+    name: 'ลาเต้ ลด 25%',
+    type: 'แคมเปญตามฤดูกาล',
+    benefit: 'ลด 25% เมื่อซื้อ 2 แก้ว',
+    menuItemIds: [88],
+    status: 'draft',
   });
+  await page.reload();
+  await expect(page.getByText('ลาเต้ ลด 25%', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'จัดการโปรโมชั่น' }).click();
+  await expect(
+    page
+      .getByRole('dialog')
+      .getByText('ลด 25% เมื่อซื้อ 2 แก้ว', { exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
 });

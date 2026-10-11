@@ -168,7 +168,9 @@ describe('EmployeesManagementPage', () => {
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'ไปรษณีย์' }));
     expect(
-      screen.getByRole('button', { name: /ไปรษณีย์ปกติ 10:00 น. - 19:00 น./ }),
+      screen.getByRole('button', {
+        name: /ไปรษณีย์ปกติ 10:00 น. - 19:00 น./,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', {
@@ -240,7 +242,7 @@ describe('EmployeesManagementPage', () => {
     downloadClick.mockRestore();
   });
 
-  it('explains the weekly rotation rule before automatically generating schedules', async () => {
+  it('explains the compensatory-holiday and rotation rules before generating schedules', async () => {
     renderPage();
     await waitForPage();
 
@@ -248,7 +250,7 @@ describe('EmployeesManagementPage', () => {
 
     expect(
       screen.getByText(
-        'ระบบจะไม่จัดวันหยุดรายเดือนในวันเสาร์–อาทิตย์ และสาขาที่มีพนักงานคนเดียวจะไม่ถูกจัดวันหยุดอัตโนมัติ สำหรับสาขาที่มีพนักงาน 2 คน ระบบจะสลับกะที่ 1 และกะที่ 2 ทุกสัปดาห์ (จันทร์–อาทิตย์) เมื่ออนุมัติลาของกะแรก ระบบจะย้ายพนักงานกะที่สองมาแทนกะแรกในวันนั้น',
+        'ระบบจะไม่จัดวันหยุดรายเดือนในวันเสาร์–อาทิตย์ และพนักงานทุกคนที่ทำงานในวันนักขัตฤกษ์ จะได้รับวันหยุดชดเชยเพิ่มตามจำนวนวันที่ทำงาน โดยไม่นับรวมวันหยุดประจำเดือน ระบบจะกระจายวันชดเชยให้พนักงานหยุดคนละวัน เพื่อให้สาขายังเปิดบริการได้ สำหรับสาขาที่มีพนักงาน 2 คน ระบบจะสลับกะที่ 1 และกะที่ 2 ทุกสัปดาห์ (จันทร์–อาทิตย์) เมื่ออนุมัติลาของกะแรก ระบบจะย้ายพนักงานกะที่สองมาแทนกะแรกในวันนั้น',
       ),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' })).toBeTruthy();
@@ -266,6 +268,73 @@ describe('EmployeesManagementPage', () => {
     await waitFor(() =>
       expect(mockedGenerateStaffSchedules).toHaveBeenCalledWith(month, 51),
     );
+  });
+
+  it('uses headquarters-specific schedule and employee controls', async () => {
+    const month = new Date().toISOString().slice(0, 7);
+    window.history.replaceState({}, '', '/employees?scheduleBranch=SBC-HQ');
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText('ยังไม่มีพนักงานในสาขานี้')).toBeTruthy(),
+    );
+
+    expect(
+      screen.getByText('ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน'),
+    ).toBeTruthy();
+    expect(screen.queryByText('เวลาทำงานมาตรฐาน')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'ไปรษณีย์' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('ยังไม่มีตารางกะ ไปรษณีย์'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText('ทำงานวันจันทร์–เสาร์ · หยุดวันอาทิตย์และวันนักขัตฤกษ์'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'เพิ่มพนักงาน' }));
+    expect(screen.getByText('กฎวันหยุดสำนักงานใหญ่')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'หยุดวันอาทิตย์และวันนักขัตฤกษ์ ไม่มีวันหยุดประจำเดือนหรือวันหยุดชดเชยอัตโนมัติ',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('แผนก')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('สาขาที่ปฏิบัติงาน'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('รูปแบบวันหยุด')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ปิด' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'จัดตารางอัตโนมัติ' }));
+    expect(
+      screen.getByText(
+        'สำนักงานใหญ่: พนักงานที่ใช้กฎอัตโนมัติจะหยุดวันอาทิตย์และวันนักขัตฤกษ์ ไม่มีวันหยุดประจำเดือนหรือวันหยุดชดเชยอัตโนมัติ หากแผนกใดมีตารางต่างกัน ให้กำหนดวันหยุดเฉพาะในหน้าพนักงานก่อนจัดตาราง',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' }));
+
+    await waitFor(() =>
+      expect(mockedGenerateStaffSchedules).toHaveBeenCalledWith(month, 1),
+    );
+  });
+
+  it('shows a scheduling error instead of failing silently', async () => {
+    mockedGenerateStaffSchedules.mockRejectedValueOnce(
+      new Error('จำนวนพนักงานมากเกินกว่าจะจัดวันหยุดได้'),
+    );
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'จัดตารางอัตโนมัติ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ยืนยันจัดตาราง' }));
+
+    expect(
+      await screen.findByText('จำนวนพนักงานมากเกินกว่าจะจัดวันหยุดได้'),
+    ).toBeInTheDocument();
   });
 
   it('updates the employee name and primary shift', async () => {

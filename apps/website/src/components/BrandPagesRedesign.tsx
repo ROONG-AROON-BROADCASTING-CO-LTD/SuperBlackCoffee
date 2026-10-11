@@ -3333,7 +3333,7 @@ export function ContactContent() {
                 <option value="branch">
                   {text('สาขาและบริการ', 'Branches and services')}
                 </option>
-                <option value="other">{text('เรื่องอื่น ๆ', 'Other')}</option>
+                <option value="general">{text('เรื่องอื่น ๆ', 'Other')}</option>
               </select>
             </label>
             <Box

@@ -80,28 +80,6 @@ const postalWeekendSchedule: AdditionalShift = {
   weekdays: [6, 7],
 };
 
-function headquartersWorkDaysLabel(days?: number[]) {
-  const selectedDays = [...new Set(days?.length ? days : [1, 2, 3, 4, 5])].sort(
-    (first, second) => first - second,
-  );
-  const ranges: Array<[number, number]> = [];
-  for (const day of selectedDays) {
-    const previousRange = ranges[ranges.length - 1];
-    if (previousRange && day === previousRange[1] + 1) {
-      previousRange[1] = day;
-    } else {
-      ranges.push([day, day]);
-    }
-  }
-  return ranges
-    .map(([firstDay, lastDay]) =>
-      firstDay === lastDay
-        ? thaiWeekday[firstDay - 1]
-        : `${thaiWeekday[firstDay - 1]}–${thaiWeekday[lastDay - 1]}`,
-    )
-    .join(', ');
-}
-
 const shiftColors = [
   '#dceeff',
   '#eee1ff',
@@ -158,9 +136,6 @@ function dateKey(date: Date) {
 }
 
 function normalizedPostalShift(shift: StaffShift): StaffShift {
-  // Postal has one standard timetable for the whole team.  This client-side
-  // guard keeps an old cached row from presenting a different timetable while
-  // preserving intentional one-day changes made through the shift editor.
   if (shift.department !== 'postal' || shift.isTimeOverride) return shift;
   const weekday = new Date(`${shift.date}T12:00:00Z`).getUTCDay();
   const isWeekend = weekday === 0 || weekday === 6;
@@ -298,6 +273,15 @@ export function EmployeesManagementPage({
       setActionNotice({ message: 'จัดตารางงานอัตโนมัติแล้ว' });
       void queryClient.invalidateQueries({
         queryKey: ['staff-schedules', monthKey],
+      });
+    },
+    onError: (generateError) => {
+      setActionNotice({
+        message:
+          generateError instanceof Error
+            ? generateError.message
+            : 'ไม่สามารถจัดตารางงานอัตโนมัติได้',
+        severity: 'error',
       });
     },
   });
@@ -455,10 +439,12 @@ export function EmployeesManagementPage({
       employee.jobTitle ||
         (employee.role === 'branch_manager' ? 'ผู้จัดการสาขา' : 'แคชเชียร์'),
     );
-    setNewEmployeeDepartment(employee.department ?? 'cafe');
+    setNewEmployeeDepartment(
+      isHeadquarters ? 'cafe' : (employee.department ?? 'cafe'),
+    );
     setNewEmployeeBranchId(String(employee.branchId ?? activeBranchId ?? ''));
     setNewEmployeeUsername(employee.username);
-    if (employee.department === 'postal') {
+    if (!isHeadquarters && employee.department === 'postal') {
       setDefaultStartsAt(postalWeekdaySchedule.startsAt);
       setDefaultEndsAt(postalWeekdaySchedule.endsAt);
       setAdditionalShifts([postalWeekendSchedule]);
@@ -524,85 +510,75 @@ export function EmployeesManagementPage({
       >
         <PageIntro
           title="ตารางงานพนักงาน"
-          description={
-            isHeadquarters
-              ? 'สำนักงานใหญ่ใช้เวลาทำงานมาตรฐาน ไม่ต้องจัดตารางกะ'
-              : 'ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน'
-          }
+          description="ดูและวางแผนตารางกะของพนักงานในรูปแบบปฏิทิน"
         />
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {!isHeadquarters ? (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => changeMonth(-1)}
+          >
+            เดือนก่อน
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setMonth(startOfMonth(new Date()))}
+          >
+            เดือนนี้
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => changeMonth(1)}
+          >
+            เดือนถัดไป
+          </Button>
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{ mx: 0.5, borderColor: '#d8cec7' }}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => {
+              if (showEmployeesSkeleton || activeBranchId === null) return;
+              if (confirmAutoSchedule) {
+                setConfirmAutoSchedule(false);
+                generate.mutate();
+              } else setConfirmAutoSchedule(true);
+            }}
+            disabled={generate.isPending || Boolean(loadError)}
+            sx={
+              confirmAutoSchedule
+                ? { bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }
+                : undefined
+            }
+          >
+            {generate.isPending
+              ? 'กำลังจัดตาราง...'
+              : confirmAutoSchedule
+                ? 'ยืนยันจัดตาราง'
+                : 'จัดตารางอัตโนมัติ'}
+          </Button>
+          {confirmAutoSchedule ? (
             <>
+              <Typography
+                color="text.secondary"
+                sx={{ alignSelf: 'center', fontSize: 12 }}
+              >
+                {isHeadquarters
+                  ? 'สำนักงานใหญ่: พนักงานที่ใช้กฎอัตโนมัติจะหยุดวันอาทิตย์และวันนักขัตฤกษ์ ไม่มีวันหยุดประจำเดือนหรือวันหยุดชดเชยอัตโนมัติ หากแผนกใดมีตารางต่างกัน ให้กำหนดวันหยุดเฉพาะในหน้าพนักงานก่อนจัดตาราง'
+                  : 'ระบบจะไม่จัดวันหยุดรายเดือนในวันเสาร์–อาทิตย์ และพนักงานทุกคนที่ทำงานในวันนักขัตฤกษ์ จะได้รับวันหยุดชดเชยเพิ่มตามจำนวนวันที่ทำงาน โดยไม่นับรวมวันหยุดประจำเดือน ระบบจะกระจายวันชดเชยให้พนักงานหยุดคนละวัน เพื่อให้สาขายังเปิดบริการได้ สำหรับสาขาที่มีพนักงาน 2 คน ระบบจะสลับกะที่ 1 และกะที่ 2 ทุกสัปดาห์ (จันทร์–อาทิตย์) เมื่ออนุมัติลาของกะแรก ระบบจะย้ายพนักงานกะที่สองมาแทนกะแรกในวันนั้น'}
+              </Typography>
               <Button
                 variant="outlined"
                 size="small"
-                onClick={() => changeMonth(-1)}
+                onClick={() => setConfirmAutoSchedule(false)}
               >
-                เดือนก่อน
+                ยกเลิก
               </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setMonth(startOfMonth(new Date()))}
-              >
-                เดือนนี้
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => changeMonth(1)}
-              >
-                เดือนถัดไป
-              </Button>
-              <Divider
-                orientation="vertical"
-                flexItem
-                sx={{ mx: 0.5, borderColor: '#d8cec7' }}
-              />
-              <Button
-                variant="contained"
-                size="small"
-                onClick={() => {
-                  if (showEmployeesSkeleton || activeBranchId === null) return;
-                  if (confirmAutoSchedule) {
-                    setConfirmAutoSchedule(false);
-                    generate.mutate();
-                  } else setConfirmAutoSchedule(true);
-                }}
-                disabled={generate.isPending || Boolean(loadError)}
-                sx={
-                  confirmAutoSchedule
-                    ? { bgcolor: '#2e7d32', '&:hover': { bgcolor: '#1b5e20' } }
-                    : undefined
-                }
-              >
-                {generate.isPending
-                  ? 'กำลังจัดตาราง...'
-                  : confirmAutoSchedule
-                    ? 'ยืนยันจัดตาราง'
-                    : 'จัดตารางอัตโนมัติ'}
-              </Button>
-              {confirmAutoSchedule ? (
-                <>
-                  <Typography
-                    color="text.secondary"
-                    sx={{ alignSelf: 'center', fontSize: 12 }}
-                  >
-                    ระบบจะไม่จัดวันหยุดรายเดือนในวันเสาร์–อาทิตย์
-                    และสาขาที่มีพนักงานคนเดียวจะไม่ถูกจัดวันหยุดอัตโนมัติ
-                    สำหรับสาขาที่มีพนักงาน 2 คน ระบบจะสลับกะที่ 1 และกะที่ 2
-                    ทุกสัปดาห์ (จันทร์–อาทิตย์) เมื่ออนุมัติลาของกะแรก
-                    ระบบจะย้ายพนักงานกะที่สองมาแทนกะแรกในวันนั้น
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => setConfirmAutoSchedule(false)}
-                  >
-                    ยกเลิก
-                  </Button>
-                </>
-              ) : null}
             </>
           ) : null}
           <Button
@@ -654,7 +630,7 @@ export function EmployeesManagementPage({
                 display: 'grid',
                 gridTemplateColumns: {
                   xs: '1fr',
-                  sm: 'minmax(0, 2fr) minmax(0, 8fr)',
+                  sm: 'max-content minmax(0, 1fr)',
                 },
                 gap: 1.5,
                 mb: 2,
@@ -664,7 +640,13 @@ export function EmployeesManagementPage({
               {!franchiseMode ? (
                 <Card
                   variant="outlined"
-                  sx={{ p: 2, borderRadius: '15px', borderColor: '#e8ddd5' }}
+                  sx={{
+                    width: { xs: '100%', sm: 'fit-content' },
+                    minWidth: 'max-content',
+                    p: 2,
+                    borderRadius: '15px',
+                    borderColor: '#e8ddd5',
+                  }}
                 >
                   <Typography
                     color="text.secondary"
@@ -765,9 +747,11 @@ export function EmployeesManagementPage({
                                 ? 'ผู้จัดการสาขา'
                                 : 'แคชเชียร์')}
                             {' · '}
-                            {employee.department === 'postal'
-                              ? 'ไปรษณีย์'
-                              : 'SuperBlackCoffee'}
+                            {isHeadquarters
+                              ? 'สำนักงานใหญ่'
+                              : employee.department === 'postal'
+                                ? 'ไปรษณีย์'
+                                : 'SuperBlackCoffee'}
                           </Typography>
                           <ItemActionButtons
                             editLabel={
@@ -886,9 +870,11 @@ export function EmployeesManagementPage({
                                 ? 'ผู้จัดการสาขา'
                                 : 'แคชเชียร์')}
                             {' · '}
-                            {employee.department === 'postal'
-                              ? 'ไปรษณีย์'
-                              : 'SuperBlackCoffee'}
+                            {isHeadquarters
+                              ? 'สำนักงานใหญ่'
+                              : employee.department === 'postal'
+                                ? 'ไปรษณีย์'
+                                : 'SuperBlackCoffee'}
                           </Typography>
                           <ItemActionButtons
                             editLabel={
@@ -1104,75 +1090,45 @@ export function EmployeesManagementPage({
                   </Button>
                 </Box>
               </Box>
-              {isHeadquarters ? (
-                <Box sx={{ p: { xs: 2.5, md: 4 } }}>
+              <>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    px: { xs: 2, md: 2.5 },
+                    pt: 1.5,
+                    pb: 1,
+                  }}
+                >
                   <Typography
-                    sx={{ color: '#201914', fontSize: 20, fontWeight: 800 }}
-                  >
-                    เวลาทำงานมาตรฐาน
-                  </Typography>
-                  <Typography
-                    color="text.secondary"
-                    sx={{ mt: 0.75, fontSize: 15 }}
-                  >
-                    วันทำงานที่ตั้งค่า:{' '}
-                    {headquartersWorkDaysLabel(activeBranch?.workDays)} ·{' '}
-                    {activeBranch?.opensAt ?? '09:00'}–
-                    {activeBranch?.closesAt ?? '18:00'} น.
-                  </Typography>
-                  <Typography
-                    color="text.secondary"
-                    sx={{ mt: 0.5, fontSize: 14 }}
-                  >
-                    วันอื่นและวันหยุดนักขัตฤกษ์เป็นวันหยุด
-                    ไม่มีการจัดกะอัตโนมัติ
-                  </Typography>
-                  <Typography
-                    color="text.secondary"
-                    sx={{ mt: 1.5, fontSize: 13 }}
-                  >
-                    ก่อนเปิดใช้การลงเวลา ให้กำหนดพิกัดสำนักงานในหน้าสาขา SBC
-                  </Typography>
-                </Box>
-              ) : (
-                <>
-                  <Box
                     sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      px: { xs: 2, md: 2.5 },
-                      pt: 1.5,
-                      pb: 1,
+                      mr: 0.5,
+                      color: '#6e5b4d',
+                      fontSize: 13,
+                      fontWeight: 700,
                     }}
                   >
-                    <Typography
-                      sx={{
-                        mr: 0.5,
-                        color: '#6e5b4d',
-                        fontSize: 13,
-                        fontWeight: 700,
-                      }}
-                    >
-                      ปฏิทิน
-                    </Typography>
-                    <Button
-                      size="small"
-                      variant={
-                        calendarDepartment === 'cafe' ? 'contained' : 'outlined'
-                      }
-                      onClick={() => setCalendarDepartment('cafe')}
-                      sx={
-                        calendarDepartment === 'cafe'
-                          ? {
-                              bgcolor: '#805637',
-                              '&:hover': { bgcolor: '#60412a' },
-                            }
-                          : undefined
-                      }
-                    >
-                      SuperBlackCoffee
-                    </Button>
+                    ปฏิทิน
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant={
+                      calendarDepartment === 'cafe' ? 'contained' : 'outlined'
+                    }
+                    onClick={() => setCalendarDepartment('cafe')}
+                    sx={
+                      calendarDepartment === 'cafe'
+                        ? {
+                            bgcolor: '#805637',
+                            '&:hover': { bgcolor: '#60412a' },
+                          }
+                        : undefined
+                    }
+                  >
+                    {isHeadquarters ? 'สำนักงานใหญ่' : 'SuperBlackCoffee'}
+                  </Button>
+                  {!isHeadquarters ? (
                     <Button
                       size="small"
                       variant={
@@ -1192,217 +1148,225 @@ export function EmployeesManagementPage({
                     >
                       ไปรษณีย์
                     </Button>
-                  </Box>
-                  <Box sx={{ overflowX: 'auto' }}>
-                    <Box sx={{ minWidth: 780 }}>
-                      <Box
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                          borderBottom: '1px solid #eee4dd',
-                        }}
-                      >
-                        {thaiWeekday.map((day, index) => (
+                  ) : null}
+                  {isHeadquarters ? (
+                    <Typography sx={{ color: '#6e5b4d', fontSize: 12.5 }}>
+                      ทำงานวันจันทร์–เสาร์ · หยุดวันอาทิตย์และวันนักขัตฤกษ์
+                    </Typography>
+                  ) : null}
+                </Box>
+                <Box sx={{ overflowX: 'auto' }}>
+                  <Box sx={{ minWidth: 780 }}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                        borderBottom: '1px solid #eee4dd',
+                      }}
+                    >
+                      {thaiWeekday.map((day, index) => (
+                        <Box
+                          key={day}
+                          sx={{
+                            py: 1,
+                            textAlign: 'center',
+                            color: index > 4 ? '#9a6d5c' : '#60493b',
+                            fontSize: 13,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {day}
+                        </Box>
+                      ))}
+                    </Box>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                      }}
+                    >
+                      {calendarDays.map((day) => {
+                        const isCurrentMonth =
+                          day.getMonth() === month.getMonth();
+                        const isToday = isSameDay(day, today);
+                        const shifts = shiftsByDate.get(dateKey(day)) ?? [];
+                        const holiday = loadError
+                          ? undefined
+                          : holidaysByDate.get(dateKey(day));
+                        return (
                           <Box
-                            key={day}
+                            key={day.toISOString()}
                             sx={{
-                              py: 1,
-                              textAlign: 'center',
-                              color: index > 4 ? '#9a6d5c' : '#60493b',
-                              fontSize: 13,
-                              fontWeight: 700,
+                              minHeight: 122,
+                              p: 1.25,
+                              borderRight: '1px solid #eee4dd',
+                              borderBottom: '1px solid #eee4dd',
+                              bgcolor: !isCurrentMonth
+                                ? '#fbf8f6'
+                                : holiday
+                                  ? '#fff8eb'
+                                  : '#fff',
+                              opacity: isCurrentMonth ? 1 : 0.5,
+                              '&:nth-of-type(7n)': { borderRight: 0 },
+                              '&:nth-last-child(-n + 7)': { borderBottom: 0 },
                             }}
                           >
-                            {day}
-                          </Box>
-                        ))}
-                      </Box>
-                      <Box
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-                        }}
-                      >
-                        {calendarDays.map((day) => {
-                          const isCurrentMonth =
-                            day.getMonth() === month.getMonth();
-                          const isToday = isSameDay(day, today);
-                          const shifts = shiftsByDate.get(dateKey(day)) ?? [];
-                          const holiday = loadError
-                            ? undefined
-                            : holidaysByDate.get(dateKey(day));
-                          return (
                             <Box
-                              key={day.toISOString()}
                               sx={{
-                                minHeight: 122,
-                                p: 1.25,
-                                borderRight: '1px solid #eee4dd',
-                                borderBottom: '1px solid #eee4dd',
-                                bgcolor: !isCurrentMonth
-                                  ? '#fbf8f6'
-                                  : holiday
-                                    ? '#fff8eb'
-                                    : '#fff',
-                                opacity: isCurrentMonth ? 1 : 0.5,
-                                '&:nth-of-type(7n)': { borderRight: 0 },
-                                '&:nth-last-child(-n + 7)': { borderBottom: 0 },
+                                width: 26,
+                                height: 26,
+                                display: 'grid',
+                                placeItems: 'center',
+                                borderRadius: '50%',
+                                bgcolor: isToday ? '#3c2d24' : 'transparent',
+                                color: isToday ? '#fff' : '#45342b',
+                                fontSize: 13,
+                                fontWeight: 700,
                               }}
                             >
-                              <Box
+                              {day.getDate()}
+                            </Box>
+                            {!loadError && holiday ? (
+                              <Typography
+                                title={holiday.name}
                                 sx={{
-                                  width: 26,
-                                  height: 26,
-                                  display: 'grid',
-                                  placeItems: 'center',
-                                  borderRadius: '50%',
-                                  bgcolor: isToday ? '#3c2d24' : 'transparent',
-                                  color: isToday ? '#fff' : '#45342b',
-                                  fontSize: 13,
+                                  mt: 0.35,
+                                  color: '#b94136',
+                                  fontSize: 10,
                                   fontWeight: 700,
+                                  lineHeight: 1.25,
                                 }}
                               >
-                                {day.getDate()}
-                              </Box>
-                              {!loadError && holiday ? (
-                                <Typography
-                                  title={holiday.name}
+                                {holiday.name}
+                              </Typography>
+                            ) : null}
+                            {loadError ? (
+                              <Typography
+                                sx={{
+                                  mt: 2.5,
+                                  color: 'error.main',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  lineHeight: 1.35,
+                                }}
+                              >
+                                โหลดข้อมูลไม่สำเร็จ
+                              </Typography>
+                            ) : isCurrentMonth && shifts.length === 0 ? (
+                              <Typography
+                                sx={{
+                                  mt: 2.5,
+                                  color: '#a89285',
+                                  fontSize: 11,
+                                  lineHeight: 1.35,
+                                }}
+                              >
+                                ยังไม่มีตารางกะ{' '}
+                                {isHeadquarters
+                                  ? 'สำนักงานใหญ่'
+                                  : calendarDepartment === 'cafe'
+                                    ? 'SuperBlackCoffee'
+                                    : 'ไปรษณีย์'}
+                              </Typography>
+                            ) : null}
+                            {!loadError &&
+                              shifts.map((shift) => (
+                                <Box
+                                  key={shift.id}
+                                  component="button"
+                                  type="button"
+                                  draggable={isWorkingShift(shift.status)}
+                                  onClick={() => openShiftEditor(shift)}
+                                  onDragStart={() =>
+                                    setDraggedShiftId(shift.id)
+                                  }
+                                  onDragEnd={() => setDraggedShiftId(null)}
+                                  onDragOver={(event) => {
+                                    if (!isWorkingShift(shift.status))
+                                      event.preventDefault();
+                                  }}
+                                  onDrop={() => {
+                                    if (
+                                      draggedShiftId !== null &&
+                                      draggedShiftId !== shift.id &&
+                                      !isWorkingShift(shift.status)
+                                    )
+                                      replaceShift.mutate({
+                                        targetShiftId: shift.id,
+                                        sourceShiftId: draggedShiftId,
+                                      });
+                                  }}
                                   sx={{
-                                    mt: 0.35,
-                                    color: '#b94136',
-                                    fontSize: 10,
-                                    fontWeight: 700,
+                                    width: '100%',
+                                    border: 0,
+                                    cursor: 'pointer',
+                                    opacity:
+                                      draggedShiftId === shift.id
+                                        ? 0.55
+                                        : undefined,
+                                    outline:
+                                      draggedShiftId !== null &&
+                                      !isWorkingShift(shift.status)
+                                        ? '2px dashed #b94136'
+                                        : 'none',
+                                    outlineOffset: 2,
+                                    textAlign: 'left',
+                                    mt: 0.75,
+                                    px: 0.65,
+                                    py: 0.35,
+                                    borderRadius: '6px',
+                                    bgcolor:
+                                      shift.status === 'scheduled'
+                                        ? shiftColorsByUser.get(shift.userId)
+                                        : shift.status === 'compensatory_work'
+                                          ? '#dff4e7'
+                                          : shift.status === 'day_off'
+                                            ? '#ebe8e5'
+                                            : '#ffe4e4',
+                                    color: '#60493b',
+                                    fontFamily:
+                                      'IBM Plex Sans Thai, sans-serif',
+                                    fontSize: 11,
                                     lineHeight: 1.25,
                                   }}
                                 >
-                                  {holiday.name}
-                                </Typography>
-                              ) : null}
-                              {loadError ? (
-                                <Typography
-                                  sx={{
-                                    mt: 2.5,
-                                    color: 'error.main',
-                                    fontSize: 11,
-                                    fontWeight: 600,
-                                    lineHeight: 1.35,
-                                  }}
-                                >
-                                  โหลดข้อมูลไม่สำเร็จ
-                                </Typography>
-                              ) : isCurrentMonth && shifts.length === 0 ? (
-                                <Typography
-                                  sx={{
-                                    mt: 2.5,
-                                    color: '#a89285',
-                                    fontSize: 11,
-                                    lineHeight: 1.35,
-                                  }}
-                                >
-                                  ยังไม่มีตารางกะ{' '}
-                                  {calendarDepartment === 'cafe'
-                                    ? 'SuperBlackCoffee'
-                                    : 'ไปรษณีย์'}
-                                </Typography>
-                              ) : null}
-                              {!loadError &&
-                                shifts.map((shift) => (
                                   <Box
-                                    key={shift.id}
-                                    component="button"
-                                    type="button"
-                                    draggable={isWorkingShift(shift.status)}
-                                    onClick={() => openShiftEditor(shift)}
-                                    onDragStart={() =>
-                                      setDraggedShiftId(shift.id)
-                                    }
-                                    onDragEnd={() => setDraggedShiftId(null)}
-                                    onDragOver={(event) => {
-                                      if (!isWorkingShift(shift.status))
-                                        event.preventDefault();
-                                    }}
-                                    onDrop={() => {
-                                      if (
-                                        draggedShiftId !== null &&
-                                        draggedShiftId !== shift.id &&
-                                        !isWorkingShift(shift.status)
-                                      )
-                                        replaceShift.mutate({
-                                          targetShiftId: shift.id,
-                                          sourceShiftId: draggedShiftId,
-                                        });
-                                    }}
+                                    component="span"
                                     sx={{
-                                      width: '100%',
-                                      border: 0,
-                                      cursor: 'pointer',
-                                      opacity:
-                                        draggedShiftId === shift.id
-                                          ? 0.55
-                                          : undefined,
-                                      outline:
-                                        draggedShiftId !== null &&
-                                        !isWorkingShift(shift.status)
-                                          ? '2px dashed #b94136'
-                                          : 'none',
-                                      outlineOffset: 2,
-                                      textAlign: 'left',
-                                      mt: 0.75,
-                                      px: 0.65,
-                                      py: 0.35,
-                                      borderRadius: '6px',
-                                      bgcolor:
-                                        shift.status === 'scheduled'
-                                          ? shiftColorsByUser.get(shift.userId)
-                                          : shift.status === 'compensatory_work'
-                                            ? '#dff4e7'
-                                            : shift.status === 'day_off'
-                                              ? '#ebe8e5'
-                                              : '#ffe4e4',
-                                      color: '#60493b',
-                                      fontFamily:
-                                        'IBM Plex Sans Thai, sans-serif',
-                                      fontSize: 11,
-                                      lineHeight: 1.25,
+                                      display: 'block',
+                                      mb: 0.75,
+                                      overflow: 'hidden',
+                                      color: '#45342b',
+                                      fontWeight: 700,
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
                                     }}
                                   >
-                                    <Box
-                                      component="span"
-                                      sx={{
-                                        display: 'block',
-                                        mb: 0.75,
-                                        overflow: 'hidden',
-                                        color: '#45342b',
-                                        fontWeight: 700,
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                    >
-                                      {shift.name}
-                                    </Box>
-                                    <Box
-                                      component="span"
-                                      sx={{
-                                        display: 'block',
-                                        color: '#60493b',
-                                        fontSize: 11,
-                                        whiteSpace: 'nowrap',
-                                      }}
-                                    >
-                                      {isWorkingShift(shift.status)
-                                        ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
-                                        : leaveLabels[shift.status]}
-                                    </Box>
+                                    {shift.name}
                                   </Box>
-                                ))}
-                            </Box>
-                          );
-                        })}
-                      </Box>
+                                  <Box
+                                    component="span"
+                                    sx={{
+                                      display: 'block',
+                                      color: '#60493b',
+                                      fontSize: 11,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {isWorkingShift(shift.status)
+                                      ? `${shift.startsAt.slice(0, 5)} น. - ${shift.endsAt.slice(0, 5)} น.`
+                                      : shift.leaveType ||
+                                        leaveLabels[shift.status]}
+                                  </Box>
+                                </Box>
+                              ))}
+                          </Box>
+                        );
+                      })}
                     </Box>
                   </Box>
-                </>
-              )}
+                </Box>
+              </>
             </Card>
           </>
         ) : null}
@@ -1556,7 +1520,11 @@ export function EmployeesManagementPage({
           <DashboardDrawerHandle />
           <DashboardDrawerHeader
             title={editingEmployeeId !== null ? 'แก้ไขพนักงาน' : 'เพิ่มพนักงาน'}
-            description="สร้างบัญชีเพื่อเข้าสู่ระบบและจัดตารางกะ"
+            description={
+              isHeadquarters
+                ? 'สร้างบัญชีสำหรับพนักงานสำนักงานใหญ่ และกำหนดเวลาทำงานประจำ'
+                : 'สร้างบัญชีเพื่อเข้าสู่ระบบและจัดตารางกะ'
+            }
             onClose={() => setIsEmployeeDrawerOpen(false)}
           />
           <Box
@@ -1722,7 +1690,30 @@ export function EmployeesManagementPage({
                 slotProps={{ input: { readOnly: true } }}
                 helperText="ระบบสร้างจากรหัสสาขาและลำดับพนักงาน"
               />
-              {!franchiseMode && (
+              {isHeadquarters ? (
+                <Box
+                  sx={{
+                    gridColumn: { xs: '1', sm: '1 / -1' },
+                    border: '1px solid #d9e8db',
+                    borderRadius: 2,
+                    bgcolor: '#f4fbf5',
+                    px: 1.5,
+                    py: 1.25,
+                  }}
+                >
+                  <Typography
+                    sx={{ color: '#285b36', fontSize: 14, fontWeight: 700 }}
+                  >
+                    สำนักงานใหญ่
+                  </Typography>
+                  <Typography
+                    sx={{ mt: 0.25, color: '#477052', fontSize: 12.5 }}
+                  >
+                    พนักงานนี้อยู่สำนักงานใหญ่
+                    ระบบจัดวันหยุดวันอาทิตย์และวันนักขัตฤกษ์ให้โดยอัตโนมัติ
+                  </Typography>
+                </Box>
+              ) : !franchiseMode ? (
                 <FormControl required>
                   <InputLabel id="new-employee-branch-label">
                     สาขาที่ปฏิบัติงาน
@@ -1747,27 +1738,32 @@ export function EmployeesManagementPage({
                     ))}
                   </Select>
                 </FormControl>
-              )}
-              <FormControl required>
-                <InputLabel id="new-employee-department-label">แผนก</InputLabel>
-                <Select
-                  labelId="new-employee-department-label"
-                  label="แผนก"
-                  value={newEmployeeDepartment}
-                  onChange={(event) => {
-                    const department = event.target.value as 'cafe' | 'postal';
-                    setNewEmployeeDepartment(department);
-                    if (department === 'postal') {
-                      setDefaultStartsAt(postalWeekdaySchedule.startsAt);
-                      setDefaultEndsAt(postalWeekdaySchedule.endsAt);
-                      setAdditionalShifts([postalWeekendSchedule]);
-                    }
-                  }}
-                >
-                  <MenuItem value="cafe">SuperBlackCoffee</MenuItem>
-                  <MenuItem value="postal">ไปรษณีย์</MenuItem>
-                </Select>
-              </FormControl>
+              ) : null}
+              {!isHeadquarters ? (
+                <FormControl required>
+                  <InputLabel id="new-employee-department-label">
+                    แผนก
+                  </InputLabel>
+                  <Select
+                    labelId="new-employee-department-label"
+                    label="แผนก"
+                    value={newEmployeeDepartment}
+                    onChange={(event) => {
+                      const department = event.target.value as
+                        'cafe' | 'postal';
+                      setNewEmployeeDepartment(department);
+                      if (department === 'postal') {
+                        setDefaultStartsAt(postalWeekdaySchedule.startsAt);
+                        setDefaultEndsAt(postalWeekdaySchedule.endsAt);
+                        setAdditionalShifts([postalWeekendSchedule]);
+                      }
+                    }}
+                  >
+                    <MenuItem value="cafe">SuperBlackCoffee</MenuItem>
+                    <MenuItem value="postal">ไปรษณีย์</MenuItem>
+                  </Select>
+                </FormControl>
+              ) : null}
               <TextField
                 required
                 label="ตำแหน่ง"
@@ -1775,7 +1771,7 @@ export function EmployeesManagementPage({
                 value={newEmployeeJobTitle}
                 onChange={(event) => setNewEmployeeJobTitle(event.target.value)}
               />
-              {newEmployeeDepartment === 'postal' ? (
+              {!isHeadquarters && newEmployeeDepartment === 'postal' ? (
                 <Box
                   sx={{
                     gridColumn: '1 / -1',
@@ -1798,191 +1794,213 @@ export function EmployeesManagementPage({
                 </Box>
               ) : (
                 <>
-                  <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
-                    <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
-                    <Typography
-                      sx={{
-                        color: '#3c2d24',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        mb: 0.5,
-                      }}
-                    >
-                      วันหยุดของพนักงาน
-                    </Typography>
-                    <Typography sx={{ color: '#6e5b4d', fontSize: 12.5 }}>
-                      ตั้งค่าแยกจากสาขาที่ปฏิบัติงาน
-                      เพื่อให้พนักงานที่ไปช่วยสาขาอื่นยังใช้วันหยุดเดิมได้
-                    </Typography>
-                  </Box>
-                  <FormControl
-                    required
-                    sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
-                  >
-                    <InputLabel id="day-off-policy-label">
-                      รูปแบบวันหยุด
-                    </InputLabel>
-                    <Select
-                      labelId="day-off-policy-label"
-                      label="รูปแบบวันหยุด"
-                      value={dayOffPolicy}
-                      onChange={(event) =>
-                        setDayOffPolicy(
-                          event.target.value as
-                            | 'automatic'
-                            | 'home_branch'
-                            | 'work_branch'
-                            | 'custom',
-                        )
-                      }
-                    >
-                      <MenuItem value="automatic">
-                        ให้ระบบจัดวันหยุดรายเดือน
-                      </MenuItem>
-                      <MenuItem value="home_branch">
-                        อ้างอิงวันทำงานของสาขาที่เลือก
-                      </MenuItem>
-                      <MenuItem value="work_branch">
-                        อ้างอิงวันทำงานของสาขาที่ปฏิบัติงาน
-                      </MenuItem>
-                      <MenuItem value="custom">กำหนดวันหยุดเอง</MenuItem>
-                    </Select>
-                  </FormControl>
-                  {dayOffPolicy === 'home_branch' ? (
-                    <FormControl required sx={{ gridColumn: '1 / -1' }}>
-                      <InputLabel id="day-off-source-branch-label">
-                        สาขาอ้างอิงวันหยุด
-                      </InputLabel>
-                      <Select
-                        labelId="day-off-source-branch-label"
-                        label="สาขาอ้างอิงวันหยุด"
-                        value={dayOffSourceBranchId}
-                        onChange={(event) =>
-                          setDayOffSourceBranchId(event.target.value)
-                        }
-                      >
-                        {workspaceBranches.map((branch) => (
-                          <MenuItem key={branch.id} value={String(branch.id)}>
-                            {branch.name}
-                            {branch.isHeadquarters ? ' (สำนักงานใหญ่)' : ''}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  ) : null}
-                  {dayOffPolicy === 'custom' ? (
-                    <Box sx={{ gridColumn: '1 / -1' }}>
+                  {isHeadquarters ? (
+                    <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                      <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
                       <Typography
-                        sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}
+                        sx={{ color: '#3c2d24', fontSize: 14, fontWeight: 600 }}
                       >
-                        วันหยุดประจำสัปดาห์
+                        กฎวันหยุดสำนักงานใหญ่
                       </Typography>
-                      <Box
-                        aria-label="วันหยุดประจำสัปดาห์"
-                        sx={{
-                          display: 'flex',
-                          gap: 0.75,
-                          overflowX: 'auto',
-                          pb: 1.25,
-                        }}
+                      <Typography
+                        sx={{ mt: 0.5, color: '#6e5b4d', fontSize: 12.5 }}
                       >
-                        {thaiWeekday.map((day, index) => {
-                          const weekday = index + 1;
-                          const selected = weeklyDaysOff.includes(weekday);
-                          return (
-                            <Button
-                              key={day}
-                              size="small"
-                              variant={selected ? 'contained' : 'outlined'}
-                              aria-pressed={selected}
-                              onClick={() =>
-                                setWeeklyDaysOff((current) =>
-                                  current.includes(weekday)
-                                    ? current.filter(
-                                        (value) => value !== weekday,
-                                      )
-                                    : [...current, weekday],
-                                )
+                        หยุดวันอาทิตย์และวันนักขัตฤกษ์
+                        ไม่มีวันหยุดประจำเดือนหรือวันหยุดชดเชยอัตโนมัติ
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <>
+                      <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
+                        <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
+                        <Typography
+                          sx={{
+                            color: '#3c2d24',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            mb: 0.5,
+                          }}
+                        >
+                          วันหยุดของพนักงาน
+                        </Typography>
+                        <Typography sx={{ color: '#6e5b4d', fontSize: 12.5 }}>
+                          ตั้งค่าแยกจากสาขาที่ปฏิบัติงาน
+                          เพื่อให้พนักงานที่ไปช่วยสาขาอื่นยังใช้วันหยุดเดิมได้
+                        </Typography>
+                      </Box>
+                      <FormControl
+                        required
+                        sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}
+                      >
+                        <InputLabel id="day-off-policy-label">
+                          รูปแบบวันหยุด
+                        </InputLabel>
+                        <Select
+                          labelId="day-off-policy-label"
+                          label="รูปแบบวันหยุด"
+                          value={dayOffPolicy}
+                          onChange={(event) =>
+                            setDayOffPolicy(
+                              event.target.value as
+                                | 'automatic'
+                                | 'home_branch'
+                                | 'work_branch'
+                                | 'custom',
+                            )
+                          }
+                        >
+                          <MenuItem value="automatic">
+                            ให้ระบบจัดวันหยุดรายเดือน
+                          </MenuItem>
+                          <MenuItem value="home_branch">
+                            อ้างอิงวันทำงานของสาขาที่เลือก
+                          </MenuItem>
+                          <MenuItem value="work_branch">
+                            อ้างอิงวันทำงานของสาขาที่ปฏิบัติงาน
+                          </MenuItem>
+                          <MenuItem value="custom">กำหนดวันหยุดเอง</MenuItem>
+                        </Select>
+                      </FormControl>
+                      {dayOffPolicy === 'home_branch' ? (
+                        <FormControl required sx={{ gridColumn: '1 / -1' }}>
+                          <InputLabel id="day-off-source-branch-label">
+                            สาขาอ้างอิงวันหยุด
+                          </InputLabel>
+                          <Select
+                            labelId="day-off-source-branch-label"
+                            label="สาขาอ้างอิงวันหยุด"
+                            value={dayOffSourceBranchId}
+                            onChange={(event) =>
+                              setDayOffSourceBranchId(event.target.value)
+                            }
+                          >
+                            {workspaceBranches.map((branch) => (
+                              <MenuItem
+                                key={branch.id}
+                                value={String(branch.id)}
+                              >
+                                {branch.name}
+                                {branch.isHeadquarters ? ' (สำนักงานใหญ่)' : ''}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      ) : null}
+                      {dayOffPolicy === 'custom' ? (
+                        <Box sx={{ gridColumn: '1 / -1' }}>
+                          <Typography
+                            sx={{ color: '#5f4b3d', fontSize: 12.5, mb: 1 }}
+                          >
+                            วันหยุดประจำสัปดาห์
+                          </Typography>
+                          <Box
+                            aria-label="วันหยุดประจำสัปดาห์"
+                            sx={{
+                              display: 'flex',
+                              gap: 0.75,
+                              overflowX: 'auto',
+                              pb: 1.25,
+                            }}
+                          >
+                            {thaiWeekday.map((day, index) => {
+                              const weekday = index + 1;
+                              const selected = weeklyDaysOff.includes(weekday);
+                              return (
+                                <Button
+                                  key={day}
+                                  size="small"
+                                  variant={selected ? 'contained' : 'outlined'}
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    setWeeklyDaysOff((current) =>
+                                      current.includes(weekday)
+                                        ? current.filter(
+                                            (value) => value !== weekday,
+                                          )
+                                        : [...current, weekday],
+                                    )
+                                  }
+                                  sx={{
+                                    ...selectionPillSx(selected),
+                                    minWidth: 80,
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {day}
+                                </Button>
+                              );
+                            })}
+                          </Box>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              gap: 1,
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <TextField
+                              label="วันหยุดเฉพาะวันที่"
+                              type="date"
+                              value={customDayOffDate}
+                              onChange={(event) =>
+                                setCustomDayOffDate(event.target.value)
                               }
-                              sx={{
-                                ...selectionPillSx(selected),
-                                minWidth: 80,
-                                whiteSpace: 'nowrap',
+                              slotProps={{ inputLabel: { shrink: true } }}
+                              sx={{ minWidth: 210 }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outlined"
+                              disabled={
+                                !customDayOffDate ||
+                                customDaysOff.includes(customDayOffDate)
+                              }
+                              onClick={() => {
+                                if (
+                                  !customDayOffDate ||
+                                  customDaysOff.includes(customDayOffDate)
+                                )
+                                  return;
+                                setCustomDaysOff((current) =>
+                                  [...current, customDayOffDate].sort(),
+                                );
+                                setCustomDayOffDate('');
                               }}
                             >
-                              {day}
+                              เพิ่มวันหยุด
                             </Button>
-                          );
-                        })}
-                      </Box>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          gap: 1,
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <TextField
-                          label="วันหยุดเฉพาะวันที่"
-                          type="date"
-                          value={customDayOffDate}
-                          onChange={(event) =>
-                            setCustomDayOffDate(event.target.value)
-                          }
-                          slotProps={{ inputLabel: { shrink: true } }}
-                          sx={{ minWidth: 210 }}
-                        />
-                        <Button
-                          type="button"
-                          variant="outlined"
-                          disabled={
-                            !customDayOffDate ||
-                            customDaysOff.includes(customDayOffDate)
-                          }
-                          onClick={() => {
-                            if (
-                              !customDayOffDate ||
-                              customDaysOff.includes(customDayOffDate)
-                            )
-                              return;
-                            setCustomDaysOff((current) =>
-                              [...current, customDayOffDate].sort(),
-                            );
-                            setCustomDayOffDate('');
-                          }}
-                        >
-                          เพิ่มวันหยุด
-                        </Button>
-                      </Box>
-                      {customDaysOff.length > 0 ? (
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            gap: 0.75,
-                            flexWrap: 'wrap',
-                            mt: 1,
-                          }}
-                        >
-                          {customDaysOff.map((date) => (
-                            <Button
-                              key={date}
-                              type="button"
-                              size="small"
-                              variant="outlined"
-                              onClick={() =>
-                                setCustomDaysOff((current) =>
-                                  current.filter((value) => value !== date),
-                                )
-                              }
+                          </Box>
+                          {customDaysOff.length > 0 ? (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                gap: 0.75,
+                                flexWrap: 'wrap',
+                                mt: 1,
+                              }}
                             >
-                              {date} ×
-                            </Button>
-                          ))}
+                              {customDaysOff.map((date) => (
+                                <Button
+                                  key={date}
+                                  type="button"
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() =>
+                                    setCustomDaysOff((current) =>
+                                      current.filter((value) => value !== date),
+                                    )
+                                  }
+                                >
+                                  {date} ×
+                                </Button>
+                              ))}
+                            </Box>
+                          ) : null}
                         </Box>
                       ) : null}
-                    </Box>
-                  ) : null}
+                    </>
+                  )}
                   <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
                     <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
                     <Typography
@@ -1993,7 +2011,9 @@ export function EmployeesManagementPage({
                         mb: 1,
                       }}
                     >
-                      เวลาทำงานประจำ
+                      {isHeadquarters
+                        ? 'เวลาทำงานประจำสำนักงานใหญ่'
+                        : 'เวลาทำงานประจำ'}
                     </Typography>
                     <Typography
                       sx={{

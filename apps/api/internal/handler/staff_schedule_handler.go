@@ -2,6 +2,8 @@ package handler
 
 import (
 	"bufio"
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -739,10 +741,6 @@ func (h *PlatformHandler) GenerateStaffSchedules(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ไม่พบสาขาที่เลือก"})
 		return
 	}
-	if isHeadquarters {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "สำนักงานใหญ่ใช้เวลางานมาตรฐาน จึงไม่ต้องจัดตารางกะ"})
-		return
-	}
 	if claims.Role == "franchise_owner" {
 		branchID, ok := h.branchScope(c)
 		if !ok || input.BranchID != branchID {
@@ -774,7 +772,7 @@ SELECT COUNT(*) AS staff_count FROM users u JOIN branches b ON b.id=u.branch_id 
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถตรวจสอบวันทำงานได้"})
 		return
 	}
-	if staffCount*4 > availableWorkdays {
+	if !isHeadquarters && staffCount*4 > availableWorkdays {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"success": false, "message": "จำนวนพนักงานมากเกินกว่าจะจัดวันหยุดประจำเดือน 4 วันต่อคนโดยไม่ให้วันหยุดชนกัน"})
 		return
 	}
@@ -783,7 +781,7 @@ SELECT COUNT(*) AS staff_count FROM users u JOIN branches b ON b.id=u.branch_id 
     u.default_second_starts_at,u.default_second_ends_at,u.default_second_shift_days,u.default_shifts,
     u.day_off_policy,u.day_off_source_branch_id,u.weekly_days_off,u.custom_days_off,
     b.work_days AS work_branch_work_days,b.is_headquarters AS work_branch_is_headquarters,
-    source_branch.work_days AS source_branch_work_days,source_branch.is_headquarters AS source_branch_is_headquarters,
+	    source_branch.work_days AS source_branch_work_days,
   ROW_NUMBER() OVER (PARTITION BY u.branch_id,COALESCE(NULLIF(u.department,''),'cafe') ORDER BY u.id)::int - 1 AS employee_offset,
   COUNT(*) OVER (PARTITION BY u.branch_id,COALESCE(NULLIF(u.department,''),'cafe'))::int AS branch_staff_count,
   FIRST_VALUE(COALESCE(u.default_starts_at,TIME '08:00')) OVER (
@@ -856,6 +854,7 @@ SELECT COUNT(*) AS staff_count FROM users u JOIN branches b ON b.id=u.branch_id 
     COUNT(*) OVER (PARTITION BY c.user_id) AS eligible_days
   FROM calendar_days c
   WHERE c.day_off_policy='automatic'
+	    AND NOT c.work_branch_is_headquarters
 	    AND EXTRACT(ISODOW FROM c.shift_date)::int BETWEEN 1 AND 5
     AND NOT EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date)
 		AND NOT EXISTS (
@@ -865,7 +864,10 @@ SELECT COUNT(*) AS staff_count FROM users u JOIN branches b ON b.id=u.branch_id 
 				AND existing_shift.shift_date=c.shift_date
 				AND (
 					existing_shift.status NOT IN ('scheduled','day_off')
-					OR COALESCE(existing_shift.leave_type,'') NOT IN ('','วันหยุดประจำสัปดาห์','วันหยุดประจำเดือน','วันหยุดนักขัตฤกษ์','วันหยุดตามสาขาอ้างอิง','วันหยุดนักขัตฤกษ์ตามสำนักงานใหญ่','วันหยุดตามสาขาที่ปฏิบัติงาน','วันหยุดประจำ','วันหยุดเฉพาะวันที่')
+					OR (
+						COALESCE(existing_shift.leave_type,'') NOT IN ('','วันหยุดประจำสัปดาห์','วันหยุดประจำเดือน','วันหยุดนักขัตฤกษ์','วันหยุดตามสาขาอ้างอิง','วันหยุดนักขัตฤกษ์ตามสำนักงานใหญ่','วันหยุดตามสาขาที่ปฏิบัติงาน','วันหยุดประจำ','วันหยุดเฉพาะวันที่')
+						AND COALESCE(existing_shift.leave_type,'') NOT LIKE 'วันหยุดชดเชยวันนักขัตฤกษ์:%'
+					)
 					OR EXISTS (
 						SELECT 1
 						FROM staff_attendance attendance
@@ -942,13 +944,17 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE COALESCE(c.default_second_ends_at,c.default_ends_at)
   END,
   CASE
+    WHEN c.day_off_policy='automatic'
+      AND c.work_branch_is_headquarters
+      AND EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date) THEN 'day_off'
+    WHEN c.day_off_policy='automatic'
+      AND c.work_branch_is_headquarters
+      AND EXTRACT(ISODOW FROM c.shift_date)::int = 7 THEN 'day_off'
     WHEN c.day_off_policy='home_branch' AND (
       NOT (EXTRACT(ISODOW FROM c.shift_date)::int = ANY(COALESCE(c.source_branch_work_days, ARRAY[]::smallint[])))
-      OR (COALESCE(c.source_branch_is_headquarters,false) AND EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date))
     ) THEN 'day_off'
     WHEN c.day_off_policy='work_branch' AND (
       NOT (EXTRACT(ISODOW FROM c.shift_date)::int = ANY(COALESCE(c.work_branch_work_days, ARRAY[]::smallint[])))
-      OR (c.work_branch_is_headquarters AND EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date))
     ) THEN 'day_off'
     WHEN c.day_off_policy='custom' AND (
       c.shift_date = ANY(COALESCE(c.custom_days_off, ARRAY[]::date[]))
@@ -963,7 +969,12 @@ SELECT c.user_id,c.branch_id,c.shift_date,
     ELSE 'scheduled'
   END,
   CASE
-    WHEN c.day_off_policy='home_branch' AND COALESCE(c.source_branch_is_headquarters,false) AND EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date) THEN 'วันหยุดนักขัตฤกษ์ตามสำนักงานใหญ่'
+    WHEN c.day_off_policy='automatic'
+      AND c.work_branch_is_headquarters
+      AND EXISTS (SELECT 1 FROM public_holidays holiday WHERE holiday.holiday_date=c.shift_date) THEN 'วันหยุดนักขัตฤกษ์'
+    WHEN c.day_off_policy='automatic'
+      AND c.work_branch_is_headquarters
+      AND EXTRACT(ISODOW FROM c.shift_date)::int = 7 THEN 'วันหยุดประจำสัปดาห์'
     WHEN c.day_off_policy='home_branch' THEN 'วันหยุดตามสาขาอ้างอิง'
     WHEN c.day_off_policy='work_branch' THEN 'วันหยุดตามสาขาที่ปฏิบัติงาน'
     WHEN c.day_off_policy='custom' AND c.shift_date = ANY(COALESCE(c.custom_days_off, ARRAY[]::date[])) THEN 'วันหยุดเฉพาะวันที่'
@@ -982,7 +993,10 @@ ON CONFLICT (user_id,shift_date) DO UPDATE SET
   ends_at=CASE WHEN COALESCE(staff_shifts.is_time_override,false) THEN staff_shifts.ends_at ELSE EXCLUDED.ends_at END,
   status=EXCLUDED.status,leave_type=EXCLUDED.leave_type
 WHERE staff_shifts.status IN ('scheduled','day_off')
-  AND COALESCE(staff_shifts.leave_type,'') IN ('','วันหยุดประจำสัปดาห์','วันหยุดประจำเดือน','วันหยุดนักขัตฤกษ์','วันหยุดตามสาขาอ้างอิง','วันหยุดนักขัตฤกษ์ตามสำนักงานใหญ่','วันหยุดตามสาขาที่ปฏิบัติงาน','วันหยุดประจำ','วันหยุดเฉพาะวันที่')
+  AND (
+    COALESCE(staff_shifts.leave_type,'') IN ('','วันหยุดประจำสัปดาห์','วันหยุดประจำเดือน','วันหยุดนักขัตฤกษ์','วันหยุดตามสาขาอ้างอิง','วันหยุดนักขัตฤกษ์ตามสำนักงานใหญ่','วันหยุดตามสาขาที่ปฏิบัติงาน','วันหยุดประจำ','วันหยุดเฉพาะวันที่')
+    OR COALESCE(staff_shifts.leave_type,'') LIKE 'วันหยุดชดเชยวันนักขัตฤกษ์:%'
+  )
   AND NOT EXISTS (
     SELECT 1 FROM staff_attendance attendance
     WHERE attendance.user_id=staff_shifts.user_id
@@ -1004,6 +1018,12 @@ WHERE staff_shifts.status IN ('scheduled','day_off')
 	if err != nil {
 		c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถจัดตารางอัตโนมัติได้"})
 		return
+	}
+	if !isHeadquarters {
+		if err := assignPublicHolidayCompensatoryDays(c.Request.Context(), tx, input.BranchID, month, monthEnd); err != nil {
+			c.JSON(500, gin.H{"success": false, "message": "ไม่สามารถจัดวันหยุดชดเชยวันนักขัตฤกษ์ได้"})
+			return
+		}
 	}
 	// A staff member with more than one configured shift is a flexible cover
 	// member. They keep their own day off, but on working days they take the
@@ -1082,4 +1102,149 @@ WHERE s.id=flexible.id
 	}
 	created, _ := result.RowsAffected()
 	c.JSON(201, gin.H{"success": true, "data": gin.H{"created": created, "month": input.Month}})
+}
+
+type holidayShift struct {
+	date   time.Time
+	name   string
+	userID int64
+}
+
+// assignPublicHolidayCompensatoryDays gives every employee who works on a
+// public holiday their own replacement day off. Compensatory days accumulate
+// separately from regular monthly days off: two public holidays worked means
+// two additional days off for each employee. Days are allocated one employee
+// at a time, never sharing a date within the branch, so the store keeps staff
+// available. Saturday and Sunday may be used when they are the closest
+// available dates. A prior day is only used when later dates are unavailable
+// in the selected month. A compensatory day is also skipped when it would
+// create three consecutive non-working days for that employee.
+func assignPublicHolidayCompensatoryDays(ctx context.Context, tx *sql.Tx, branchID int64, month, monthEnd time.Time) error {
+	rows, err := tx.QueryContext(ctx, `
+SELECT h.holiday_date,h.name,s.user_id
+FROM public_holidays h
+JOIN staff_shifts s ON s.branch_id=$1 AND s.shift_date=h.holiday_date
+WHERE h.holiday_date >= $2 AND h.holiday_date < $3
+  AND s.status IN ('scheduled','compensatory_work')
+ORDER BY h.holiday_date,s.user_id`, branchID, month, monthEnd)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	holidayShifts := []holidayShift{}
+	for rows.Next() {
+		var item holidayShift
+		if err := rows.Scan(&item.date, &item.name, &item.userID); err != nil {
+			return err
+		}
+		holidayShifts = append(holidayShifts, item)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	// This is intentionally branch-wide, rather than per employee: a public
+	// holiday may earn every worker a day off, but their replacement days must
+	// be spread across different dates to avoid closing the branch.
+	usedDates := map[string]bool{}
+	for _, holiday := range holidayShifts {
+		candidateRows, err := tx.QueryContext(ctx, `
+SELECT s.id,s.shift_date
+FROM staff_shifts s
+WHERE s.user_id=$1
+  AND s.branch_id=$2
+  AND s.shift_date >= $3 AND s.shift_date < $4
+  AND s.status='scheduled'
+  AND NOT EXISTS (
+    SELECT 1 FROM public_holidays h WHERE h.holiday_date=s.shift_date
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM staff_attendance a
+    WHERE a.user_id=s.user_id AND a.work_date=s.shift_date AND a.check_in_at IS NOT NULL
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM staff_shifts branch_day_off
+    WHERE branch_day_off.branch_id=s.branch_id
+      AND branch_day_off.shift_date=s.shift_date
+      AND branch_day_off.status='day_off'
+  )
+  AND NOT (
+    (
+      EXISTS (
+        SELECT 1 FROM staff_shifts previous_two
+        WHERE previous_two.user_id=s.user_id AND previous_two.shift_date=s.shift_date - 2
+          AND previous_two.status IN ('day_off','leave','sick_leave','personal_leave')
+      )
+      AND EXISTS (
+        SELECT 1 FROM staff_shifts previous_one
+        WHERE previous_one.user_id=s.user_id AND previous_one.shift_date=s.shift_date - 1
+          AND previous_one.status IN ('day_off','leave','sick_leave','personal_leave')
+      )
+    )
+    OR (
+      EXISTS (
+        SELECT 1 FROM staff_shifts previous_one
+        WHERE previous_one.user_id=s.user_id AND previous_one.shift_date=s.shift_date - 1
+          AND previous_one.status IN ('day_off','leave','sick_leave','personal_leave')
+      )
+      AND EXISTS (
+        SELECT 1 FROM staff_shifts next_one
+        WHERE next_one.user_id=s.user_id AND next_one.shift_date=s.shift_date + 1
+          AND next_one.status IN ('day_off','leave','sick_leave','personal_leave')
+      )
+    )
+    OR (
+      EXISTS (
+        SELECT 1 FROM staff_shifts next_one
+        WHERE next_one.user_id=s.user_id AND next_one.shift_date=s.shift_date + 1
+          AND next_one.status IN ('day_off','leave','sick_leave','personal_leave')
+      )
+      AND EXISTS (
+        SELECT 1 FROM staff_shifts next_two
+        WHERE next_two.user_id=s.user_id AND next_two.shift_date=s.shift_date + 2
+          AND next_two.status IN ('day_off','leave','sick_leave','personal_leave')
+      )
+    )
+  )
+ORDER BY
+  CASE WHEN s.shift_date > $5 THEN 0 ELSE 1 END,
+  CASE WHEN s.shift_date > $5 THEN s.shift_date - $5 ELSE $5 - s.shift_date END,
+  s.shift_date`, holiday.userID, branchID, month, monthEnd, holiday.date)
+		if err != nil {
+			return err
+		}
+
+		var shiftID int64
+		found := false
+		for candidateRows.Next() {
+			var candidateDate time.Time
+			if err := candidateRows.Scan(&shiftID, &candidateDate); err != nil {
+				candidateRows.Close()
+				return err
+			}
+			candidateKey := candidateDate.Format("2006-01-02")
+			if !usedDates[candidateKey] {
+				usedDates[candidateKey] = true
+				found = true
+				break
+			}
+		}
+		if err := candidateRows.Err(); err != nil {
+			candidateRows.Close()
+			return err
+		}
+		candidateRows.Close()
+		if !found {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `
+UPDATE staff_shifts
+SET status='day_off',leave_type=$1
+WHERE id=$2 AND status='scheduled'`, "วันหยุดชดเชยวันนักขัตฤกษ์: "+holiday.name, shiftID); err != nil {
+			return err
+		}
+	}
+	return nil
 }

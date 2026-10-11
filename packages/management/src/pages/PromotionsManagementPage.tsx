@@ -509,9 +509,13 @@ export function PromotionsManagementPage({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const canWrite = mode !== 'franchise';
+  const sessionRole = mode === 'franchise' ? 'franchise_owner' : mode;
   useEffect(() => {
     let active = true;
-    void Promise.all([listPromotions(), listPromotionBranches()])
+    void Promise.all([
+      listPromotions(sessionRole),
+      listPromotionBranches(sessionRole),
+    ])
       .then(([nextPromotions, nextBranches]) => {
         if (!active) return;
         setPromotions(nextPromotions);
@@ -531,14 +535,14 @@ export function PromotionsManagementPage({
     return () => {
       active = false;
     };
-  }, []);
+  }, [sessionRole]);
   useEffect(() => {
     if (!menuBranchCode) {
       setMenus([]);
       return;
     }
     let active = true;
-    void listPromotionMenus(menuBranchCode)
+    void listPromotionMenus(menuBranchCode, sessionRole)
       .then((nextMenus) => active && setMenus(nextMenus))
       .catch(
         (reason) =>
@@ -550,7 +554,7 @@ export function PromotionsManagementPage({
     return () => {
       active = false;
     };
-  }, [menuBranchCode]);
+  }, [menuBranchCode, sessionRole]);
   const visible = useMemo(
     () =>
       promotions.filter((promotion) => {
@@ -590,8 +594,8 @@ export function PromotionsManagementPage({
     setError('');
     try {
       const next = editing
-        ? await updatePromotion(editing.id, asInput(draft))
-        : await createPromotion(asInput(draft));
+        ? await updatePromotion(editing.id, asInput(draft), sessionRole)
+        : await createPromotion(asInput(draft), sessionRole);
       setPromotions((current) =>
         editing
           ? current.map((item) => (item.id === next.id ? next : item))
@@ -613,7 +617,7 @@ export function PromotionsManagementPage({
     if (!window.confirm(`ลบโปรโมชั่น “${promotion.name}” หรือไม่?`)) return;
     setSaving(true);
     try {
-      await deletePromotion(promotion.id);
+      await deletePromotion(promotion.id, sessionRole);
       setPromotions((current) =>
         current.filter((item) => item.id !== promotion.id),
       );

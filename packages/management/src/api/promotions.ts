@@ -1,4 +1,5 @@
 type ApiEnvelope<T> = { success: boolean; data: T; message?: string };
+export type PromotionSessionRole = 'admin' | 'franchise_owner' | 'stock';
 
 export type PromotionStatus = 'draft' | 'active' | 'paused' | 'expired';
 export type PromotionMenu = {
@@ -43,9 +44,14 @@ type MenuCatalogItem = Omit<PromotionMenu, 'price'> & {
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api/v1';
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  sessionRole: PromotionSessionRole = 'admin',
+): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
+  headers.set('X-SBC-Session-Role', sessionRole);
   const response = await fetch(`${apiUrl}${path}`, {
     ...options,
     headers,
@@ -95,28 +101,53 @@ const normalizePromotion = (promotion: Promotion): Promotion => ({
     : [],
 });
 
-export const listPromotions = async () =>
-  (await request<Promotion[]>('/promotions')).map(normalizePromotion);
-export const listPromotionBranches = () => request<BranchOption[]>('/branches');
-export const listPromotionMenus = async (branchCode: string) =>
+export const listPromotions = async (sessionRole?: PromotionSessionRole) =>
+  (await request<Promotion[]>('/promotions', {}, sessionRole)).map(
+    normalizePromotion,
+  );
+export const listPromotionBranches = (sessionRole?: PromotionSessionRole) =>
+  request<BranchOption[]>('/branches', {}, sessionRole);
+export const listPromotionMenus = async (
+  branchCode: string,
+  sessionRole?: PromotionSessionRole,
+) =>
   (
     await request<MenuCatalogItem[]>(
       `/menu-items?branchCode=${encodeURIComponent(branchCode)}`,
+      {},
+      sessionRole,
     )
   ).map(normalizeMenu);
-export const createPromotion = async (input: PromotionInput) =>
+export const createPromotion = async (
+  input: PromotionInput,
+  sessionRole?: PromotionSessionRole,
+) =>
   normalizePromotion(
-    await request<Promotion>('/promotions', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    }),
+    await request<Promotion>(
+      '/promotions',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      sessionRole,
+    ),
   );
-export const updatePromotion = async (id: number, input: PromotionInput) =>
+export const updatePromotion = async (
+  id: number,
+  input: PromotionInput,
+  sessionRole?: PromotionSessionRole,
+) =>
   normalizePromotion(
-    await request<Promotion>(`/promotions/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(input),
-    }),
+    await request<Promotion>(
+      `/promotions/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      },
+      sessionRole,
+    ),
   );
-export const deletePromotion = (id: number) =>
-  request<void>(`/promotions/${id}`, { method: 'DELETE' });
+export const deletePromotion = (
+  id: number,
+  sessionRole?: PromotionSessionRole,
+) => request<void>(`/promotions/${id}`, { method: 'DELETE' }, sessionRole);

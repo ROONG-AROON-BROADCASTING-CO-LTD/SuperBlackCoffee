@@ -40,7 +40,11 @@ type WebsiteLanguageProviderProps = {
 function persistLanguage(language: WebsiteLanguage) {
   const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   document.cookie = `${websiteLanguageCookieName}=${language}; Path=/; Max-Age=${oneYearInSeconds}; SameSite=Lax${secure}`;
-  window.localStorage.setItem(storageKey, language);
+  try {
+    window.localStorage.setItem(storageKey, language);
+  } catch {
+    // Cookie and in-memory language still work when browser storage is blocked.
+  }
 }
 
 export function WebsiteLanguageProvider({
@@ -55,7 +59,12 @@ export function WebsiteLanguageProvider({
   useEffect(() => {
     if (hasLanguageCookie) return;
 
-    const storedLanguage = window.localStorage.getItem(storageKey);
+    let storedLanguage: string | null = null;
+    try {
+      storedLanguage = window.localStorage.getItem(storageKey);
+    } catch {
+      // Render the server language even when storage access is unavailable.
+    }
     if (isWebsiteLanguage(storedLanguage)) {
       setLanguageState(storedLanguage);
       persistLanguage(storedLanguage);

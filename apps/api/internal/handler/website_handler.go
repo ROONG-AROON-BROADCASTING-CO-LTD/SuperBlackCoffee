@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,6 +52,12 @@ func (h *PlatformHandler) CreateWebsiteLead(c *gin.Context) {
 	}
 	var input websiteLeadInput
 	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณากรอกชื่อและเบอร์โทรศัพท์ให้ถูกต้อง"})
+		return
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	input.Phone = strings.TrimSpace(input.Phone)
+	if utf8.RuneCountInString(input.Name) < 2 || utf8.RuneCountInString(input.Phone) < 8 {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "กรุณากรอกชื่อและเบอร์โทรศัพท์ให้ถูกต้อง"})
 		return
 	}

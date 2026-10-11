@@ -354,7 +354,7 @@ func (h *PlatformHandler) validatePromotionScope(c *gin.Context, id int64, input
 	}
 	if id > 0 {
 		var allowed bool
-		if err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM promotion_branches WHERE promotion_id=$1 AND branch_id=$2)`, id, branchID).Scan(&allowed); err != nil || !allowed {
+		if err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM promotion_branches WHERE promotion_id=$1 AND branch_id=$2) AND NOT EXISTS(SELECT 1 FROM promotion_branches WHERE promotion_id=$1 AND branch_id<>$2)`, id, branchID).Scan(&allowed); err != nil || !allowed {
 			return fmtError("ไม่มีสิทธิ์แก้ไขโปรโมชั่นนี้")
 		}
 	}
@@ -388,7 +388,7 @@ func (h *PlatformHandler) canManagePromotion(c *gin.Context, promotionID int64) 
 		return false
 	}
 	var allowed bool
-	err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM promotion_branches WHERE promotion_id=$1 AND branch_id=$2)`, promotionID, branchID).Scan(&allowed)
+	err := h.db.QueryRowContext(c.Request.Context(), `SELECT EXISTS(SELECT 1 FROM promotion_branches WHERE promotion_id=$1 AND branch_id=$2) AND NOT EXISTS(SELECT 1 FROM promotion_branches WHERE promotion_id=$1 AND branch_id<>$2)`, promotionID, branchID).Scan(&allowed)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "ไม่มีสิทธิ์จัดการโปรโมชั่นนี้"})
 		return false

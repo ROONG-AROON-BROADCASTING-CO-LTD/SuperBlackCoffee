@@ -13,6 +13,18 @@ const response = (data: unknown) =>
 describe('promotion API client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it.each(['admin', 'franchise_owner', 'stock'] as const)(
+    'pins promotion requests to the %s session when multiple app cookies exist',
+    async (role) => {
+      const fetch = vi.fn().mockResolvedValue(response([]));
+      vi.stubGlobal('fetch', fetch);
+      await listPromotions(role);
+      const options = fetch.mock.calls[0][1];
+      expect(new Headers(options.headers).get('X-SBC-Session-Role')).toBe(role);
+      expect(options.credentials).toBe('include');
+    },
+  );
+
   it('normalizes stored campaign dates returned by the API', async () => {
     const fetch = vi.fn().mockResolvedValue(
       response([

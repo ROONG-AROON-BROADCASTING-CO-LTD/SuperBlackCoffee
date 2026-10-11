@@ -137,7 +137,8 @@ export function StockMobileNavigation({
         gap: 0.75,
         // Keep the navigation visible above the cart Drawer and its backdrop.
         // The cart sheet itself stops immediately above this bar.
-        zIndex: (theme) => theme.zIndex.modal + 1,
+        zIndex: (theme) =>
+          cartOpen ? theme.zIndex.modal + 1 : theme.zIndex.drawer,
         left: 0,
         right: 0,
         bottom: 0,

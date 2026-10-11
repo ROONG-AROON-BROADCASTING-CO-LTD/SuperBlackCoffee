@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as promotionsApi from '../../api/promotions';
 import { PromotionsSkeleton } from '../../components/skeletons/PromotionsSkeleton';
@@ -62,6 +68,90 @@ describe('PromotionsManagementPage', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('preserves edited campaign fields when the API rejects the save', async () => {
+    vi.mocked(promotionsApi.updatePromotion).mockRejectedValueOnce(
+      new Error('ไม่มีสิทธิ์แก้ไขโปรโมชั่นนี้'),
+    );
+    render(<PromotionsManagementPage mode="admin" />);
+    await screen.findByText('กาแฟเช้า ลด 20%');
+    fireEvent.click(screen.getByRole('button', { name: 'จัดการโปรโมชั่น' }));
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.change(screen.getByLabelText(/^ชื่อโปรโมชั่น/), {
+      target: { value: 'Campaign changed' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' }));
+    await waitFor(() =>
+      expect(promotionsApi.updatePromotion).toHaveBeenCalledWith(
+        7,
+        expect.objectContaining({
+          name: 'Campaign changed',
+          menuItemIds: [11],
+          branchIds: [1],
+        }),
+        'admin',
+      ),
+    );
+    await screen.findByText('ไม่มีสิทธิ์แก้ไขโปรโมชั่นนี้');
+    await waitFor(() =>
+      expect(screen.getByLabelText(/^ชื่อโปรโมชั่น/)).toHaveValue(
+        'Campaign changed',
+      ),
+    );
+    expect(
+      screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' }),
+    ).toBeEnabled();
+    expect(promotionsApi.createPromotion).not.toHaveBeenCalled();
+  });
+
+  it('rejects a campaign whose end date is before its start date', async () => {
+    render(<PromotionsManagementPage mode="admin" />);
+    await screen.findByText('กาแฟเช้า ลด 20%');
+    fireEvent.click(screen.getByRole('button', { name: 'จัดการโปรโมชั่น' }));
+    fireEvent.click(screen.getByRole('button', { name: 'แก้ไข' }));
+    fireEvent.change(screen.getByLabelText('เริ่มแคมเปญ'), {
+      target: { value: '2026-10-31' },
+    });
+    fireEvent.change(screen.getByLabelText('สิ้นสุดแคมเปญ'), {
+      target: { value: '2026-10-30' },
+    });
+    expect(
+      screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกโปรโมชั่น' }));
+    expect(promotionsApi.updatePromotion).not.toHaveBeenCalled();
+  });
+
+  it('does not delete a campaign when the user cancels confirmation', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<PromotionsManagementPage mode="admin" />);
+    await screen.findByText('กาแฟเช้า ลด 20%');
+    fireEvent.click(screen.getByRole('button', { name: 'จัดการโปรโมชั่น' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ลบ' }));
+    expect(promotionsApi.deletePromotion).not.toHaveBeenCalled();
+    expect(screen.getByText('รายละเอียดโปรโมชั่น')).toBeInTheDocument();
+  });
+
+  it('retains the campaign details when deletion fails', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(promotionsApi.deletePromotion).mockRejectedValueOnce(
+      new Error('Cannot delete campaign'),
+    );
+    render(<PromotionsManagementPage mode="admin" />);
+    await screen.findByText('กาแฟเช้า ลด 20%');
+    fireEvent.click(screen.getByRole('button', { name: 'จัดการโปรโมชั่น' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ลบ' }));
+    await screen.findByText('Cannot delete campaign');
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'ลบ' })).toBeEnabled(),
+    );
+    expect(promotionsApi.deletePromotion).toHaveBeenCalledExactlyOnceWith(
+      7,
+      'admin',
+    );
+    expect(screen.getByText('รายละเอียดโปรโมชั่น')).toBeInTheDocument();
   });
 
   it('loads promotions from the API rather than seeded client data', async () => {
@@ -76,10 +166,29 @@ describe('PromotionsManagementPage', () => {
     render(<PromotionsManagementPage mode="franchise" branchName="อยุธยา" />);
 
     expect(await screen.findByText('สาขาอยุธยา')).toBeTruthy();
+    expect(promotionsApi.listPromotions).toHaveBeenCalledWith(
+      'franchise_owner',
+    );
+    expect(promotionsApi.listPromotionBranches).toHaveBeenCalledWith(
+      'franchise_owner',
+    );
     expect(screen.queryByRole('button', { name: 'เพิ่มโปรโมชั่น' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'จัดการโปรโมชั่น' }));
     expect(await screen.findByText('รายละเอียดโปรโมชั่น')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'แก้ไข' })).toBeNull();
+  });
+
+  it('loads the stock branch catalogue with the dedicated stock session', async () => {
+    render(<PromotionsManagementPage mode="stock" />);
+    await screen.findByText('กาแฟเช้า ลด 20%');
+    expect(promotionsApi.listPromotions).toHaveBeenCalledWith('stock');
+    expect(promotionsApi.listPromotionBranches).toHaveBeenCalledWith('stock');
+    await waitFor(() =>
+      expect(promotionsApi.listPromotionMenus).toHaveBeenCalledWith(
+        'TEST',
+        'stock',
+      ),
+    );
   });
 
   it('renders the promotion skeleton as a four-card grid', () => {
