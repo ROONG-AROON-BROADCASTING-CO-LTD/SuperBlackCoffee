@@ -303,7 +303,7 @@ export default function App() {
     }
   };
   const logout = () => {
-    void logoutAttendance();
+    void logoutAttendance().catch(() => undefined);
     setSession(null);
     setStatus(null);
     setHistory([]);

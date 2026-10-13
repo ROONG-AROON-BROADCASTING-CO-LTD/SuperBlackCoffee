@@ -1,3 +1,5 @@
+import { websiteResponsive } from './websiteResponsive';
+
 // Global document defaults owned by MUI CssBaseline.
 export const websiteBaseline = {
   ':root': {
@@ -93,4 +95,5 @@ export const websiteBaseline = {
       animation: 'none !important',
     },
   },
+  ...websiteResponsive,
 };

@@ -17,12 +17,44 @@ vi.mock('axios', () => ({
   },
 }));
 
-import { downloadSecuredPDF, publicRequest, secured } from '../client';
+import {
+  downloadSecuredPDF,
+  publicRequest,
+  resetAdminRequests,
+  secured,
+} from '../client';
 import { login, logout, restoreSession } from '../auth';
+
+const clientConfiguration = mocks.create.mock.calls[0]?.[0];
 
 describe('admin API client', () => {
   afterEach(() => {
+    resetAdminRequests();
     vi.clearAllMocks();
+  });
+
+  it('does not reuse a previous account pending request after session reset', async () => {
+    let resolvePrevious!: (value: unknown) => void;
+    mocks.request.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePrevious = resolve;
+        }),
+    );
+    const previous = secured('/users');
+    resetAdminRequests();
+    mocks.request.mockResolvedValueOnce({
+      data: { success: true, data: ['new-account'] },
+    });
+    await expect(secured('/users')).resolves.toEqual(['new-account']);
+    expect(mocks.request).toHaveBeenCalledTimes(2);
+    resolvePrevious({ data: { success: true, data: ['previous-account'] } });
+    await expect(previous).resolves.toEqual(['previous-account']);
+    mocks.request.mockResolvedValueOnce({
+      data: { success: true, data: ['fresh'] },
+    });
+    await expect(secured('/users')).resolves.toEqual(['fresh']);
+    expect(mocks.request).toHaveBeenCalledTimes(3);
   });
 
   it('uses the configured cookie-enabled client without a Bearer token', async () => {
@@ -38,7 +70,7 @@ describe('admin API client', () => {
         headers: { 'X-SBC-Session-Role': 'admin' },
       }),
     );
-    expect(mocks.create).toHaveBeenCalledWith(
+    expect(clientConfiguration).toEqual(
       expect.objectContaining({ withCredentials: true }),
     );
     expect(

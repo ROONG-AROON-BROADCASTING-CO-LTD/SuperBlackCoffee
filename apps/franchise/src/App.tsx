@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 import { SbcThemeProvider } from '@stackbuild/ui';
 import {
   QueryAutoRetrySnackbar,
   setManagementSessionRole,
+  resetManagementRequests,
 } from '@stackbuild/management';
 import { logout as endSession, restoreSession } from './api/auth';
 import type { FranchiseUser } from './api/auth';
@@ -12,13 +14,16 @@ import { FranchiseDashboard } from './features/dashboard/FranchiseDashboard';
 setManagementSessionRole('franchise_owner');
 
 export default function App() {
+  const queryClient = useContext(QueryClientContext);
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState<FranchiseUser | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
   const sessionEpoch = useRef(0);
   const logout = () => {
     sessionEpoch.current += 1;
-    void endSession();
+    queryClient?.clear();
+    resetManagementRequests();
+    void endSession().catch(() => undefined);
     sessionStorage.removeItem('sbc-franchise-active-page');
     sessionStorage.removeItem('sbc-franchise-sidebar-collapsed');
     setUser(null);
@@ -61,6 +66,8 @@ export default function App() {
       ) : (
         <FranchiseLoginPage
           onLogin={(nextUser) => {
+            queryClient?.clear();
+            resetManagementRequests();
             setUser(nextUser);
             setLoggedIn(true);
           }}

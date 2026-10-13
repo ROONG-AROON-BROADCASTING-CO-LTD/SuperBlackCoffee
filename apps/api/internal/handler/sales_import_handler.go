@@ -405,6 +405,10 @@ func (h *PlatformHandler) SalesTrend(c *gin.Context) {
 		return
 	}
 	period := strings.TrimSpace(c.DefaultQuery("period", "day"))
+	if _, valid := dashboardTrendConfig(period); !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ช่วงเวลาที่เลือกไม่ถูกต้อง"})
+		return
+	}
 	branchID, ok := h.salesBranchID(c)
 	if !ok {
 		return
@@ -415,7 +419,7 @@ func (h *PlatformHandler) SalesTrend(c *gin.Context) {
 	}
 	result, err := h.salesTrend(c, period, branchID, scope)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "ช่วงเวลาที่เลือกไม่ถูกต้อง"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "ไม่สามารถโหลดแนวโน้มยอดขายได้"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})

@@ -12,6 +12,11 @@ type PlatformSessionRole = 'admin' | 'franchise_owner';
 let platformSessionRole: PlatformSessionRole | null = null;
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
+// A new login must not reuse an in-flight response from a previous account.
+export function resetManagementRequests() {
+  inFlightGetRequests.clear();
+}
+
 // Each app configures its own module instance before rendering protected pages.
 // This makes requests deterministic when the browser holds both platform cookies.
 export function setManagementSessionRole(role: PlatformSessionRole | null) {

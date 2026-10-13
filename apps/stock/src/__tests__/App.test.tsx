@@ -184,6 +184,17 @@ vi.mock('../routes/StockPageRouter', () => ({
 }));
 
 describe('Stock App session and loading', () => {
+  it('clears stock data and route when server logout fails offline', async () => {
+    vi.mocked(logoutStock).mockRejectedValueOnce(new Error('offline logout'));
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'stock-logout' }),
+    );
+    await Promise.resolve();
+    await waitFor(() => expect(screen.getByText('stock-login')).not.toBeNull());
+    expect(location.pathname).toBe('/sales');
+    expect(logoutStock).toHaveBeenCalledOnce();
+  });
   it.each(['consume', 'adjust'])(
     'still rejects a failed %s mutation without refreshing or reporting success',
     async (operation) => {

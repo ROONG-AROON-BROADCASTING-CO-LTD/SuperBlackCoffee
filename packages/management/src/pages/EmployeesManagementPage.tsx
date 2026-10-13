@@ -91,11 +91,38 @@ const shiftColors = [
 const leaveLabels: Record<StaffShift['status'], string> = {
   scheduled: 'ทำงานตามกะ',
   compensatory_work: 'ทำงานชดเชย',
-  day_off: 'วันหยุด',
+  day_off: 'วันหยุดประจำเดือน',
   leave: 'ลางาน',
   sick_leave: 'ลาป่วย',
   personal_leave: 'ลาอื่น ๆ',
 };
+
+type ShiftEditorStatus = StaffShift['status'] | 'compensatory_day_off';
+
+const compensatoryDayOffPrefix = 'วันหยุดชดเชยวันนักขัตฤกษ์';
+const manualCompensatoryDayOffLeaveType = 'วันหยุดชดเชยวันนักขัตฤกษ์: กำหนดเอง';
+
+const shiftEditorLabels: Record<ShiftEditorStatus, string> = {
+  ...leaveLabels,
+  compensatory_day_off: 'หยุดชดเชยวันนักขัตฤกษ์',
+};
+
+const shiftEditorStatuses: ShiftEditorStatus[] = [
+  'scheduled',
+  'compensatory_work',
+  'day_off',
+  'compensatory_day_off',
+  'leave',
+  'sick_leave',
+  'personal_leave',
+];
+
+function getShiftEditorStatus(shift: StaffShift): ShiftEditorStatus {
+  return shift.status === 'day_off' &&
+    shift.leaveType?.startsWith(compensatoryDayOffPrefix)
+    ? 'compensatory_day_off'
+    : shift.status;
+}
 
 function isWorkingShift(status: StaffShift['status']) {
   return status === 'scheduled' || status === 'compensatory_work';
@@ -163,8 +190,7 @@ export function EmployeesManagementPage({
   const [selectedShift, setSelectedShift] = useState<StaffShift | null>(null);
   const [editDate, setEditDate] = useState('');
   const [editBranchId, setEditBranchId] = useState('');
-  const [editStatus, setEditStatus] =
-    useState<StaffShift['status']>('scheduled');
+  const [editStatus, setEditStatus] = useState<ShiftEditorStatus>('scheduled');
   const [editStartsAt, setEditStartsAt] = useState('');
   const [editEndsAt, setEditEndsAt] = useState('');
   const [draggedShiftId, setDraggedShiftId] = useState<number | null>(null);
@@ -290,8 +316,13 @@ export function EmployeesManagementPage({
       updateStaffShift(selectedShift!.id, {
         shiftDate: editDate,
         branchId: Number(editBranchId),
-        status: editStatus,
-        leaveType: editStatus === 'scheduled' ? '' : leaveLabels[editStatus],
+        status: editStatus === 'compensatory_day_off' ? 'day_off' : editStatus,
+        leaveType:
+          editStatus === 'scheduled'
+            ? ''
+            : editStatus === 'compensatory_day_off'
+              ? manualCompensatoryDayOffLeaveType
+              : leaveLabels[editStatus],
         ...(editStartsAt !== selectedShift!.startsAt.slice(0, 5) ||
         editEndsAt !== selectedShift!.endsAt.slice(0, 5)
           ? { startsAt: editStartsAt, endsAt: editEndsAt }
@@ -425,7 +456,7 @@ export function EmployeesManagementPage({
     setSelectedShift(shift);
     setEditDate(shift.date);
     setEditBranchId(String(shift.branchId));
-    setEditStatus(shift.status);
+    setEditStatus(getShiftEditorStatus(shift));
     setEditStartsAt(shift.startsAt.slice(0, 5));
     setEditEndsAt(shift.endsAt.slice(0, 5));
   };
@@ -1347,10 +1378,18 @@ export function EmployeesManagementPage({
                                   <Box
                                     component="span"
                                     sx={{
-                                      display: 'block',
+                                      display: '-webkit-box',
+                                      WebkitBoxOrient: 'vertical',
+                                      WebkitLineClamp: 2,
+                                      mt: 0.25,
                                       color: '#60493b',
                                       fontSize: 11,
-                                      whiteSpace: 'nowrap',
+                                      lineHeight: 1.25,
+                                      minHeight: 27.5,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'normal',
+                                      wordBreak: 'break-word',
                                     }}
                                   >
                                     {isWorkingShift(shift.status)
@@ -1440,16 +1479,14 @@ export function EmployeesManagementPage({
                   label="สถานะ"
                   value={editStatus}
                   onChange={(event) =>
-                    setEditStatus(event.target.value as StaffShift['status'])
+                    setEditStatus(event.target.value as ShiftEditorStatus)
                   }
                 >
-                  {(Object.keys(leaveLabels) as StaffShift['status'][]).map(
-                    (status) => (
-                      <MenuItem key={status} value={status}>
-                        {leaveLabels[status]}
-                      </MenuItem>
-                    ),
-                  )}
+                  {shiftEditorStatuses.map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {shiftEditorLabels[status]}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               <TextField
@@ -1677,25 +1714,12 @@ export function EmployeesManagementPage({
                 },
               }}
             >
-              <TextField
-                required
-                label="ชื่อ"
-                value={newEmployeeName}
-                onChange={(event) => setNewEmployeeName(event.target.value)}
-              />
-              <TextField
-                required
-                label="Username"
-                value={newEmployeeUsername}
-                slotProps={{ input: { readOnly: true } }}
-                helperText="ระบบสร้างจากรหัสสาขาและลำดับพนักงาน"
-              />
               {isHeadquarters ? (
                 <Box
                   sx={{
                     gridColumn: { xs: '1', sm: '1 / -1' },
                     border: '1px solid #d9e8db',
-                    borderRadius: 2,
+                    borderRadius: 1,
                     bgcolor: '#f4fbf5',
                     px: 1.5,
                     py: 1.25,
@@ -1713,7 +1737,21 @@ export function EmployeesManagementPage({
                     ระบบจัดวันหยุดวันอาทิตย์และวันนักขัตฤกษ์ให้โดยอัตโนมัติ
                   </Typography>
                 </Box>
-              ) : !franchiseMode ? (
+              ) : null}
+              <TextField
+                required
+                label="ชื่อ"
+                value={newEmployeeName}
+                onChange={(event) => setNewEmployeeName(event.target.value)}
+              />
+              <TextField
+                required
+                label="Username"
+                value={newEmployeeUsername}
+                slotProps={{ input: { readOnly: true } }}
+                helperText="ระบบสร้างจากรหัสสาขาและลำดับพนักงาน"
+              />
+              {!isHeadquarters && !franchiseMode ? (
                 <FormControl required>
                   <InputLabel id="new-employee-branch-label">
                     สาขาที่ปฏิบัติงาน
@@ -1794,22 +1832,7 @@ export function EmployeesManagementPage({
                 </Box>
               ) : (
                 <>
-                  {isHeadquarters ? (
-                    <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
-                      <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />
-                      <Typography
-                        sx={{ color: '#3c2d24', fontSize: 14, fontWeight: 600 }}
-                      >
-                        กฎวันหยุดสำนักงานใหญ่
-                      </Typography>
-                      <Typography
-                        sx={{ mt: 0.5, color: '#6e5b4d', fontSize: 12.5 }}
-                      >
-                        หยุดวันอาทิตย์และวันนักขัตฤกษ์
-                        ไม่มีวันหยุดประจำเดือนหรือวันหยุดชดเชยอัตโนมัติ
-                      </Typography>
-                    </Box>
-                  ) : (
+                  {isHeadquarters ? null : (
                     <>
                       <Box sx={{ gridColumn: '1 / -1', mt: 0.5 }}>
                         <Divider sx={{ borderColor: '#d8cec7', mb: 1.5 }} />

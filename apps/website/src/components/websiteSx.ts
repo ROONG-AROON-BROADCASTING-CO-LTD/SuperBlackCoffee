@@ -123,6 +123,7 @@ export const websiteSx = {
     minWidth: '170px',
     '@media (max-width: 600px)': {
       minWidth: '0',
+      '& > span': { display: 'none' },
     },
   },
   'sb-nav-links': {
@@ -133,6 +134,7 @@ export const websiteSx = {
     gap: 'clamp(16px, 1.75vw, 32px)',
     '& a': {
       fontSize: '16px',
+      fontWeight: '500',
       letterSpacing: '0.02em',
       color: '#e2e3de',
       height: '72px',
@@ -823,7 +825,7 @@ export const websiteSx = {
       position: 'absolute',
       inset: '0',
       background:
-        'linear-gradient(180deg, rgba(3, 5, 4, 0.08) 0%, rgba(3, 5, 4, 0.88) 92%)',
+        'linear-gradient(180deg, rgba(3, 5, 4, 0.38) 0%, rgba(3, 5, 4, 0.76) 54%, rgba(3, 5, 4, 0.96) 100%)',
     },
     '& .sb-hero-service-card-copy': {
       position: 'relative',
@@ -842,12 +844,14 @@ export const websiteSx = {
       whiteSpace: 'nowrap',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
+      textShadow: '0 2px 12px rgba(0, 0, 0, .78)',
     },
     '& p': {
-      color: 'rgba(255, 255, 255, 0.82)',
+      color: 'rgba(255, 255, 255, 0.96)',
       fontSize: '16px',
       lineHeight: '1.45',
       margin: '8px 0 12px',
+      textShadow: '0 2px 10px rgba(0, 0, 0, .9)',
     },
     '& span': {
       display: 'inline-flex',
@@ -857,6 +861,7 @@ export const websiteSx = {
       font: '700 10px var(--font-ibm-plex-thai), sans-serif',
       letterSpacing: '0.06em',
       textTransform: 'uppercase',
+      textShadow: '0 2px 10px rgba(0, 0, 0, .82)',
     },
     '& span svg': {
       width: '16px',
@@ -989,6 +994,120 @@ export const websiteSx = {
       background: '#e1bf80',
       borderColor: '#e1bf80',
       color: '#000',
+    },
+  },
+  'sb-promotions': {
+    padding: 'clamp(54px, 7vw, 108px) var(--sb-gutter)',
+    background: '#000',
+    color: '#fff',
+    '& .sb-promotions-heading': {
+      maxWidth: '720px',
+      marginBottom: '26px',
+      '& p': {
+        margin: '0 0 9px',
+        color: 'var(--sb-gold)',
+        fontWeight: '700',
+      },
+      '& h2': {
+        margin: '0',
+        fontSize: 'clamp(32px, 4vw, 54px)',
+        fontWeight: '500',
+        letterSpacing: '-.04em',
+      },
+      '& span': {
+        display: 'block',
+        marginTop: '12px',
+        color: 'rgba(255,255,255,.66)',
+        fontSize: '16px',
+      },
+    },
+    '& .sb-promotion-tabs': {
+      display: 'flex',
+      gap: '10px',
+      flexWrap: 'wrap',
+      marginBottom: '26px',
+      '& button': {
+        minHeight: '52px',
+        padding: '0 23px',
+        border: '1px solid rgba(255,255,255,.62)',
+        borderRadius: '10px',
+        background: 'transparent',
+        color: '#fff',
+        cursor: 'pointer',
+        font: '600 16px/1 var(--font-ibm-plex-thai), sans-serif',
+        transition: 'background .2s, color .2s, border-color .2s',
+      },
+      '& button:hover, & button.active': {
+        borderColor: 'var(--sb-gold)',
+        background: 'var(--sb-gold)',
+        color: '#111',
+      },
+    },
+    '& .sb-promotion-grid': {
+      display: 'flex',
+      gap: '18px',
+      overflowX: 'auto',
+      overscrollBehaviorInline: 'contain',
+      padding: '10px 8px 20px',
+      scrollSnapType: 'x mandatory',
+      scrollbarColor: 'rgba(202,164,94,.65) transparent',
+      scrollbarWidth: 'thin',
+      '&::-webkit-scrollbar': { height: '8px' },
+      '&::-webkit-scrollbar-thumb': {
+        borderRadius: '999px',
+        background: 'rgba(202,164,94,.65)',
+      },
+    },
+    '& .sb-promotion-card': {
+      display: 'block',
+      flex: '0 0 230px',
+      position: 'relative',
+      overflow: 'hidden',
+      minWidth: '0',
+      border: '1px solid rgba(202,164,94,.42)',
+      borderRadius: '16px',
+      background: '#10100e',
+      color: '#fff',
+      textDecoration: 'none',
+      scrollSnapAlign: 'start',
+      transition: 'transform 180ms ease, border-color 180ms ease',
+      '&:hover': {
+        borderColor: 'var(--sb-gold)',
+        boxShadow: '0 0 0 2px rgba(202,164,94,.38)',
+      },
+      '&:hover .sb-photo img': {
+        transform: 'scale(1.015) !important',
+      },
+      '& .sb-photo': {
+        // Promotion artwork is supplied as 3:4 posters. Preserve the full
+        // poster composition while letting it fill its matching 3:4 frame.
+        aspectRatio: '3 / 4',
+        backgroundSize: 'cover !important',
+      },
+      '& .sb-photo img': {
+        objectFit: 'cover !important',
+        transform: 'none !important',
+      },
+      '& > div:last-child': { padding: '16px 18px 18px' },
+      '& span': {
+        color: 'var(--sb-gold)',
+        fontSize: '13px',
+        fontWeight: '700',
+      },
+      '& h3': {
+        display: '-webkit-box',
+        overflow: 'hidden',
+        margin: '7px 0 0',
+        color: '#fff',
+        fontSize: '18px',
+        fontWeight: '500',
+        lineHeight: '1.4',
+        WebkitBoxOrient: 'vertical',
+        WebkitLineClamp: '2',
+      },
+    },
+    '@media (max-width: 520px)': {
+      '& .sb-promotion-card': { flexBasis: 'min(76vw, 280px)' },
     },
   },
   'sb-story-strip': {
@@ -1916,10 +2035,10 @@ export const websiteSx = {
       '& h3': {
         margin: '0',
         fontWeight: '500',
-        fontSize: 'clamp(28px, 2.6vw, 42px)',
+        fontSize: 'clamp(28px, 2.35vw, 38px)',
         lineHeight: '1.05',
         letterSpacing: '-0.045em',
-        '& span': { color: 'var(--sb-gold)' },
+        '& span': { color: 'var(--sb-gold)', whiteSpace: 'nowrap' },
       },
       '& p': {
         maxWidth: '480px',
@@ -1970,6 +2089,90 @@ export const websiteSx = {
         lineHeight: '1.42',
       },
     },
+    '& .sb-mobile-cafe-showcase': {
+      position: 'relative',
+      gridColumn: '1 / -1',
+      gridRow: '3',
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1.28fr) minmax(360px, .72fr)',
+      background: '#000',
+      color: '#fff',
+      overflow: 'hidden',
+      borderTop: '1px solid rgba(202, 164, 94, .45)',
+      '& > .sb-photo': {
+        position: 'relative',
+        zIndex: '0',
+        minHeight: 'clamp(370px, 31vw, 540px)',
+        height: '100%',
+        gridColumn: '1',
+        gridRow: '1',
+        '& img': { objectPosition: 'center' },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          inset: '0',
+          zIndex: '1',
+          pointerEvents: 'none',
+          background:
+            'linear-gradient(90deg, transparent 22%, rgba(0,0,0,.42) 64%, #000 100%)',
+        },
+      },
+    },
+    '& .sb-mobile-cafe-showcase-copy': {
+      position: 'relative',
+      zIndex: '1',
+      alignSelf: 'center',
+      padding: '80px',
+      gridColumn: '2',
+      gridRow: '1',
+      '& h3': {
+        margin: '0',
+        fontWeight: '500',
+        fontSize: 'clamp(28px, 2.6vw, 42px)',
+        lineHeight: '1.05',
+        letterSpacing: '-0.045em',
+        '& span': { color: 'var(--sb-gold)', whiteSpace: 'nowrap' },
+      },
+      '& p': {
+        maxWidth: '480px',
+        margin: '18px 0 26px',
+        color: 'rgba(255,255,255,.72)',
+        fontSize: '16px',
+        lineHeight: '1.72',
+      },
+    },
+    '& .sb-mobile-cafe-showcase-points': {
+      display: 'grid',
+      gridTemplateColumns: '1fr',
+      border: '1px solid rgba(202, 164, 94, .36)',
+      borderRadius: '16px',
+      overflow: 'hidden',
+      '& > div': {
+        minHeight: '86px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '16px',
+        borderBottom: '1px solid rgba(202, 164, 94, .24)',
+        color: 'var(--sb-gold)',
+        '&:last-child': { borderBottom: '0' },
+        '& > svg': { flex: '0 0 auto' },
+      },
+      '& span': {
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1 1 auto',
+        minWidth: '0',
+        gap: '2px',
+        color: '#efede6',
+      },
+      '& strong': { fontSize: '16px', fontWeight: '500', lineHeight: '1.35' },
+      '& small': {
+        color: 'rgba(239,237,230,.72)',
+        fontSize: '14px',
+        lineHeight: '1.42',
+      },
+    },
     '@media (max-width: 800px)': {
       gridTemplateColumns: '1fr',
       gridTemplateRows: 'auto',
@@ -1990,6 +2193,22 @@ export const websiteSx = {
         gridTemplateRows: 'auto',
         minHeight: 'unset',
       },
+      '& .sb-mobile-cafe-showcase': {
+        gridColumn: '1',
+        gridRow: '4',
+        gridTemplateColumns: '1fr',
+      },
+      '& .sb-mobile-cafe-showcase > .sb-photo': {
+        gridColumn: '1',
+        gridRow: '1',
+        minHeight: '330px',
+      },
+      '& .sb-mobile-cafe-showcase-copy': {
+        gridColumn: '1',
+        gridRow: '2',
+        padding: '64px 40px',
+        '& h3': { fontSize: 'clamp(25px, 7vw, 30px)' },
+      },
       '& .sb-ev-showcase > .sb-photo': {
         gridColumn: '1',
         gridRow: '1',
@@ -1999,6 +2218,7 @@ export const websiteSx = {
         gridColumn: '1',
         gridRow: '2',
         padding: '80px',
+        '& h3 span': { whiteSpace: 'normal' },
       },
       '& .sb-ev-showcase-points': {
         width: 'auto',
@@ -2013,6 +2233,10 @@ export const websiteSx = {
       },
       '& .sb-ev-showcase-points': {
         '& > div': { minHeight: '76px', padding: '14px 16px' },
+      },
+      '& .sb-mobile-cafe-showcase-points > div': {
+        minHeight: '76px',
+        padding: '14px 16px',
       },
     },
   },
@@ -2546,7 +2770,7 @@ export const websiteSx = {
     },
     '& .sb-branch-staff-grid': {
       display: 'grid',
-      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
       gap: '18px',
       marginTop: '34px',
     },
@@ -2588,6 +2812,36 @@ export const websiteSx = {
         lineHeight: '1.6',
       },
     },
+    '& .sb-promotion-grid': {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+      gap: '18px',
+      marginTop: '34px',
+    },
+    '& .sb-promotion-card': {
+      display: 'block',
+      minWidth: '0',
+      overflow: 'hidden',
+      border: '1px solid rgba(202, 164, 94, .42)',
+      borderRadius: '16px',
+      background: '#10100e',
+      color: '#fff',
+      '& > .sb-photo': {
+        aspectRatio: '3 / 4',
+      },
+      '& > div:last-child': { padding: '16px 18px 18px' },
+      '& span': {
+        color: 'var(--sb-gold)',
+        fontSize: '13px',
+        fontWeight: '700',
+      },
+      '& h3': {
+        margin: '8px 0 0',
+        fontSize: '18px',
+        fontWeight: '500',
+        lineHeight: '1.4',
+      },
+    },
     '& .sb-branch-detail-ctas': {
       display: 'flex',
       flexWrap: 'wrap',
@@ -2596,20 +2850,27 @@ export const websiteSx = {
       '& .sb-button': { minHeight: '52px', paddingInline: '24px' },
     },
     '@media (max-width: 800px)': {
+      '& .sb-branch-staff-grid': {
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      },
       paddingBlock: '138px 80px',
       '& .sb-branch-detail-hero': {
         gridTemplateColumns: '1fr',
         '& > .sb-photo': { height: '330px' },
       },
-      '& .sb-branch-staff-grid': { gridTemplateColumns: '1fr' },
       '& .sb-branch-facility-grid': {
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      },
+      '& .sb-promotion-grid': {
         gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
       },
     },
     '@media (max-width: 600px)': {
       '& .sb-branch-detail-hero > .sb-photo': { height: '240px' },
       '& .sb-branch-detail-section': { marginTop: '62px' },
+      '& .sb-branch-staff-grid': { gridTemplateColumns: '1fr' },
       '& .sb-branch-facility-grid': { gridTemplateColumns: '1fr' },
+      '& .sb-promotion-grid': { gridTemplateColumns: '1fr' },
     },
   },
   'sb-empty': {

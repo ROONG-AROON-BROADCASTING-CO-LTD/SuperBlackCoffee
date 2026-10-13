@@ -1,23 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 import { SbcThemeProvider } from '@stackbuild/ui';
 import {
   QueryAutoRetrySnackbar,
   setManagementSessionRole,
+  resetManagementRequests,
 } from '@stackbuild/management';
 import { restoreSession, logout as endSession } from './api/auth';
+import { resetAdminRequests } from './api/client';
 import { AdminLoginPage } from './features/auth/AdminLoginPage';
 import { AdminDashboard } from './features/dashboard/AdminDashboard';
 
 setManagementSessionRole('admin');
 
 export default function App() {
+  const queryClient = useContext(QueryClientContext);
   const [loggedIn, setLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const sessionEpoch = useRef(0);
   const logout = () => {
     sessionEpoch.current += 1;
+    queryClient?.clear();
+    resetAdminRequests();
+    resetManagementRequests();
     setLoggedIn(false);
-    void endSession();
+    void endSession().catch(() => undefined);
   };
   useEffect(() => {
     window.addEventListener('sbc:session-expired', logout);
@@ -52,7 +59,14 @@ export default function App() {
       {loggedIn ? (
         <AdminDashboard logout={logout} />
       ) : (
-        <AdminLoginPage onLogin={() => setLoggedIn(true)} />
+        <AdminLoginPage
+          onLogin={() => {
+            queryClient?.clear();
+            resetAdminRequests();
+            resetManagementRequests();
+            setLoggedIn(true);
+          }}
+        />
       )}
       <QueryAutoRetrySnackbar />
     </SbcThemeProvider>

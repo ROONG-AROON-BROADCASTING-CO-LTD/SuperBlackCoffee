@@ -8,9 +8,11 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { logout, restoreSession } from '../api/auth';
 import App from '../App';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+  ConnectionRetrySnackbar: () => null,
 }));
 vi.mock('../features/auth/AdminLoginPage', () => ({
   AdminLoginPage: () => <div>admin-login</div>,
@@ -26,6 +28,34 @@ vi.mock('../api/auth', () => ({
 }));
 
 describe('Admin App session', () => {
+  it('evicts authenticated cached data when a session expires', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    client.setQueryData(['employees'], [{ id: 41 }]);
+    render(
+      <QueryClientProvider client={client}>
+        <App />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('button', { name: 'admin-logout' });
+    fireEvent(window, new Event('sbc:session-expired'));
+    expect(screen.getByText('admin-login')).toBeInTheDocument();
+    expect(client.getQueryData(['employees'])).toBeUndefined();
+    client.clear();
+  });
+  it('clears the local session when server logout fails offline', async () => {
+    vi.mocked(logout).mockRejectedValueOnce(new Error('offline logout'));
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'admin-logout' }),
+    );
+    await Promise.resolve();
+    await waitFor(() =>
+      expect(screen.getByText('admin-login')).toBeInTheDocument(),
+    );
+    expect(logout).toHaveBeenCalledOnce();
+  });
   afterEach(() => {
     cleanup();
     sessionStorage.clear();

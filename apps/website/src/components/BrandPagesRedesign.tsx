@@ -16,6 +16,8 @@ import {
 } from '@stackbuild/ui/icons';
 import { trackEvent } from './GoogleAnalytics';
 import { useWebsiteLanguage } from './WebsiteLanguageProvider';
+import { importedMenuCatalog } from './menuCatalogData';
+import { branchPromotions } from './promotionData';
 
 const branches = [
   {
@@ -24,7 +26,7 @@ const branches = [
     address:
       '15/78 หมู่ที่ 3 ถนนป่ามะพร้าว ตำบลท่าวาสุกรี อำเภอพระนครศรีอยุธยา จังหวัดพระนครศรีอยุธยา 13000',
     phone: '061-884-9960',
-    hours: '08:00–20:30 น.',
+    hours: '08:00–17:00 น.',
     map: 'https://maps.app.goo.gl/B2sXw1XnoACsmphA9',
     image: '/branches/ayutthaya-ev-dusk.png',
     status: 'เปิดทุกวัน',
@@ -35,7 +37,7 @@ const branches = [
     address:
       '654/18 ถนนพระองค์ขาว ซอย 4 ตำบลในเมือง อำเภอเมืองพิษณุโลก จังหวัดพิษณุโลก 65000',
     phone: '080-174-7757',
-    hours: '08:00–20:30 น.',
+    hours: '08:00–22:00 น.',
     map: 'https://maps.app.goo.gl/rbCG1HbrHJXHffSk6',
     image: '/branches/phitsanulok-dusk.png',
     status: 'เปิดทุกวัน',
@@ -1099,6 +1101,10 @@ const foodMenus: Record<
 };
 
 const menuCategoryTranslations: Record<string, string> = {
+  กาแฟ: 'Coffee',
+  เบเกอรี่: 'Bakery',
+  อาหาร: 'Food',
+  โปรโมชั่น: 'Promotions',
   เมนูปั่น: 'Blended drinks',
   น้ำอัดลม: 'Soft drinks',
   ไร่ทองวิมล: 'Rai Thong Wimon specials',
@@ -1114,6 +1120,26 @@ const menuCategoryTranslations: Record<string, string> = {
   สลัดและยำ: 'Salads & spicy dishes',
   ของว่างและขนม: 'Snacks & desserts',
   เครื่องเคียง: 'Sides',
+};
+
+type MenuItem = { name: string; detail: string; image: string };
+
+const branchMenuGroups: Record<
+  string,
+  Array<{ name: string; categories?: string[]; items?: MenuItem[] }>
+> = {
+  ayutthaya: [
+    { name: 'น้ำอัดลม', categories: ['น้ำอัดลม'] },
+    { name: 'กาแฟเย็น', categories: ['กาแฟเย็น'] },
+    { name: 'ชา', categories: ['ชา'] },
+    { name: 'โซดา', categories: ['โซดา'] },
+    { name: 'เมนูปั่น', categories: ['เมนูปั่น'] },
+    { name: 'มะพร้าว', categories: ['มะพร้าว'] },
+    { name: 'ร้อน', categories: ['ร้อน'] },
+    { name: 'ไร่ทองวิมล', categories: ['ไร่ทองวิมล'] },
+    { name: 'อโวคาโด้', categories: ['อโวคาโด้'] },
+    { name: 'เบเกอรี่', categories: ['เบเกอรี่'] },
+  ],
 };
 
 const menuTranslations: Record<string, { name: string; detail: string }[]> = {
@@ -1189,46 +1215,46 @@ const branchProfiles = {
         role: 'บาริสต้า',
         detail: 'ดูแลการเตรียมเครื่องดื่มและบริการลูกค้าประจำสาขา',
         count: '1 คน',
-        image: '/coffee/coffee-espresso.png',
       },
     ],
     facilities: [
       [
-        'กาแฟและเครื่องดื่ม',
-        'เมนูกาแฟ เครื่องดื่ม และของว่างสำหรับทุกช่วงเวลา',
+        'กาแฟ เครื่องดื่ม เบเกอรี่ และอาหาร',
+        'เมนูครบสำหรับทุกช่วงเวลา ตั้งแต่กาแฟ เบเกอรี่ ไปจนถึงอาหาร',
       ],
       ['จุดชาร์จรถ EV', 'พื้นที่ชาร์จรถยนต์ไฟฟ้าในบริเวณสาขา'],
       ['พื้นที่นั่งพัก', 'มุมนั่งพักและทำงานในบรรยากาศสบาย ๆ'],
       ['ที่จอดรถ', 'จุดจอดรถสำหรับลูกค้าที่แวะใช้บริการ'],
+      ['ห้องประชุม', 'พื้นที่ประชุมและทำงานสำหรับทีมและลูกค้า'],
+      ['BPOST65 Express', 'บริการรับฝากและส่งพัสดุในสาขา'],
+      ['ไปรษณีย์', 'บริการไปรษณีย์สำหรับการส่งเอกสารและพัสดุ'],
     ],
   },
   phitsanulok: {
-    staffTotal: 4,
+    staffTotal: 3,
     staff: [
       {
         role: 'เชฟ',
         detail: 'ดูแลการเตรียมอาหารและคุณภาพของเมนูภายในสาขา',
         count: '2 คน',
-        image: '/services/service-journey-interior.png',
       },
       {
         role: 'ผู้ช่วยบาริสต้า',
         detail: 'ช่วยเตรียมเครื่องดื่มและดูแลความเรียบร้อยหน้าบาร์',
         count: '1 คน',
-        image: '/coffee/coffee-espresso.png',
-      },
-      {
-        role: 'กราฟิก',
-        detail: 'ดูแลงานกราฟิกและสื่อประชาสัมพันธ์ของสาขา',
-        count: '1 คน',
-        image: '/coffee/coffee-storefront.png',
       },
     ],
     facilities: [
-      ['กาแฟและเครื่องดื่ม', 'เมนูคัดสรรสำหรับลูกค้าที่แวะพักระหว่างวัน'],
+      [
+        'กาแฟ เครื่องดื่ม เบเกอรี่ และอาหาร',
+        'เมนูคัดสรรครบสำหรับลูกค้าที่แวะพักระหว่างวัน',
+      ],
       ['จุดชาร์จรถ EV', 'รองรับการแวะชาร์จรถยนต์ไฟฟ้าอย่างสะดวก'],
       ['พื้นที่นั่งพัก', 'พื้นที่นั่งดื่มกาแฟ ทำงาน หรือพักระหว่างทาง'],
       ['ที่จอดรถ', 'จุดจอดรถใกล้ร้านสำหรับผู้ใช้บริการ'],
+      ['ห้องประชุม', 'พื้นที่ประชุมและทำงานสำหรับทีมและลูกค้า'],
+      ['BPOST65 Express', 'บริการรับฝากและส่งพัสดุในสาขา'],
+      ['ไปรษณีย์', 'บริการไปรษณีย์สำหรับการส่งเอกสารและพัสดุ'],
     ],
   },
   'pracha-uthit': {
@@ -1238,14 +1264,18 @@ const branchProfiles = {
         role: 'อื่นๆ',
         detail: 'ยังไม่มีข้อมูลทีมประจำสาขา',
         count: '—',
-        image: '/coffee/coffee-storefront.png',
       },
     ],
     facilities: [
-      ['กาแฟและเครื่องดื่ม', 'พร้อมเมนูกาแฟและเครื่องดื่มสำหรับทุกไลฟ์สไตล์'],
+      ['กาแฟ เครื่องดื่ม เบเกอรี่ และอาหาร', 'พร้อมเมนูครบสำหรับทุกไลฟ์สไตล์'],
       ['จุดชาร์จรถ EV', 'จุดชาร์จรถยนต์ไฟฟ้าหลายช่องจอด'],
       ['พื้นที่นั่งพัก', 'มุมพักระหว่างวันสำหรับลูกค้าและผู้เดินทาง'],
       ['ที่จอดรถ', 'พื้นที่จอดรถใกล้จุดบริการและหน้าร้าน'],
+      ['ห้องประชุม', 'พื้นที่ประชุมและทำงานสำหรับทีมและลูกค้า'],
+      ['BPOST65 Express', 'บริการรับฝากและส่งพัสดุในสาขา'],
+      ['ไปรษณีย์', 'บริการไปรษณีย์สำหรับการส่งเอกสารและพัสดุ'],
+      ['พื้นที่ทำงาน', 'พื้นที่นั่งทำงานพร้อมใช้งานสำหรับลูกค้า'],
+      ['Mobile cafe', 'บริการกาแฟเคลื่อนที่สำหรับกิจกรรมและพื้นที่ต่าง ๆ'],
     ],
   },
 } as const;
@@ -1302,7 +1332,7 @@ const plans = [
       'เหมาะกับชุมชน หน้าอาคาร ปั๊มน้ำมัน และจุดซื้อกลับ เน้นกาแฟและเครื่องดื่มคุณภาพในพื้นที่ที่บริหารจัดการได้ง่าย',
     cost: '1.5–2.5 ล้านบาท',
     franchiseFee: '300,000 บาท',
-    includedServices: 'กาแฟและเครื่องดื่ม พร้อม EV Charging 1 สถานี',
+    includedServices: 'กาแฟและเครื่องดื่ม, พร้อม EV Charging 1 สถานี',
     image: '/franchise/franchise-plan-s.png',
     imageEn: '/franchise/franchise-plan-s-en.png',
   },
@@ -1316,7 +1346,7 @@ const plans = [
     cost: '3.5–5 ล้านบาท',
     franchiseFee: '500,000 บาท',
     includedServices:
-      'กาแฟ อาหาร เบเกอรี่ BPOST65 Express ไปรษณีย์ และ EV Charging 2 สถานี',
+      'กาแฟ, อาหาร, เบเกอรี่, BPOST65 Express, ไปรษณีย์ และ EV Charging 2 สถานี',
     image: '/franchise/franchise-plan-m.png',
     imageEn: '/franchise/franchise-plan-m-en.png',
   },
@@ -1330,7 +1360,7 @@ const plans = [
     cost: '7–10 ล้านบาทขึ้นไป',
     franchiseFee: '700,000 บาท',
     includedServices:
-      'กาแฟ อาหาร เบเกอรี่ BPOST65 Express ไปรษณีย์ EV Charging 4 สถานี Work Space และ Mobile Café',
+      'กาแฟ, อาหาร, เบเกอรี่, BPOST65 Express, ไปรษณีย์, EV Charging 4 สถานี, Work Space และ Mobile Café',
     image: '/franchise/franchise-plan-l.png',
     imageEn: '/franchise/franchise-plan-l-en.png',
   },
@@ -1373,13 +1403,13 @@ const heroServiceCards = [
   },
   {
     title: 'EV CHARGING',
-    detail: 'สถานีชาร์จรถยนต์ไฟฟ้า มาตรฐาน ปลอดภัย',
+    detail: 'แวะชาร์จรถไฟฟ้า พร้อมพักดื่มกาแฟระหว่างเดินทาง',
     image: '/services/superblackcoffee-service-ev-charging.png',
     href: '/services/ev-charging',
   },
   {
     title: 'BPOST65 EXPRESS',
-    detail: 'บริการจัดส่งพัสดุที่สะดวกในทุกเส้นทาง',
+    detail: 'รับฝากส่งพัสดุในจุดแวะเดียวกับกาแฟของคุณ',
     image: '/services/superblackcoffee-service-bpost65-express.png',
     href: '/services/bpost65-express',
   },
@@ -1402,10 +1432,13 @@ const heroServiceCardsEn = [
     title: 'PREMIUM COFFEE',
     detail: 'Thoughtfully selected premium coffee for every moment.',
   },
-  { title: 'EV CHARGING', detail: 'Safe, reliable EV charging stations.' },
+  {
+    title: 'EV CHARGING',
+    detail: 'Recharge your EV and enjoy a coffee break on the road.',
+  },
   {
     title: 'BPOST65 EXPRESS',
-    detail: 'Convenient parcel delivery for every journey.',
+    detail: 'Send parcels in the same stop as your coffee break.',
   },
   {
     title: 'FRANCHISE',
@@ -1693,12 +1726,24 @@ export function BranchDetailContent({ slug }: { slug: string }) {
   const { text, isEnglish } = useWebsiteLanguage();
   const profile = branchProfiles[slug as keyof typeof branchProfiles];
   const branch = branches.find((item) => item.slug === slug);
+  const promotions = branchPromotions[slug];
 
   if (!profile || !branch) return null;
 
   const translation = branchTranslations[branch.name];
   const name = isEnglish ? translation.name : branch.name;
-  const facilityIcons = [CoffeeIcon, EvChargerIcon, UsersIcon, MapPinHouseIcon];
+  const facilityIcons = [
+    CoffeeIcon,
+    EvChargerIcon,
+    UsersIcon,
+    MapPinHouseIcon,
+    UsersIcon,
+    BoxIcon,
+    BoxIcon,
+    MapPinHouseIcon,
+    UsersIcon,
+    CoffeeIcon,
+  ];
 
   return (
     <Box
@@ -1733,7 +1778,6 @@ export function BranchDetailContent({ slug }: { slug: string }) {
               className="sb-branch-staff-card"
               key={member.role}
             >
-              <Photo src={member.image} alt={member.role} />
               <Box component="div">
                 <span>{member.count}</span>
                 <h3>{member.role}</h3>
@@ -1765,13 +1809,44 @@ export function BranchDetailContent({ slug }: { slug: string }) {
           })}
         </Box>
       </Box>
+
+      {promotions ? (
+        <Box component="div" className="sb-branch-detail-section">
+          <Box component="div" className="sb-branch-detail-heading">
+            <h2>{text(`โปรของสาขา${branch.name}`, `${name} offers`)}</h2>
+          </Box>
+          <Box component="div" className="sb-promotion-grid">
+            {promotions.items.map((promotion, index) => (
+              <Box
+                component="article"
+                className="sb-promotion-card"
+                key={promotion.image}
+              >
+                <Photo
+                  src={promotion.image}
+                  alt={promotion.name}
+                  priority={index === 0}
+                  lazy={index > 0}
+                />
+                <Box component="div">
+                  <span>{text(`เฉพาะสาขา${branch.name}`, `${name} only`)}</span>
+                  <h3>{promotion.name}</h3>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
     </Box>
   );
 }
 
 export function HomeContent() {
   const [hoveredStat, setHoveredStat] = useState<string | null>(null);
+  const [activePromotionBranch, setActivePromotionBranch] =
+    useState('ayutthaya');
   const { text } = useWebsiteLanguage();
+  const activePromotions = branchPromotions[activePromotionBranch];
   return (
     <>
       <Box
@@ -1779,23 +1854,13 @@ export function HomeContent() {
         sx={[websiteSx['sb-home-hero']]}
         className="sb-home-hero"
       >
-        <Box
-          component="video"
-          sx={[websiteSx['sb-home-hero-video']]}
-          className="sb-home-hero-video"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          poster="/hero/superblackcoffee-brand-hero.png?v=20260930"
-          aria-label="วิดีโอบรรยากาศร้าน Super Black Coffee"
-        >
-          <source
-            src="/hero/superblackcoffee-hero-night.mp4"
-            type="video/mp4"
-          />
-        </Box>
+        <Photo
+          className="sb-home-hero-photo"
+          src="/hero/superblackcoffee-sunset-cafe.png"
+          alt="คาเฟ่ Super Black Coffee ยามอาทิตย์อัสดง"
+          priority
+          position="center"
+        />
         <Box
           component="div"
           sx={[websiteSx['sb-home-hero-shade']]}
@@ -1910,6 +1975,62 @@ export function HomeContent() {
             </Box>
           );
         })}
+      </Box>
+      <Box
+        component="section"
+        aria-label="โปรโมชั่น"
+        sx={[websiteSx['sb-promotions']]}
+        className="sb-promotions"
+      >
+        <Box component="div" className="sb-promotions-heading">
+          <h2>{text('เลือกสิทธิ์พิเศษใกล้คุณ', 'Choose offers near you')}</h2>
+          <span>
+            {text(
+              'โปรโมชั่นแต่ละรายการใช้ได้เฉพาะสาขาที่ระบุ',
+              'Each offer is available only at its listed branch.',
+            )}
+          </span>
+        </Box>
+        <Box component="div" className="sb-promotion-tabs" role="tablist">
+          {Object.entries(branchPromotions).map(([slug, promotionSet]) => (
+            <button
+              type="button"
+              key={slug}
+              role="tab"
+              aria-selected={activePromotionBranch === slug}
+              className={activePromotionBranch === slug ? 'active' : ''}
+              onClick={() => setActivePromotionBranch(slug)}
+            >
+              {promotionSet.name}
+            </button>
+          ))}
+        </Box>
+        <Box component="div" className="sb-promotion-grid">
+          {activePromotions.items.map((promotion, index) => (
+            <Box
+              component={Link}
+              className="sb-promotion-card"
+              href={`/branches/${activePromotionBranch}`}
+              key={promotion.image}
+            >
+              <Photo
+                src={promotion.image}
+                alt={promotion.name}
+                priority={index === 0}
+                lazy={index > 0}
+              />
+              <Box component="div">
+                <span>
+                  {text(
+                    `เฉพาะสาขา${activePromotions.name}`,
+                    `${activePromotions.name} only`,
+                  )}
+                </span>
+                <h3>{promotion.name}</h3>
+              </Box>
+            </Box>
+          ))}
+        </Box>
       </Box>
       <Box
         component="div"
@@ -2151,6 +2272,81 @@ export function HomeContent() {
                       {text('พื้นที่พักผ่อนสบาย', 'Comfortable space')}
                     </strong>
                     <small>{text('ระหว่างรอชาร์จ', 'While you charge')}</small>
+                  </span>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+          <Box component="div" className="sb-mobile-cafe-showcase">
+            <Photo
+              src="/services/service-mobile-cafe-sunset.png"
+              alt="รถกาแฟ Mobile Café ของ Super Black Coffee"
+            />
+            <Box component="div" className="sb-mobile-cafe-showcase-copy">
+              <h3>
+                {text('กาแฟคุณภาพ', 'Quality coffee')}
+                <br />
+                <span>
+                  {text('พร้อมเสิร์ฟได้ทุกที่', 'served wherever you are')}
+                </span>
+              </h3>
+              <p>
+                {text(
+                  'Mobile Café พร้อมเสิร์ฟกาแฟและประสบการณ์ Super Black Coffee ในทุกงานและทุกพื้นที่ที่คุณต้องการ',
+                  'Our Mobile Café brings Super Black Coffee and a thoughtful coffee experience to every event and destination.',
+                )}
+              </p>
+              <Box component="div" className="sb-mobile-cafe-showcase-points">
+                <Box component="div">
+                  <CoffeeIcon size={25} />
+                  <span>
+                    <strong>{text('กาแฟสดทุกแก้ว', 'Freshly brewed')}</strong>
+                    <small>
+                      {text(
+                        'ชงโดยบาริสต้าหน้างาน',
+                        'Brewed by baristas on site',
+                      )}
+                    </small>
+                  </span>
+                </Box>
+                <Box component="div">
+                  <MapPinHouseIcon size={25} />
+                  <span>
+                    <strong>{text('พร้อมออกไปหา', 'Ready to travel')}</strong>
+                    <small>
+                      {text(
+                        'ตอบโจทย์ทุกพื้นที่และทุกงาน',
+                        'Made for every event and venue',
+                      )}
+                    </small>
+                  </span>
+                </Box>
+                <Box component="div">
+                  <UsersIcon size={25} />
+                  <span>
+                    <strong>
+                      {text('รองรับทุกโอกาส', 'Ready for every occasion')}
+                    </strong>
+                    <small>
+                      {text(
+                        'งานอีเวนต์ ประชุม และกิจกรรมพิเศษ',
+                        'Events, meetings, and special occasions',
+                      )}
+                    </small>
+                  </span>
+                </Box>
+                <Box component="div">
+                  <BadgeIcon size={25} />
+                  <span>
+                    <strong>
+                      {text('บริการที่ใส่ใจ', 'Thoughtful service')}
+                    </strong>
+                    <small>
+                      {text(
+                        'พร้อมดูแลรายละเอียดตลอดงาน',
+                        'Carefully supported throughout your event',
+                      )}
+                    </small>
                   </span>
                 </Box>
               </Box>
@@ -2535,16 +2731,41 @@ export function AboutContent() {
 export function MenuContent({ branchSlug }: { branchSlug?: string }) {
   const { text, isEnglish } = useWebsiteLanguage();
   const [active, setActive] = useState('กาแฟเย็น');
-  const menuCatalog = { ...menus, ...assetMenus, ...foodMenus };
+  const allMenuCatalog: Record<string, MenuItem[]> = {
+    ...menus,
+    ...importedMenuCatalog,
+  };
   const branch = branchSlug
     ? branches.find((item) => item.slug === branchSlug)
     : undefined;
+  const groups = branch ? branchMenuGroups[branch.slug] : undefined;
+  const baseMenuCatalog: Record<string, MenuItem[]> = groups
+    ? Object.fromEntries(
+        groups.map((group) => [
+          group.name,
+          group.items ??
+            group.categories?.flatMap(
+              (category) => allMenuCatalog[category] ?? [],
+            ) ??
+            [],
+        ]),
+      )
+    : allMenuCatalog;
+  const promotionItems = branch
+    ? branchPromotions[branch.slug]?.items
+    : undefined;
+  const menuCatalog: Record<string, MenuItem[]> = promotionItems
+    ? { ...baseMenuCatalog, โปรโมชั่น: promotionItems }
+    : baseMenuCatalog;
+  const categories = Object.keys(menuCatalog);
+  const activeCategory = menuCatalog[active] ? active : categories[0];
   const translatedBranch = branch ? branchTranslations[branch.name] : undefined;
   const branchName = branch
     ? isEnglish
       ? translatedBranch?.name
       : branch.name
     : undefined;
+  const isAyutthayaMenu = branch?.slug === 'ayutthaya';
   return (
     <>
       <InnerHero
@@ -2559,8 +2780,12 @@ export function MenuContent({ branchSlug }: { branchSlug?: string }) {
         text={
           branchName
             ? text(
-                `เลือกดูเมนูเครื่องดื่มและอาหารของ Super Black Coffee สาขา${branchName} ที่คัดสรรไว้สำหรับทุกช่วงเวลาของวัน`,
-                `Explore drinks and food available at Super Black Coffee ${branchName}, selected for every moment of the day.`,
+                isAyutthayaMenu
+                  ? `เลือกดูเมนูกาแฟและเบเกอรี่ของ Super Black Coffee สาขา${branchName}`
+                  : `เลือกดูเมนูกาแฟ เบเกอรี่ และอาหารของ Super Black Coffee สาขา${branchName}`,
+                isAyutthayaMenu
+                  ? `Explore the coffee and bakery menu at Super Black Coffee ${branchName}.`
+                  : `Explore the coffee, bakery, and food menu at Super Black Coffee ${branchName}.`,
               )
             : text(
                 'สำรวจเครื่องดื่มและอาหารที่คัดสรรจากวัตถุดิบคุณภาพ และรังสรรค์ขึ้นเพื่อให้เข้ากับทุกจังหวะของวัน ตั้งแต่กาแฟแก้วแรกจนถึงมื้อที่อยากพักอย่างมีรสนิยม',
@@ -2583,12 +2808,12 @@ export function MenuContent({ branchSlug }: { branchSlug?: string }) {
           role="tablist"
           aria-label={text('ประเภทเมนู', 'Menu categories')}
         >
-          {Object.keys(menuCatalog).map((category) => (
+          {categories.map((category) => (
             <button
               key={category}
               role="tab"
-              aria-selected={active === category}
-              className={active === category ? 'active' : ''}
+              aria-selected={activeCategory === category}
+              className={activeCategory === category ? 'active' : ''}
               onClick={() => setActive(category)}
             >
               {text(category, menuCategoryTranslations[category] ?? category)}
@@ -2601,11 +2826,24 @@ export function MenuContent({ branchSlug }: { branchSlug?: string }) {
           className="sb-menu-layout"
         >
           <div>
-            <h2>{text(active, menuCategoryTranslations[active] ?? active)}</h2>
+            <h2>
+              {text(
+                activeCategory,
+                menuCategoryTranslations[activeCategory] ?? activeCategory,
+              )}
+            </h2>
             <Box component="p" sx={[websiteSx['sb-lead']]} className="sb-lead">
               {text(
-                'รายการเมนูจาก Super Black Coffee เลือกดูเครื่องดื่ม อาหาร และของว่างที่เรามีได้ตามหมวดหมู่',
-                'Browse Super Black Coffee drinks, food, and snacks by category.',
+                branch
+                  ? isAyutthayaMenu
+                    ? 'สาขาอยุธยามีเมนูกาแฟและเบเกอรี่'
+                    : 'สาขานี้มีเมนูกาแฟ เบเกอรี่ และอาหารครบ'
+                  : 'รายการเมนูจาก Super Black Coffee เลือกดูเครื่องดื่ม อาหาร และของว่างที่เรามีได้ตามหมวดหมู่',
+                branch
+                  ? isAyutthayaMenu
+                    ? 'Ayutthaya serves coffee and bakery items.'
+                    : 'This branch serves a complete coffee, bakery, and food menu.'
+                  : 'Browse Super Black Coffee drinks, food, and snacks by category.',
               )}
             </Box>
             <Box
@@ -2613,9 +2851,9 @@ export function MenuContent({ branchSlug }: { branchSlug?: string }) {
               sx={[websiteSx['sb-menu-grid']]}
               className="sb-menu-grid"
             >
-              {menuCatalog[active].map((item, index) => {
+              {menuCatalog[activeCategory].map((item, index) => {
                 const copy = isEnglish
-                  ? (menuTranslations[active]?.[index] ?? item)
+                  ? (menuTranslations[activeCategory]?.[index] ?? item)
                   : item;
                 return (
                   <Box
@@ -2829,82 +3067,98 @@ export function FranchiseContent() {
         </SectionHeading>
         <Box
           component="div"
-          sx={[websiteSx['sb-plan-grid']]}
-          className="sb-plan-grid"
+          sx={{
+            margin: { xs: '34px 0 0', md: '46px 0 0' },
+            overflow: 'hidden',
+            borderRadius: { xs: '8px', md: '12px' },
+            border: '1px solid rgba(201,164,94,.42)',
+            background: '#050505',
+          }}
         >
-          {plans.map((plan) => {
-            const copy = isEnglish ? planTranslations[plan.size] : plan;
-            return (
-              <Box
-                component="article"
-                sx={[websiteSx['sb-plan']]}
-                className="sb-plan"
-                key={plan.size}
-              >
-                <Photo
-                  src={isEnglish ? plan.imageEn : plan.image}
-                  alt={text(`${plan.name} แฟรนไชส์`, `${plan.name} franchise`)}
-                  className="sb-plan-photo"
-                  lazy
-                />
+          <Image
+            src="/franchise/super-black-lifestyle-hub-models.png"
+            alt={text(
+              'อินโฟกราฟิกเปรียบเทียบแฟรนไชส์ Super Black Coffee รุ่น S M และ L',
+              'Super Black Coffee S, M, and L franchise model comparison',
+            )}
+            width={1536}
+            height={1024}
+            sizes="(max-width: 1600px) calc(100vw - 48px), 1500px"
+            style={{ display: 'block', width: '100%', height: 'auto' }}
+          />
+          <Box
+            component="div"
+            sx={[websiteSx['sb-plan-grid'], { marginTop: 0 }]}
+            className="sb-plan-grid"
+          >
+            {plans.map((plan) => {
+              const copy = isEnglish ? planTranslations[plan.size] : plan;
+              return (
                 <Box
-                  component="div"
-                  sx={[websiteSx['sb-plan-top']]}
-                  className="sb-plan-top"
+                  component="article"
+                  key={plan.size}
+                  sx={[websiteSx['sb-plan']]}
+                  className="sb-plan"
                 >
-                  <span>{plan.size}</span>
-                  <div>
-                    <h3>{plan.name}</h3>
-                    <p>{copy.service}</p>
-                  </div>
+                  <Box
+                    component="div"
+                    sx={[websiteSx['sb-plan-top']]}
+                    className="sb-plan-top"
+                  >
+                    <span>{plan.size}</span>
+                    <div>
+                      <h3>{plan.name}</h3>
+                      <p>{copy.service}</p>
+                    </div>
+                  </Box>
+                  <Box component="div" className="sb-plan-description">
+                    <span>{text('เหมาะสำหรับ', 'Best for')}</span>
+                    <p>{copy.description}</p>
+                  </Box>
+                  <Box component="div" className="sb-plan-services">
+                    <span>{text('บริการหลัก', 'Core services')}</span>
+                    <p>{copy.includedServices}</p>
+                  </Box>
+                  <Box
+                    component="div"
+                    sx={[websiteSx['sb-plan-facts']]}
+                    className="sb-plan-facts"
+                  >
+                    <div>
+                      <span>{text('พื้นที่แนะนำ', 'Recommended space')}</span>
+                      <strong>{copy.area}</strong>
+                    </div>
+                    <div>
+                      <span>
+                        {text('งบลงทุนโดยประมาณ', 'Estimated investment')}
+                      </span>
+                      <strong>{copy.cost}</strong>
+                    </div>
+                    <div>
+                      <span>
+                        {text('ค่าแฟรนไชส์เริ่มต้น', 'Starting franchise fee')}
+                      </span>
+                      <strong>{copy.franchiseFee}</strong>
+                    </div>
+                  </Box>
+                  <Box
+                    component="button"
+                    type="button"
+                    sx={[
+                      websiteSx['sb-button'],
+                      websiteSx['sb-button-gold'],
+                      websiteSx['sb-plan-cta'],
+                    ]}
+                    className="sb-button sb-button-gold sb-plan-cta"
+                    onClick={() => selectPlan(plan.size)}
+                  >
+                    {text('ติดต่อทีมแฟรนไชส์', 'Contact franchise team')}{' '}
+                    <Arrow />
+                  </Box>
                 </Box>
-                <Box component="div" className="sb-plan-description">
-                  <span>{text('เหมาะสำหรับ', 'Best for')}</span>
-                  <p>{copy.description}</p>
-                </Box>
-                <Box component="div" className="sb-plan-services">
-                  <span>{text('บริการหลัก', 'Core services')}</span>
-                  <p>{copy.includedServices}</p>
-                </Box>
-                <Box
-                  component="div"
-                  sx={[websiteSx['sb-plan-facts']]}
-                  className="sb-plan-facts"
-                >
-                  <div>
-                    <span>{text('พื้นที่แนะนำ', 'Recommended space')}</span>
-                    <strong>{copy.area}</strong>
-                  </div>
-                  <div>
-                    <span>
-                      {text('งบลงทุนโดยประมาณ', 'Estimated investment')}
-                    </span>
-                    <strong>{copy.cost}</strong>
-                  </div>
-                  <div>
-                    <span>
-                      {text('ค่าแฟรนไชส์เริ่มต้น', 'Starting franchise fee')}
-                    </span>
-                    <strong>{copy.franchiseFee}</strong>
-                  </div>
-                </Box>
-                <Box
-                  component="button"
-                  type="button"
-                  sx={[
-                    websiteSx['sb-button'],
-                    websiteSx['sb-button-gold'],
-                    websiteSx['sb-plan-cta'],
-                  ]}
-                  className="sb-button sb-button-gold sb-plan-cta"
-                  onClick={() => selectPlan(plan.size)}
-                >
-                  {text('ติดต่อทีมแฟรนไชส์', 'Contact franchise team')}{' '}
-                  <Arrow />
-                </Box>
-              </Box>
-            );
-          })}
+              );
+            })}
+          </Box>
         </Box>
       </Box>
       <Box

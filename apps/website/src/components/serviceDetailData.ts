@@ -10,7 +10,13 @@ export type ServiceDetail = {
   points: Array<{ title: string; description: string }>;
   detailTitle: string;
   detailSummary: string;
+  reference?: { label: string; href: string };
   details: Array<{ title: string; description: string }>;
+  systemScreens?: Array<{
+    title: string;
+    description: string;
+    image: string;
+  }>;
   journeyTitle: string;
   journeySummary: string;
   journey: Array<{ title: string; description: string }>;
@@ -28,68 +34,69 @@ export const serviceDetails: ServiceDetail[] = [
     summary:
       'กาแฟที่คัดสรรด้วยความตั้งใจ เพื่อให้ทุกแก้วเป็นช่วงเวลาที่ดีของคุณ',
     image: '/services/superblackcoffee-service-coffee.png',
-    introductionTitle: 'กาแฟดี เริ่มจากการเข้าใจเมล็ดกาแฟ',
+    introductionTitle: 'กาแฟที่ตั้งใจดูแล ตั้งแต่เมล็ดถึงแก้ว',
     introduction:
-      'เราคัดเลือกเมล็ดกาแฟที่มีคาแรกเตอร์ชัดเจน แล้วดูแลตั้งแต่การคั่ว การบด และการสกัด เพื่อให้กาแฟทุกแก้วมีรสชาติสมดุล ดื่มง่าย และเป็นตัวเอง',
+      'Super Black Coffee คัดสรรเมล็ดกาแฟคุณภาพ และดูแลการบดกับการสกัดให้เหมาะกับแต่ละเมนู เพื่อให้กาแฟที่เสิร์ฟมีรสชาติชัดเจนและสม่ำเสมอในทุกแก้ว',
     points: [
       {
-        title: 'คัดเลือกเมล็ดที่มีเอกลักษณ์',
+        title: 'คัดสรรเมล็ดกาแฟคุณภาพ',
         description:
-          'เลือกเมล็ดกาแฟจากแหล่งปลูกที่ให้กลิ่น รส และความรู้สึกในแบบที่เราอยากส่งต่อ',
+          'เราเลือกเมล็ดกาแฟเพื่อเป็นพื้นฐานของรสชาติที่ดื่มได้ดี ทั้งเมนูกาแฟดำ กาแฟนม และเมนูซิกเนเจอร์',
       },
       {
-        title: 'คั่วเพื่อรสชาติที่สมดุล',
+        title: 'บดและสกัดให้เข้ากับเมนู',
         description:
-          'พัฒนาระดับการคั่วให้ได้ความหอม ความหวาน และบอดี้ที่ดื่มได้ดีทั้งแบบร้อนและเย็น',
+          'ดูแลสัดส่วนกาแฟ น้ำ และนมให้เหมาะกับเครื่องดื่มแต่ละแบบ เพื่อให้รสชาติของเมนูยังชัดเจน',
       },
       {
-        title: 'ชงสดในทุกออเดอร์',
+        title: 'ชงสดตามออเดอร์',
         description:
-          'บดและสกัดอย่างพอดี เพื่อให้กลิ่นหอมและรสชาติของกาแฟอยู่ในแก้วที่เสิร์ฟคุณ',
+          'ทุกแก้วผ่านการเตรียมและเสิร์ฟตามมาตรฐานของร้าน เพื่อให้คุณได้กาแฟแก้วเดิมที่ไว้ใจได้ในทุกครั้ง',
       },
     ],
-    detailTitle: 'เลือกกาแฟให้ตรงกับรสชาติที่คุณชอบ',
+    detailTitle: 'เมนูกาแฟที่เลือกได้ตามรสชาติที่ชอบ',
     detailSummary:
-      'ไม่ว่าคุณจะชอบความเข้มแบบเอสเปรสโซ ความนุ่มของนม หรือกาแฟเย็นที่ดื่มง่าย เราออกแบบเมนูให้เลือกคาแรกเตอร์ที่ใช่สำหรับคุณได้ชัดเจนขึ้น',
+      'เริ่มจากกาแฟคลาสสิกที่คุ้นเคย ไปจนถึงเมนูกาแฟที่จับคู่กับนม ผลไม้ และวัตถุดิบอื่น เพื่อให้เลือกแก้วที่เข้ากับวันของคุณได้ง่ายขึ้น',
     details: [
       {
-        title: 'เริ่มจากคาแรกเตอร์ที่ใช่',
+        title: 'กาแฟคลาสสิก',
         description:
-          'เลือกได้ทั้งกาแฟดำที่ชัดเจน ลาเต้ที่นุ่มละมุน หรือเมนูซิกเนเจอร์ที่มีรสชาติเฉพาะตัว',
+          'พบกับอเมริกาโน่ เอสเปรสโซ่ มอคค่า คาปูชิโน่ และลาเต้ ทั้งแบบร้อนและเย็น',
       },
       {
-        title: 'ร้อนหรือเย็นก็ยังได้รสชาติที่ดี',
+        title: 'กาแฟนมและเมนูรสละมุน',
         description:
-          'ทีมงานดูแลสัดส่วนกาแฟ น้ำ และนมให้เข้ากับรูปแบบเครื่องดื่ม เพื่อให้แต่ละเมนูมีความพอดีในแบบของตัวเอง',
+          'เลือกจากลาเต้ วนิลาลาเต้ คาราเมลมัคคิอาโต้ หรือเมนูที่ผสมกาแฟกับนมในคาแรกเตอร์ที่ต่างกัน',
       },
       {
-        title: 'เมนูคลาสสิกและเมนูซิกเนเจอร์',
+        title: 'กาแฟผสมผลไม้และเมนูสร้างสรรค์',
         description:
-          'เริ่มจากอเมริกาโน่ คาเฟ่ลาเต้ หรือเลือกเมนูซิกเนเจอร์ของ Super Black Coffee เพื่อค้นหารสชาติแก้วโปรดของคุณ',
+          'ลองอเมริกาโน่มะพร้าว อเมริกาโน่ส้ม อเมริกาโน่น้ำผึ้งมะนาว หรือเมนูซิกเนเจอร์ของ Super Black Coffee',
       },
     ],
-    journeyTitle: 'จากเมล็ดกาแฟ สู่แก้วที่เสิร์ฟตรงหน้า',
+    journeyTitle: 'จากเมนูที่เลือก สู่กาแฟแก้วตรงหน้า',
     journeySummary:
-      'ทุกแก้วผ่านขั้นตอนที่เรียบง่ายแต่ตั้งใจ ตั้งแต่เลือกเมนู ปรับให้เข้ากับคุณ ไปจนถึงการสกัดและเสิร์ฟสด',
+      'ทุกแก้วเริ่มจากการเลือกเมนูที่เหมาะกับคุณ แล้วจึงผ่านการเตรียม ชง และเสิร์ฟในขั้นตอนที่เรียบง่าย',
     journey: [
       {
-        title: 'เลือกเมนูที่อยากดื่ม',
+        title: 'เลือกเมนูที่ตรงใจ',
         description:
-          'บอกเราได้ว่าคุณชอบเข้ม นุ่ม หวานน้อย หรืออยากลองรสชาติใหม่',
+          'เลือกจากกาแฟดำ กาแฟนม เมนูร้อน เมนูเย็น หรือเมนูที่อยากลองในวันนั้น',
       },
       {
-        title: 'บาริสต้าชงอย่างพอดี',
+        title: 'ชงตามมาตรฐานของร้าน',
         description:
-          'ดูแลการบด การสกัด และส่วนผสมให้แต่ละแก้วได้รสชาติที่ตั้งใจไว้',
+          'บาริสต้าดูแลการเตรียม ส่วนผสม และการสกัดให้กาแฟแต่ละแก้วพร้อมเสิร์ฟ',
       },
       {
-        title: 'รับแก้วโปรดของคุณ',
-        description: 'ดื่มได้ทันที หรือพกไปเติมพลังต่อในทุกจังหวะของวัน',
+        title: 'รับกาแฟแก้วที่เลือก',
+        description:
+          'นั่งดื่มที่ร้านหรือรับกลับไป พร้อมกาแฟที่เข้ากับจังหวะของวันคุณ',
       },
     ],
-    closingTitle: 'ค้นหาคาแรกเตอร์กาแฟที่ใช่สำหรับคุณ',
+    closingTitle: 'เลือกกาแฟแก้วที่ใช่สำหรับวันนี้',
     closingDescription:
-      'สำรวจเมนูกาแฟคลาสสิกและซิกเนเจอร์ของเรา แล้วเลือกแก้วที่เข้ากับรสนิยมและจังหวะของวันนี้',
+      'สำรวจเมนูกาแฟคลาสสิก กาแฟนม และเมนูสร้างสรรค์ของเรา แล้วเลือกแก้วที่อยากดื่มได้เลย',
     actionLabel: 'ดูเมนูของเรา',
     actionHref: '/menu',
   },
@@ -102,128 +109,148 @@ export const serviceDetails: ServiceDetail[] = [
     image: '/services/superblackcoffee-service-ev-charging.png',
     introductionTitle: 'พักระหว่างทางให้เป็นช่วงเวลาที่ดี',
     introduction:
-      'เราอยากให้ทุกจุดแวะพักช่วยให้การเดินทางเบาขึ้น จึงรวมพื้นที่กาแฟและการชาร์จพลังไว้ในจังหวะเดียวกัน',
+      'ข้อมูลสเปกด้านล่างอ้างอิงจาก RBC EV Station เพื่อใช้ประกอบการวางแผนโครงการ ส่วนรุ่นและการติดตั้งจริงของแต่ละสาขาต้องยืนยันก่อนใช้บริการ',
     points: [
       {
-        title: 'แวะพักได้อย่างสบายใจ',
-        description: 'ใช้เวลาระหว่างรอในพื้นที่ที่พร้อมให้คุณพักผ่อน',
+        title: 'ตัวเลือกเครื่องชาร์จ DC',
+        description:
+          'RBC ระบุเครื่องชาร์จ DC 2 กลุ่ม: iGreen CSEVC3401E กำลัง 20 / 30 kW และ iGreen CSEVC3108E กำลัง 120 kW สำหรับพื้นที่ที่ต้องการกำลังสูง',
       },
       {
-        title: 'กาแฟคู่การเดินทาง',
-        description: 'เลือกเครื่องดื่มแก้วโปรด แล้วค่อยออกเดินทางต่อ',
+        title: 'ตัวเลือกเครื่องชาร์จ AC',
+        description:
+          'RBC ระบุ AC 7.4 kW และ 22 kW ใช้หัวต่อ Type 2 และสายชาร์จยาว 5 เมตร โดยมีรุ่นมีจอและไม่มีจอ',
       },
       {
-        title: 'พร้อมไปต่อทุกเส้นทาง',
-        description: 'เติมจังหวะดี ๆ ก่อนกลับสู่ทุกแผนของวัน',
+        title: 'ระบบไฟฟ้าต้องออกแบบตามพื้นที่',
+        description:
+          'กำลังติดตั้งจริง ขนาดหม้อแปลง จุดเชื่อมต่อ และอุปกรณ์ป้องกัน ต้องตรวจสอบจากหน้างานโดยวิศวกรและการไฟฟ้า',
       },
     ],
-    detailTitle: 'เวลารอที่กลายเป็นเวลาของคุณ',
+    detailTitle: 'สเปกเครื่องชาร์จและระบบไฟฟ้า',
     detailSummary:
-      'เราอยากให้การชาร์จรถไม่ใช่แค่ช่วงเวลาที่ต้องรอ แต่เป็นโอกาสเล็ก ๆ ให้คุณได้พัก เติมพลัง และจัดระเบียบวันของตัวเอง',
+      'สเปกต่อไปนี้เป็นข้อมูลอ้างอิงจาก RBC EV Station ไม่ใช่การยืนยันรุ่น อุปกรณ์ หรือกำลังที่ติดตั้งจริงในทุกสาขา Super Black Coffee',
+    reference: {
+      label: 'ดูข้อมูลอ้างอิงจาก RBC EV Station',
+      href: 'https://www.rbcevstation.com/investment',
+    },
     details: [
       {
-        title: 'จุดพักที่ดูแลง่าย',
+        title: 'DC 20 / 30 kW',
         description:
-          'แวะจอดรถ ใช้เวลาระหว่างรอในบรรยากาศสบาย ๆ แล้วค่อยกลับสู่เส้นทางของคุณอย่างไม่เร่งรีบ',
+          'แรงดันขาออก 150–1000 V DC, กระแสสูงสุด 100 A, สายชาร์จ 5 เมตร และหน้าจอ LCD 4.3 นิ้ว รับประกัน 2 ปี สำหรับรุ่น 20 และ 30 kW',
       },
       {
-        title: 'กาแฟและพื้นที่ในจังหวะเดียวกัน',
+        title: 'DC 120 kW',
         description:
-          'เลือกเครื่องดื่ม พักสายตา หรือนัดพบคนสำคัญได้ โดยไม่ต้องแยกการเดินทางออกเป็นหลายจุด',
+          'แรงดันขาออก 150–1000 V DC, กระแส 200 A หรือ 100 A ต่อหัวตามรุ่นย่อย, สายชาร์จ 5 เมตร และหน้าจอ LCD 7 หรือ 4.3 นิ้ว รับประกัน 2 ปี',
       },
       {
-        title: 'วางแผนเดินทางได้มั่นใจขึ้น',
+        title: 'AC 7.4 / 22 kW',
         description:
-          'ค้นหาสาขาก่อนออกเดินทาง เพื่อเลือกจุดพักที่เข้ากับเส้นทางและเวลาของคุณ',
+          'หัวต่อ Type 2 และสายชาร์จ 5 เมตร รุ่นมีจอใช้ LCD 4.3 นิ้ว โดยการรับประกันอยู่ที่ 3 หรือ 5 ปีตามรุ่น ต้องยืนยันรุ่นย่อยก่อนสั่งซื้อหรือติดตั้ง',
       },
     ],
-    journeyTitle: 'แวะพักอย่างง่าย แล้วพร้อมออกเดินทางต่อ',
+    journeyTitle: 'วางแผนก่อนแวะชาร์จ',
     journeySummary:
-      'รายละเอียดของอุปกรณ์และบริการอาจแตกต่างกันในแต่ละสาขา จึงแนะนำให้ตรวจสอบสาขาที่คุณต้องการแวะก่อนเดินทาง',
+      'เว็บไซต์ยังไม่มีการแสดงสถานะหัวชาร์จแบบเรียลไทม์ และสเปกข้างต้นเป็นข้อมูลประกอบการวางแผนเท่านั้น จึงควรติดต่อสาขาเพื่อยืนยันก่อนออกเดินทาง',
     journey: [
       {
-        title: 'เลือกสาขาบนเส้นทาง',
-        description: 'ค้นหาจุดแวะพักที่ใกล้คุณและเหมาะกับแผนเดินทาง',
+        title: 'ตรวจสอบสาขาและความพร้อม',
+        description:
+          'บริการ EV Charging มีเฉพาะบางสาขา โปรดสอบถามว่ามีหัวชาร์จกี่หัว รองรับรถได้กี่คัน และพร้อมให้บริการในเวลาที่คุณต้องการหรือไม่',
       },
       {
-        title: 'ชาร์จรถในเวลาที่พอดี',
-        description: 'จัดการเวลาระหว่างรอในพื้นที่กาแฟที่พร้อมให้พัก',
+        title: 'ตรวจความเข้ากันได้ของรถ',
+        description:
+          'แจ้งรุ่นรถและหัวต่อที่ใช้กับสาขาเพื่อยืนยันชนิดเครื่องชาร์จ กำลังชาร์จ และหัวต่อที่ติดตั้งจริง โดยเฉพาะรุ่น DC ที่รายละเอียดหัวต่อขึ้นกับใบเสนอราคาโครงการ',
       },
       {
-        title: 'เติมพลังให้ตัวเอง',
-        description: 'รับกาแฟแก้วโปรด แล้วออกเดินทางต่ออย่างสบายใจ',
+        title: 'ยืนยันเงื่อนไขบริการ',
+        description:
+          'สอบถามค่าบริการ เวลาทำการ วิธีชำระเงิน การจอง และสถานะล่าสุด แล้วแวะพักดื่มกาแฟระหว่างรอชาร์จได้ตามความสะดวก',
       },
     ],
-    closingTitle: 'ให้ทุกจุดแวะพัก ช่วยให้การเดินทางเบาขึ้น',
+    closingTitle: 'ค้นหาสาขา แล้วตรวจสอบก่อนแวะชาร์จ',
     closingDescription:
-      'ค้นหาสาขา Super Black Coffee ที่ใกล้คุณ เพื่อวางแผนพัก เติมพลัง และไปต่อในจังหวะของตัวเอง',
+      'ค้นหาสาขา Super Black Coffee ที่ใกล้คุณเพื่อวางแผนจุดพัก และติดต่อสาขาเพื่อยืนยันรายละเอียด EV Charging ที่ตรงกับรถและเส้นทางของคุณ',
     actionLabel: 'ค้นหาสาขาใกล้คุณ',
     actionHref: '/branches',
   },
   {
     slug: 'bpost65-express',
     navigationTitle: 'BPOST65 Express',
-    title: 'ส่งต่อทุกเรื่องสำคัญ\nได้ง่ายขึ้น',
-    summary:
-      'บริการรับส่งพัสดุที่ช่วยให้ทุกการแวะร้าน เติมความสะดวกให้ชีวิตและการเดินทาง',
+    title: 'รับฝากส่งพัสดุ\nในจุดแวะเดียว',
+    summary: 'จัดการพัสดุระหว่างแวะพัก พร้อมกาแฟแก้วโปรดในจังหวะเดียว',
     image: '/services/superblackcoffee-service-bpost65-express.png',
-    introductionTitle: 'ความสะดวกที่รวมอยู่ในจุดพักเดียว',
+    introductionTitle: 'เตรียมให้ครบ แล้วส่งได้ง่ายขึ้น',
     introduction:
-      'เมื่อคุณแวะพักดื่มกาแฟ ก็สามารถจัดการเรื่องพัสดุที่สำคัญได้ในคราวเดียว เพื่อให้วันของคุณเดินต่ออย่างลื่นไหล',
+      'BPOST65 Express ช่วยให้คุณฝากส่งพัสดุระหว่างแวะสาขาได้ โดยรายละเอียดบริการ ประเภทพัสดุ และเวลารับฝากต้องตรวจสอบกับสาขาก่อนใช้บริการ',
     points: [
       {
-        title: 'แวะครั้งเดียว ได้หลายเรื่อง',
-        description: 'เติมกาแฟ เติมพลัง และจัดการธุระในจังหวะเดียวกัน',
+        title: 'ตรวจสอบสาขาก่อนแวะ',
+        description:
+          'บริการมีเฉพาะบางสาขา โปรดสอบถามเวลาให้บริการ ประเภทพัสดุที่รับ และเงื่อนไขการรับฝากก่อนเดินทาง',
       },
       {
-        title: 'ออกแบบให้เข้าใจง่าย',
-        description: 'บริการที่ช่วยให้ทุกขั้นตอนตรงไปตรงมา',
+        title: 'เตรียมพัสดุและข้อมูลผู้รับ',
+        description:
+          'บรรจุพัสดุให้เรียบร้อย และเตรียมชื่อ ที่อยู่ รหัสไปรษณีย์ และเบอร์โทรศัพท์ของผู้ส่งกับผู้รับให้ครบ',
       },
       {
-        title: 'อยู่กับทุกการเดินทาง',
-        description: 'ส่งต่อสิ่งสำคัญ ก่อนคุณออกไปยังจุดหมายถัดไป',
+        title: 'เก็บหลักฐานสำหรับติดตาม',
+        description:
+          'ขอและเก็บใบรับฝากหรือหมายเลขติดตามทุกครั้ง เพื่อใช้ตรวจสอบสถานะพัสดุตามช่องทางที่สาขาแจ้ง',
       },
     ],
-    detailTitle: 'เรื่องสำคัญของวัน จัดการได้ระหว่างแวะพัก',
+    detailTitle: 'สิ่งที่ควรรู้ก่อนฝากส่ง',
     detailSummary:
-      'เมื่อการส่งพัสดุอยู่ใกล้กับกาแฟแก้วโปรดและพื้นที่พักระหว่างทาง เรื่องที่ต้องทำก็กลายเป็นส่วนหนึ่งของวันได้อย่างลื่นไหล',
+      'ค่าบริการ ระยะเวลานำส่ง ขนาด น้ำหนัก สิ่งของต้องห้าม และความคุ้มครอง อาจแตกต่างตามผู้ให้บริการและสาขา โปรดยืนยันก่อนส่งทุกครั้ง',
     details: [
       {
-        title: 'รวมหลายธุระไว้ในจุดเดียว',
+        title: 'ก่อนนำพัสดุมาที่สาขา',
         description:
-          'แวะรับกาแฟ จัดการพัสดุ และใช้เวลาพักสั้น ๆ ได้ในจุดแวะเดียวก่อนกลับไปทำสิ่งที่สำคัญต่อ',
+          'แพ็กพัสดุให้แข็งแรง ปิดผนึกให้เรียบร้อย และตรวจชื่อ ที่อยู่ รหัสไปรษณีย์ กับเบอร์โทรศัพท์ผู้รับอีกครั้ง',
       },
       {
-        title: 'เตรียมตัวได้อย่างมั่นใจ',
+        title: 'เมื่อใช้บริการที่สาขา',
         description:
-          'เตรียมข้อมูลผู้ส่งและผู้รับให้พร้อม แล้วสอบถามทีมหน้าร้านสำหรับขั้นตอนการใช้บริการที่สาขา',
+          'แจ้งชนิดพัสดุ ขนาด และน้ำหนักตามจริง พร้อมสอบถามราคา ระยะเวลานำส่ง สิ่งของที่ไม่รับฝาก และตัวเลือกความคุ้มครอง',
       },
       {
-        title: 'สะดวกกับทุกจังหวะของวัน',
+        title: 'หลังฝากส่ง',
         description:
-          'ไม่ว่าจะเป็นวันทำงาน วันที่เดินทาง หรือวันที่มีหลายเรื่องให้จัดการ เราอยากช่วยให้คุณไปต่อได้ง่ายขึ้น',
+          'เก็บใบรับฝากและหมายเลขติดตามไว้ แล้วตรวจสถานะผ่านช่องทางของผู้ให้บริการตามข้อมูลที่ได้รับจากสาขา',
+      },
+      {
+        title: 'หากต้องการข้อมูลเพิ่มเติม',
+        description:
+          'สอบถามสาขาเรื่องพื้นที่ให้บริการ ช่องทางติดตาม การเคลม และช่องทางติดต่อ BPOST65 ก่อนชำระค่าบริการ',
       },
     ],
-    journeyTitle: 'เตรียมให้พร้อม แล้วส่งต่ออย่างสบายใจ',
+    journeyTitle: 'สามขั้นตอนก่อนส่งพัสดุ',
     journeySummary:
-      'เงื่อนไขและความพร้อมให้บริการอาจต่างกันตามสาขาและผู้ให้บริการ โปรดตรวจสอบกับสาขาก่อนใช้บริการ',
+      'การเตรียมข้อมูลให้ครบช่วยลดเวลาที่สาขาและทำให้ตรวจสอบการจัดส่งได้ง่ายขึ้น',
     journey: [
       {
-        title: 'เลือกสาขาที่สะดวก',
-        description: 'ค้นหาจุดแวะที่เข้ากับเส้นทางและเวลาของคุณ',
+        title: 'เลือกสาขาและยืนยันบริการ',
+        description:
+          'ค้นหาสาขาที่สะดวก แล้วติดต่อเพื่อยืนยันว่ามี BPOST65 Express และรับฝากพัสดุในช่วงเวลาที่ต้องการ',
       },
       {
-        title: 'เตรียมข้อมูลพัสดุ',
-        description: 'จัดเตรียมข้อมูลที่จำเป็นให้ครบก่อนเข้ารับบริการ',
+        title: 'แพ็กและกรอกข้อมูลให้ครบ',
+        description:
+          'เตรียมพัสดุให้พร้อมส่ง พร้อมรายละเอียดผู้ส่งและผู้รับที่อ่านได้ชัดเจน เพื่อให้ทีมสาขาดำเนินการได้รวดเร็ว',
       },
       {
-        title: 'แวะพัก แล้วส่งต่อ',
-        description: 'จัดการเรื่องพัสดุพร้อมเติมพลังด้วยกาแฟแก้วโปรด',
+        title: 'รับหลักฐานและติดตาม',
+        description:
+          'ตรวจสอบรายละเอียดบนใบรับฝาก เก็บหมายเลขติดตาม แล้วแวะพักดื่มกาแฟก่อนเดินทางต่อได้ตามสบาย',
       },
     ],
-    closingTitle: 'เพราะเรื่องสำคัญ ไม่ควรทำให้วันของคุณสะดุด',
+    closingTitle: 'ส่งพัสดุให้จบ ในจุดแวะเดียว',
     closingDescription:
-      'ค้นหาสาขาใกล้คุณและสอบถามความพร้อมของบริการก่อนแวะ เพื่อให้ทุกธุระจบได้ในจังหวะเดียว',
+      'ค้นหาสาขาใกล้คุณ แล้วสอบถามความพร้อมของ BPOST65 Express ก่อนแวะ เพื่อให้การฝากส่งเป็นไปตามแผนของคุณ',
     actionLabel: 'ค้นหาสาขาใกล้คุณ',
     actionHref: '/branches',
   },
@@ -297,68 +324,128 @@ export const serviceDetails: ServiceDetail[] = [
   {
     slug: 'superblack-control',
     navigationTitle: 'SuperBlack Control',
-    title: 'ทุกภาพของธุรกิจ\nอยู่ในมือคุณ',
+    title: 'สามระบบสำคัญ\nสำหรับแฟรนไชส์',
     summary:
-      'ระบบที่ช่วยให้การดูแลร้านค้าและแฟรนไชส์เป็นเรื่องที่เห็นภาพและจัดการต่อได้ง่ายขึ้น',
+      'บริหารแฟรนไชส์ คุมสต๊อก และติดตามเวลาเข้างานของทีมได้จากระบบที่เชื่อมกับการทำงานประจำวัน',
     image: '/services/superblackcoffee-service-control.png',
     imagePosition: 'center top',
-    introductionTitle: 'ข้อมูลที่พร้อมใช้ เพื่อทีมที่พร้อมไปต่อ',
+    introductionTitle: 'เครื่องมือที่ช่วยให้ร้านเดินหน้าเป็นระบบ',
     introduction:
-      'การบริหารที่ดีเริ่มจากการเห็นภาพเดียวกัน SuperBlack Control ช่วยให้การติดตามงานและการประสานงานของธุรกิจเป็นระเบียบมากขึ้น',
+      'SuperBlack Control รวมเครื่องมือหลักที่แฟรนไชส์ใช้ในการดำเนินงานประจำวัน เพื่อให้เจ้าของร้านและทีมสาขาติดตามข้อมูลสำคัญได้ในที่เดียว',
     points: [
       {
-        title: 'เห็นภาพการทำงานชัดขึ้น',
-        description: 'รวมเรื่องสำคัญของร้านไว้ให้ติดตามได้ง่าย',
+        title: 'ระบบแฟรนไชส์',
+        description:
+          'ติดตามข้อมูลสาขาและการดำเนินงานของแฟรนไชส์จากพื้นที่จัดการเดียว',
       },
       {
-        title: 'ทำงานร่วมกันลื่นไหล',
-        description: 'ช่วยให้ทีมและผู้ประกอบการสื่อสารในจังหวะเดียวกัน',
+        title: 'ระบบสต๊อก',
+        description:
+          'ดูแลรายการสินค้าและวัตถุดิบ เพื่อให้ทีมติดตามสิ่งที่ต้องใช้ในร้านได้เป็นระบบ',
       },
       {
-        title: 'พร้อมใช้กับการเติบโต',
-        description: 'วางรากฐานการจัดการที่ขยายไปพร้อมกับธุรกิจ',
+        title: 'ระบบเช็กอิน–เช็กเอาต์',
+        description:
+          'บันทึกเวลาเข้างานและออกงาน เพื่อช่วยให้ติดตามเวลาทำงานของพนักงานได้ชัดเจน',
       },
     ],
-    detailTitle: 'เห็นภาพเดียวกัน เพื่อขับเคลื่อนธุรกิจได้ชัดขึ้น',
+    detailTitle: 'สิ่งที่แฟรนไชส์ใช้จัดการร้านได้จริง',
     detailSummary:
-      'เมื่อข้อมูลสำคัญอยู่ในมุมมองที่เข้าใจง่าย ทีมหน้าร้านและผู้ประกอบการก็ใช้เวลาไปกับการตัดสินใจและดูแลลูกค้าได้มากขึ้น',
+      'หลังเริ่มต้นแฟรนไชส์ ทีมจะมีเครื่องมือสำหรับติดตามสาขา จัดการสต๊อก และบันทึกเวลาเข้างาน–ออกงาน โดยรายละเอียดสิทธิ์และการตั้งค่าเป็นไปตามรูปแบบที่ทีมกำหนดให้',
     details: [
       {
-        title: 'ติดตามสิ่งสำคัญได้เป็นระบบ',
+        title: 'บริหารแฟรนไชส์จากจุดเดียว',
         description:
-          'รวบรวมข้อมูลการดำเนินงานที่จำเป็น เพื่อช่วยให้เห็นภาพรวมและจุดที่ควรติดตามต่อได้ชัดขึ้น',
+          'เข้าถึงพื้นที่จัดการที่เกี่ยวข้องกับสาขา เพื่อให้เจ้าของร้านและทีมเห็นข้อมูลการดำเนินงานในมุมมองที่เหมาะกับบทบาท',
       },
       {
-        title: 'เชื่อมจังหวะการทำงานของทีม',
+        title: 'ติดตามสินค้าและวัตถุดิบ',
         description:
-          'สื่อสารและติดตามงานจากข้อมูลชุดเดียวกัน ลดช่องว่างระหว่างสิ่งที่เกิดขึ้นในร้านกับการวางแผนของทีม',
+          'ใช้ระบบสต๊อกช่วยดูแลรายการสินค้าและวัตถุดิบที่เกี่ยวข้องกับการทำงานของสาขา',
       },
       {
-        title: 'ใช้ข้อมูลเพื่อวางแผนวันถัดไป',
+        title: 'ดูแลเวลาเข้างานของทีม',
         description:
-          'มองแนวโน้มของงานและเตรียมการต่อได้อย่างเป็นขั้นตอน เมื่อธุรกิจขยายไปสู่หลายสาขา',
+          'ระบบเช็กอิน–เช็กเอาต์ช่วยบันทึกเวลาเริ่มและสิ้นสุดงาน เพื่อให้ทีมตรวจสอบข้อมูลเวลาได้ง่ายขึ้น',
       },
     ],
-    journeyTitle: 'จากข้อมูลที่มองเห็น สู่การตัดสินใจที่เดินหน้า',
+    systemScreens: [
+      {
+        title: 'ภาพรวมแฟรนไชส์',
+        description:
+          'ดูข้อมูลสาขา สินค้าที่พร้อมขาย และรายการที่ต้องติดตามจากหน้าเดียว',
+        image: '/services/system-previews/franchise-dashboard.jpg',
+      },
+      {
+        title: 'คำขอวัตถุดิบ',
+        description: 'ติดตามคำขอวัตถุดิบที่สาขาส่งให้ทีมดำเนินการ',
+        image: '/services/system-previews/franchise-ingredient-requests.jpg',
+      },
+      {
+        title: 'เมนูและสินค้า',
+        description: 'ตรวจสอบเมนู ราคา และความพร้อมขายของสาขา',
+        image: '/services/system-previews/franchise-products.jpg',
+      },
+      {
+        title: 'ตารางพนักงาน',
+        description: 'ดูและวางแผนตารางกะของทีมประจำสาขา',
+        image: '/services/system-previews/franchise-schedule.jpg',
+      },
+      {
+        title: 'บันทึกเมนูที่ขายและตัดสต๊อก',
+        description: 'ทีมหน้าร้านบันทึกการขายเพื่อตัดวัตถุดิบตามเมนูที่เลือก',
+        image: '/services/system-previews/stock-sales.jpg',
+      },
+      {
+        title: 'ตรวจนับวัตถุดิบ',
+        description:
+          'ตรวจสอบยอดคงเหลือ สถานะ และสั่งซื้อวัตถุดิบได้จากหน้าเดียว',
+        image: '/services/system-previews/stock-ingredients.jpg',
+      },
+      {
+        title: 'โปรโมชั่น',
+        description: 'ดูและจัดการโปรโมชั่นตามสิทธิ์ที่ได้รับของสาขา',
+        image: '/services/system-previews/stock-promotions.jpg',
+      },
+      {
+        title: 'เช็กอิน–เช็กเอาต์พนักงาน',
+        description:
+          'พนักงานบันทึกเวลาเข้างานและดูสถานะการทำงานของตนเองได้จากมือถือ',
+        image: '/services/system-previews/attendance-clock.jpg',
+      },
+      {
+        title: 'คำขอลา',
+        description: 'พนักงานส่งคำขอลาและกรอกรายละเอียดที่เกี่ยวข้องได้จากระบบ',
+        image: '/services/system-previews/attendance-leave-request.jpg',
+      },
+      {
+        title: 'ประวัติการทำงาน',
+        description: 'ตรวจสอบประวัติเช็กอิน–เช็กเอาต์และใบลาที่บันทึกไว้',
+        image: '/services/system-previews/attendance-history.jpg',
+      },
+    ],
+    journeyTitle: 'เริ่มใช้งานระบบในสามส่วน',
     journeySummary:
-      'SuperBlack Control ถูกออกแบบให้ช่วยทีมเชื่อมข้อมูลสำคัญกับการทำงานประจำวัน โดยปรับใช้ตามบทบาทและการเติบโตของธุรกิจ',
+      'ตั้งค่าบัญชีและสิทธิ์การใช้งานให้เหมาะกับสาขา แล้วให้ทีมใช้ข้อมูลเดียวกันในงานประจำวัน',
     journey: [
       {
-        title: 'เห็นภาพรวมที่จำเป็น',
-        description: 'เริ่มจากข้อมูลที่ช่วยให้ติดตามการดำเนินงานได้ง่าย',
+        title: 'จัดการข้อมูลแฟรนไชส์',
+        description:
+          'เริ่มต้นจากข้อมูลสาขาและบัญชีผู้ใช้งานที่ทีมจำเป็นต้องใช้',
       },
       {
-        title: 'ระบุเรื่องที่ต้องดูแล',
-        description: 'ใช้ภาพรวมเดียวกันเพื่อจัดลำดับสิ่งที่ทีมต้องทำต่อ',
+        title: 'ดูแลสต๊อกในร้าน',
+        description:
+          'บันทึกและติดตามข้อมูลสินค้าและวัตถุดิบตามกระบวนการของสาขา',
       },
       {
-        title: 'ประสานงานและพัฒนา',
-        description: 'เปลี่ยนสิ่งที่เห็นให้เป็นการทำงานที่ต่อเนื่องมากขึ้น',
+        title: 'บันทึกเวลาเข้างาน–ออกงาน',
+        description: 'ให้พนักงานเช็กอินและเช็กเอาต์ตามขั้นตอนที่ร้านกำหนด',
       },
     ],
-    closingTitle: 'ระบบที่ช่วยให้ทีมมองไปในทิศทางเดียวกัน',
+    closingTitle: 'ดูแลร้านด้วยระบบที่ทีมใช้ร่วมกัน',
     closingDescription:
-      'สอบถามทีมแฟรนไชส์เพื่อเรียนรู้เพิ่มเติมว่า SuperBlack Control สนับสนุนการบริหารธุรกิจของคุณได้อย่างไร',
+      'สอบถามทีมแฟรนไชส์เกี่ยวกับระบบแฟรนไชส์ สต๊อก และเช็กอิน–เช็กเอาต์ เพื่อดูรูปแบบการใช้งานที่เหมาะกับสาขาของคุณ',
     actionLabel: 'สอบถามทีมแฟรนไชส์',
     actionHref: '/franchise#apply',
   },
@@ -380,69 +467,69 @@ export const englishServiceDetails: Record<string, ServiceDetailTranslation> = {
     title: 'Premium coffee\nin every moment',
     summary:
       'Thoughtfully selected coffee, so every cup becomes a better moment in your day.',
-    introductionTitle: 'Great coffee begins with understanding the bean',
+    introductionTitle: 'Coffee cared for from bean to cup',
     introduction:
-      'We select beans with a clear character, then care for roasting, grinding, and extraction so every cup is balanced, easy to enjoy, and unmistakably its own.',
+      'Super Black Coffee selects quality beans and cares for grinding and extraction to suit each menu item, so every cup has a clear and consistent flavour.',
     points: [
       {
-        title: 'Beans with a distinct character',
+        title: 'Quality coffee beans',
         description:
-          'We choose beans from origins that offer the aroma, flavour, and feeling we want to share.',
+          'Our coffee beans are the starting point for drinks that work well as black coffee, milk coffee, and signature creations.',
       },
       {
-        title: 'Roasted for balance',
+        title: 'Ground and extracted for each drink',
         description:
-          'Roast profiles are developed for aroma, sweetness, and body that drink beautifully hot or iced.',
+          'Coffee, water, and milk are prepared in proportions that suit each drink, keeping its character clear.',
       },
       {
-        title: 'Freshly brewed to order',
+        title: 'Prepared to order',
         description:
-          'Each cup is ground and extracted with care to keep its aroma and flavour present when it reaches you.',
+          'Every cup is prepared and served to the shop standard, for a familiar cup you can rely on each time.',
       },
     ],
-    detailTitle: 'Choose coffee that suits your taste',
+    detailTitle: 'Coffee menu choices for your taste',
     detailSummary:
-      'Whether you enjoy espresso intensity, the softness of milk, or an easy iced coffee, our menu makes it easier to choose the character that fits you.',
+      'Start with familiar classics, or explore coffee paired with milk, fruit, and other ingredients to find a drink for your day.',
     details: [
       {
-        title: 'Start with the right character',
+        title: 'Coffee classics',
         description:
-          'Choose a clear black coffee, a smooth milk coffee, or a signature drink with its own character.',
+          'Discover Americano, espresso, mocha, cappuccino, and latte in hot and iced options.',
       },
       {
-        title: 'Good flavour, hot or iced',
+        title: 'Milk coffee and smooth flavours',
         description:
-          'Our team balances coffee, water, and milk for the drink format, so every menu item has its own sense of harmony.',
+          'Choose from latte, vanilla latte, caramel macchiato, and other coffee-and-milk combinations.',
       },
       {
-        title: 'Classic and signature choices',
+        title: 'Fruit coffee and creative drinks',
         description:
-          'Begin with an Americano or café latte, or explore a Super Black Coffee signature to discover your favourite profile.',
+          'Try coconut Americano, orange Americano, honey lemon Americano, or a Super Black Coffee signature drink.',
       },
     ],
-    journeyTitle: 'From the coffee bean to the cup in front of you',
+    journeyTitle: 'From your choice to the cup in front of you',
     journeySummary:
-      'Every cup follows a simple, thoughtful process: choose your drink, tailor it to you, then extract and serve it fresh.',
+      'Every cup starts with your menu choice, then follows a simple process of preparation, brewing, and serving.',
     journey: [
       {
-        title: 'Choose what you want to drink',
+        title: 'Choose the drink that fits',
         description:
-          'Tell us if you prefer bold, smooth, less sweet, or something new to try.',
+          'Pick black coffee, milk coffee, hot drinks, iced drinks, or something new for today.',
       },
       {
-        title: 'Brewed with balance',
+        title: 'Prepared to the shop standard',
         description:
-          'Our baristas manage the grind, extraction, and ingredients to achieve the intended flavour in every cup.',
+          'Our baristas prepare the ingredients and extraction so each coffee is ready to serve.',
       },
       {
-        title: 'Take your favourite cup with you',
+        title: 'Receive the coffee you chose',
         description:
-          'Enjoy it straight away, or take it with you for energy through the rest of your day.',
+          'Enjoy it in the shop or take it away, with a coffee that fits your day.',
       },
     ],
-    closingTitle: 'Find the coffee character that feels right for you',
+    closingTitle: 'Choose the right coffee for today',
     closingDescription:
-      'Explore our classic and signature coffee menu, then choose the cup that suits your taste and today’s rhythm.',
+      'Explore our classic coffee, milk coffee, and creative drinks, then choose the cup you want to enjoy.',
     actionLabel: 'View our menu',
   },
   'ev-charging': {
@@ -451,126 +538,144 @@ export const englishServiceDetails: Record<string, ServiceDetailTranslation> = {
       'A stop along the road where you can charge your car, enjoy coffee, and continue with ease.',
     introductionTitle: 'Make a stop along the road a good moment',
     introduction:
-      'We bring coffee and charging together so every stop can make your journey feel lighter.',
+      'The specifications below reference RBC EV Station for project planning. Confirm the exact model and installed setup with each branch before using the service.',
     points: [
       {
-        title: 'Stop with ease',
-        description: 'Spend the waiting time in a space made for rest.',
+        title: 'DC charger options',
+        description:
+          'RBC lists two DC charger groups: iGreen CSEVC3401E at 20 / 30 kW, and iGreen CSEVC3108E at 120 kW for higher-power sites.',
       },
       {
-        title: 'Coffee for the journey',
-        description: 'Choose a favourite drink before setting off again.',
+        title: 'AC charger options',
+        description:
+          'RBC lists AC 7.4 kW and 22 kW options with Type 2 connectors and 5-metre cables, in both display and no-display variants.',
       },
       {
-        title: 'Ready for every route',
-        description: 'Recharge before returning to the rest of your day.',
+        title: 'Electrical design is site-specific',
+        description:
+          'Installed capacity, transformer sizing, connection points, and protection equipment require site review by engineers and the utility.',
       },
     ],
-    detailTitle: 'Waiting time that becomes your time',
+    detailTitle: 'Charger specifications and electrical supply',
     detailSummary:
-      'Charging should not only be time you have to wait. It can be a small opportunity to rest, recharge, and reset your day.',
+      'The following references RBC EV Station. They do not confirm the model, equipment, or capacity installed at every Super Black Coffee branch.',
+    reference: {
+      label: 'View the RBC EV Station reference',
+      href: 'https://www.rbcevstation.com/investment',
+    },
     details: [
       {
-        title: 'An easy stop',
+        title: 'DC 20 / 30 kW',
         description:
-          'Park, spend time in a comfortable setting, and return to your route without rushing.',
+          '150–1000 V DC output, up to 100 A, a 5-metre cable, and a 4.3-inch LCD. RBC lists a two-year warranty for both 20 and 30 kW models.',
       },
       {
-        title: 'Coffee and space together',
+        title: 'DC 120 kW',
         description:
-          'Choose a drink, rest your eyes, or meet someone without splitting your journey between several stops.',
+          '150–1000 V DC output, 200 A or 100 A per connector by configuration, a 5-metre cable, and a 7- or 4.3-inch LCD. RBC lists a two-year warranty.',
       },
       {
-        title: 'Plan with more confidence',
+        title: 'AC 7.4 / 22 kW',
         description:
-          'Find a branch before leaving to choose a stop that matches your route and schedule.',
+          'Type 2 connector and a 5-metre cable. Display variants use a 4.3-inch LCD, while warranty is three or five years by model; confirm the exact variant before ordering or installation.',
       },
     ],
-    journeyTitle: 'Stop simply, then be ready to go on',
+    journeyTitle: 'Plan your charging stop',
     journeySummary:
-      'Equipment and services can vary by branch, so please check your intended branch before travelling.',
+      'Live charger status is not currently shown on the website, and the above specifications are planning references only. Contact your selected branch before travelling.',
     journey: [
       {
-        title: 'Choose a branch on your route',
-        description: 'Find a nearby stop that suits your travel plan.',
-      },
-      {
-        title: 'Charge at the right time',
-        description: 'Use your waiting time in a coffee space made for rest.',
-      },
-      {
-        title: 'Recharge yourself',
+        title: 'Check branch availability',
         description:
-          'Pick up your favourite coffee and continue with confidence.',
+          'EV Charging is available at selected branches only. Ask about the charger count, simultaneous capacity, and availability at the time you plan to visit.',
+      },
+      {
+        title: 'Confirm vehicle compatibility',
+        description:
+          'Share your vehicle model and connector to confirm the installed charger type, power, and connector. DC connector details especially depend on the project quotation.',
+      },
+      {
+        title: 'Confirm service conditions',
+        description:
+          'Confirm fees, opening hours, payment methods, booking requirements, and current status, then enjoy a coffee break while you charge.',
       },
     ],
-    closingTitle: 'Let every stop make the journey feel lighter',
+    closingTitle: 'Find a branch, then confirm before you charge',
     closingDescription:
-      'Find a Super Black Coffee branch near you to plan a pause, recharge, and continue at your own pace.',
+      'Find a nearby Super Black Coffee branch to plan your stop, then contact the branch to confirm EV Charging details for your vehicle and route.',
     actionLabel: 'Find a branch near you',
   },
   'bpost65-express': {
-    title: 'Send important things\nmore easily',
-    summary:
-      'A parcel service that makes every café stop more convenient for daily life and travel.',
-    introductionTitle: 'Convenience in one stop',
+    title: 'Send parcels\nin one stop',
+    summary: 'Handle a parcel while you pause for your favourite coffee.',
+    introductionTitle: 'Prepare well, then send with ease',
     introduction:
-      'When you stop for coffee, you can also take care of an important parcel, so your day keeps moving smoothly.',
+      'BPOST65 Express lets you send a parcel while visiting a branch. Confirm service availability, accepted parcel types, and receiving hours with the branch first.',
     points: [
       {
-        title: 'One stop, more done',
-        description: 'Coffee, a recharge, and an errand in the same moment.',
+        title: 'Check the branch before visiting',
+        description:
+          'The service is available at selected branches. Ask about operating hours, accepted parcel types, and drop-off conditions before travelling.',
       },
       {
-        title: 'Made easy to understand',
-        description: 'A service designed to keep every step straightforward.',
+        title: 'Prepare the parcel and recipient details',
+        description:
+          'Pack the parcel securely and have complete sender and recipient names, addresses, postcodes, and phone numbers ready.',
       },
       {
-        title: 'Part of every journey',
-        description: 'Send something important before your next destination.',
+        title: 'Keep your tracking proof',
+        description:
+          'Request and retain the drop-off receipt or tracking number, so you can check delivery status through the channel provided by the branch.',
       },
     ],
-    detailTitle: 'Take care of important errands while you pause',
+    detailTitle: 'What to know before you send',
     detailSummary:
-      'When parcel sending is near your favourite coffee and a place to rest, an errand becomes a seamless part of the day.',
+      'Fees, transit times, size and weight limits, prohibited items, and coverage can vary by provider and branch. Confirm them before every shipment.',
     details: [
       {
-        title: 'Bring errands together',
+        title: 'Before bringing your parcel',
         description:
-          'Collect coffee, manage a parcel, and take a short break in one stop before continuing your day.',
+          'Pack the parcel securely, seal it properly, and recheck the recipient name, address, postcode, and phone number.',
       },
       {
-        title: 'Prepare with confidence',
+        title: 'At the branch',
         description:
-          'Have sender and recipient details ready, then ask the branch team about the service process.',
+          'Declare the parcel type, actual size, and weight. Ask about price, delivery time, prohibited items, and coverage options.',
       },
       {
-        title: 'Useful in every kind of day',
+        title: 'After drop-off',
         description:
-          'On workdays, travel days, and busy days, we want to make it easier to keep going.',
+          'Keep the receipt and tracking number, then follow delivery status through the provider channel given by the branch.',
+      },
+      {
+        title: 'If you need more information',
+        description:
+          'Ask the branch about service coverage, tracking channels, claims, and how to contact BPOST65 before paying.',
       },
     ],
-    journeyTitle: 'Prepare, then send with ease',
+    journeyTitle: 'Three steps before sending',
     journeySummary:
-      'Terms and availability vary by branch and service provider. Please check with the branch before using the service.',
+      'Having complete details ready reduces time at the branch and makes the shipment easier to track.',
     journey: [
       {
-        title: 'Choose a convenient branch',
-        description: 'Find a stop that suits your route and timing.',
-      },
-      {
-        title: 'Prepare parcel details',
-        description: 'Bring the required information before arriving.',
-      },
-      {
-        title: 'Pause, then send on',
+        title: 'Choose a branch and confirm service',
         description:
-          'Take care of the parcel while recharging with a favourite coffee.',
+          'Find a convenient branch, then contact it to confirm that BPOST65 Express can accept your parcel at the time you plan to visit.',
+      },
+      {
+        title: 'Pack and complete the details',
+        description:
+          'Prepare the parcel and clearly readable sender and recipient details, so the branch team can process it quickly.',
+      },
+      {
+        title: 'Collect proof and track it',
+        description:
+          'Review the receipt, retain the tracking number, then enjoy a coffee break before continuing your day.',
       },
     ],
-    closingTitle: 'Important things should not interrupt your day',
+    closingTitle: 'Send your parcel in one stop',
     closingDescription:
-      'Find a nearby branch and ask about service availability before you visit, so every errand can be handled in one stop.',
+      'Find a nearby branch and confirm BPOST65 Express availability before visiting, so your shipment fits your plan.',
     actionLabel: 'Find a branch near you',
   },
   franchise: {
@@ -640,68 +745,132 @@ export const englishServiceDetails: Record<string, ServiceDetailTranslation> = {
     actionLabel: 'Talk to our franchise team',
   },
   'superblack-control': {
-    title: 'Your business,\nclearly in hand',
+    title: 'Three essential systems\nfor franchise operations',
     summary:
-      'A system that makes store and franchise operations easier to see, understand, and manage.',
-    introductionTitle: 'Ready information for a team ready to move',
+      'Manage franchise operations, stock, and team clock-ins from systems that support everyday work.',
+    introductionTitle: 'Tools that keep the store running systematically',
     introduction:
-      'Strong operations begin with a shared view. SuperBlack Control helps businesses follow work and coordinate with more order.',
+      'SuperBlack Control brings together the core tools franchise teams use every day, helping owners and branch teams follow important information in one place.',
     points: [
       {
-        title: 'See operations clearly',
-        description: 'Keep important store information easy to follow.',
-      },
-      {
-        title: 'Work together smoothly',
-        description: 'Help teams and operators communicate in the same rhythm.',
-      },
-      {
-        title: 'Ready for growth',
+        title: 'Franchise system',
         description:
-          'Build a management foundation that scales with the business.',
+          'Follow branch and franchise operating information from one management space.',
+      },
+      {
+        title: 'Stock system',
+        description:
+          'Manage product and ingredient lists so the team can follow the items used in the store systematically.',
+      },
+      {
+        title: 'Clock-in and clock-out system',
+        description:
+          'Record start and finish times to help teams follow staff working hours clearly.',
       },
     ],
-    detailTitle: 'One clear view to move the business forward',
+    detailTitle: 'What franchise teams can use to run the store',
     detailSummary:
-      'When important information is easy to understand, store teams and operators can spend more time deciding and caring for customers.',
+      'After onboarding, teams have tools to follow branch operations, manage stock, and record clock-ins and clock-outs. Access and setup details follow the operating model provided by the team.',
     details: [
       {
-        title: 'Follow key work systematically',
+        title: 'Manage franchise operations from one place',
         description:
-          'Bring together essential operating information to make the big picture and next priorities clearer.',
+          'Access the branch-related management space so owners and teams can see operating information relevant to their role.',
       },
       {
-        title: 'Connect the team’s rhythm',
+        title: 'Follow products and ingredients',
         description:
-          'Communicate and follow work from the same source of information, narrowing the gap between the store and planning.',
+          'Use the stock system to manage product and ingredient information related to branch operations.',
       },
       {
-        title: 'Use information to plan ahead',
+        title: 'Look after team working time',
         description:
-          'See operating patterns and prepare step by step as the business expands to more branches.',
+          'The clock-in and clock-out system records work start and finish times so teams can review time information more easily.',
       },
     ],
-    journeyTitle: 'From visible information to decisions that move forward',
+    systemScreens: [
+      {
+        title: 'Franchise overview',
+        description:
+          'View branch information, products ready to sell, and items that need attention in one place.',
+        image: '/services/system-previews/franchise-dashboard.jpg',
+      },
+      {
+        title: 'Ingredient requests',
+        description:
+          'Follow ingredient requests sent by the branch for the team to process.',
+        image: '/services/system-previews/franchise-ingredient-requests.jpg',
+      },
+      {
+        title: 'Menus and products',
+        description: 'Check branch menus, prices, and product availability.',
+        image: '/services/system-previews/franchise-products.jpg',
+      },
+      {
+        title: 'Employee schedules',
+        description: 'View and plan branch team schedules.',
+        image: '/services/system-previews/franchise-schedule.jpg',
+      },
+      {
+        title: 'Sales entry and stock deduction',
+        description:
+          'Front-of-house teams record sales so ingredients can be deducted against the selected menu item.',
+        image: '/services/system-previews/stock-sales.jpg',
+      },
+      {
+        title: 'Ingredient counting',
+        description:
+          'Check quantities and status, then order ingredients from one place.',
+        image: '/services/system-previews/stock-ingredients.jpg',
+      },
+      {
+        title: 'Promotions',
+        description:
+          'View and manage promotions according to the branch access granted.',
+        image: '/services/system-previews/stock-promotions.jpg',
+      },
+      {
+        title: 'Employee clock-in and clock-out',
+        description:
+          'Employees can record work time and view their work status from a mobile device.',
+        image: '/services/system-previews/attendance-clock.jpg',
+      },
+      {
+        title: 'Leave requests',
+        description:
+          'Employees can submit leave requests and provide the required details through the system.',
+        image: '/services/system-previews/attendance-leave-request.jpg',
+      },
+      {
+        title: 'Work history',
+        description:
+          'Review recorded clock-ins, clock-outs, and leave history.',
+        image: '/services/system-previews/attendance-history.jpg',
+      },
+    ],
+    journeyTitle: 'Start with three connected systems',
     journeySummary:
-      'SuperBlack Control is designed to connect important information with daily work, adapting to roles and business growth.',
+      'Set up accounts and access for the branch, then let the team work from the same information in everyday operations.',
     journey: [
       {
-        title: 'See the essential overview',
+        title: 'Manage franchise information',
         description:
-          'Start with information that makes operations easier to follow.',
+          'Start with the branch information and user accounts the team needs.',
       },
       {
-        title: 'Identify what needs care',
-        description: 'Use a shared view to prioritise the team’s next actions.',
+        title: 'Manage in-store stock',
+        description:
+          'Record and follow product and ingredient information through the branch process.',
       },
       {
-        title: 'Coordinate and improve',
-        description: 'Turn what you see into more continuous, effective work.',
+        title: 'Record clock-ins and clock-outs',
+        description:
+          'Let employees clock in and out through the procedure set by the store.',
       },
     ],
-    closingTitle: 'A system that keeps the team moving in one direction',
+    closingTitle: 'Run the store with systems your team uses together',
     closingDescription:
-      'Ask the franchise team how SuperBlack Control can support your business operations.',
+      'Ask the franchise team about franchise, stock, and clock-in and clock-out systems to find the setup that fits your branch.',
     actionLabel: 'Ask our franchise team',
   },
 };

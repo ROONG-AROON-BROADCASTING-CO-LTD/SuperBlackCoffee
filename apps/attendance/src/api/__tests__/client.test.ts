@@ -17,6 +17,23 @@ import {
 } from '../attendance';
 
 describe('attendance API client', () => {
+  it.each(
+    [null, [], 'unexpected', 42, {}, { success: 'true', data: {} }].map(
+      (payload) => ({ payload }),
+    ),
+  )(
+    'rejects an invalid response envelope without losing the HTTP status: $payload',
+    async ({ payload }) => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify(payload), { status: 401 }),
+      );
+      await expect(secured('/attendance/today')).rejects.toMatchObject({
+        name: 'ApiRequestError',
+        status: 401,
+        message: 'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง',
+      });
+    },
+  );
   afterEach(() => vi.restoreAllMocks());
 
   it('sends browser credentials so the HttpOnly attendance session cookie is included', async () => {

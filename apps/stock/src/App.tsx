@@ -273,7 +273,7 @@ export default function App() {
     }
   };
   const signOut = () => {
-    void logoutStock();
+    void logoutStock().catch(() => undefined);
     setSession(null);
     setIngredients([]);
     setDrinkStock([]);

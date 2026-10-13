@@ -8,9 +8,11 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { logout, restoreSession } from '../api/auth';
 import App from '../App';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('@stackbuild/ui', () => ({
   SbcThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+  ConnectionRetrySnackbar: () => null,
 }));
 vi.mock('../features/auth/FranchiseLoginPage', () => ({
   FranchiseLoginPage: () => <div>franchise-login</div>,
@@ -48,6 +50,42 @@ vi.mock('../api/auth', () => ({
 }));
 
 describe('Franchise App session', () => {
+  it('evicts the previous franchise cached data when signing out', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    client.setQueryData(
+      ['franchise-stock-requests'],
+      [{ id: 41, branchId: 1 }],
+    );
+    client.setQueryData(['franchise-account'], { username: 'old-owner' });
+    render(
+      <QueryClientProvider client={client}>
+        <App />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'franchise-logout' }),
+    );
+    expect(screen.getByText('franchise-login')).toBeInTheDocument();
+    expect(client.getQueryData(['franchise-stock-requests'])).toBeUndefined();
+    expect(client.getQueryData(['franchise-account'])).toBeUndefined();
+    client.clear();
+  });
+  it('clears franchise selection and local session when server logout fails offline', async () => {
+    sessionStorage.setItem('sbc-franchise-active-page', 'ingredients');
+    vi.mocked(logout).mockRejectedValueOnce(new Error('offline logout'));
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'franchise-logout' }),
+    );
+    await Promise.resolve();
+    await waitFor(() =>
+      expect(screen.getByText('franchise-login')).toBeInTheDocument(),
+    );
+    expect(sessionStorage.getItem('sbc-franchise-active-page')).toBeNull();
+    expect(logout).toHaveBeenCalledOnce();
+  });
   afterEach(() => {
     cleanup();
     sessionStorage.clear();

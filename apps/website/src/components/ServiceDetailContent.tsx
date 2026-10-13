@@ -16,6 +16,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
     <>
       <Box
         component="section"
+        className="sb-service-detail-hero"
         sx={{
           minHeight: { xs: '680px', md: '760px' },
           position: 'relative',
@@ -30,11 +31,13 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
       >
         <Box
           component="div"
+          className="sb-service-detail-hero-copy"
           sx={{
             width: '100%',
             maxWidth: '1680px',
             margin: '0 auto',
-            height: '100%',
+            minHeight: { xs: '680px', md: '760px' },
+            boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: { xs: 'flex-end', md: 'flex-start' },
@@ -85,6 +88,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
 
       <Box
         component="section"
+        className="sb-service-detail-section"
         sx={{
           background: '#000',
           color: '#fff',
@@ -97,6 +101,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
         <Box component="div" sx={{ maxWidth: '1500px', margin: '0 auto' }}>
           <Box
             component="div"
+            className="sb-service-detail-intro"
             sx={{
               display: 'grid',
               gridTemplateColumns: {
@@ -136,6 +141,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             {copy.points.map((point, index) => (
               <Box
                 component="li"
+                className="sb-service-detail-point"
                 key={point.title}
                 sx={{
                   display: 'grid',
@@ -185,11 +191,102 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
               </Box>
             ))}
           </Box>
+
+          {copy.systemScreens?.length ? (
+            <Box
+              component="section"
+              sx={{
+                marginTop: { xs: '66px', md: '92px' },
+                paddingTop: { xs: '36px', md: '48px' },
+                borderTop: '1px solid rgba(255,255,255,.22)',
+              }}
+            >
+              <Box
+                component="p"
+                sx={{
+                  margin: 0,
+                  color: '#c9a45e',
+                  font: '600 12px/1 var(--font-inter), sans-serif',
+                  letterSpacing: '.14em',
+                }}
+              >
+                SYSTEM PREVIEW
+              </Box>
+              <Box
+                component="h3"
+                sx={{
+                  margin: '14px 0 0',
+                  font: '400 clamp(27px, 2.7vw, 42px)/1.2 var(--font-ibm-plex-thai), sans-serif',
+                  letterSpacing: '-.035em',
+                }}
+              >
+                {isEnglish
+                  ? 'A look at the systems franchise teams use'
+                  : 'ดูหน้าตาระบบที่แฟรนไชส์ใช้'}
+              </Box>
+              <Box
+                component="div"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    md: 'repeat(2, minmax(0, 1fr))',
+                  },
+                  gap: { xs: '46px', md: '52px 34px' },
+                  marginTop: { xs: '32px', md: '42px' },
+                }}
+              >
+                {copy.systemScreens.map((screen) => (
+                  <Box
+                    component="article"
+                    key={screen.title}
+                    sx={{
+                      minWidth: 0,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={screen.image}
+                      alt={screen.title}
+                      sx={{
+                        display: 'block',
+                        width: '100%',
+                        height: 'auto',
+                        border: '1px solid rgba(201,164,94,.55)',
+                        borderRadius: '2px',
+                        background: '#171513',
+                      }}
+                    />
+                    <Box
+                      component="h4"
+                      sx={{
+                        margin: '19px 0 0',
+                        font: '400 clamp(20px, 1.55vw, 25px)/1.3 var(--font-ibm-plex-thai), sans-serif',
+                      }}
+                    >
+                      {screen.title}
+                    </Box>
+                    <Box
+                      component="p"
+                      sx={{
+                        margin: '9px 0 0',
+                        color: 'rgba(255,255,255,.62)',
+                        font: '400 16px/1.65 var(--font-ibm-plex-thai), sans-serif',
+                      }}
+                    >
+                      {screen.description}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : null}
         </Box>
       </Box>
 
       <Box
         component="section"
+        className="sb-service-detail-section"
         sx={{
           background: '#0d0c0a',
           color: '#fff',
@@ -202,6 +299,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
         <Box component="div" sx={{ maxWidth: '1500px', margin: '0 auto' }}>
           <Box
             component="div"
+            className="sb-service-detail-intro"
             sx={{
               display: 'grid',
               gridTemplateColumns: {
@@ -237,6 +335,26 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             >
               {copy.detailSummary}
             </Box>
+            {copy.reference ? (
+              <Box
+                component="a"
+                href={copy.reference.href}
+                target="_blank"
+                rel="noreferrer"
+                sx={{
+                  display: 'inline-flex',
+                  width: 'fit-content',
+                  marginTop: '18px',
+                  color: '#d9b66f',
+                  font: '600 14px/1.4 var(--font-ibm-plex-thai), sans-serif',
+                  textDecoration: 'underline',
+                  textUnderlineOffset: '4px',
+                  '&:hover': { color: '#fff' },
+                }}
+              >
+                {copy.reference.label}
+              </Box>
+            ) : null}
           </Box>
 
           <Box
@@ -310,6 +428,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
 
       <Box
         component="section"
+        className="sb-service-detail-section"
         sx={{
           background: '#000',
           color: '#fff',
@@ -322,6 +441,7 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
         <Box component="div" sx={{ maxWidth: '1500px', margin: '0 auto' }}>
           <Box
             component="div"
+            className="sb-service-detail-intro"
             sx={{
               display: 'grid',
               gridTemplateColumns: {

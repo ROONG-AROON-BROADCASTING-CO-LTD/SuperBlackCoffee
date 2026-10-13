@@ -148,6 +148,21 @@ vi.mock('../routes/AttendancePageRouter', () => ({
 }));
 
 describe('Attendance App session', () => {
+  it('clears attendance data and route when server logout fails offline', async () => {
+    vi.mocked(logoutAttendance).mockRejectedValueOnce(
+      new Error('offline logout'),
+    );
+    render(<App />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'attendance-logout' }),
+    );
+    await Promise.resolve();
+    await waitFor(() =>
+      expect(screen.getByText('attendance-login')).not.toBeNull(),
+    );
+    expect(location.pathname).toBe('/');
+    expect(logoutAttendance).toHaveBeenCalledOnce();
+  });
   it('does not swallow session expiry from the summary refresh after a successful check-in', async () => {
     vi.mocked(getAttendanceStatus).mockResolvedValueOnce({
       date: '2026-09-08',

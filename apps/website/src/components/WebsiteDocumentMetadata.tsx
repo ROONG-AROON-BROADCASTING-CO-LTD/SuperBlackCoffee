@@ -158,10 +158,13 @@ export function WebsiteDocumentMetadata() {
       ? getServiceCopy(pathname, isEnglish)
       : null;
 
-    return serviceCopy ?? pages[pathname]?.[language] ?? pages['/'][language];
+    // Dynamic branch pages already supply their own server metadata. Do not
+    // overwrite it with homepage copy when no client translation exists.
+    return serviceCopy ?? pages[pathname]?.[language] ?? null;
   }, [isEnglish, language, pathname]);
 
   useEffect(() => {
+    if (!copy) return;
     const applyMetadata = () => {
       const title = copy.home
         ? `Super Black Coffee - ${copy.title}`

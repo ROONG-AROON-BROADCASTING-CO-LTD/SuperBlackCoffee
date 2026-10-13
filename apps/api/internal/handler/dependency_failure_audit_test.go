@@ -27,11 +27,27 @@ func TestReadHandlersReportDatabaseFailureWithoutReturningSuccess(t *testing.T) 
 	}{
 		{"website inbox", h.ListWebsiteLeads},
 		{"promotions", h.ListPromotions},
+		{"staff directory", h.ListStaffUsers},
+		{"franchise directory", h.ListFranchisees},
+		{"asset inventory", h.ListAssets},
+		{"asset events", h.ListAssetEvents},
+		{"inspections", h.ListInspections},
+		{"inspection templates", h.ListInspectionTemplates},
+		{"service invoices", h.ListServiceInvoices},
+		{"purchase orders", h.ListPurchaseOrders},
+		{"stock movements", h.ListStockMovements},
+		{"dashboard consumption trend", h.DashboardTrend},
+		{"dashboard sales trend", h.SalesTrend},
+		{"expiry warning settings", h.GetExpiryWarningSettings},
+		{"branch catalog selections", h.ListBranchCatalogSelections},
+		{"branch catalog exceptions", h.ListCatalogTemplateExceptions},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			res := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(res)
 			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+			c.Request.URL.RawQuery = "branchId=1"
+			c.Params = gin.Params{{Key: "id", Value: "1"}, {Key: "branchId", Value: "1"}}
 			c.Set("claims", &middleware.Claims{Role: "admin", UserID: 7})
 			tt.handler(c)
 			if res.Code != http.StatusInternalServerError || !strings.Contains(res.Body.String(), `"success":false`) {

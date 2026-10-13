@@ -203,6 +203,30 @@ describe('EmployeesManagementPage', () => {
     );
   });
 
+  it('lets a manager set a compensatory public-holiday day off explicitly', async () => {
+    renderPage();
+    await waitForPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /พนักงานทดสอบ 08:00/ }));
+    fireEvent.mouseDown(screen.getByLabelText('สถานะ'));
+    fireEvent.click(
+      await screen.findByRole('option', {
+        name: 'หยุดชดเชยวันนักขัตฤกษ์',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'บันทึกกะงาน' }));
+
+    await waitFor(() =>
+      expect(updateStaffShift).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          status: 'day_off',
+          leaveType: 'วันหยุดชดเชยวันนักขัตฤกษ์: กำหนดเอง',
+        }),
+      ),
+    );
+  });
+
   it('shows the employee and their scheduled shift', async () => {
     renderPage();
     await waitForPage();
@@ -293,12 +317,12 @@ describe('EmployeesManagementPage', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'เพิ่มพนักงาน' }));
-    expect(screen.getByText('กฎวันหยุดสำนักงานใหญ่')).toBeInTheDocument();
+    expect(screen.queryByText('กฎวันหยุดสำนักงานใหญ่')).not.toBeInTheDocument();
     expect(
-      screen.getByText(
+      screen.queryByText(
         'หยุดวันอาทิตย์และวันนักขัตฤกษ์ ไม่มีวันหยุดประจำเดือนหรือวันหยุดชดเชยอัตโนมัติ',
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText('แผนก')).not.toBeInTheDocument();
     expect(
       screen.queryByLabelText('สาขาที่ปฏิบัติงาน'),

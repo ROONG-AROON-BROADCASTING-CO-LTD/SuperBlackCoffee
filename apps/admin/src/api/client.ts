@@ -8,6 +8,10 @@ const apiClient = axios.create({
 });
 const inFlightSecuredGetRequests = new Map<string, Promise<unknown>>();
 
+export function resetAdminRequests() {
+  inFlightSecuredGetRequests.clear();
+}
+
 export type { ApiEnvelope } from '@stackbuild/types';
 
 function messageFrom(error: unknown) {

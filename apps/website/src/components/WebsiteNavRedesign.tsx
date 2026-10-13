@@ -5,7 +5,7 @@ import { websiteSx } from './websiteSx';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { franchiseLoginUrl } from './franchise-login-url';
 import { useWebsiteLanguage } from './WebsiteLanguageProvider';
 
@@ -22,6 +22,8 @@ export function WebsiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { language, text, toggleLanguage } = useWebsiteLanguage();
   const isTransparent = !isScrolled && !open;
 
@@ -33,9 +35,68 @@ export function WebsiteNav() {
     return () => window.removeEventListener('scroll', updateScrolledState);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    // The header lives inside <main>, so only disable its content siblings.
+    const background = [
+      ...document.querySelectorAll<HTMLElement>('main > :not(header)'),
+    ].filter((element) => !element.contains(headerRef.current));
+    const previousInert = background.map((element) => element.inert);
+    document.body.style.overflow = 'hidden';
+    background.forEach((element) => {
+      element.inert = true;
+    });
+    menuRef.current?.querySelector<HTMLElement>('a')?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [
+        ...(headerRef.current?.querySelectorAll<HTMLElement>('a, button') ??
+          []),
+      ].filter((element) => element.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+    const onResize = () => {
+      if (
+        !window.matchMedia(
+          '(max-width: 1280px), (max-width: 1366px) and (hover: none) and (pointer: coarse)',
+        ).matches
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      background.forEach((element, index) => {
+        element.inert = previousInert[index];
+      });
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', onResize);
+      previousFocus?.focus({ preventScroll: true });
+    };
+  }, [open]);
+
   return (
     <Box
       component="header"
+      ref={headerRef}
       sx={[
         websiteSx['sb-header'],
         websiteSx['sb-header-overlay'],
@@ -165,6 +226,8 @@ export function WebsiteNav() {
           component="button"
           sx={[websiteSx['sb-menu-toggle']]}
           className="sb-menu-toggle"
+          type="button"
+          aria-controls="sb-mobile-navigation"
           aria-label={
             open ? text('ปิดเมนู', 'Close menu') : text('เปิดเมนู', 'Open menu')
           }
@@ -181,6 +244,11 @@ export function WebsiteNav() {
           component="div"
           sx={[websiteSx['sb-mobile-nav']]}
           className="sb-mobile-nav"
+          id="sb-mobile-navigation"
+          ref={menuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={text('เมนูนำทาง', 'Navigation menu')}
         >
           {links.map(([thaiLabel, englishLabel, href]) => (
             <Link

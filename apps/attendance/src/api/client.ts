@@ -33,6 +33,16 @@ async function request<T>(path: string, options: RequestInit = {}) {
         response.status,
       );
     }
+    if (
+      payload === null ||
+      typeof payload !== 'object' ||
+      typeof payload.success !== 'boolean'
+    ) {
+      throw new ApiRequestError(
+        'ข้อมูลจากระบบไม่สมบูรณ์ กรุณาลองใหม่อีกครั้ง',
+        response.status,
+      );
+    }
     if (!response.ok || !payload.success) {
       throw new ApiRequestError(
         payload.message ?? 'ไม่สามารถเชื่อมต่อระบบได้',
