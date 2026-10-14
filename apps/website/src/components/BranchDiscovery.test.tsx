@@ -28,7 +28,6 @@ vi.mock('./WebsiteLanguageProvider', () => ({
 }));
 vi.mock('./GoogleAnalytics', () => ({ trackEvent: vi.fn() }));
 import { BranchesContent, MenuContent } from './BrandPagesRedesign';
-import { branchPromotions } from './promotionData';
 
 afterEach(cleanup);
 describe('branch discovery and branch-specific menus', () => {
@@ -52,38 +51,20 @@ describe('branch discovery and branch-specific menus', () => {
   });
 
   it.each(['ayutthaya', 'phitsanulok'])(
-    'shows only %s promotion artwork when its menu tab is selected',
+    'keeps promotions out of the %s menu catalogue while category tabs still work',
     (slug) => {
       render(<MenuContent branchSlug={slug} />);
       const tabs = screen.getByRole('tablist', { name: 'ประเภทเมนู' });
-      const promotionTab = within(tabs).getByRole('tab', { name: 'โปรโมชั่น' });
-      fireEvent.click(promotionTab);
-      expect(promotionTab).toHaveAttribute('aria-selected', 'true');
-      const own = branchPromotions[slug].items;
-      for (const item of own) {
-        expect(screen.getByRole('img', { name: item.name })).toHaveAttribute(
-          'src',
-          item.image,
-        );
-        expect(
-          screen.getByRole('heading', { name: item.name }),
-        ).toBeInTheDocument();
-      }
-      const other = slug === 'ayutthaya' ? 'phitsanulok' : 'ayutthaya';
-      for (const item of branchPromotions[other].items.filter(
-        (item) => !own.some((ownItem) => ownItem.name === item.name),
-      )) {
-        expect(
-          screen.queryByRole('img', { name: item.name }),
-        ).not.toBeInTheDocument();
-      }
+      expect(
+        within(tabs).queryByRole('tab', { name: 'โปรโมชั่น' }),
+      ).not.toBeInTheDocument();
       const first = within(tabs).getAllByRole('tab')[0];
+      const second = within(tabs).getAllByRole('tab')[1];
       fireEvent.click(first);
       expect(first).toHaveAttribute('aria-selected', 'true');
-      expect(promotionTab).toHaveAttribute('aria-selected', 'false');
-      expect(
-        screen.queryByRole('img', { name: own[0].name }),
-      ).not.toBeInTheDocument();
+      fireEvent.click(second);
+      expect(second).toHaveAttribute('aria-selected', 'true');
+      expect(first).toHaveAttribute('aria-selected', 'false');
     },
   );
 });

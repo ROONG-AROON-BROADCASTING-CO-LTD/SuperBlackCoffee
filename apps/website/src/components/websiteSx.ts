@@ -404,7 +404,7 @@ export const websiteSx = {
     minWidth: '0',
   },
   'sb-footer-brand-title': {
-    font: '700 clamp(18px, 1.6vw, 24px)/1 var(--font-inter), sans-serif',
+    font: '700 clamp(20px, 1.7vw, 26px)/1 var(--font-inter), sans-serif',
     letterSpacing: '0.035em',
     whiteSpace: 'nowrap',
   },
@@ -414,7 +414,7 @@ export const websiteSx = {
     '& p': {
       margin: '0',
       color: 'rgba(245, 245, 240, 0.68)',
-      font: '400 15px/1.75 var(--font-ibm-plex-thai), sans-serif',
+      font: '400 17px/1.7 var(--font-ibm-plex-thai), sans-serif',
     },
   },
   'sb-footer-branch-link': {
@@ -425,7 +425,7 @@ export const websiteSx = {
     paddingBottom: '16px',
     borderBottom: '1px solid rgba(213, 175, 98, 0.46)',
     color: 'var(--sb-gold)',
-    font: '600 13px/1 var(--font-ibm-plex-thai), sans-serif',
+    font: '600 15px/1.15 var(--font-ibm-plex-thai), sans-serif',
     transition: 'border-color 220ms ease, color 220ms ease',
     '& svg': {
       width: '16px',
@@ -453,7 +453,7 @@ export const websiteSx = {
       gap: '16px',
     },
     '& span:first-child': {
-      font: '600 11px/1 var(--font-ibm-plex-thai), sans-serif',
+      font: '600 13px/1 var(--font-ibm-plex-thai), sans-serif',
       letterSpacing: '0.08em',
       textTransform: 'uppercase',
       color: 'var(--sb-gold)',
@@ -462,7 +462,7 @@ export const websiteSx = {
     '& a': {
       position: 'relative',
       color: 'rgba(245, 245, 240, 0.68)',
-      font: '400 14px/1.35 var(--font-ibm-plex-thai), sans-serif',
+      font: '400 16px/1.45 var(--font-ibm-plex-thai), sans-serif',
       transition: 'color 200ms ease',
       '&::after': {
         content: "''",
@@ -477,7 +477,7 @@ export const websiteSx = {
     },
     '& span:not(:first-child)': {
       color: 'rgba(245, 245, 240, 0.46)',
-      font: '400 13px/1.45 var(--font-ibm-plex-thai), sans-serif',
+      font: '400 15px/1.5 var(--font-ibm-plex-thai), sans-serif',
     },
     '& a:hover': {
       color: 'var(--sb-gold)',
@@ -502,7 +502,7 @@ export const websiteSx = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '30px',
-    font: '500 11px var(--font-ibm-plex-thai), sans-serif',
+    font: '500 13px/1.45 var(--font-ibm-plex-thai), sans-serif',
     color: 'rgba(245, 245, 240, 0.43)',
     '& > div': {
       display: 'flex',
@@ -886,7 +886,7 @@ export const websiteSx = {
     },
   },
   'sb-hero-stats': {
-    margin: 'clamp(18px, 2vw, 32px) var(--sb-gutter) clamp(58px, 6vw, 100px)',
+    margin: 'clamp(18px, 2vw, 32px) var(--sb-gutter) clamp(32px, 3vw, 52px)',
     display: 'grid',
     gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
     background: '#000',
@@ -997,7 +997,7 @@ export const websiteSx = {
     },
   },
   'sb-promotions': {
-    padding: 'clamp(54px, 7vw, 108px) var(--sb-gutter)',
+    padding: 'clamp(38px, 4vw, 64px) var(--sb-gutter)',
     background: '#000',
     color: '#fff',
     '& .sb-promotions-heading': {

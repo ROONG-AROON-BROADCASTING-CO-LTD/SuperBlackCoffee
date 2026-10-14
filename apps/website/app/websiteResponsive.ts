@@ -110,7 +110,7 @@ export const websiteResponsive = {
       'body .sb-hero-stats': {
         display: 'grid',
         gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-        marginBlock: '24px 48px',
+        marginBlock: '24px 32px',
         overflow: 'hidden',
       },
       'body .sb-hero-stat': {
@@ -447,7 +447,7 @@ export const websiteResponsive = {
       gap: '10px',
     },
     'body .sb-hero-stat strong': { fontSize: '26px' },
-    'body .sb-promotions': { paddingBlock: '40px' },
+    'body .sb-promotions': { paddingBlock: '32px' },
     'body .sb-promotions .sb-promotions-heading h2': {
       fontSize: '30px',
       lineHeight: '1.3',

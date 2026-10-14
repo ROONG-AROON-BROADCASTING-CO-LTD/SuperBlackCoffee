@@ -2751,12 +2751,9 @@ export function MenuContent({ branchSlug }: { branchSlug?: string }) {
         ]),
       )
     : allMenuCatalog;
-  const promotionItems = branch
-    ? branchPromotions[branch.slug]?.items
-    : undefined;
-  const menuCatalog: Record<string, MenuItem[]> = promotionItems
-    ? { ...baseMenuCatalog, โปรโมชั่น: promotionItems }
-    : baseMenuCatalog;
+  // Promotions are intentionally kept on the branch and home pages, not mixed
+  // into the food-and-drink menu catalogue.
+  const menuCatalog: Record<string, MenuItem[]> = baseMenuCatalog;
   const categories = Object.keys(menuCatalog);
   const activeCategory = menuCatalog[active] ? active : categories[0];
   const translatedBranch = branch ? branchTranslations[branch.name] : undefined;
