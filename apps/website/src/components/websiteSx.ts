@@ -2391,6 +2391,18 @@ export const websiteSx = {
     // Keep every inner-page title on the same top baseline as the homepage,
     // regardless of whether the title wraps to one or more lines.
     padding: '224px 0 0 var(--sb-gutter)',
+    '& .sb-inner-location': {
+      margin: '22px 0 0',
+      color: 'var(--sb-gold)',
+      fontSize: 'clamp(16px, 1.25vw, 20px)',
+      fontWeight: '700',
+      lineHeight: '1.45',
+      letterSpacing: '.015em',
+      textWrap: 'balance',
+    },
+    '& .sb-inner-location + p': {
+      marginTop: '14px',
+    },
     '@media (max-width: 800px)': {
       width: 'min(680px, 95vw)',
     },

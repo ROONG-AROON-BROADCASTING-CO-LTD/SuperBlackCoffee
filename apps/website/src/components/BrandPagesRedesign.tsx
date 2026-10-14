@@ -1604,11 +1604,13 @@ function SectionHeading({
 function InnerHero({
   title,
   text,
+  location,
   image,
   dark = true,
 }: {
   title: string;
   text: string;
+  location?: string;
   image: string;
   eyebrow?: string;
   dark?: boolean;
@@ -1628,6 +1630,7 @@ function InnerHero({
         className="sb-inner-copy"
       >
         <h1>{title}</h1>
+        {location && <p className="sb-inner-location">{location}</p>}
         <p>{text}</p>
       </Box>
       <Photo src={image} alt="Super Black Coffee" priority />
@@ -2440,6 +2443,10 @@ export function AboutContent() {
           'ไร่กาแฟหัวพัน สปป.ลาว',
           'Our coffee farm in Houaphanh, Laos',
         )}
+        location={text(
+          'บ้าน ຈາດ (บ้านจาด) · เมืองเวียงไซ · แขวงหัวพัน · สปป.ลาว',
+          'Ban Chad (ຈາດ) · Viengxay District · Houaphanh Province · Lao PDR',
+        )}
         text={text(
           'แหล่งปลูกกาแฟคุณภาพที่ยังคงความบริสุทธิ์ของธรรมชาติ และเต็มไปด้วยเอกลักษณ์เฉพาะตัว',
           'A quality coffee origin with the purity of nature and a distinctive character.',
@@ -2497,6 +2504,12 @@ export function AboutContent() {
             {text(
               'พิกัด 20°14\'44.2\"N 104°27\'09.0\"E คือพื้นที่ปลูกที่โอบล้อมด้วยธรรมชาติ และเป็นต้นทางของเมล็ดกาแฟที่เราดูแลอย่างตั้งใจ',
               'At 20°14\'44.2\"N 104°27\'09.0\"E, our growing area is surrounded by nature and is the carefully tended origin of our coffee beans.',
+            )}
+          </p>
+          <p>
+            {text(
+              'ไร่ตั้งอยู่ในเขตบ้าน ຈາດ (บ้านจาด) เมืองเวียงไซ แขวงหัวพัน สปป.ลาว',
+              'The farm is in the Ban Chad (ຈາດ) area of Viengxay District, Houaphanh Province, Lao PDR.',
             )}
           </p>
         </Box>
