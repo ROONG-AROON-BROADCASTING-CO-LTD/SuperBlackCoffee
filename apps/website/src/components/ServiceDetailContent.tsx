@@ -18,7 +18,14 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
         component="section"
         className="sb-service-detail-hero"
         sx={{
-          minHeight: { xs: '680px', md: '760px' },
+          // Keep every service hero on the same viewport-based canvas as the
+          // home page.  A fixed desktop height made service artwork appear
+          // shorter or taller than the landing hero on different screens.
+          height: {
+            xs: '680px',
+            md: 'clamp(640px, calc(100svh - 72px), 940px)',
+          },
+          minHeight: { xs: '620px', md: '620px' },
           position: 'relative',
           display: 'flex',
           alignItems: 'stretch',
@@ -36,7 +43,8 @@ export function ServiceDetailContent({ service }: { service: ServiceDetail }) {
             width: '100%',
             maxWidth: '1680px',
             margin: '0 auto',
-            minHeight: { xs: '680px', md: '760px' },
+            height: '100%',
+            minHeight: 0,
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
